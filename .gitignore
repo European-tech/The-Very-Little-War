@@ -11,3 +11,11 @@ includes/connexion.php.bak
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+logs/*.log
+
+# Composer
+vendor/
+composer.lock
+*.phar
