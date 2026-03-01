@@ -9,7 +9,7 @@ if (isset($_SESSION['login'])) {
 include("includes/bbcode.php");
 
 // alliance du joueur
-$ex = query('SELECT * FROM alliances WHERE id=\'' . $autre['idalliance'] . '\'');
+$ex = dbQuery($base, 'SELECT * FROM alliances WHERE id=?', 'i', $autre['idalliance']);
 $allianceJoueur = mysqli_fetch_array($ex);
 
 //si pas d'alliance alors -1
@@ -25,30 +25,25 @@ if (!isset($_GET['id'])) {
 }
 
 if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJoueur['tag'] == -1) {
+    csrfCheck();
     if (!empty($_POST['nomalliance']) and !empty($_POST['tagalliance'])) {
-        $sql = 'SELECT idalliance FROM autre WHERE login=\'' . $_SESSION['login'] . '\'';
-        $ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
-        $idalliance = mysqli_fetch_array($ex);
+        $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
         if ($idalliance['idalliance'] <= 0) {
             $_POST['nomalliance'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['nomalliance'])));
             $_POST['tagalliance'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['tagalliance'])));
 
             if (preg_match("#^[a-zA-Z0-9_]{3,16}$#", $_POST['tagalliance'])) {
 
-                $sql2 = 'SELECT nom FROM alliances WHERE tag=\'' . $_POST['tagalliance'] . '\' OR nom=\'' . $_POST['nomalliance'] . '\'';
-                $ex2 = mysqli_query($base, $sql2) or die('Erreur SQL !<br />' . $sql2 . '<br />' . mysqli_error($base));
+                $ex2 = dbQuery($base, 'SELECT nom FROM alliances WHERE tag=? OR nom=?', 'ss', $_POST['tagalliance'], $_POST['nomalliance']);
                 $nballiance = mysqli_num_rows($ex2);
 
                 if ($nballiance == 0) {
-                    $sql3 = 'INSERT INTO alliances VALUES (default, "' . $_POST['nomalliance'] . '", "' . $_POST['tagalliance'] . '", "", default, "' . $_SESSION['login'] . '", default, default, default, default, default, default, default,default)';
-                    mysqli_query($base, $sql3) or die('Erreur SQL !<br />' . $sql3 . '<br />' . mysqli_error($base));
+                    dbExecute($base, 'INSERT INTO alliances VALUES (default, ?, ?, ?, default, ?, default, default, default, default, default, default, default, default)', 'ssss',
+                        $_POST['nomalliance'], $_POST['tagalliance'], '', $_SESSION['login']);
 
-                    $sql4 = 'SELECT id FROM alliances WHERE tag=\'' . $_POST['tagalliance'] . '\'';
-                    $ex4 = mysqli_query($base, $sql4) or die('Erreur SQL !<br />' . $sql4 . '<br />' . mysqli_error($base));
-                    $nouvellealliance = mysqli_fetch_array($ex4);
+                    $nouvellealliance = dbFetchOne($base, 'SELECT id FROM alliances WHERE tag=?', 's', $_POST['tagalliance']);
 
-                    $sql5 = 'UPDATE autre SET idalliance=\'' . $nouvellealliance['id'] . '\' WHERE login=\'' . $_SESSION['login'] . '\'';
-                    mysqli_query($base, $sql5) or die('Erreur SQL !<br />' . $sql5 . '<br />' . mysqli_error($base));
+                    dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $nouvellealliance['id'], $_SESSION['login']);
 
                     $information = "Votre équipe a été créée.";
                     echo '<script>window.location="alliance.php";</script>';
@@ -68,23 +63,22 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
 // si notre alliance
 if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
     if (isset($_POST['quitter'])) {
-        $sql = 'UPDATE autre SET idalliance=0 WHERE login=\'' . $_SESSION['login'] . '\'';
-        mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
+        csrfCheck();
+        dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_SESSION['login']);
     }
 
-    $sql = 'SELECT idalliance FROM autre WHERE login=\'' . $_SESSION['login'] . '\'';
-    $ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
-    $idalliance = mysqli_fetch_array($ex);
-    $ex = mysqli_query($base, 'SELECT duplicateur FROM alliances WHERE id=\'' . $idalliance['idalliance'] . '\'');
-    $duplicateur = mysqli_fetch_array($ex);
+    $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+    $duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
     $cout = round(10 * pow(2.5, ($duplicateur['duplicateur'] + 1)));
 
     if (isset($_POST['augmenterDuplicateur'])) {
-        $ex = mysqli_query($base, 'SELECT energieAlliance FROM alliances WHERE id=\'' . $idalliance['idalliance'] . '\'');
-        $energieAlliance = mysqli_fetch_array($ex);
+        csrfCheck();
+        $energieAlliance = dbFetchOne($base, 'SELECT energieAlliance FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 
         if ($energieAlliance['energieAlliance'] >= $cout) {
-            mysqli_query($base, 'UPDATE alliances SET duplicateur=\'' . ($duplicateur['duplicateur'] + 1) . '\', energieAlliance=\'' . ($energieAlliance['energieAlliance'] - $cout) . '\' WHERE id=\'' . $idalliance['idalliance'] . '\'');
+            $newDup = $duplicateur['duplicateur'] + 1;
+            $newEnergie = $energieAlliance['energieAlliance'] - $cout;
+            dbExecute($base, 'UPDATE alliances SET duplicateur=?, energieAlliance=? WHERE id=?', 'idi', $newDup, $newEnergie, $idalliance['idalliance']);
             $information = "Vous avez augmenté votre duplicateur au niveau " . ($duplicateur['duplicateur'] + 1) . ".";
         } else {
             $erreur = "Vous n'avez pas assez d'énergie.";
@@ -94,22 +88,19 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
 
 if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
     if (isset($_POST['actioninvitation']) and isset($_POST['idinvitation'])) {
+        csrfCheck();
         $_POST['idinvitation'] = antiXSS($_POST['idinvitation']);
-        $sql = 'SELECT idalliance FROM invitations WHERE id=\'' . $_POST['idinvitation'] . '\'';
-        $ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
-        $idalliance = mysqli_fetch_array($ex);
+        $idalliance = dbFetchOne($base, 'SELECT idalliance FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
 
-        $ex = query('SELECT login FROM autre WHERE idalliance=\'' . $idalliance['idalliance'] . '\'');
+        $ex = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
         $nombreJoueurs = mysqli_num_rows($ex);
         if ($nombreJoueurs < $joueursEquipe) {
             if ($_POST['actioninvitation'] == "Accepter") {
-                $sql1 = 'UPDATE autre SET idalliance=\'' . $idalliance['idalliance'] . '\' WHERE login=\'' . $_SESSION['login'] . '\'';
-                mysqli_query($base, $sql1) or die('Erreur SQL !<br />' . $sql1 . '<br />' . mysqli_error($base));
+                dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
                 $information = "Vous avez accepté l'invitation.";
                 echo '<script>window.location="alliance.php";</script>';
             }
-            $sql2 = 'DELETE FROM invitations WHERE id=\'' . $_POST['idinvitation'] . '\'';
-            mysqli_query($base, $sql2) or die('Erreur SQL !<br />' . $sql2 . '<br />' . mysqli_error($base));
+            dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
         } else {
             $erreur = "Le nombre maximal de joueurs dans l'équipe est atteint.";
         }
@@ -118,17 +109,13 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
 include("includes/tout.php");
 
 // Verification que le chef de l'alliance existe, sinon on supprimmer l'alliance et les invitations et les numeros dans autre
-$sql = 'SELECT id as idalliance FROM alliances WHERE tag=\'' . $_GET['id'] . '\'';
-$ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
+$ex = dbQuery($base, 'SELECT id as idalliance FROM alliances WHERE tag=?', 's', $_GET['id']);
 $idalliance = mysqli_fetch_array($ex);
 if ($_GET['id'] != -1) {
     if (mysqli_num_rows($ex) > 0) {
-        $sql1 = 'SELECT chef FROM alliances WHERE id=\'' . $idalliance['idalliance'] . '\'';
-        $ex1 = mysqli_query($base, $sql1) or die('Erreur SQL !<br />' . $sql1 . '<br />' . mysqli_error($base));
-        $chef = mysqli_fetch_array($ex1);
+        $chef = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 
-        $sql2 = 'SELECT idalliance FROM autre WHERE login=\'' . $chef['chef'] . '\'';
-        $ex2 = mysqli_query($base, $sql2) or die('Erreur SQL !<br />' . $sql2 . '<br />' . mysqli_error($base));
+        $ex2 = dbQuery($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $chef['chef']);
         $idalliancechef = mysqli_fetch_array($ex2);
         $chefExiste = mysqli_num_rows($ex2);
 
@@ -142,12 +129,9 @@ if ($_GET['id'] != -1) {
             exit();
         }
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        $sql1 = 'SELECT * FROM alliances WHERE id=\'' . $idalliance['idalliance'] . '\'';
-        $ex1 = mysqli_query($base, $sql1) or die('Erreur SQL !<br />' . $sql1 . '<br />' . mysqli_error($base));
-        $allianceJoueurPage = mysqli_fetch_array($ex1);
+        $allianceJoueurPage = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 
-        $sql2 = 'SELECT totalPoints FROM autre WHERE idalliance="' . $idalliance['idalliance'] . '" ORDER BY points DESC';
-        $ex2 = mysqli_query($base, $sql2) or die('Erreur SQL !<br />' . $sql2 . '<br />' . mysqli_error($base));
+        $ex2 = dbQuery($base, 'SELECT totalPoints FROM autre WHERE idalliance=? ORDER BY points DESC', 'i', $idalliance['idalliance']);
         $nbjoueurs = mysqli_num_rows($ex2);
         $pointstotaux = 0;
         while ($joueur = mysqli_fetch_array($ex2)) {
@@ -156,7 +140,7 @@ if ($_GET['id'] != -1) {
 
         debutCarte(stripslashes($allianceJoueurPage['nom']));
 
-        $rangQuery = query('SELECT tag FROM alliances ORDER BY pointstotaux DESC');
+        $rangQuery = dbQuery($base, 'SELECT tag FROM alliances ORDER BY pointstotaux DESC');
         $rang = 1;
 
         while ($rangEx = mysqli_fetch_array($rangQuery)) {
@@ -176,7 +160,7 @@ if ($_GET['id'] != -1) {
         echo chipInfo('<span class="important">Points de victoire : </span>' . $allianceJoueurPage['pointsVictoire'], 'images/classement/victoires.png') . '<br/>';
         echo nombreEnergie('<span class="important">Energie : </span>' . number_format(floor($allianceJoueurPage['energieAlliance']), 0, ' ', ' ')) . '<br/>';
 
-        $ex = mysqli_query($base, 'SELECT * FROM grades WHERE idalliance=\'' . $allianceJoueurPage['id'] . '\'');
+        $ex = dbQuery($base, 'SELECT * FROM grades WHERE idalliance=?', 'i', $allianceJoueurPage['id']);
         $nb = mysqli_num_rows($ex);
 
         if ($nb > 0) {
@@ -188,35 +172,31 @@ if ($_GET['id'] != -1) {
         ?>
 
         <?php
-        $ex = mysqli_query($base, 'SELECT * FROM declarations WHERE type=0 AND (alliance1=\'' . $allianceJoueurPage['id'] . '\' OR alliance2=\'' . $allianceJoueurPage['id'] . '\') AND fin=0');
+        $ex = dbQuery($base, 'SELECT * FROM declarations WHERE type=0 AND (alliance1=? OR alliance2=?) AND fin=0', 'ii', $allianceJoueurPage['id'], $allianceJoueurPage['id']);
         $nb = mysqli_num_rows($ex);
         if ($nb > 0) {
             echo '<br/><br/>' . important("Guerres");
             while ($guerre = mysqli_fetch_array($ex)) {
                 if ($guerre['alliance1'] == $allianceJoueurPage['id']) {
-                    $ex1 = mysqli_query($base, 'SELECT tag FROM alliances WHERE id=\'' . $guerre['alliance2'] . '\'');
-                    $allianceJoueurAdverse = mysqli_fetch_array($ex1);
+                    $allianceJoueurAdverse = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance2']);
                     echo '<br/>- <a href="guerre.php?id=' . $guerre['id'] . '"> contre ' . $allianceJoueurAdverse['tag'] . '</a>';
                 } else {
-                    $ex1 = mysqli_query($base, 'SELECT tag FROM alliances WHERE id=\'' . $guerre['alliance1'] . '\'');
-                    $allianceJoueurAdverse = mysqli_fetch_array($ex1);
+                    $allianceJoueurAdverse = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance1']);
                     echo '<br/>- <a href="guerre.php?id=' . $guerre['id'] . '"> contre ' . $allianceJoueurAdverse['tag'] . '</a>';
                 }
             }
         }
 
-        $ex = mysqli_query($base, 'SELECT * FROM declarations WHERE type=1 AND (alliance1=\'' . $allianceJoueurPage['id'] . '\' OR alliance2=\'' . $allianceJoueurPage['id'] . '\') AND valide!=0');
+        $ex = dbQuery($base, 'SELECT * FROM declarations WHERE type=1 AND (alliance1=? OR alliance2=?) AND valide!=0', 'ii', $allianceJoueurPage['id'], $allianceJoueurPage['id']);
         $nb = mysqli_num_rows($ex);
         if ($nb > 0) {
             echo '<br/><br/>' . important("Pactes");
             while ($pacte = mysqli_fetch_array($ex)) {
                 if ($pacte['alliance1'] == $allianceJoueurPage['id']) {
-                    $ex1 = mysqli_query($base, 'SELECT tag FROM alliances WHERE id=\'' . $pacte['alliance2'] . '\'');
-                    $allianceJoueurAllie = mysqli_fetch_array($ex1);
+                    $allianceJoueurAllie = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $pacte['alliance2']);
                     echo '<br/>- avec <a href="alliance.php?id=' . $allianceJoueurAllie['tag'] . '">' . $allianceJoueurAllie['tag'] . '</a>';
                 } else {
-                    $ex1 = mysqli_query($base, 'SELECT tag FROM alliances WHERE id=\'' . $pacte['alliance1'] . '\'');
-                    $allianceJoueurAllie = mysqli_fetch_array($ex1);
+                    $allianceJoueurAllie = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $pacte['alliance1']);
                     echo '<br/>- avec <a href="alliance.php?id=' . $allianceJoueurAllie['tag'] . '">' . $allianceJoueurAllie['tag'] . '</a>';
                 }
             }
@@ -224,7 +204,7 @@ if ($_GET['id'] != -1) {
 
         // On regarde si le joueur a un grade si il est dans l'alliance
         if ($_GET['id'] == $allianceJoueur['tag']) {
-            $ex = mysqli_query($base, 'SELECT login FROM grades WHERE login=\'' . $_SESSION['login'] . '\' AND idalliance=\'' . $allianceJoueur['id'] . '\'');
+            $ex = dbQuery($base, 'SELECT login FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $allianceJoueur['id']);
             $grade = mysqli_num_rows($ex);
             $admin = '';
             if (mysqli_real_escape_string($base, stripslashes(antihtml($allianceJoueur['chef']))) == $_SESSION['login'] or $grade > 0) {
@@ -232,6 +212,7 @@ if ($_GET['id'] != -1) {
             }
 
             echo '<form action="alliance.php" method="post">';
+            echo csrfField();
             finCarte($admin . '
             <a href="ecriremessage.php?destinataire=[alliance]" class="lienSousMenu"><img alt="message" src="images/alliance/message_ferme.png" title="Ecrire un message à l\'équipe" class="imageSousMenu"/><br/><span class="labelSousMenu"  style="color:black">Message</span></a>
             <a href="don.php" class="lienSousMenu"><img alt="dpn" src="images/alliance/give.png" title="Faire un don" class="imageSousMenu"/><br/><span class="labelSousMenu"  style="color:black">Donner</span></a>
@@ -266,7 +247,7 @@ if ($_GET['id'] != -1) {
                   +' . (100 * bonusDuplicateur($allianceJoueur['duplicateur'] + 1)) . '% de production de toute les ressources<br/>' .
                     '+ ' . (100 * bonusDuplicateur($allianceJoueur['duplicateur'] + 1)) . '% de de défense et d\'attaque<br/>au <strong>niveau ' . ($allianceJoueur['duplicateur'] + 1) . '</strong>
                   <br/><br/>' . finContent(false, true) . '
-                  <form action="alliance.php" method="post" name="augmenterDuplicateur">' .
+                  <form action="alliance.php" method="post" name="augmenterDuplicateur">' . csrfField() .
                     important('Augmenter') . '
                   ' . nombreEnergie($cout) . '<br/><br/>
                   ' . submit(['titre' => 'niveau ' . ($allianceJoueur['duplicateur'] + 1), 'image' => 'images/boutons/arrow.png', 'form' => 'augmenterDuplicateur']) . '
@@ -298,6 +279,8 @@ if ($_GET['id'] != -1) {
                     if (!isset($_GET['clas'])) {
                         $_GET['clas'] = 0;
                     }
+                    // Whitelist the order column to prevent SQL injection
+                    $allowedOrders = ['totalPoints', 'victoires', 'pointsAttaque', 'pointsDefense', 'ressourcesPillees', 'points', 'energieDonnee'];
                     switch ($_GET['clas']) {
                         case 0:
                             $order = 'totalPoints';
@@ -325,8 +308,8 @@ if ($_GET['id'] != -1) {
                             break;
                     }
 
-                    $sql3 = 'SELECT * FROM autre WHERE idalliance="' . $idalliance['idalliance'] . '" ORDER BY ' . $order . ' DESC';
-                    $ex3 = mysqli_query($base, $sql3) or die('Erreur SQL !<br />' . $sql3 . '<br />' . mysqli_error($base));
+                    // $order is from a whitelist, safe to use in query. idalliance is parameterized.
+                    $ex3 = dbQuery($base, 'SELECT * FROM autre WHERE idalliance=? ORDER BY ' . $order . ' DESC', 'i', $idalliance['idalliance']);
                     $c = 1;
                     while ($joueur1 = mysqli_fetch_array($ex3)) {
                     ?>
@@ -366,6 +349,7 @@ if ($_GET['id'] != -1) {
     ?>
     Vous n'appartenez à aucune alliance. Envoyez votre candidature au chef de l'alliance que vous voulez intégrer ou créez en une ci dessous.<br /><br />
     <form action="alliance.php" method="post" name="creerallianceForm">
+        <?php echo csrfField(); ?>
         <input type="hidden" name="creeralliance" />
         <?php
         debutListe();
@@ -379,13 +363,12 @@ if ($_GET['id'] != -1) {
     finCarte();
 
     debutCarte('Invitations');
-    $sql = 'SELECT * FROM invitations WHERE invite=\'' . $_SESSION['login'] . '\'';
-    $ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
+    $ex = dbQuery($base, 'SELECT * FROM invitations WHERE invite=?', 's', $_SESSION['login']);
     $nbinvitations = mysqli_num_rows($ex);
     if ($nbinvitations > 0) {
         while ($invitation = mysqli_fetch_array($ex)) {
             echo '
-            <form action="alliance.php" method="post">Invitation de l\'équipe ' . $invitation['tag'] . ' : <input type="submit" class="w32" style="background-image: url(\'images/yes.png\');background-size:contain;vertical-align:middle;margin-left:15px;margin-right:15px;background-color: Transparent;color: Transparent;background-repeat:no-repeat;border: none;cursor:pointer;overflow: hidden;outline:none;" name="actioninvitation" value="Accepter"/><input class="w32" style="background-image: url(\'images/croix.png\');background-size:contain;vertical-align:middle;background-color: Transparent;color: Transparent;background-repeat:no-repeat;border: none;cursor:pointer;overflow: hidden;outline:none;" type ="submit" name="actioninvitation" value="Refuser"/><input type="hidden" name="idinvitation" value="' . $invitation['id'] . '"/></form>';
+            <form action="alliance.php" method="post">' . csrfField() . 'Invitation de l\'équipe ' . $invitation['tag'] . ' : <input type="submit" class="w32" style="background-image: url(\'images/yes.png\');background-size:contain;vertical-align:middle;margin-left:15px;margin-right:15px;background-color: Transparent;color: Transparent;background-repeat:no-repeat;border: none;cursor:pointer;overflow: hidden;outline:none;" name="actioninvitation" value="Accepter"/><input class="w32" style="background-image: url(\'images/croix.png\');background-size:contain;vertical-align:middle;background-color: Transparent;color: Transparent;background-repeat:no-repeat;border: none;cursor:pointer;overflow: hidden;outline:none;" type ="submit" name="actioninvitation" value="Refuser"/><input type="hidden" name="idinvitation" value="' . $invitation['id'] . '"/></form>';
         }
     } else {
         echo "Vous n'avez aucune invitation d'équipe.";

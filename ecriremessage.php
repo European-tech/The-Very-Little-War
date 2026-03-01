@@ -4,33 +4,31 @@ include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
 
 if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['contenu'])) {
+	csrfCheck();
 	if (!empty($_POST['titre']) and !empty($_POST['destinataire']) and !empty($_POST['contenu'])) {
 		$_POST['titre'] = mysqli_real_escape_string($base, antihtml($_POST['titre']));
 		$_POST['destinataire'] = ucfirst(mysqli_real_escape_string($base, $_POST['destinataire']));
 		$_POST['contenu'] = mysqli_real_escape_string($base, $_POST['contenu']);
 		if ($_POST['destinataire'] == "[alliance]") {
-			$ex = mysqli_query($base, 'SELECT idalliance FROM autre WHERE login=\'' . $_SESSION['login'] . '\'');
-			$idalliance = mysqli_fetch_array($ex);
-			$ex = mysqli_query($base, 'SELECT * FROM autre WHERE idalliance=\'' . $idalliance['idalliance'] . '\' AND login !=\'' . $_SESSION['login'] . '\'');
+			$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+			$ex = dbQuery($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
 			while ($destinataire = mysqli_fetch_array($ex)) {
-				$sql1 = 'INSERT INTO messages VALUES(default, "' . time() . '", "' . $_POST['titre'] . '", "' . $_POST['contenu'] . '", "' . $_SESSION['login'] . '", "' . $destinataire['login'] . '", default)';
-				mysqli_query($base, $sql1) or die('Erreur SQL !<br />' . $sql1 . '<br />' . mysql_error());
+				$now = time();
+				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
 			}
 			$information = "Le message a bien été envoyé à toute l'alliance.";
 		} elseif ($_POST['destinataire'] == "[all]" && $_SESSION['login'] == "Guortates") {
-			$ex = query('SELECT * FROM autre') or die('Erreur SQL !<br /><br />' . mysql_error());
+			$ex = dbQuery($base, 'SELECT * FROM autre');
 			while ($destinataire = mysqli_fetch_array($ex)) {
-				$sql1 = 'INSERT INTO messages VALUES(default, "' . time() . '", "' . $_POST['titre'] . '", "' . $_POST['contenu'] . '", "' . $_SESSION['login'] . '", "' . $destinataire['login'] . '", default)';
-				query($sql1) or die('Erreur SQL !<br />' . $sql1 . '<br />' . mysql_error());
+				$now = time();
+				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
 			}
 			$information = "Le message a bien été à tous les joueurs.";
 		} else {
-			$sql = 'SELECT login FROM autre WHERE login=\'' . $_POST['destinataire'] . '\'';
-			$ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysql_error());
-			$joueurExiste = mysqli_num_rows($ex);
+			$joueurExiste = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=?', 's', $_POST['destinataire']);
 			if ($joueurExiste > 0) {
-				$sql1 = 'INSERT INTO messages VALUES(default, "' . time() . '", "' . $_POST['titre'] . '", "' . $_POST['contenu'] . '", "' . $_SESSION['login'] . '", "' . $_POST['destinataire'] . '", default)';
-				mysqli_query($base, $sql1) or die('Erreur SQL !<br />' . $sql1 . '<br />' . mysql_error());
+				$now = time();
+				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $_POST['destinataire']);
 				$information =  "Le message a bien été envoyé.";
 				echo '
                 <script>
@@ -49,12 +47,10 @@ include("includes/tout.php");
 
 if (isset($_GET['id'])) {
 	$_GET['id'] = antiXSS($_GET['id']);
-	$ex = mysqli_query($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=\'' . $_GET['id'] . '\'');
-	$message = mysqli_fetch_array($ex);
+	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=?', 'i', $_GET['id']);
 } elseif (isset($_POST['id'])) {
 	$_POST['id'] = antiXSS($_POST['id']);
-	$ex = mysqli_query($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=\'' . $_POST['id'] . '\'');
-	$message = mysqli_fetch_array($ex);
+	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=?', 'i', $_POST['id']);
 } else {
 	$message['contenu'] = "";
 	$message['expeditaire'] = "";
@@ -70,6 +66,7 @@ if ($message['destinataire'] != $_SESSION['login']) {
 
 debutCarte("Ecrire un message");
 echo '<form action="ecriremessage.php" method="post" name="formEcrire">';
+echo csrfField();
 debutListe();
 $valueTitre = "";
 if (isset($_GET['reponse'])) {

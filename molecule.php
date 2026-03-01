@@ -1,19 +1,24 @@
-<?php 
+<?php
 include("includes/basicprivatephp.php");
 
 include("includes/tout.php");
 
 if(isset($_GET['id']) AND !empty($_GET['id'])) {
 	$_GET['id'] = antiXSS($_GET['id']);
-	$sql = 'SELECT * FROM molecules WHERE id=\''.$_GET['id'].'\' AND proprietaire=\''.$_SESSION['login'].'\'';
-	$ex = mysqli_query($base,$sql) or die('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-	$molecule = mysqli_fetch_array($ex);
-	$nb_resultats = mysqli_num_rows($ex);
-    
+	$ex = dbQuery($base, 'SELECT * FROM molecules WHERE id=? AND proprietaire=?', 'is', $_GET['id'], $_SESSION['login']);
+	if (!$ex) {
+		error_log("SQL error fetching molecule stats");
+		$molecule = null;
+		$nb_resultats = 0;
+	} else {
+		$molecule = mysqli_fetch_array($ex);
+		$nb_resultats = mysqli_num_rows($ex);
+	}
+
     debutCarte('Statistiques de la classe');
-    
+
 	if($nb_resultats > 0){
-    
+
     $totalAtomes = 0;
 	$mx = $molecule['oxygene'];
 	foreach($nomsRes as $num => $ressource) {
@@ -25,9 +30,9 @@ if(isset($_GET['id']) AND !empty($_GET['id'])) {
 			$img = $ressource;
 		}
 	}
-        
-        $demivie = affichageTemps(demiVie($_SESSION['login'],$molecule['numeroclasse'])); 
-        
+
+        $demivie = affichageTemps(demiVie($_SESSION['login'],$molecule['numeroclasse']));
+
         debutListe();
         item(['titre' => 'Formule', 'soustitre' => couleurFormule($molecule['formule']), 'media' => '<img alt="moelcule" src="images/molecule/formule.png" class="imageMedia"/>']);
         item(['titre' => 'Quantité', 'soustitre' => (separerZeros($molecule['nombre'])), 'media' => '<img alt="moelcule" src="images/molecule/molecule.png" class="imageMedia"/>']);
