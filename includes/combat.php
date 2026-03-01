@@ -137,6 +137,11 @@ if ($attaquantsRestants == 0) {
 	}
 }
 
+$gagnantLabels = [0 => 'draw', 1 => 'defender', 2 => 'attacker'];
+if (function_exists('logInfo')) {
+	logInfo('COMBAT', 'Combat resolved', ['attacker' => $actions['attaquant'], 'defender' => $actions['defenseur'], 'winner' => $gagnantLabels[$gagnant], 'attacker_remaining' => $attaquantsRestants, 'defender_remaining' => $defenseursRestants]);
+}
+
 // On met à jour les troupes des deux joueurs
 
 //$actions['troupes'] //
@@ -200,7 +205,6 @@ $degatschampdeforce = 0;
 $degatsDepot = 0;
 $degatsProducteur = 0;
 $pointsDefenseur = 0;
-$points = 0;
 $destructionGenEnergie = "Non endommagé";
 $destructionProducteur = "Non endommagé";
 $destructionchampdeforce = "Non endommagé";
@@ -339,10 +343,10 @@ $perduesAttaquant = dbFetchOne($base, 'SELECT moleculesPerdues,ressourcesPillees
 
 $perduesDefenseur = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $actions['defenseur']);
 
-$attaquePts = ajouterPoints($pointsAttaquant, $actions['attaquant'], 1);
-$pillagePts = ajouterPoints($totalPille, $actions['attaquant'], 3);
-$defensePts = ajouterPoints($pointsDefenseur, $actions['defenseur'], 2);
-$pillagePts1 = ajouterPoints(-$totalPille, $actions['defenseur'], 3);
+ajouterPoints($pointsAttaquant, $actions['attaquant'], 1);
+ajouterPoints($totalPille, $actions['attaquant'], 3);
+ajouterPoints($pointsDefenseur, $actions['defenseur'], 2);
+ajouterPoints(-$totalPille, $actions['defenseur'], 3);
 
 dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pertesAttaquant + $perduesAttaquant['moleculesPerdues']), $actions['attaquant']);
 dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pertesDefenseur + $perduesDefenseur['moleculesPerdues']), $actions['defenseur']);

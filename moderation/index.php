@@ -151,24 +151,6 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 					echo $erreur;
 				}
 				if (isset($_GET['sub'])) {
-					//if ($_GET['sub'] == 1) {
-				?>
-					<!--<p>
-							<form action="index.php?sub=1" method="post">
-								<label for="energieEnvoyee">Energie : </label><input type="number" name="energieEnvoyee" id="energieEnvoyee" /><br />
-								<?php
-								/*foreach ($nomsRes as $num => $ressource) {
-									echo '<label for="' . $ressource . 'Envoyee">' . ucfirst($nomsAccents[$num]) . ' : </label><input type="number" name="' . $ressource . 'Envoyee" id="' . $ressource . 'Envoyee"/><br/>';
-								}*/
-								?>
-								<br />
-								<label for="destinataire">Destinataire : </label><input type="text" name="destinataire" id="destinataire" /><br /><br />
-								<label for="justification">Justification : </label><textarea name="justification" id="justification" /></textarea><br /><br />
-								<input type="submit" name="envoyer" value="Envoyer" />
-							</form>
-						</p>-->
-					<?php
-					//}
 					if ($_GET['sub'] == 2) { ?>
 						<h4>Liste des multi-comptes</h4>
 						<p>Veuillez donner un avertissement aux joueurs concernés avant de supprimer les comptes.<br /><br />

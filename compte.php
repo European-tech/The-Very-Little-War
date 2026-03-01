@@ -18,9 +18,9 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
         query('DELETE FROM actionsformation WHERE login=\'' . $_SESSION['login'] . '\'');
         $date = $annee . '-' . $mois . '-' . $jour;
         $sql3 = 'INSERT INTO vacances VALUES (default,' . $membre['id'] . ',CURRENT_DATE,\'' . $date . '\')';
-        $ex3 = mysqli_query($base, $sql3) or die('Erreur SQL !<br/>' . $sql3 . '<br />' . mysql_error());
+        mysqli_query($base, $sql3) or die('Erreur SQL !<br/>' . $sql3 . '<br />' . mysql_error());
         $sql6 = 'UPDATE membre SET vacance=1 WHERE id=' . $membre['id'] . '';
-        $ex6 = mysqli_query($base, $sql6) or die('Erreur SQL !<br/>' . $sql6 . '<br/>' . mysql_error());
+        mysqli_query($base, $sql6) or die('Erreur SQL !<br/>' . $sql6 . '<br/>' . mysql_error());
         // Rafraichissement de la page
         echo "<script>window.location.replace(\"compte.php\")</script>";
     } else {

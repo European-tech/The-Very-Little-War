@@ -99,9 +99,6 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
             }
         }
         if ($bool == 1) {
-            $exNbMolecules = dbQuery($base, 'SELECT nombre FROM molecules WHERE proprietaire=? AND nombre!=0', 's', $_SESSION['login']);
-            $nb_molecules = 0;
-
             $total = 0;
             foreach ($nomsRes as $num => $ressource) {
                 $total = $total + $donneesFormer[$ressource];

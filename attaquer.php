@@ -147,6 +147,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                                     $_SESSION['login'], $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes);
                                 ajouter('energie', 'ressources', -$cout, $_SESSION['login']);
                                 ajouter('energieDepensee', 'autre', $cout, $_SESSION['login']);
+                                logInfo('ATTACK', 'Attack launched', ['attacker' => $_SESSION['login'], 'defender' => $_POST['joueurAAttaquer'], 'troops' => $troupes, 'energy_cost' => $cout]);
                                 $information = "L'attaque a été lancée.";
                             } else {
                                 $erreur = "Vous n\'avez pas assez de molécules.";

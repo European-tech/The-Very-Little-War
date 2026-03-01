@@ -1,12 +1,7 @@
 <?php
 include("includes/connexion.php");
 include("includes/fonctions.php");
-$sqlMaintenance = mysqli_query($base, 'SELECT maintenance FROM statistiques');
-$maintenance = mysqli_fetch_array($sqlMaintenance);
-/*if ($maintenance['maintenance'] != 0) {
-	header('Location: maintenance.php');
-	exit();
-}*/
+require_once(__DIR__ . '/logger.php');
 
 if (!isset($_SESSION['start'])) {
 	session_start();
@@ -53,6 +48,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 				$_SESSION['mdp'] = $storedHash;
 
 				dbExecute($base, 'UPDATE membre SET ip = ? WHERE login = ?', 'ss', $_SERVER['REMOTE_ADDR'], $loginInput);
+				logInfo('AUTH', 'Login successful', ['login' => $loginInput]);
 
 				$joueur = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ?', 's', $_SESSION['login']);
 				echo '
@@ -61,9 +57,11 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
                 window.location = "constructions.php";
             </script>';
 			} else {
+				logWarn('AUTH', 'Login failed - bad password', ['login' => $loginInput]);
 				$erreur = 'Le couple login-mot de passe est erronn&eacute;';
 			}
 		} else {
+			logWarn('AUTH', 'Login failed - user not found', ['login' => $loginInput]);
 			$erreur = 'Le couple login-mot de passe est erronn&eacute;';
 		}
 	} else {

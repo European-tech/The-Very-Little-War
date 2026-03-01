@@ -15,12 +15,5 @@ echo '
 </div>
 ';
 
-/*
-if ($donnees['timestamp'] + 3600 * 24 <= time() && $donnees['titre'] == "Vainqueur de la dernière manche") {
-	mysqli_query($base, 'UPDATE statistiques SET maintenance=0');
-	echo '<SCRIPT LANGUAGE="JavaScript">
-	document.location.href="index.php"
-	</SCRIPT>';
-}*/
 finCarte();
 include("includes/copyright.php");

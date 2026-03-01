@@ -6,6 +6,7 @@ include("includes/connexion.php");
 include("includes/fonctions.php");
 require_once(__DIR__ . '/csrf.php');
 require_once(__DIR__ . '/validation.php');
+require_once(__DIR__ . '/logger.php');
 
 if (isset($_SESSION['login']) && isset($_SESSION['mdp'])) {
     $_SESSION['login'] = ucfirst(mb_strtolower(mysqli_real_escape_string($base, stripslashes(htmlentities($_SESSION['login'])))));
@@ -32,14 +33,6 @@ if ($posAct['x'] == -1000) {
 include("includes/constantes.php");
 
 /////////////////////////////////////////////////////
-
-
-$sqlMaintenance = mysqli_query($base, 'SELECT maintenance FROM statistiques');
-$maintenance = mysqli_fetch_array($sqlMaintenance);
-/*if ($maintenance['maintenance'] != 0) {
-    header('Location: maintenance.php');
-    exit();
-}*/
 
 
 if (isset($_GET['information'])) {
@@ -82,16 +75,12 @@ if (!$joueurEnVac[0]) {
     $req1 = 'SELECT tempsPrecedent FROM autre WHERE login=\'' . $_SESSION['login'] . '\''; // On prends le dernier chargement de page
     $tempsPrecedent1 = mysqli_query($base, $req1) or die('Erreur SQL !<br />' . $req1 . '<br />' . mysql_error());
     $donnees = mysqli_fetch_array($tempsPrecedent1);
-    $nbsecondes = time() - $donnees['tempsPrecedent'];
-
     updateActions($_SESSION['login']);
     include("includes/constantes.php");
 }
 // Ajout par Yojim
 // Si le joueur est encore en mode vacances
 else {
-    $requete = mysqli_query($base, 'SELECT depot FROM constructions WHERE login=\'' . $_SESSION['login'] . '\'');
-    $depot = mysqli_fetch_array($requete);
     // On récupère la date de fin du mode vacances
     $sql4 = 'SELECT dateFin FROM vacances WHERE idJoueur IN (
 	SELECT id FROM membre WHERE login=\'' . $_SESSION['login'] . '\')';
@@ -106,11 +95,11 @@ else {
     if ($diff[0] >= 0) {
         // Mise à jour du champ vacances
         $sql6 = 'UPDATE membre SET vacance=0 WHERE login=\'' . $_SESSION['login'] . '\'';
-        $ex6 = mysqli_query($base, $sql6) or die('Erreur SQL :<br/>' . $sql6 . '<br/>' . mysql_error());
+        mysqli_query($base, $sql6) or die('Erreur SQL :<br/>' . $sql6 . '<br/>' . mysql_error());
         // Supression du tuple de vacances
         $sql7 = 'DELETE FROM vacances WHERE idJoueur IN (
 		SELECT id FROM membre WHERE login=\'' . $_SESSION['login'] . '\')';
-        $ex7 = mysqli_query($base, $sql7) or die('Erreur SQL :<br/>' . $sql7 . '<br/>' . mysql_error());
+        mysqli_query($base, $sql7) or die('Erreur SQL :<br/>' . $sql7 . '<br/>' . mysql_error());
         mysqli_query($base, 'UPDATE autre SET tempsPrecedent=\'' . time() . '\' WHERE login = \'' . $_SESSION['login'] . '\'');
     }
 }

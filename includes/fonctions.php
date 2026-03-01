@@ -338,7 +338,6 @@ function inscrire($pseudo, $mdp, $mail)
 {
     global $base;
     $data1 = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
-    $tempsPrecedent = time();
     $nbinscrits = $data1['inscrits'] + 1;
 
     $alea = mt_rand(1, 200);
@@ -547,9 +546,6 @@ function updateActions($joueur)
                 $actions['troupes'] = $chaine;
 
                 include("includes/combat.php"); // Les pertes sont calculées, le gagnant est désigné et les troupes sont mises à jour dans la BD, les ressources sont pillées
-
-                $totalTroupesJoueur = $classeAttaquant1['nombre'] + $classeAttaquant2['nombre'] + $classeAttaquant3['nombre'] + $classeAttaquant4['nombre'];
-                $totalTroupesDefenseur = $classeDefenseur1['nombre'] + $classeDefenseur2['nombre'] + $classeDefenseur3['nombre'] + $classeDefenseur4['nombre'];
 
                 if ($gagnant == 2) {
                     $titreRapportJoueur = "Vous gagnez contre " . $actions['defenseur'] . " !";
@@ -1345,8 +1341,6 @@ function diminuerBatiment($nom, $joueur)
     $batiments = dbFetchOne($base, "SELECT $nom FROM constructions WHERE login=?", 's', $joueur);
 
     if ($batiments[$nom] > 0) {
-        $pointsJoueur = dbFetchOne($base, 'SELECT points FROM autre WHERE login=?', 's', $joueur);
-
         if ($nom == 'producteur') {
             if ($constructions['pointsProducteurRestants'] >= $points['producteur']) {
                 dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=? WHERE login=?', 'is', ($constructions['pointsProducteurRestants'] - $points['producteur']), $joueur);
@@ -1779,6 +1773,9 @@ function supprimerAlliance($alliance)
 function supprimerJoueur($joueur)
 {
     global $base;
+    if (function_exists('logInfo')) {
+        logInfo('ACCOUNT', 'Account deleted', ['deleted_player' => $joueur]);
+    }
     dbExecute($base, 'DELETE FROM autre WHERE login=?', 's', $joueur);
     dbExecute($base, 'DELETE FROM membre WHERE login=?', 's', $joueur);
     dbExecute($base, 'DELETE FROM ressources WHERE login=?', 's', $joueur);

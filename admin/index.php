@@ -4,10 +4,14 @@ include("../includes/connexion.php");
 session_start();
 include("../includes/constantesBase.php");
 include("../includes/fonctions.php");
+require_once(__DIR__ . '/../includes/logger.php');
 
 if (isset($_POST['motdepasseadmin'])) {
 	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		$_SESSION['motdepasseadmin'] = true;
+		logInfo('ADMIN', 'Admin login successful');
+	} else {
+		logWarn('ADMIN', 'Admin login failed');
 	}
 }
 if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === true) {

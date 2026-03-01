@@ -45,6 +45,7 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
 
                     dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $nouvellealliance['id'], $_SESSION['login']);
 
+                    logInfo('ALLIANCE', 'Alliance created', ['name' => $_POST['nomalliance'], 'tag' => $_POST['tagalliance'], 'creator' => $_SESSION['login']]);
                     $information = "Votre équipe a été créée.";
                     echo '<script>window.location="alliance.php";</script>';
                 } else {
@@ -279,8 +280,6 @@ if ($_GET['id'] != -1) {
                     if (!isset($_GET['clas'])) {
                         $_GET['clas'] = 0;
                     }
-                    // Whitelist the order column to prevent SQL injection
-                    $allowedOrders = ['totalPoints', 'victoires', 'pointsAttaque', 'pointsDefense', 'ressourcesPillees', 'points', 'energieDonnee'];
                     switch ($_GET['clas']) {
                         case 0:
                             $order = 'totalPoints';

@@ -187,6 +187,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                 $now = time();
                 dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
 
+                logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
                 $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAAcheter'] . ".png\" alt=\"" . $_POST['typeRessourceAAcheter'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
 
                 $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
@@ -246,6 +247,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                 $now = time();
                 dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
 
+                logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $_POST['nombreRessourceAVendre'], 'energy_gained' => round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'])]);
                 $information = "Vous avez vendu " . number_format($_POST['nombreRessourceAVendre'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAVendre'] . ".png\" alt=\"" . $_POST['typeRessourceAVendre'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAVendre']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
 
                 $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');

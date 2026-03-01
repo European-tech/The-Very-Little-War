@@ -112,36 +112,6 @@ if($niveaututo['niveaututo'] > 8) {
 
 }
 else {
-	/*?>
-	<div class="panel panel-default margin-10 pattern-bg">
-	<div class="panel-heading">
-	<h2>Mission n°<?php echo $niveaututo['niveaututo']; ?></h2></div>
-	<div class="panel-body">
-	<p>
-	<?php 
-	$sql1 = 'SELECT * FROM tutoriel WHERE niveau=\''.$niveaututo['niveaututo'].'\'';
-	$ex1 = mysqli_query($base,$sql1) or die ('Erreur SQL !<br />'.$sql1.'<br />'.mysql_error());
-	$tutoriel = mysqli_fetch_array($ex1);
-
-	echo $tutoriel['description'];
-	?>
-	<br/>
-	<table class="table table-bordered">
-	<tr>
-	<th style="width: 50px"><img src="images/cadeau.png" alt="cadeau" title="Bonus"/></th>
-	<th style="width: 100px"><?php echo $tutoriel['bonusenergie']; ?> <img src="images/energie.png" alt="energie" title="Energie"/></th>
-	<?php foreach($nomsRes as $num => $ressource) {
-		echo'<th style="width: 100px">'.$tutoriel['bonus'.$ressource].' <img src="images/'.$ressource.'.png" alt="'.$ressource.'" title="'.$ressource.'" /></th>';
-	}
-	?>
-	<th style="width: 100px"><form method="post" action="tutoriel.php"><input value="Valider" src="images/yes.png" alt="yes" type="image" name="valider"/></form></th>
-	</tr>
-	</table><br/>
-	</p>
-	</div>
-	</div>
-	
-	<?php */
 } 
 
 debutCarte("Comprendre le jeu");

@@ -43,6 +43,7 @@ if ($_SESSION['login'] != $chef['chef']) {
 if ($gradeChef) {
 	if (isset($_POST['supprimeralliance1'])) {
 		csrfCheck();
+		logInfo('ALLIANCE', 'Alliance deleted', ['alliance_id' => $idalliance['idalliance'], 'deleted_by' => $_SESSION['login']]);
 		supprimerAlliance($idalliance['idalliance']);
 	?>
 		<script LANGUAGE="JavaScript">

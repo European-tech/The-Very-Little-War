@@ -35,6 +35,7 @@ if (isset($_POST['login'])) {
 					//Si le login est deja utilise
 					if ($nbLogin == 0) {
 						inscrire($loginInput, $passInput, $emailInput);
+						logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'email' => $emailInput]);
 						echo '<script type="text/javascript">
 						window.location.href = "index.php?inscrit=1";
 						</script>';

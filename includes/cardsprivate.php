@@ -6,13 +6,6 @@ $sql= 'SELECT niveaututo FROM autre WHERE login=\''.$_SESSION['login'].'\'';
 $ex = mysqli_query($base,$sql) or die('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
 $niveaututo = mysqli_fetch_array($ex);
 
-$sql1 = 'SELECT * FROM tutoriel WHERE niveau=\''.$niveaututo['niveaututo'].'\'';
-$ex1 = mysqli_query($base,$sql1) or die('Erreur SQL !<br />'.$sql1.'<br />'.mysql_error());
-$tutoriel = mysqli_fetch_array($ex1);
- // soit on affiche les missions ou le tutoriel
- //if($niveaututo['niveaututo'] <= 8 and !(isset($_GET['tuto']))) { echo '<br/><form method="post" action="tutoriel.php"><span class="important">Mission n°'.$tutoriel['niveau'].' : '.$tutoriel['titre'].' - 
-	//<input type="submit" name="valider" value="Valider" class="bouton"/></span>
-	//</form>'; }	
 
 if($tuto['niveaututo'] < 10) { 
 	if($tuto['niveaututo'] == 1) { 
@@ -37,7 +30,6 @@ if($tuto['niveaututo'] < 10) {
     }
     elseif($tuto['niveaututo'] == 3) {
         $image = 'images/tutoriel/atom.png';
-        $media = '';
         $texte = "";
         foreach($nomsRes as $num => $ressource){ $texte = $texte.' '.nombreAtome($num,ucfirst($ressource));}
         $titreTuto = 'Les atomes';
