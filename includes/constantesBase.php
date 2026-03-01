@@ -1,4 +1,6 @@
 <?php
+require_once(__DIR__ . '/config.php');
+
 $nomsRes = array("carbone","azote","hydrogene","oxygene","chlore","soufre","brome","iode"); 
 $nomsAccents = array("carbone","azote","hydrogène","oxygène","chlore","soufre","brome","iode");
 $couleurs = ['black','blue','gray','red','green','#D07D00','#840000','#BB6668'];
