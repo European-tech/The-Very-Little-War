@@ -4,13 +4,13 @@ if (!isset($_SESSION['start'])) {
 }
 include("includes/connexion.php");
 include("includes/fonctions.php");
+require_once(__DIR__ . '/csrf.php');
+require_once(__DIR__ . '/validation.php');
 
 if (isset($_SESSION['login']) && isset($_SESSION['mdp'])) {
     $_SESSION['login'] = ucfirst(mb_strtolower(mysqli_real_escape_string($base, stripslashes(htmlentities($_SESSION['login'])))));
-    $sql = 'SELECT count(*) FROM membre WHERE login="' . $_SESSION['login'] . '" AND pass_md5="' . $_SESSION['mdp'] . '"';
-    $req = query($sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysql_error());
-    $data = mysqli_fetch_array($req);
-    if ($data[0] != 1) {
+    $row = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    if (!$row || $row['pass_md5'] !== $_SESSION['mdp']) {
         session_destroy();
         header('Location: index.php');
         exit();

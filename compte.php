@@ -2,6 +2,9 @@
 include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
 
+// CSRF check for all POST requests on this page
+csrfCheck();
+
 if (isset($_POST['verification']) and isset($_POST['oui'])) {
     supprimerJoueur($_SESSION['login']);
     echo "<script>window.location.replace(\"deconnexion.php\")</script>";
@@ -27,17 +30,39 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
 
 
 
-if (isset($_POST['changermdp']) and isset($_POST['changermdp1'])) {
-    if (!empty($_POST['changermdp']) and !empty($_POST['changermdp1'])) {
-        $_POST['changermdp'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['changermdp'])));
-        $_POST['changermdp1'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['changermdp1'])));
-        if ($_POST['changermdp'] == $_POST['changermdp1']) {
-            $sql = 'UPDATE membre SET pass_md5=\'' . md5($_POST['changermdp']) . '\' WHERE login=\'' . $_SESSION['login'] . '\'';
-            mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysql_error());
+if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_POST['changermdp1'])) {
+    if (!empty($_POST['changermdpactuel']) && !empty($_POST['changermdp']) && !empty($_POST['changermdp1'])) {
+        $currentPassword = $_POST['changermdpactuel'];
+        $newPassword = $_POST['changermdp'];
+        $newPasswordConfirm = $_POST['changermdp1'];
 
-            $information = "Votre mot de passe a été changé.";
+        // Fetch current hash from database
+        $currentUser = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
+        if (!$currentUser) {
+            $erreur = "Erreur : utilisateur introuvable.";
         } else {
-            $erreur = "Les deux mots de passe ne sont pas les mêmes.";
+            $storedHash = $currentUser['pass_md5'];
+            $verified = false;
+
+            // Verify current password: try bcrypt first, then MD5 fallback
+            if (password_verify($currentPassword, $storedHash)) {
+                $verified = true;
+            } elseif (md5($currentPassword) === $storedHash) {
+                $verified = true;
+            }
+
+            if (!$verified) {
+                $erreur = "Le mot de passe actuel est incorrect.";
+            } elseif ($newPassword != $newPasswordConfirm) {
+                $erreur = "Les deux mots de passe ne sont pas les m&ecirc;mes.";
+            } else {
+                $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+                dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $newHash, $_SESSION['login']);
+                // Update session hash so session validation keeps working
+                $_SESSION['mdp'] = $newHash;
+
+                $information = "Votre mot de passe a &eacute;t&eacute; chang&eacute;.";
+            }
         }
     } else {
         $erreur = "Tous les champs ne sont pas remplis.";
@@ -106,6 +131,8 @@ if (!isset($_POST['supprimercompte'])) {
     echo important("Changer le mot de passe");
     debutListe();
     echo '<form action="compte.php" method="post" name="formChangerMdp">';
+    echo csrfField();
+    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Mot de passe actuel', 'input' => '<input type="password" name="changermdpactuel" id="changermdpactuel" class="form-control"/>']);
     item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Nouveau mot de passe', 'input' => '<input type="password" name="changermdp" id="changermdp" class="form-control"/>']);
     item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Confirmation', 'input' => '<input type="password" name="changermdp1" id="changermdp1" class="form-control"/>']);
     item(['input' => submit(['titre' => 'Changer', 'form' => 'formChangerMdp'])]);
@@ -120,6 +147,7 @@ if (!isset($_POST['supprimercompte'])) {
 
     debutListe();
     echo '<form action="compte.php" method="post" name="formChangerMail">';
+    echo csrfField();
     item(['media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'floating' => true, 'titre' => 'Mail', 'input' => '<input type="text" name="changermail" id="changermail" class="form-control" value="' . $mail['email'] . '"/>']);
     item(['input' => submit(['titre' => 'Changer', 'form' => 'formChangerMail'])]);
     echo '</form><br/>';
@@ -157,7 +185,9 @@ if (!isset($_POST['supprimercompte'])) {
 
     echo important('Partir en vacances');
     debutListe();
-    echo '<form action="compte.php" method="post" name="formVacances"><br/><br/><div class="content-block">La mise en vacance supprimera tout ordre de production de molécule en cours.</div><br/>';
+    echo '<form action="compte.php" method="post" name="formVacances">';
+    echo csrfField();
+    echo '<br/><br/><div class="content-block">La mise en vacance supprimera tout ordre de production de mol&eacute;cule en cours.</div><br/>';
     item(['floating' => false, 'titre' => 'Date de début', 'input' => '<input type="text" name="dateDebut" id="dateDebut" class="form-control" value="' . $debut . '"/>', 'disabled' => true]);
     item(['floating' => false, 'titre' => 'Date de fin', 'input' => $fin, 'disabled' => $disabled]);
     item(['input' => $activation]);

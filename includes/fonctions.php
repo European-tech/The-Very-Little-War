@@ -379,7 +379,8 @@ function inscrire($pseudo, $mdp, $mail)
     }
 
 
-    $sql = 'INSERT INTO membre VALUES(default, "' . mysqli_real_escape_string($base, addslashes(antihtml(trim($pseudo)))) . '", "' . mysqli_real_escape_string($base, stripslashes(antihtml(trim(md5($mdp))))) . '", "' . time() . '", "' . $_SERVER['REMOTE_ADDR'] . '", "' . time() . '", 0, "' . $alea . '", 0, 0, "' . mysqli_real_escape_string($base, addslashes(antihtml(trim($mail)))) . '",-1000,-1000)';
+    $hashedPassword = password_hash($mdp, PASSWORD_DEFAULT);
+    $sql = 'INSERT INTO membre VALUES(default, "' . mysqli_real_escape_string($base, addslashes(antihtml(trim($pseudo)))) . '", "' . mysqli_real_escape_string($base, trim($hashedPassword)) . '", "' . time() . '", "' . $_SERVER['REMOTE_ADDR'] . '", "' . time() . '", 0, "' . $alea . '", 0, 0, "' . mysqli_real_escape_string($base, addslashes(antihtml(trim($mail)))) . '",-1000,-1000)';
     $sql1 = 'INSERT INTO autre VALUES("' . mysqli_real_escape_string($base, addslashes(antihtml(trim($pseudo)))) . '", default, default, "Pas de description", "' . time() . '", default, default, default, default, default, default, default, default,default,default,"' . time() . ',' . time() . ',' . time() . ',' . time() . '",default,default,default,default,"",default)';
     $sql2 = 'INSERT INTO ressources VALUES(default,"' . mysqli_real_escape_string($base, addslashes(antihtml(trim($pseudo)))) . '", default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default)';
     $sql3 = 'UPDATE statistiques SET inscrits=\'' . $nbinscrits . '\'';
