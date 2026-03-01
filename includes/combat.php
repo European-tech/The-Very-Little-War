@@ -2,9 +2,7 @@
 // Récupération des variables d'attaque, de défense, de coup critiques et de capacité de pillage pour chaque classe
 // Pour l'attaquant
 
-$sqlClasse1 = 'SELECT * FROM molecules WHERE proprietaire=\'' . $actions['defenseur'] . '\' ORDER BY numeroclasse ASC';
-$exClasse1 = mysqli_query($base, $sqlClasse1) or die('Erreur SQL !<br />' . $sqlClasse1 . '<br />' . mysqli_error($base));
-
+$exClasse1 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
 
 $c = 1;
 while ($classeDefenseur = mysqli_fetch_array($exClasse1)) {
@@ -14,9 +12,7 @@ while ($classeDefenseur = mysqli_fetch_array($exClasse1)) {
 	$c++;
 }
 
-$sqlClasse1 = 'SELECT * FROM molecules WHERE proprietaire=\'' . $actions['attaquant'] . '\' ORDER BY numeroclasse ASC';
-$exClasse1 = mysqli_query($base, $sqlClasse1) or die('Erreur SQL !<br />' . $sqlClasse1 . '<br />' . mysqli_error($base));
-
+$exClasse1 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
 
 $c = 1;
 $chaineExplosee = explode(";", $actions['troupes']);
@@ -29,44 +25,34 @@ while ($classeAttaquant = mysqli_fetch_array($exClasse1)) {
 
 // recupération des niveaux des atomes
 
-$exNiveaux = query('SELECT pointsProducteur FROM constructions WHERE login=\'' . $actions['attaquant'] . '\'');
-$niveauxAttaquant = mysqli_fetch_array($exNiveaux);
+$niveauxAttaquant = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $actions['attaquant']);
 $niveauxAttaquant = explode(";", $niveauxAttaquant['pointsProducteur']);
 foreach ($nomsRes as $num => $ressource) {
 	$niveauxAtt[$ressource] = $niveauxAttaquant[$num];
 }
 
-$exNiveaux = query('SELECT pointsProducteur FROM constructions WHERE login=\'' . $actions['defenseur'] . '\'');
-$niveauxDefenseur = mysqli_fetch_array($exNiveaux);
+$niveauxDefenseur = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $actions['defenseur']);
 $niveauxDefenseur = explode(";", $niveauxDefenseur['pointsProducteur']);
 foreach ($nomsRes as $num => $ressource) {
 	$niveauxDef[$ressource] = $niveauxDefenseur[$num];
 }
 
 
-$sqlionisateur = 'SELECT ionisateur FROM constructions WHERE login=\'' . $actions['attaquant'] . '\'';
-$exionisateur = mysqli_query($base, $sqlionisateur) or die('Erreur SQL !<br />' . $sqlionisateur . '<br />' . mysqli_error($base));
-$ionisateur = mysqli_fetch_array($exionisateur);
+$ionisateur = dbFetchOne($base, 'SELECT ionisateur FROM constructions WHERE login=?', 's', $actions['attaquant']);
 
-$sqlchampdeforce = 'SELECT champdeforce FROM constructions WHERE login=\'' . $actions['defenseur'] . '\'';
-$exchampdeforce = mysqli_query($base, $sqlchampdeforce) or die('Erreur SQL !<br />' . $sqlchampdeforce . '<br />' . mysqli_error($base));
-$champdeforce = mysqli_fetch_array($exchampdeforce);
+$champdeforce = dbFetchOne($base, 'SELECT champdeforce FROM constructions WHERE login=?', 's', $actions['defenseur']);
 
-$exDuplicateurAttaque = mysqli_query($base, 'SELECT idalliance FROM autre WHERE login=\'' . $actions['attaquant'] . '\'');
-$idalliance = mysqli_fetch_array($exDuplicateurAttaque);
+$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
 $bonusDuplicateurAttaque = 1;
 if ($idalliance['idalliance'] > 0) {
-	$exDuplicateurAttaque = mysqli_query($base, 'SELECT duplicateur FROM alliances WHERE id=\'' . $idalliance['idalliance'] . '\'');
-	$duplicateurAttaque = mysqli_fetch_array($exDuplicateurAttaque);
+	$duplicateurAttaque = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 	$bonusDuplicateurAttaque = 1 + ((0.1 * $duplicateurAttaque['duplicateur']) / 100);
 }
 
-$exDuplicateurDefense = mysqli_query($base, 'SELECT idalliance FROM autre WHERE login=\'' . $actions['attaquant'] . '\'');
-$idallianceDef = mysqli_fetch_array($exDuplicateurDefense);
+$idallianceDef = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
 $bonusDuplicateurDefense = 1;
 if ($idallianceDef['idalliance'] > 0) {
-	$exDuplicateurDefense = mysqli_query($base, 'SELECT duplicateur FROM alliances WHERE id=\'' . $idallianceDef['idalliance'] . '\'');
-	$duplicateurDefense = mysqli_fetch_array($exDuplicateurDefense);
+	$duplicateurDefense = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idallianceDef['idalliance']);
 	$bonusDuplicateurDefense = 1 + ((0.1 * $duplicateurDefense['duplicateur']) / 100);
 }
 
@@ -82,7 +68,7 @@ for ($c = 1; $c <= 4; $c++) {
 
 
 
-// Calcul des pertes 
+// Calcul des pertes
 
 // Attaquants
 
@@ -160,27 +146,18 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 }
 
 $actions['troupes'] = $chaine;
-query('UPDATE actionsattaques SET troupes=\'' . $chaine . '\' WHERE id=\'' . $actions['id'] . '\'');
+dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chaine, $actions['id']);
 
 // defenseur
-$sqlUpdateDefenseur1 = 'UPDATE molecules SET nombre=\'' . ($classeDefenseur1['nombre'] - $classe1DefenseurMort) . '\' WHERE id=\'' . $classeDefenseur1['id'] . '\'';
-$sqlUpdateDefenseur2 = 'UPDATE molecules SET nombre=\'' . ($classeDefenseur2['nombre'] - $classe2DefenseurMort) . '\' WHERE id=\'' . $classeDefenseur2['id'] . '\'';
-$sqlUpdateDefenseur3 = 'UPDATE molecules SET nombre=\'' . ($classeDefenseur3['nombre'] - $classe3DefenseurMort) . '\' WHERE id=\'' . $classeDefenseur3['id'] . '\'';
-$sqlUpdateDefenseur4 = 'UPDATE molecules SET nombre=\'' . ($classeDefenseur4['nombre'] - $classe4DefenseurMort) . '\' WHERE id=\'' . $classeDefenseur4['id'] . '\'';
-
-mysqli_query($base, $sqlUpdateDefenseur1) or die('Erreur SQL !<br />' . $sqlUpdateDefenseur1 . '<br />' . mysqli_error($base));
-mysqli_query($base, $sqlUpdateDefenseur2) or die('Erreur SQL !<br />' . $sqlUpdateDefenseur2 . '<br />' . mysqli_error($base));
-mysqli_query($base, $sqlUpdateDefenseur3) or die('Erreur SQL !<br />' . $sqlUpdateDefenseur3 . '<br />' . mysqli_error($base));
-mysqli_query($base, $sqlUpdateDefenseur4) or die('Erreur SQL !<br />' . $sqlUpdateDefenseur4 . '<br />' . mysqli_error($base));
+dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur1['nombre'] - $classe1DefenseurMort), $classeDefenseur1['id']);
+dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur2['nombre'] - $classe2DefenseurMort), $classeDefenseur2['id']);
+dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur3['nombre'] - $classe3DefenseurMort), $classeDefenseur3['id']);
+dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur4['nombre'] - $classe4DefenseurMort), $classeDefenseur4['id']);
 
 // Gestion du pillage
-$sql = 'SELECT * FROM ressources WHERE login=\'' . $actions['defenseur'] . '\'';
-$ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
-$ressourcesDefenseur = mysqli_fetch_array($ex);
+$ressourcesDefenseur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['defenseur']);
 
-$sql1 = 'SELECT * FROM ressources WHERE login=\'' . $actions['attaquant'] . '\'';
-$ex1 = mysqli_query($base, $sql1) or die('Erreur SQL !<br />' . $sql1 . '<br />' . mysqli_error($base));
-$ressourcesJoueur = mysqli_fetch_array($ex1);
+$ressourcesJoueur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['attaquant']);
 if ($gagnant == 2 || $gagnant == 0) { // Si le joueur gagnant est l'attaquant
 	$ressourcesTotalesDefenseur = 0;
 	foreach ($nomsRes as $num => $ressource) {
@@ -229,8 +206,7 @@ $destructionProducteur = "Non endommagé";
 $destructionchampdeforce = "Non endommagé";
 $destructionDepot = "Non endommagé";
 
-$ex = mysqli_query($base, 'SELECT * FROM constructions WHERE login=\'' . $actions['defenseur'] . '\'');
-$constructions = mysqli_fetch_array($ex);
+$constructions = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $actions['defenseur']);
 
 if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
 	// gestion des degats infligés
@@ -276,7 +252,7 @@ if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
 				$destructionGenEnergie = "Niveau minimum";
 			}
 		} else {
-			mysqli_query($base, 'UPDATE constructions SET vieGenerateur=\'' . ($constructions['vieGenerateur'] - $degatsGenEnergie) . '\' WHERE login=\'' . $actions['defenseur'] . '\'');
+			dbExecute($base, 'UPDATE constructions SET vieGenerateur=? WHERE login=?', 'ds', ($constructions['vieGenerateur'] - $degatsGenEnergie), $actions['defenseur']);
 		}
 	}
 	if ($degatschampdeforce > 0) {
@@ -289,7 +265,7 @@ if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
 				$destructionchampdeforce = "Niveau minimum";
 			}
 		} else {
-			mysqli_query($base, 'UPDATE constructions SET vieChampdeforce=\'' . ($constructions['vieChampdeforce'] - $degatschampdeforce) . '\' WHERE login=\'' . $actions['defenseur'] . '\'');
+			dbExecute($base, 'UPDATE constructions SET vieChampdeforce=? WHERE login=?', 'ds', ($constructions['vieChampdeforce'] - $degatschampdeforce), $actions['defenseur']);
 		}
 	}
 	if ($degatsProducteur > 0) {
@@ -302,7 +278,7 @@ if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
 				$destructionProducteur = "Niveau minimum";
 			}
 		} else {
-			mysqli_query($base, 'UPDATE constructions SET vieProducteur=\'' . ($constructions['vieProducteur'] - $degatsProducteur) . '\' WHERE login=\'' . $actions['defenseur'] . '\'');
+			dbExecute($base, 'UPDATE constructions SET vieProducteur=? WHERE login=?', 'ds', ($constructions['vieProducteur'] - $degatsProducteur), $actions['defenseur']);
 		}
 	}
 	if ($degatsDepot > 0) {
@@ -315,7 +291,7 @@ if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
 				$destructionDepot = "Niveau minimum";
 			}
 		} else {
-			mysqli_query($base, 'UPDATE constructions SET vieDepot=\'' . ($constructions['vieDepot'] - $degatsDepot) . '\' WHERE login=\'' . $actions['defenseur'] . '\'');
+			dbExecute($base, 'UPDATE constructions SET vieDepot=? WHERE login=?', 'ds', ($constructions['vieDepot'] - $degatsDepot), $actions['defenseur']);
 		}
 	}
 }
@@ -328,10 +304,8 @@ $pertesDefenseur = $classe1DefenseurMort + $classe2DefenseurMort + $classe3Defen
 $pointsAttaquant = 0;
 $pointsDefenseur = 0;
 
-$ex = query('SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=\'' . $actions['attaquant'] . '\'');
-$pointsBDAttaquant = mysqli_fetch_array($ex);
-$ex = query('SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=\'' . $actions['defenseur'] . '\'');
-$pointsBDDefenseur = mysqli_fetch_array($ex);
+$pointsBDAttaquant = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=?', 's', $actions['attaquant']);
+$pointsBDDefenseur = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=?', 's', $actions['defenseur']);
 
 if ($gagnant == 1) { // DEFENSEUR
 	if ($pointsBDAttaquant['totalPoints'] >= $pointsBDDefenseur['totalPoints']) {
@@ -360,70 +334,67 @@ foreach ($nomsRes as $num => $ressource) {
 
 // update des stats de combat
 
-$ex = mysqli_query($base, 'SELECT moleculesPerdues,ressourcesPillees FROM autre WHERE login=\'' . $actions['attaquant'] . '\'');
-$perduesAttaquant = mysqli_fetch_array($ex);
+$perduesAttaquant = dbFetchOne($base, 'SELECT moleculesPerdues,ressourcesPillees FROM autre WHERE login=?', 's', $actions['attaquant']);
 
-$ex1 = mysqli_query($base, 'SELECT moleculesPerdues FROM autre WHERE login=\'' . $actions['defenseur'] . '\'');
-$perduesDefenseur = mysqli_fetch_array($ex1);
+$perduesDefenseur = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $actions['defenseur']);
 
 $attaquePts = ajouterPoints($pointsAttaquant, $actions['attaquant'], 1);
 $pillagePts = ajouterPoints($totalPille, $actions['attaquant'], 3);
 $defensePts = ajouterPoints($pointsDefenseur, $actions['defenseur'], 2);
 $pillagePts1 = ajouterPoints(-$totalPille, $actions['defenseur'], 3);
 
-mysqli_query($base, 'UPDATE autre SET moleculesPerdues=\'' . ($pertesAttaquant + $perduesAttaquant['moleculesPerdues']) . '\' WHERE login=\'' . $actions['attaquant'] . '\'');
-mysqli_query($base, 'UPDATE autre SET moleculesPerdues=\'' . ($pertesDefenseur + $perduesDefenseur['moleculesPerdues']) . '\' WHERE login=\'' . $actions['defenseur'] . '\'');
+dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pertesAttaquant + $perduesAttaquant['moleculesPerdues']), $actions['attaquant']);
+dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pertesDefenseur + $perduesDefenseur['moleculesPerdues']), $actions['defenseur']);
 
 
 
 
 // On met à jour les ressources
-$chaine = "";
+// Build the SET clause and parameters dynamically for attacker
+$setClauses = [];
+$setTypes = '';
+$setParams = [];
 foreach ($nomsRes as $num => $ressource) {
-	$plus = "";
-	if ($num < $nbRes) {
-		$plus = ",";
-	}
-	$chaine = $chaine . '' . $ressource . '=' . ($ressourcesJoueur[$ressource] + ${$ressource . 'Pille'}) . '' . $plus;
+	$setClauses[] = "$ressource=?";
+	$setTypes .= 'd';
+	$setParams[] = ($ressourcesJoueur[$ressource] + ${$ressource . 'Pille'});
 }
+$setParams[] = $actions['attaquant'];
+$setTypes .= 's';
+$sql = 'UPDATE ressources SET ' . implode(',', $setClauses) . ' WHERE login=?';
+dbExecute($base, $sql, $setTypes, ...$setParams);
 
-$sql = 'UPDATE ressources SET ' . $chaine . ' WHERE login=\'' . $actions['attaquant'] . '\'';
-mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
-
-$chaine = "";
+// Build the SET clause and parameters dynamically for defender
+$setClauses = [];
+$setTypes = '';
+$setParams = [];
 foreach ($nomsRes as $num => $ressource) {
-	$plus = "";
-	if ($num < $nbRes) {
-		$plus = ",";
-	}
-	$chaine = $chaine . '' . $ressource . '=' . ($ressourcesDefenseur[$ressource] - ${$ressource . 'Pille'}) . '' . $plus;
+	$setClauses[] = "$ressource=?";
+	$setTypes .= 'd';
+	$setParams[] = ($ressourcesDefenseur[$ressource] - ${$ressource . 'Pille'});
 }
+$setParams[] = $actions['defenseur'];
+$setTypes .= 's';
+$sql1 = 'UPDATE ressources SET ' . implode(',', $setClauses) . ' WHERE login=?';
+dbExecute($base, $sql1, $setTypes, ...$setParams);
 
-$sql1 = 'UPDATE ressources SET ' . $chaine . ' WHERE login=\'' . $actions['defenseur'] . '\'';
-mysqli_query($base, $sql1) or die('Erreur SQL !<br />' . $sql1 . '<br />' . mysqli_error($base));
+$nbattaques = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $actions['attaquant']);
 
-$sql2 = 'SELECT nbattaques FROM autre WHERE login=\'' . $actions['attaquant'] . '\'';
-$ex2 = mysqli_query($base, $sql2) or die('Erreur SQL !<br />' . $sql2 . '<br />' . mysqli_error($base));
-$nbattaques = mysqli_fetch_array($ex2);
-
-$sql3 = 'UPDATE autre SET nbattaques=\'' . ($nbattaques['nbattaques'] + 1) . '\' WHERE login=\'' . $actions['attaquant'] . '\'';
-mysqli_query($base, $sql3) or die('Erreur SQL !<br />' . $sql3 . '<br />' . mysqli_error($base));
+dbExecute($base, 'UPDATE autre SET nbattaques=? WHERE login=?', 'is', ($nbattaques['nbattaques'] + 1), $actions['attaquant']);
 
 // Si les alliances sont en guerre on inscrit les pertes
 
-$exGuerre = mysqli_query($base, 'SELECT idalliance FROM autre WHERE login=\'' . $actions['attaquant'] . '\'');
-$joueur = mysqli_fetch_array($exGuerre);
+$joueur = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
 
-$exGuerre = mysqli_query($base, 'SELECT idalliance FROM autre WHERE login=\'' . $actions['defenseur'] . '\'');
-$idallianceAutre = mysqli_fetch_array($exGuerre);
+$idallianceAutre = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['defenseur']);
 
-$exGuerre = mysqli_query($base, 'SELECT * FROM declarations WHERE type=0 AND fin=0 AND ((alliance1=\'' . $joueur['idalliance'] . '\' AND alliance2=\'' . $idallianceAutre['idalliance'] . '\') OR  (alliance2=\'' . $joueur['idalliance'] . '\' AND alliance1=\'' . $idallianceAutre['idalliance'] . '\'))');
+$exGuerre = dbQuery($base, 'SELECT * FROM declarations WHERE type=0 AND fin=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?))', 'iiii', $joueur['idalliance'], $idallianceAutre['idalliance'], $joueur['idalliance'], $idallianceAutre['idalliance']);
 $guerre = mysqli_fetch_array($exGuerre);
 $nbGuerres = mysqli_num_rows($exGuerre);
 if ($nbGuerres >=  1) {
 	if ($guerre['alliance1'] == $joueur['idalliance']) {
-		mysqli_query($base, 'UPDATE declarations SET pertes1=\'' . ($guerre['pertes1'] + $pertesAttaquant) . '\', pertes2=\'' . ($guerre['pertes2'] + $pertesDefenseur) . '\'WHERE id=\'' . $guerre['id'] . '\'');
+		dbExecute($base, 'UPDATE declarations SET pertes1=?, pertes2=? WHERE id=?', 'ddi', ($guerre['pertes1'] + $pertesAttaquant), ($guerre['pertes2'] + $pertesDefenseur), $guerre['id']);
 	} else {
-		mysqli_query($base, 'UPDATE declarations SET pertes1=\'' . ($guerre['pertes1'] + $pertesDefenseur) . '\', pertes2=\'' . ($guerre['pertes2'] + $pertesAttaquant) . '\'WHERE id=\'' . $guerre['id'] . '\'');
+		dbExecute($base, 'UPDATE declarations SET pertes1=?, pertes2=? WHERE id=?', 'ddi', ($guerre['pertes1'] + $pertesDefenseur), ($guerre['pertes2'] + $pertesAttaquant), $guerre['id']);
 	}
 }
