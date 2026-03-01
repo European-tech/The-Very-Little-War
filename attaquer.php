@@ -3,8 +3,7 @@
 include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 
-$exMedaille = query('SELECT nbattaques FROM autre WHERE login=\'' . $_SESSION['login'] . '\'');
-$donneesMedaille = mysqli_fetch_array($exMedaille);
+$donneesMedaille = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $_SESSION['login']);
 $bonus = 0;
 
 foreach ($paliersTerreur as $num => $palier) {
@@ -15,8 +14,7 @@ foreach ($paliersTerreur as $num => $palier) {
 
 $coutPourUnAtome = 0.15 * (1 + $bonus / 100);
 
-$ex = mysqli_query($base, 'SELECT nbattaques FROM autre WHERE login=\'' . $_SESSION['login'] . '\'');
-$donnees = mysqli_fetch_array($ex);
+$donnees = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $_SESSION['login']);
 $reduction = 0;
 
 foreach ($paliersTerreur as $num => $palier) {
@@ -26,13 +24,13 @@ foreach ($paliersTerreur as $num => $palier) {
 }
 
 if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
+    csrfCheck();
     if (!empty($_POST['joueurAEspionner']) && !empty($_POST['nombreneutrinos'])) { // Vérification que la variable n'est pas vide
         $_POST['joueurAEspionner'] = antiXSS($_POST['joueurAEspionner']);
         $_POST['nombreneutrinos'] = antiXSS($_POST['nombreneutrinos']);
         if ($_POST['joueurAEspionner'] != $_SESSION['login']) {
             if (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
-                $ex = query('SELECT * FROM membre WHERE login=\'' . $_POST['joueurAEspionner'] . '\'');
-                $membreJoueur = mysqli_fetch_array($ex);
+                $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
                 updateRessources($_POST['joueurAEspionner'], $nomsRes);
                 updateActions($_POST['joueurAEspionner']);
 
@@ -40,8 +38,11 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                 $distance = pow(pow($membre['x'] - $membreJoueur['x'], 2) + pow($membre['y'] - $membreJoueur['y'], 2), 0.5);
                 $tempsTrajet = round($distance / $vitesseEspionnage * 3600);
 
-                query('INSERT INTO actionsattaques VALUES(default,"' . $_SESSION['login'] . '","' . $_POST['joueurAEspionner'] . '","' . time() . '","' . (time() + $tempsTrajet) . '","' . (time() + 2 * $tempsTrajet) . '","Espionnage","0","' . $_POST['nombreneutrinos'] . '")');
-                query('UPDATE autre SET neutrinos=\'' . ($autre['neutrinos'] - $_POST['nombreneutrinos']) . '\' WHERE login=\'' . $_SESSION['login'] . '\'');
+                $now = time();
+                dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,?,?)', 'ssiiiisi',
+                    $_SESSION['login'], $_POST['joueurAEspionner'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), "Espionnage", 0, $_POST['nombreneutrinos']);
+                $newNeutrinos = $autre['neutrinos'] - $_POST['nombreneutrinos'];
+                dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $_SESSION['login']);
                 $autre['neutrinos'] -= $_POST['nombreneutrinos'];
 
                 $information = 'Vous avez lancé l\'espionnage de ' . $_POST['joueurAEspionner'] . ' !';
@@ -57,14 +58,13 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
 }
 // Attaque
 if (isset($_POST['joueurAAttaquer'])) {
+    csrfCheck();
     if (!empty($_POST['joueurAAttaquer'])) { // Vérification que la variable n'est pas vide
 
         $_POST['joueurAAttaquer'] = antiXSS($_POST['joueurAAttaquer']);
         if ($_POST['joueurAAttaquer'] != $_SESSION['login']) {
 
-            $sqlVac = 'SELECT vacance,timestamp FROM membre WHERE login=\'' . $_POST['joueurAAttaquer'] . '\'';
-            $exVac = mysqli_query($base, $sqlVac);
-            $enVac = mysqli_fetch_array($exVac);
+            $enVac = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
 
             if ($enVac['vacance']) {
                 $erreur = "Vous ne pouvez pas attaquer un joueur en vacances";
@@ -74,16 +74,17 @@ if (isset($_POST['joueurAAttaquer'])) {
                 $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps(3600 * 24 * 2 - time() + $membre['timestamp']) . " h</strong>) et vous ne pouvez donc pas attaquer.";
             } else {
 
-                $sqlPointsDefenseur = 'SELECT * FROM autre WHERE login=\'' . $_POST['joueurAAttaquer'] . '\'';
-                $exPointsDefenseur = mysqli_query($base, $sqlPointsDefenseur) or die('Erreur SQL !<br />' . $sqlPointsDefenseur . '<br />' . mysqli_error($base));
-                $joueurDefenseur = mysqli_fetch_array($exPointsDefenseur);
-                $nb = mysqli_num_rows($exPointsDefenseur);
+                $joueurDefenseur = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $_POST['joueurAAttaquer']);
+                if ($joueurDefenseur) {
+                    $nb = 1;
+                } else {
+                    $nb = 0;
+                }
 
-                $ex = query('SELECT x,y FROM membre WHERE login=\'' . $_POST['joueurAAttaquer'] . '\'');
-                $positions = mysqli_fetch_array($ex);
+                $positions = dbFetchOne($base, 'SELECT x,y FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
 
                 if ($nb > 0) {
-                    $ex = query('SELECT * FROM molecules WHERE proprietaire=\'' . $_SESSION['login'] . '\'');
+                    $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $_SESSION['login']);
                     $bool = 1;
 
                     $troupesPositives = true; // si sup a 0
@@ -134,13 +135,16 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                         if ($cout <= $ressources['energie']) {
                             if ($bool) {
-                                $ex = query('SELECT * FROM molecules WHERE proprietaire=\'' . $_SESSION['login'] . '\' ORDER BY numeroclasse ASC');
+                                $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $_SESSION['login']);
                                 $c = 1;
                                 while ($moleculesAttaque = mysqli_fetch_array($ex)) {
-                                    query('UPDATE molecules SET nombre=\'' . ($moleculesAttaque['nombre'] - $_POST['nbclasse' . $c]) . '\' WHERE id=\'' . $moleculesAttaque['id'] . '\''); // on enleve les troupes de celles sur place  
+                                    $newNombre = $moleculesAttaque['nombre'] - $_POST['nbclasse' . $c];
+                                    dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $newNombre, $moleculesAttaque['id']);
                                     $c++;
                                 }
-                                query('INSERT INTO actionsattaques VALUES(default,"' . $_SESSION['login'] . '","' . $_POST['joueurAAttaquer'] . '","' . time() . '","' . (time() + $tempsTrajet) . '","' . (time() + 2 * $tempsTrajet) . '","' . $troupes . '",0,default)');
+                                $now = time();
+                                dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,0,default)', 'ssiiiss',
+                                    $_SESSION['login'], $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes);
                                 ajouter('energie', 'ressources', -$cout, $_SESSION['login']);
                                 ajouter('energieDepensee', 'autre', $cout, $_SESSION['login']);
                                 $information = "L'attaque a été lancée.";
@@ -175,10 +179,10 @@ if (time() - $membre['timestamp'] < 3600 * 24 * 2) {
     finCarte();
 }
 
-$ex = mysqli_query($base, 'SELECT count(*) AS nb FROM actionsattaques WHERE attaquant=\'' . $_SESSION['login'] . '\' OR (defenseur=\'' . $_SESSION['login'] . '\' AND troupes!=\'Espionnage\') ORDER BY tempsAttaque ASC');
-$nb = mysqli_fetch_array($ex); // pour ne pas voir l'espionnage
+$nbResult = dbFetchOne($base, 'SELECT count(*) AS nb FROM actionsattaques WHERE attaquant=? OR (defenseur=? AND troupes!=?)', 'sss', $_SESSION['login'], $_SESSION['login'], 'Espionnage');
+$nb = $nbResult;
 
-$ex = mysqli_query($base, 'SELECT * FROM actionsattaques WHERE attaquant=\'' . $_SESSION['login'] . '\' OR defenseur=\'' . $_SESSION['login'] . '\' ORDER BY tempsAttaque ASC');
+$ex = dbQuery($base, 'SELECT * FROM actionsattaques WHERE attaquant=? OR defenseur=? ORDER BY tempsAttaque ASC', 'ss', $_SESSION['login'], $_SESSION['login']);
 if ($nb['nb'] > 0) {
     debutCarte();
     scriptAffichageTemps();
@@ -249,8 +253,7 @@ if ($_GET['type'] == 0) {
     $tailleTile = 80;
     $centre = ['x' => $membre['x'], 'y' => $membre['y']];
 
-    $ex = query('SELECT tailleCarte FROM statistiques');
-    $tailleCarte = mysqli_fetch_array($ex);
+    $tailleCarte = dbFetchOne($base, 'SELECT tailleCarte FROM statistiques');
 
     $carte = [];
     for ($i = 0; $i < $tailleCarte['tailleCarte']; $i++) {
@@ -273,22 +276,19 @@ if ($_GET['type'] == 0) {
         $y = $centre['y'];
     }
 
-    $ex = query('SELECT * FROM membre');
+    $ex = dbQuery($base, 'SELECT * FROM membre');
     while ($tableau = mysqli_fetch_array($ex)) {
-        $ex1 = query('SELECT points,idalliance FROM autre WHERE login=\'' . $tableau['login'] . '\'');
-        $points = mysqli_fetch_array($ex1);
+        $points = dbFetchOne($base, 'SELECT points,idalliance FROM autre WHERE login=?', 's', $tableau['login']);
 
-        $exGuerre = mysqli_query($base, 'SELECT count(*) AS estEnGuerre FROM declarations WHERE type=0 AND ((alliance1=\'' . $points['idalliance'] . '\' AND alliance2=\'' . $autre['idalliance'] . '\') OR (alliance2=\'' . $points['idalliance'] . '\' AND alliance1=\'' . $autre['idalliance'] . '\')) AND fin=0');
-        $guerre = mysqli_fetch_array($exGuerre);
+        $guerreCount = dbCount($base, 'SELECT count(*) AS estEnGuerre FROM declarations WHERE type=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND fin=0', 'iiii', $points['idalliance'], $autre['idalliance'], $points['idalliance'], $autre['idalliance']);
 
-        $exPacte = mysqli_query($base, 'SELECT count(*) AS estEnPacte FROM declarations WHERE type=1 AND ((alliance1=\'' . $points['idalliance'] . '\' AND alliance2=\'' . $autre['idalliance'] . '\') OR (alliance2=\'' . $points['idalliance'] . '\' AND alliance1=\'' . $autre['idalliance'] . '\')) AND valide!=0');
-        $pacte = mysqli_fetch_array($exPacte);
+        $pacteCount = dbCount($base, 'SELECT count(*) AS estEnPacte FROM declarations WHERE type=1 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND valide!=0', 'iiii', $points['idalliance'], $autre['idalliance'], $points['idalliance'], $autre['idalliance']);
 
         if ($tableau['login'] == $_SESSION['login']) {
             $type = 'soi';
-        } elseif ($guerre['estEnGuerre'] > 0) {
+        } elseif ($guerreCount > 0) {
             $type = 'guerre';
-        } elseif ($pacte['estEnPacte'] > 0) {
+        } elseif ($pacteCount > 0) {
             $type = 'pacte';
         } elseif ($points['idalliance'] == $autre['idalliance'] && $autre['idalliance'] != 0) {
             $type = 'alliance';
@@ -347,7 +347,7 @@ if ($_GET['type'] == 0) {
 if (isset($_GET['id'])) {
     $_GET['id'] = antiXSS($_GET['id']);
 
-    $ex = query('SELECT * FROM membre WHERE login=\'' . $_GET['id'] . '\'');
+    $ex = dbQuery($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
     $nb = mysqli_num_rows($ex);
     $joueur = mysqli_fetch_array($ex);
 
@@ -355,8 +355,12 @@ if (isset($_GET['id'])) {
         if ($_GET['type'] == 1) {
             debutCarte("Attaquer");
             echo '<form method="post" action="attaquer.php" name="formAttaquer">';
-            $sql = 'SELECT * FROM molecules WHERE proprietaire=\'' . $_SESSION['login'] . '\' ORDER BY numeroclasse';
-            $ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
+            echo csrfField();
+            $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse', 's', $_SESSION['login']);
+            if (!$ex) {
+                error_log("SQL error fetching molecules for attacker view");
+                echo "Une erreur est survenue.";
+            } else {
 
             $distance = pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5);
             scriptAffichageTemps();
@@ -374,7 +378,7 @@ if (isset($_GET['id'])) {
             echo important("Troupes attaquantes");
             debutListe();
 
-            $ex1 = query('SELECT * FROM molecules WHERE proprietaire=\'' . $_SESSION['login'] . '\' AND formule!="Vide"');
+            $ex1 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? AND formule!=?', 'ss', $_SESSION['login'], "Vide");
 
             $nombreClasses = mysqli_num_rows($ex1);
             if ($nombreClasses == 0) {
@@ -391,15 +395,17 @@ if (isset($_GET['id'])) {
             }
             echo '</form>';
 
-            $sql = 'SELECT * FROM molecules WHERE proprietaire=\'' . $_SESSION['login'] . '\' AND formule!=\'Vide\' ORDER BY numeroclasse';
-            $ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
+            $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? AND formule!=? ORDER BY numeroclasse', 'ss', $_SESSION['login'], 'Vide');
+            if (!$ex) {
+                error_log("SQL error fetching molecules for attack JS");
+            } else {
             $nbClasses = mysqli_num_rows($ex);
             // affichage du temps pour attaquer
             echo '
             <script>
             var tempsEnCours = 0;
             var tempsAttaque = [];
-            
+
             function actualiseTemps(){
                 tempsEnCours = 0;
                 ';
@@ -415,13 +421,12 @@ if (isset($_GET['id'])) {
                 document.getElementById("tempsAttaque").innerHTML = affichageTemps(tempsEnCours);
                 return tempsEnCours;
             }
-            
+
             function actualiseCout(){
                 var cout = 0;
                 ';
             for ($i = 1; $i <= $nbClasses; $i++) {
-                $ex1 = query('SELECT * FROM molecules WHERE proprietaire=\'' . $_SESSION['login'] . '\' AND numeroclasse=\'' . $i . '\'');
-                $molecules1 = mysqli_fetch_array($ex1);
+                $molecules1 = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $_SESSION['login'], $i);
                 $totAtomes = 0;
                 foreach ($nomsRes as $num => $res) {
                     $totAtomes += $molecules1[$res];
@@ -432,7 +437,7 @@ if (isset($_GET['id'])) {
             echo '
                 document.getElementById("coutEnergie").innerHTML = nFormatter(cout);
             }
-            
+
             ';
 
 
@@ -448,7 +453,7 @@ if (isset($_GET['id'])) {
                         else {
                             tempsEnCours = actualiseTemps();
                         }
-                        
+
                         actualiseCout();
                     });';
                 $c++;
@@ -456,11 +461,14 @@ if (isset($_GET['id'])) {
             echo '
             </script>
             ';
+            } // end else for ex
 
             finCarte();
+            } // end else for first ex
         } elseif ($_GET['type'] == 2) {
             debutCarte("Espionner");
             echo '<form method="post" action="attaquer.php" name="formEspionner">';
+            echo csrfField();
             echo important("Cible");
 
             echo chip($joueur['login'], '<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>', "white", false, true);

@@ -4,6 +4,7 @@ include("includes/redirectionVacance.php");
 
 // traitement des points à placer pour le producteur et le generateur
 if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulaire
+    csrfCheck();
     $somme = 0;
     $bool = true;
 
@@ -29,7 +30,8 @@ if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulai
             $chaine = $chaine . ($_POST['nbPoints' . $ressource] + ${'points' . $ressource}) . $plus;
         }
 
-        query('UPDATE constructions SET pointsProducteurRestants=\'' . ($constructions['pointsProducteurRestants'] - $somme) . '\', pointsProducteur=\'' . $chaine . '\' WHERE login=\'' . $_SESSION['login'] . '\'');
+        $newPoints = $constructions['pointsProducteurRestants'] - $somme;
+        dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=?, pointsProducteur=? WHERE login=?', 'iss', $newPoints, $chaine, $_SESSION['login']);
 
         $information = "Les points du producteur ont été sauvegardés.";
         echo '<script>document.location.href="constructions.php?information=' . $information . '"</script>';
@@ -39,6 +41,7 @@ if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulai
 }
 
 if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour le formulaire
+    csrfCheck();
     $somme = 0;
     $bool = true;
 
@@ -64,7 +67,8 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
             $chaine = $chaine . ($_POST['nbPointsCondenseur' . $ressource] + ${'niveau' . $ressource}) . $plus;
         }
 
-        query('UPDATE constructions SET pointsCondenseurRestants=\'' . ($constructions['pointsCondenseurRestants'] - $somme) . '\', pointsCondenseur=\'' . $chaine . '\' WHERE login=\'' . $_SESSION['login'] . '\'');
+        $newPoints = $constructions['pointsCondenseurRestants'] - $somme;
+        dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=?, pointsCondenseur=? WHERE login=?', 'iss', $newPoints, $chaine, $_SESSION['login']);
 
         $information = "Les points du condenseur ont été sauvegardés.";
         echo '<script>document.location.href="constructions.php?information=' . $information . '"</script>';
@@ -82,9 +86,10 @@ function mepConstructions($liste)
     global $ressources;
     global $revenuEnergie;
     global $revenu;
+    global $base;
 
     // on doit calculer le niveau actuel (et dans le futur avec les constructions le précédant)
-    $exNiveauActuel = query('SELECT niveau FROM actionsconstruction WHERE login=\'' . $_SESSION['login'] . '\' AND batiment=\'' . $liste['bdd'] . '\' ORDER BY niveau DESC');
+    $exNiveauActuel = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
     $niveauActuel = mysqli_fetch_array($exNiveauActuel);
     $nb = mysqli_num_rows($exNiveauActuel);
     if ($nb == 0) {
@@ -127,8 +132,8 @@ function mepConstructions($liste)
         }
     }
 
-    $ex = query('SELECT count(*) as nb FROM actionsconstruction WHERE login=\'' . $_SESSION['login'] . '\'');
-    $nb = mysqli_fetch_array($ex);
+    $nbResult = dbFetchOne($base, 'SELECT count(*) as nb FROM actionsconstruction WHERE login=?', 's', $_SESSION['login']);
+    $nb = $nbResult;
     if ($nb['nb'] < 2) {
         if ($liste['coutEnergie'] >= $ressources['energie'] or $bool == 0) {
             $bool1 = 1;
@@ -168,7 +173,7 @@ function mepConstructions($liste)
             '<br/><br/>' . debutContent(false, true) . $liste['revenu'] . ' au <strong>niveau ' . $liste['niveau'] . '</strong><br/>
           ' . $liste['revenu1'] . ' au <strong> niveau ' . ($niveauActuel['niveau'] + 1) . '</strong>
           ' . $liste['effetSup'] . '<br/><br/>' . finContent(false, true) . '
-          <form action="constructions.php" method="post" name="form' . $liste['bdd'] . '">' .
+          <form action="constructions.php" method="post" name="form' . $liste['bdd'] . '">' . csrfField() .
             important('Augmenter') . '
           ' . $cout . $drainage . nombreTemps(affichageTemps($liste['tempsConstruction'])) . nombrePoints('+' . $liste['points']) . '<br/><br/>
           ' . $augmenter . '</form><hr>'
@@ -186,8 +191,9 @@ function traitementConstructions($liste)
     global $autre;
 
     if (isset($_POST[$liste['bdd']])) {
-        $ex = query('SELECT count(*) as nb FROM actionsconstruction WHERE login=\'' . $_SESSION['login'] . '\'');
-        $nb = mysqli_fetch_array($ex);
+        csrfCheck();
+        $nbResult = dbFetchOne($base, 'SELECT count(*) as nb FROM actionsconstruction WHERE login=?', 's', $_SESSION['login']);
+        $nb = $nbResult;
 
         if ($nb['nb'] < 2) {
             if (!array_key_exists("coutEnergie", $liste)) {
@@ -216,8 +222,8 @@ function traitementConstructions($liste)
             }
 
             if ($ressources['energie'] >= $liste['coutEnergie'] and $bool == 1) {
+                // Build dynamic UPDATE for ressources - these are computed values, not user input
                 $chaine = "";
-
                 foreach ($nomsRes as $num => $ressource) {
                     $plus = "";
                     if ($num < $nbRes) {
@@ -226,10 +232,23 @@ function traitementConstructions($liste)
                     $chaine = $chaine . $ressource . '=' . ($ressources[$ressource] - $liste['cout' . ucfirst($ressource)]) . $plus;
                 }
 
-                $sql2 = 'UPDATE ressources SET energie=\'' . ($ressources['energie'] - $liste['coutEnergie']) . '\',' . $chaine . ' WHERE login=\'' . $_SESSION['login'] . '\'';
-                mysqli_query($base, $sql2) or die('Erreur SQL !<br />' . $sql2 . '<br />' . mysqli_error($base));
+                $newEnergie = $ressources['energie'] - $liste['coutEnergie'];
+                // Note: $chaine contains computed numeric values from server-side data, not user input
+                $sql2 = 'UPDATE ressources SET energie=?,' . $chaine . ' WHERE login=?';
+                $stmt = mysqli_prepare($base, $sql2);
+                if (!$stmt) {
+                    error_log("SQL Prepare Error: " . mysqli_error($base));
+                    $erreur = "Une erreur est survenue.";
+                } else {
+                    mysqli_stmt_bind_param($stmt, 'ds', $newEnergie, $_SESSION['login']);
+                    if (!mysqli_stmt_execute($stmt)) {
+                        error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
+                        $erreur = "Une erreur est survenue.";
+                    }
+                    mysqli_stmt_close($stmt);
+                }
 
-                $ex = query('SELECT * FROM actionsconstruction WHERE login=\'' . $_SESSION['login'] . '\' ORDER BY fin DESC');
+                $ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
                 $nb = mysqli_num_rows($ex);
                 if ($nb > 0) { // s'il y a deja quelque chose en cours, on le met derriere
                     $actionsconstruction = mysqli_fetch_array($ex);
@@ -239,7 +258,7 @@ function traitementConstructions($liste)
                 }
 
                 // on doit calculer le niveau actuel (et dans le futur avec les constructions le précédant)
-                $exNiveauActuel = query('SELECT niveau FROM actionsconstruction WHERE login=\'' . $_SESSION['login'] . '\' AND batiment=\'' . $liste['bdd'] . '\' ORDER BY niveau DESC');
+                $exNiveauActuel = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
                 $niveauActuel = mysqli_fetch_array($exNiveauActuel);
                 $nb = mysqli_num_rows($exNiveauActuel);
 
@@ -247,9 +266,13 @@ function traitementConstructions($liste)
                     $niveauActuel['niveau'] = $constructions[$liste['bdd']];
                 }
 
-                mysqli_query($base, 'INSERT INTO actionsconstruction VALUES(default,"' . $_SESSION['login'] . '",' . $tempsDebut . ',' . ($tempsDebut + $liste['tempsConstruction']) . ',"' . $liste['bdd'] . '",' . ($niveauActuel['niveau'] + 1) . ',"' . $liste['titre'] . '",' . $liste['points'] . ')') or die('Erreur SQL !<br /><br />' . mysqli_error($base));
+                $newNiveau = $niveauActuel['niveau'] + 1;
+                $finTemps = $tempsDebut + $liste['tempsConstruction'];
+                dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siissii',
+                    $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
 
-                mysqli_query($base, 'UPDATE autre SET energieDepensee=\'' . ($autre['energieDepensee'] + $liste['coutEnergie']) . '\' WHERE login=\'' . $_SESSION['login'] . '\'');
+                $newEnergieDepensee = $autre['energieDepensee'] + $liste['coutEnergie'];
+                dbExecute($base, 'UPDATE autre SET energieDepensee=? WHERE login=?', 'ds', $newEnergieDepensee, $_SESSION['login']);
 
                 $information = "La construction a bien été lancée.";
             } else {
@@ -267,7 +290,7 @@ foreach ($listeConstructions as $num => $b) {
 
 include("includes/tout.php");
 
-$ex = mysqli_query($base, 'SELECT * FROM actionsconstruction WHERE login=\'' . $_SESSION['login'] . '\'');
+$ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=?', 's', $_SESSION['login']);
 $nb = mysqli_num_rows($ex);
 if ($nb > 0) {
     debutCarte();

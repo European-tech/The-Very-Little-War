@@ -3,13 +3,11 @@ include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 //tableau d'échange de ressources
 
-$req = mysqli_query($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=\'' . (time() - 2678400) . '\'');
-$actifs = mysqli_fetch_array($req);
+$actifs = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=?', 'i', (time() - 2678400));
 $volatilite = 0.3 / $actifs['nbActifs'];
 
 
-$ex = mysqli_query($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1'); // cours actuel
-$val = mysqli_fetch_array($ex);
+$val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
 $tabCours = explode(",", $val['tableauCours']);
 
 
@@ -20,13 +18,12 @@ foreach ($nomsRes as $num => $ressource) {
     }
 }
 if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinataire'])) {
+    csrfCheck();
     if (!empty($_POST['destinataire'])) {
         $_POST['destinataire'] = antiXSS($_POST['destinataire']);
 
-        $ipd = query('SELECT ip FROM membre WHERE login=\'' . $_POST['destinataire'] . '\'');
-        $ipdd = mysqli_fetch_array($ipd);
-        $ipm = query('SELECT ip FROM membre WHERE login=\'' . $_SESSION['login'] . '\'');
-        $ipmm = mysqli_fetch_array($ipm);
+        $ipdd = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_POST['destinataire']);
+        $ipmm = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
 
         if ($ipmm['ip'] != $ipdd['ip']) {
             if (empty($_POST['energieEnvoyee'])) {
@@ -49,11 +46,9 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                 }
             }
             if (preg_match("#^[0-9]*$#", $_POST['energieEnvoyee']) and $bool == 1) {
-                $ex = mysqli_query($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=\'' . $_POST['destinataire'] . '\'');
-                $verification = mysqli_fetch_array($ex);
+                $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=?', 's', $_POST['destinataire']);
                 if ($verification['joueurOuPas'] == 1) {
-                    $ex = mysqli_query($base, 'SELECT * FROM ressources WHERE login=\'' . $_SESSION['login'] . '\'');
-                    $ressources = mysqli_fetch_array($ex);
+                    $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $_SESSION['login']);
 
                     $bool = 1;
                     foreach ($nomsRes as $num => $ressource) {
@@ -62,8 +57,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                         }
                     }
                     if ($ressources['energie'] >= $_POST['energieEnvoyee'] and $bool == 1) {
-                        $ex = mysqli_query($base, 'SELECT * FROM constructions WHERE login=\'' . $_POST['destinataire'] . '\'');
-                        $constructionsJoueur = mysqli_fetch_array($ex);
+                        $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $_POST['destinataire']);
 
                         if ($revenuEnergie >= revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire'])) {
                             $rapportEnergie = revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire']) / $revenuEnergie;
@@ -90,27 +84,35 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                         }
 
 
-                        $ex = mysqli_query($base, 'SELECT x,y FROM membre WHERE login=\'' . $_POST['destinataire'] . '\'');
-                        $joueur = mysqli_fetch_array($ex);
+                        $joueur = dbFetchOne($base, 'SELECT x,y FROM membre WHERE login=?', 's', $_POST['destinataire']);
 
                         $distance = pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5);
 
                         $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST['energieEnvoyee'];
                         $ressourcesRecues = $ressourcesRecues . $rapportEnergie * $_POST['energieEnvoyee'];
 
-                        $distance =
-                            query('INSERT INTO actionsenvoi VALUES(default,"' . $_SESSION['login'] . '","' . $_POST['destinataire'] . '","' . $ressourcesEnvoyees . '","' . $ressourcesRecues . '","' . (time() + round(3600 * $distance / $vitesseMarchands)) . '")');
+                        $tempsArrivee = time() + round(3600 * $distance / $vitesseMarchands);
+                        dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
+                            $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
 
 
+                        // Build dynamic UPDATE for ressources
                         $chaine = "";
                         foreach ($nomsRes as $num => $ressource) {
                             $plus = "";
                             if ($num < $nbRes) {
                                 $plus = ",";
                             }
-                            $chaine = $chaine . '' . $ressource . '=\'' . ($ressources[$ressource] - $_POST[$ressource . 'Envoyee']) . '\'' . $plus;
+                            $chaine = $chaine . '' . $ressource . '=' . ($ressources[$ressource] - $_POST[$ressource . 'Envoyee']) . '' . $plus;
                         }
-                        mysqli_query($base, 'UPDATE ressources SET energie=\'' . ($ressources['energie'] - $_POST['energieEnvoyee']) . '\',' . $chaine . ' WHERE login=\'' . $_SESSION['login'] . '\'');
+                        $newEnergie = $ressources['energie'] - $_POST['energieEnvoyee'];
+                        // $chaine contains computed numeric values from server data
+                        $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?,' . $chaine . ' WHERE login=?');
+                        if ($stmt) {
+                            mysqli_stmt_bind_param($stmt, 'ds', $newEnergie, $_SESSION['login']);
+                            mysqli_stmt_execute($stmt);
+                            mysqli_stmt_close($stmt);
+                        }
 
                         $chaine = "";
                         foreach ($nomsRes as $num => $ressource) {
@@ -141,6 +143,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 }
 
 if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAcheter'])) {
+    csrfCheck();
     $_POST['nombreRessourceAAcheter'] = antiXSS(transformInt($_POST['nombreRessourceAAcheter']));
     $_POST['typeRessourceAAcheter'] = antiXSS($_POST['typeRessourceAAcheter']);
     if (!empty($_POST['nombreRessourceAAcheter']) and preg_match("#^[0-9]*$#", $_POST['nombreRessourceAAcheter'])) {
@@ -156,7 +159,14 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
             $coutAchat = round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']);
             $diffEnergieAchat = $ressources['energie'] - $coutAchat;
             if ($diffEnergieAchat >= 0) {
-                $ex = query('UPDATE ressources SET energie=' . ($diffEnergieAchat) . ', ' . $nomsRes[$numRes] . '=' . ($ressources[$nomsRes[$numRes]] + $_POST['nombreRessourceAAcheter']) . ' WHERE login=\'' . $_SESSION['login'] . '\'');
+                $newResVal = $ressources[$nomsRes[$numRes]] + $_POST['nombreRessourceAAcheter'];
+                // $nomsRes[$numRes] is a server-side resource name, not user input
+                $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
+                if ($stmt) {
+                    mysqli_stmt_bind_param($stmt, 'dds', $diffEnergieAchat, $newResVal, $_SESSION['login']);
+                    mysqli_stmt_execute($stmt);
+                    mysqli_stmt_close($stmt);
+                }
 
                 $chaine = '';
                 foreach ($tabCours as $num => $cours) {
@@ -174,12 +184,12 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                     }
                 }
 
-                mysqli_query($base, 'INSERT INTO cours VALUES (default,"' . $chaine . '","' . time() . '")') or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
+                $now = time();
+                dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
 
                 $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAAcheter'] . ".png\" alt=\"" . $_POST['typeRessourceAAcheter'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
 
-                $ex = mysqli_query($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 0,1'); // cours actuel
-                $val = mysqli_fetch_array($ex);
+                $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                 $tabCours = explode(",", $val['tableauCours']);
             } else {
                 $erreur = "Vous n'avez pas assez d'énergie.";
@@ -193,6 +203,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 }
 
 if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVendre'])) {
+    csrfCheck();
     $_POST['nombreRessourceAVendre'] = antiXSS(transformInt($_POST['nombreRessourceAVendre']));
     $_POST['typeRessourceAVendre'] = antiXSS($_POST['typeRessourceAVendre']);
     if (!empty($_POST['nombreRessourceAVendre']) and preg_match("#^[0-9]*$#", $_POST['nombreRessourceAVendre'])) {
@@ -206,7 +217,15 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
         }
         if ($bool == 0) { // verification que c'est une ressource qui existe
             if ($ressources[$nomsRes[$numRes]] >= $_POST['nombreRessourceAVendre']) {
-                $ex = query('UPDATE ressources SET energie=' . ($ressources['energie'] + round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'])) . ', ' . $nomsRes[$numRes] . '=' . ($ressources[$nomsRes[$numRes]] - $_POST['nombreRessourceAVendre']) . ' WHERE login=\'' . $_SESSION['login'] . '\'');
+                $newEnergie = $ressources['energie'] + round($tabCours[$numRes] * $_POST['nombreRessourceAVendre']);
+                $newResVal = $ressources[$nomsRes[$numRes]] - $_POST['nombreRessourceAVendre'];
+                // $nomsRes[$numRes] is a server-side resource name
+                $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
+                if ($stmt) {
+                    mysqli_stmt_bind_param($stmt, 'dds', $newEnergie, $newResVal, $_SESSION['login']);
+                    mysqli_stmt_execute($stmt);
+                    mysqli_stmt_close($stmt);
+                }
 
                 $chaine = '';
                 foreach ($tabCours as $num => $cours) {
@@ -224,12 +243,12 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                     }
                 }
 
-                mysqli_query($base, 'INSERT INTO cours VALUES (default,"' . $chaine . '","' . time() . '")');
+                $now = time();
+                dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
 
                 $information = "Vous avez vendu " . number_format($_POST['nombreRessourceAVendre'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAVendre'] . ".png\" alt=\"" . $_POST['typeRessourceAVendre'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAVendre']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
 
-                $ex = mysqli_query($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 0,1'); // cours actuel
-                $val = mysqli_fetch_array($ex);
+                $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                 $tabCours = explode(",", $val['tableauCours']);
             } else {
                 $erreur = "Vous n'avez pas assez d'atomes.";
@@ -249,7 +268,7 @@ if (!isset($_GET['sub'])) {
 }
 
 
-$ex = mysqli_query($base, 'SELECT * FROM actionsenvoi WHERE envoyeur=\'' . $_SESSION['login'] . '\' OR receveur=\'' . $_SESSION['login'] . '\' ORDER BY tempsArrivee ASC');
+$ex = dbQuery($base, 'SELECT * FROM actionsenvoi WHERE envoyeur=? OR receveur=? ORDER BY tempsArrivee ASC', 'ss', $_SESSION['login'], $_SESSION['login']);
 $nb = mysqli_num_rows($ex); // pour ne pas voir l'espionnage
 
 if ($nb > 0) {
@@ -292,6 +311,7 @@ if ($_GET['sub'] == 1) {
     debutListe();
 ?>
     <form action="marche.php?sub=1" method="post" name="formEnvoyer">
+        <?php echo csrfField(); ?>
 
         <?php
         item(['floating' => true, 'input' => '<input type="text" name="energieEnvoyee" id="energieEnvoyee" class="form-control"/>', 'titre' => 'Energie', 'after' => nombreEnergie(number_format($ressources['energie'], 0, ' ', ' '))]);
@@ -326,6 +346,7 @@ if ($_GET['sub'] == 0) {
     debutCarte("Acheter");
     ?>
         <form action="marche.php?sub=0" method="post" name="formAcheter">
+            <?php echo csrfField(); ?>
             <?php
             debutListe();
             $options = "";
@@ -346,6 +367,7 @@ if ($_GET['sub'] == 0) {
         debutCarte("Vendre");
         ?>
         <form action="marche.php?sub=0" method="post" name="formVendre">
+            <?php echo csrfField(); ?>
             <?php
             debutListe();
             $options = "";
@@ -449,7 +471,7 @@ if ($_GET['sub'] == 0) {
                 ],
                 <?php
                 $tot = '';
-                $ex = query("SELECT * FROM cours ORDER BY timestamp DESC LIMIT 0,1000");
+                $ex = dbQuery($base, "SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1000");
                 $c = 1;
                 $nb = mysqli_num_rows($ex);
                 while ($cours = mysqli_fetch_array($ex)) {
