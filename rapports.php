@@ -1,48 +1,45 @@
-<?php 
+<?php
 include("includes/basicprivatephp.php");
+require_once("includes/csrf.php");
 
-if(isset($_GET['supprimer']) AND preg_match("#\d#",$_GET['supprimer'])) {
-	if($_GET['supprimer'] == 1) {
-		$sql = 'DELETE FROM rapports WHERE destinataire=\''.$_SESSION['login'].'\'';
-		mysqli_query($base,$sql) or die('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
+if(isset($_POST['supprimer']) AND preg_match("#\d#",$_POST['supprimer'])) {
+	csrfCheck();
+	if($_POST['supprimer'] == 1) {
+		dbExecute($base, 'DELETE FROM rapports WHERE destinataire = ?', 's', $_SESSION['login']);
 	}
 	else {
-		$sql = 'DELETE FROM rapports WHERE id=\''.$_GET['supprimer'].'\' AND destinataire=\''.$_SESSION['login'].'\'';
-		mysqli_query($base,$sql) or die('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
+		$supprimerId = (int)$_POST['supprimer'];
+		dbExecute($base, 'DELETE FROM rapports WHERE id = ? AND destinataire = ?', 'is', $supprimerId, $_SESSION['login']);
 	}
 }
 
 include("includes/tout.php");
 
 if(isset($_GET['rapport'])) {
-	$_GET['rapport'] = mysqli_real_escape_string($base,stripslashes(antihtml($_GET['rapport'])));
-	$sql = 'SELECT * FROM rapports WHERE id=\''.$_GET['rapport'].'\' AND destinataire=\''.$_SESSION['login'].'\'';
-	$ex = mysqli_query($base,$sql) or die('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
+	$rapportId = (int)$_GET['rapport'];
+	$ex = dbQuery($base, 'SELECT * FROM rapports WHERE id = ? AND destinataire = ?', 'is', $rapportId, $_SESSION['login']);
 	$rapports = mysqli_fetch_array($ex);
 	$nb_rapports = mysqli_num_rows($ex);
 	if($nb_rapports > 0) {
-		$sql1 = 'UPDATE rapports SET statut=1 WHERE id=\''.$_GET['rapport'].'\'';
-		$ex1 = mysqli_query($base,$sql1) or die('Erreur SQL !<br />'.$sql1.'<br />'.mysql_error());
-		
+		dbExecute($base, 'UPDATE rapports SET statut=1 WHERE id = ?', 'i', $rapportId);
+
         debutCarte($rapports['titre']);
 		debutContent();
 		echo $rapports['contenu'];
         finContent();
-        finCarte(imageLabel('<img  src="images/croix.png" alt="supprimer" class="imageSousMenu">','Supprimer','rapports.php?supprimer='.$rapports['id']));
+        finCarte('<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="imageSousMenu"> Supprimer</button></form>');
 	}
 	else {
-		header('Location: rapports.php'); 
+		header('Location: rapports.php');
 		exit();
 	}
 }
-else { 
-	$nombreDeRapportsParPage = 15; 
-	$retour = mysqli_query($base,'SELECT COUNT(*) AS nb_rapports FROM rapports WHERE destinataire=\''.$_SESSION['login'].'\'');
-	$donnees = mysqli_fetch_array($retour);
-	$totalDesRapports = $donnees['nb_rapports'];
+else {
+	$nombreDeRapportsParPage = 15;
+	$totalDesRapports = dbCount($base, 'SELECT COUNT(*) AS nb_rapports FROM rapports WHERE destinataire = ?', 's', $_SESSION['login']);
 	$nombreDePages  = ceil($totalDesRapports / $nombreDeRapportsParPage); // Calcul du nombre de pages créées
 	// Puis on fait une boucle pour écrire les liens vers chacune des pages
-	
+
 	if (isset($_GET['page']) AND $_GET['page'] <= $nombreDePages AND $_GET['page'] > 0 AND preg_match("#\d#",$_GET['page']))// Quelques vérifications comme si la variable ne contient qu'une suite de chiffres
 	{
         $page = $_GET['page']; // Récuperation du numéro de la page
@@ -51,14 +48,13 @@ else {
 	{
         $page = 1; // On se met sur la page 1 (par défaut)
 	}
- 
+
 	// On calcule le numéro du premier rapport qu'on prend pour le LIMIT de MySQL
-	$premierRapportAafficher = ($page - 1) * $nombreDeRapportsParPage;  
-	
-	$sql = 'SELECT * FROM rapports WHERE destinataire=\''.$_SESSION['login'].'\' ORDER BY timestamp DESC LIMIT ' . $premierRapportAafficher . ', ' . $nombreDeRapportsParPage .''; 
-	$ex = mysqli_query($base,$sql) or die('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
+	$premierRapportAafficher = ($page - 1) * $nombreDeRapportsParPage;
+
+	$ex = dbQuery($base, 'SELECT * FROM rapports WHERE destinataire = ? ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $premierRapportAafficher, $nombreDeRapportsParPage);
 	$nb_rapports = mysqli_num_rows($ex);
-    
+
     debutCarte("Rapports");
 	if($nb_rapports > 0) {
 		echo '
@@ -74,10 +70,10 @@ else {
 				echo '<td><strong><a href="rapports.php?rapport='.$rapports['id'].'">'.$rapports['titre'].'</a></strong></td>';
 			}
 			echo '<td><em>'.date('d/m/Y à H\hi', $rapports['timestamp']).'</em></td>';
-			echo '<td><a href="rapports.php?supprimer='.$rapports['id'].'"><img  src="images/croix.png" alt="supprimer" class="w32"></a></td></tr>';
+			echo '<td><form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="w32"></button></form></td></tr>';
 		}
 		echo '</tbody></table></div>';
-        $supprimer = '<a href="rapports.php?supprimer=1">Supprimer tous les rapports</a>';
+        $supprimer = '<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="1"><button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;">Supprimer tous les rapports</button></form>';
 		$adresse = "rapports.php?";
         $premier = '';
         if($page > 2){
@@ -112,7 +108,7 @@ else {
 		echo "<br/>Vous n'avez aucun rapports.<br/>";
         finContent();
 	}
-	finCarte($supprimer.$pages);	
-} 
+	finCarte($supprimer.$pages);
+}
 
 include("includes/copyright.php"); ?>

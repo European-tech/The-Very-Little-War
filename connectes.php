@@ -20,12 +20,11 @@ debutCarte('Historique des connexions'); ?>
         </thead>
         <tbody>
             <?php
-            $sql = 'SELECT login, derniereConnexion FROM membre ORDER BY derniereConnexion DESC';
-            $ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
+            $ex = dbQuery($base, 'SELECT login, derniereConnexion FROM membre ORDER BY derniereConnexion DESC');
             while ($donnees = mysqli_fetch_array($ex)) {
                 if ($donnees['login'] != "Guortates") {
                     echo '<tr>
-                <td class="nowrapColumn"><a href="joueur.php?id=' . $donnees['login'] . '">' . $donnees['login'] . '</a></td>
+                <td class="nowrapColumn"><a href="joueur.php?id=' . htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8') . '</a></td>
                 <td class="nowrapColumn">' . date('d/m/Y à H\hi', $donnees['derniereConnexion']) . '</td>
                 </tr>';
                 }

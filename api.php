@@ -1,4 +1,11 @@
 <?php
+session_start();
+if (empty($_SESSION['login'])) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Authentication required']);
+    exit;
+}
+
 include("includes/connexion.php");
 include("includes/constantesBase.php");
 include("includes/fonctions.php");
@@ -14,7 +21,7 @@ if(isset($_GET['id'])){
             $_GET[$val] = 0;
         }
     }
-    
+
     if($_GET['id'] == "attaque"){
         exit(json_encode(array("valeur" => attaque($_GET['nombre'],$_GET['niveau'],$_GET['joueur']))));
     }

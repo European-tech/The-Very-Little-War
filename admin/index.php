@@ -6,13 +6,15 @@ include("../includes/constantesBase.php");
 include("../includes/fonctions.php");
 
 if (isset($_POST['motdepasseadmin'])) {
-	$_SESSION['motdepasseadmin'] = $_POST['motdepasseadmin'];
+	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
+		$_SESSION['motdepasseadmin'] = true;
+	}
 }
-if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] == "Faux mot de passe") {
+if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === true) {
 	if (isset($_GET['supprimercompte'])) {
-		$modif = 'SELECT login FROM membre WHERE ip=\'' . $_GET['supprimercompte'] . '\'';
-		$ex = mysqli_query($base, $modif) or die('Erreur SQL !<br/>' . $modif . '<br/>' . mysql_error());
-		while ($login = mysqli_fetch_array($ex)) {
+		$ip = $_GET['supprimercompte'];
+		$rows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $ip);
+		foreach ($rows as $login) {
 			supprimerJoueur($login['login']);
 		}
 	}
@@ -77,9 +79,9 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] == "Fau
 				<th>Ip multiple</th>
 				<th>Supprimer les comptes</th>
 			</tr>
-			<?php $retour = mysqli_query($base, 'SELECT ip FROM membre GROUP BY ip HAVING (count(*)>1)');
+			<?php $retour = dbQuery($base, 'SELECT ip FROM membre GROUP BY ip HAVING (count(*)>1)');
 			while ($donnees = mysqli_fetch_array($retour)) {
-				$ex1 = query('SELECT login FROM membre WHERE ip=\'' . $donnees['ip'] . '\'');
+				$ex1 = dbQuery($base, 'SELECT login FROM membre WHERE ip = ?', 's', $donnees['ip']);
 				$a = 0;
 				while ($d1 = mysqli_fetch_array($ex1)) {
 					if (statut($d1['login'])) {
@@ -89,8 +91,8 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] == "Fau
 				if ($a) {
 			?>
 					<tr>
-						<td><?php echo '<a href="ip.php?ip=' . $donnees['ip'] . '">' . $donnees['ip'] . '</a>'; ?></td>
-						<td><?php echo '<a href="index.php?supprimercompte=' . $donnees['ip'] . '">'; ?>Supprimer</a></td>
+						<td><?php echo '<a href="ip.php?ip=' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '</a>'; ?></td>
+						<td><?php echo '<a href="index.php?supprimercompte=' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '">'; ?>Supprimer</a></td>
 					</tr>
 			<?php
 				}
@@ -127,7 +129,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] == "Fau
 				<th>Justification</th>
 				<th>Destinataire</th>
 			</tr>
-			<?php $retour = mysqli_query($base, 'SELECT * FROM moderation');
+			<?php $retour = dbQuery($base, 'SELECT * FROM moderation');
 			while ($donnees = mysqli_fetch_array($retour)) {
 			?>
 				<tr>
@@ -135,8 +137,8 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] == "Fau
 					<?php foreach ($nomsRes as $num => $ressource) {
 						echo '<td>' . $donnees[$ressource] . '</td>';
 					} ?>
-					<td><?php echo $donnees['justification']; ?></td>
-					<td><?php echo $donnees['destinataire']; ?></td>
+					<td><?php echo htmlspecialchars($donnees['justification'], ENT_QUOTES, 'UTF-8'); ?></td>
+					<td><?php echo htmlspecialchars($donnees['destinataire'], ENT_QUOTES, 'UTF-8'); ?></td>
 				</tr>
 			<?php
 			}
@@ -156,7 +158,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] == "Fau
 } else { ?>
 	<form action="index.php" method="post">
 		<label for="motdepasseadmin">Mot de passe : </label>
-		<input type="text" name="motdepasseadmin" id="motdepasseadmin" />
+		<input type="password" name="motdepasseadmin" id="motdepasseadmin" />
 		<input type="submit" name="valider" value="Valider" />
 	</form>
 <?php

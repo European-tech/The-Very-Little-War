@@ -45,4 +45,7 @@ $vitesseMarchands = 20;
 //ESPIONNAGE
 $vitesseEspionnage = 20;
 $coutNeutrino = 50;
+
+// Admin password hash - generate new with: php -r "echo password_hash('your-password', PASSWORD_DEFAULT);"
+define('ADMIN_PASSWORD_HASH', password_hash('Faux mot de passe', PASSWORD_DEFAULT));
 ?>

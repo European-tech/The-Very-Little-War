@@ -8,29 +8,27 @@ if (isset($_SESSION['login'])) {
 }
 include("includes/bbcode.php");
 
-if(!isset($_GET['id']) 
-	or intval(trim($_GET['id'])) == 0 
-	or $_GET['id'] < 1 
-	or $_GET['id'] > 8 
+if(!isset($_GET['id'])
+	or intval(trim($_GET['id'])) == 0
+	or $_GET['id'] < 1
+	or $_GET['id'] > 8
 	or !preg_match("#^[0-9]*$#", $_GET['id'])
 	) {
 	header('Location: forum.php');
 }
 
 $_GET['id'] = antiXSS($_GET['id']);
+$getId = (int)$_GET['id'];
 
 if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 	if (isset($_SESSION['login'])) {
 		if (!empty($_POST['titre']) and !empty($_POST['contenu'])) {
-			$_POST['titre'] = mysqli_real_escape_string($base, ($_POST['titre']));
-			$_POST['contenu'] = mysqli_real_escape_string($base, $_POST['contenu']);
-			$sql = 'INSERT INTO sujets VALUES(default, "' . $_GET['id'] . '", "' . $_POST['titre'] . '", "' . $_POST['contenu'] . '", "' . $_SESSION['login'] . '", default, "' . (time()) . '")';
-			mysqli_query($base, $sql) or die('Erreur SQL !' . $sql . '<br />' . mysql_error());
+			$timestamp = time();
+			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $timestamp);
 
-			$ex = query('SELECT id FROM sujets WHERE contenu=\'' . $_POST['contenu'] . '\'');
-			$sujet = mysqli_fetch_array($ex);
+			$sujet = dbFetchOne($base, 'SELECT id FROM sujets WHERE contenu = ?', 's', $_POST['contenu']);
 
-			query('INSERT INTO statutforum VALUES("' . $_SESSION['login'] . '","' . $sujet['id'] . '", "' . $_GET['id'] . '")');
+			dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sii', $_SESSION['login'], $sujet['id'], $getId);
 			$information = "Votre sujet a été créé.";
 		} else {
 			$erreur = "Tous les champs ne sont pas remplis.";
@@ -38,7 +36,7 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 	} else {
 		$erreur = "T'as essayé de m'avoir ? Eh bah non !";
 	}
-	
+
 }
 
 
@@ -50,18 +48,14 @@ if (isset($_SESSION['login'])) {
 	include("includes/basicpublichtml.php");
 }
 
-$sql = 'SELECT titre, id FROM forums WHERE id=\'' . $_GET['id'] . '\'';
-$ex = mysqli_query($base, $sql) or die('Erreur SQL !' . $sql . '<br />' . mysql_error());
-$idforum = mysqli_fetch_array($ex);
+$idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $getId);
 ?>
 
 <div class="table-responsive">
 	<?php
-	
+
 	debutCarte($idforum['titre']);
-	$sql = 'SELECT * FROM sujets WHERE idforum=\'' . $_GET['id'] . '\'';
-	$ex = mysqli_query($base, $sql) or die('Erreur SQL !' . $sql . '<br />' . mysql_error());
-	$nb_resultats = mysqli_num_rows($ex);
+	$nb_resultats = dbCount($base, 'SELECT count(*) FROM sujets WHERE idforum = ?', 'i', $getId);
 	$nombreDeSujetsParPage = 10;
 	$nombreDePages  = ceil($nb_resultats / $nombreDeSujetsParPage);
 	if (isset($_GET['page']) and $_GET['page'] <= $nombreDePages and $_GET['page'] > 0 and preg_match("#\d#", $_GET['page'])) // Quelques vérifications comme si la variable ne contient qu'une suite de chiffres
@@ -74,8 +68,7 @@ $idforum = mysqli_fetch_array($ex);
 
 	// On calcule le numéro du premier message qu'on prend pour le LIMIT de MySQL
 	$premierSujetAafficher = ($page - 1) * $nombreDeSujetsParPage;
-	$sql1 = 'SELECT * FROM sujets WHERE idforum=\'' . $_GET['id'] . '\' ORDER BY statut, timestamp DESC LIMIT ' . $premierSujetAafficher . ', ' . $nombreDeSujetsParPage . '';
-	$ex1 = mysqli_query($base, $sql1) or die('Erreur SQL !' . $sql1 . '<br />' . mysql_error());
+	$ex1 = dbQuery($base, 'SELECT * FROM sujets WHERE idforum = ? ORDER BY statut, timestamp DESC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
 	if ($nb_resultats > 0) {
 		echo '
 		<div class="table-responsive">
@@ -93,8 +86,7 @@ $idforum = mysqli_fetch_array($ex);
 			echo '<tr>';
 			if ($sujet['statut'] == 0) {
 				if (isset($_SESSION['login'])) {
-					$ex = mysqli_query($base, 'SELECT count(*) AS luOuPas FROM statutforum WHERE idsujet=\'' . $sujet['id'] . '\' AND login=\'' . $_SESSION['login'] . '\'');
-					$statutForum = mysqli_fetch_array($ex);
+					$statutForum = dbFetchOne($base, 'SELECT count(*) AS luOuPas FROM statutforum WHERE idsujet = ? AND login = ?', 'is', $sujet['id'], $_SESSION['login']);
 
 					if ($statutForum['luOuPas'] == 0) {
 						echo '<td><img src="images/forum/nouveauMessage.png" alt="nouveauMessage" class="w32"/></td>';
@@ -122,7 +114,7 @@ $idforum = mysqli_fetch_array($ex);
 		$adresse = "listesujets.php?";
 		$premier = '';
 		if ($page > 2) {
-			$premier = '<a href="' . $adresse . 'page=1&id=' . $_GET['id'] . '">1</a>';
+			$premier = '<a href="' . $adresse . 'page=1&id=' . $getId . '">1</a>';
 		}
 		$pointsD = '';
 		if ($page > 3) {
@@ -130,11 +122,11 @@ $idforum = mysqli_fetch_array($ex);
 		}
 		$precedent = '';
 		if ($page > 1) {
-			$precedent = '<a href="' . $adresse . 'page=' . ($page - 1) . '&id=' . $_GET['id'] . '">' . ($page - 1) . '</a>';
+			$precedent = '<a href="' . $adresse . 'page=' . ($page - 1) . '&id=' . $getId . '">' . ($page - 1) . '</a>';
 		}
 		$suivant = '';
 		if ($page + 1 <= $nombreDePages) {
-			$suivant = '<a href="' . $adresse . 'page=' . ($page + 1) . '&id=' . $_GET['id'] . '">' . ($page + 1) . '</a>';
+			$suivant = '<a href="' . $adresse . 'page=' . ($page + 1) . '&id=' . $getId . '">' . ($page + 1) . '</a>';
 		}
 		$pointsF = '';
 		if ($page + 3 <= $nombreDePages) {
@@ -142,7 +134,7 @@ $idforum = mysqli_fetch_array($ex);
 		}
 		$dernier = '';
 		if ($page + 2 <= $nombreDePages) {
-			$dernier = '<a href="' . $adresse . 'page=' . $nombreDePages . '&id=' . $_GET['id'] . '">' . $nombreDePages . '</a>';
+			$dernier = '<a href="' . $adresse . 'page=' . $nombreDePages . '&id=' . $getId . '">' . $nombreDePages . '</a>';
 		}
 		echo $premier . ' ' . $pointsD . ' ' . $precedent . ' <strong>' . $page . '</strong> ' . $suivant . ' ' . $pointsF . ' ' . $dernier;
 		?></p>
@@ -169,8 +161,8 @@ $idforum = mysqli_fetch_array($ex);
 		debutCarte("Créer un sujet");
 
 		?><form action="listesujets.php?id=<?php if (isset($_GET['id'])) {
-										echo $_GET['id'];
-									} ?>" method="post" name="formCreerSujet"><?php
+									echo (int)$_GET['id'];
+								} ?>" method="post" name="formCreerSujet"><?php
 																																debutListe();
 																																item(['titre' => 'Titre', 'input' => '<input type="text" name="titre" id="titre" class="form-control"/>', 'floating' => true]);
 																																creerBBcode("contenu");
@@ -178,7 +170,7 @@ $idforum = mysqli_fetch_array($ex);
 																																item(['input' => submit(['titre' => 'Créer', 'form' => 'formCreerSujet'])]);
 																																finListe();
 																																?></form><?php
-			finCarte();
+		finCarte();
 	}
-	
+
 	include("includes/copyright.php"); ?>

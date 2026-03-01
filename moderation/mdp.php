@@ -1,6 +1,7 @@
 <?php
 session_start();
-if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] != "Faux mot de passe") {
+include_once(__DIR__ . '/../includes/constantesBase.php');
+if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== true) {
 	header('Location: index.php');
 	exit();
 }

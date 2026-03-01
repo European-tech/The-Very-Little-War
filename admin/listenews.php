@@ -37,16 +37,17 @@ include("redirectionmotdepasse.php");
     // Vérification 1 : est-ce qu'on veut poster une news ?
     //-----------------------------------------------------
     if (isset($_POST['titre']) and isset($_POST['contenu'])) {
-        $titre = addslashes($_POST['titre']);
-        $contenu = addslashes($_POST['contenu']);
+        $titre = $_POST['titre'];
+        $contenu = $_POST['contenu'];
+        $id_news = (int)$_POST['id_news'];
         // On vérifie si c'est une modification de news ou non.
-        if ($_POST['id_news'] == 0) {
+        if ($id_news == 0) {
             // Ce n'est pas une modification, on crée une nouvelle entrée dans la table.
-            mysqli_query($base, "INSERT INTO news VALUES(default, '" . $titre . "', '" . $contenu . "', '" . (time()) .  "')") or die('Erreur SQL !<br />' . $sql . '<br />' . mysqli_error($base));
-            // On protège la variable "id_news" pour éviter une faille SQL.
-            $_POST['id_news'] = addslashes($_POST['id_news']);
+            $timestamp = time();
+            dbExecute($base, "INSERT INTO news VALUES(default, ?, ?, ?)", 'ssi', $titre, $contenu, $timestamp);
+        } else {
             // C'est une modification, on met juste à jour le titre et le contenu.
-            mysqli_query($base, "UPDATE news SET titre='" . $titre . "', contenu='" . $contenu . "' WHERE id='" . $_POST['id_news'] . "'");
+            dbExecute($base, "UPDATE news SET titre = ?, contenu = ? WHERE id = ?", 'ssi', $titre, $contenu, $id_news);
         }
     }
 
@@ -55,10 +56,8 @@ include("redirectionmotdepasse.php");
     //--------------------------------------------------------
     if (isset($_GET['supprimer_news'])) // Si l'on demande de supprimer une news.
     {
-        // Alors on supprime la news correspondante.
-        // On protège la variable « id_news » pour éviter une faille SQL.
-        $_GET['supprimer_news'] = addslashes($_GET['supprimer_news']);
-        mysqli_query($base, 'DELETE FROM news WHERE id=\'' . $_GET['supprimer_news'] . '\'');
+        $supprimerNewsId = (int)$_GET['supprimer_news'];
+        dbExecute($base, 'DELETE FROM news WHERE id = ?', 'i', $supprimerNewsId);
     }
     ?>
     <table>
@@ -69,14 +68,14 @@ include("redirectionmotdepasse.php");
             <th>Date</th>
         </tr>
         <?php
-        $retour = mysqli_query($base, 'SELECT * FROM news ORDER BY id DESC');
+        $retour = dbQuery($base, 'SELECT * FROM news ORDER BY id DESC');
         while ($donnees = mysqli_fetch_array($retour)) // On fait une boucle pour lister les news.
         {
         ?>
             <tr>
-                <td><?php echo '<a href="redigernews.php?modifier_news=' . $donnees['id'] . '">'; ?>Modifier</a></td>
-                <td><?php echo '<a href="listenews.php?supprimer_news=' . $donnees['id'] . '">'; ?>Supprimer</a></td>
-                <td><?php echo stripslashes($donnees['titre']); ?></td>
+                <td><?php echo '<a href="redigernews.php?modifier_news=' . (int)$donnees['id'] . '">'; ?>Modifier</a></td>
+                <td><?php echo '<a href="listenews.php?supprimer_news=' . (int)$donnees['id'] . '">'; ?>Supprimer</a></td>
+                <td><?php echo htmlspecialchars(stripslashes($donnees['titre']), ENT_QUOTES, 'UTF-8'); ?></td>
                 <td><?php echo date('d/m/Y', $donnees['timestamp']); ?></td>
             </tr>
         <?php

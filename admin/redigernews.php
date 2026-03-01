@@ -17,15 +17,13 @@ text-align:center;
 <body>
 <h3><a href="listenews.php">Retour à la liste des news</a></h3>
 <?php
-include("../includes/connexion.php"); 
+include("../includes/connexion.php");
 if (isset($_GET['modifier_news'])) // Si on demande de modifier une news.
 {
-    // On protège la variable « modifier_news » pour éviter une faille SQL.
-    $_GET['modifier_news'] = mysqli_real_escape_string($base,htmlspecialchars($_GET['modifier_news']));
+    $modifierNewsId = (int)$_GET['modifier_news'];
     // On récupère les informations de la news correspondante.
-    $retour = mysqli_query($base,'SELECT * FROM news WHERE id=\'' . $_GET['modifier_news'] . '\'');
-    $donnees = mysqli_fetch_array($retour);
-    
+    $donnees = dbFetchOne($base, 'SELECT * FROM news WHERE id = ?', 'i', $modifierNewsId);
+
     // On place le titre et le contenu dans des variables simples.
     $titre = stripslashes($donnees['titre']);
     $contenu = stripslashes($donnees['contenu']);
@@ -40,14 +38,14 @@ else // C'est qu'on rédige une nouvelle news.
 }
 ?>
 <form action="listenews.php" method="post">
-<p>Titre : <input type="text" size="30" name="titre" value="<?php echo $titre; ?>" />
+<p>Titre : <input type="text" size="30" name="titre" value="<?php echo htmlspecialchars($titre, ENT_QUOTES, 'UTF-8'); ?>" />
 </p>
 <p>
 Contenu :<br />
 <textarea name="contenu" cols="50" rows="10">
-<?php echo $contenu; ?>
+<?php echo htmlspecialchars($contenu, ENT_QUOTES, 'UTF-8'); ?>
 </textarea><br />
-<input type="hidden" name="id_news" value="<?php echo $id_news; ?>" />
+<input type="hidden" name="id_news" value="<?php echo (int)$id_news; ?>" />
 <input type="submit" value="Envoyer" />
 </p>
 </form>

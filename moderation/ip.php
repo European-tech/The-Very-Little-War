@@ -14,12 +14,13 @@ include("mdp.php");
 <h4>Multicomptes</h4></div>
 <div class="panel-body">
 <?php
-echo '<h4>Pseudos avec l\'ip '.$_GET['ip'].'\'</h4><p>';
 include("../includes/connexion.php");
+$ip = isset($_GET['ip']) ? $_GET['ip'] : '';
+echo '<h4>Pseudos avec l\'ip '.htmlspecialchars($ip, ENT_QUOTES, 'UTF-8').'\'</h4><p>';
 
-$retour = mysqli_query($base,'SELECT * FROM membre WHERE ip=\''.$_GET['ip'].'\'');
+$retour = dbQuery($base, 'SELECT * FROM membre WHERE ip = ?', 's', $ip);
 while ($donnees = mysqli_fetch_array($retour)) {
-	echo '<a href="../joueur.php?id='.$donnees['login'].'">'.$donnees['login'].'</a><br/>';
+	echo '<a href="../joueur.php?id='.htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8').'</a><br/>';
 }
 echo '</p>';
 ?>

@@ -13,15 +13,14 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 	if (preg_match("#^[0-9]*$#", $_GET['id'])) {
 		if (isset($_SESSION['login'])) {
 			if (!empty($_POST['contenu'])) {
-				$_POST['contenu'] = mysqli_real_escape_string($base, ($_POST['contenu']));
 				// Modifié par Yojim
-				$sql = 'INSERT INTO reponses VALUES(default, "' . $_GET['id'] . '", "1", "' . $_POST['contenu'] . '", "' . $_SESSION['login'] . '", "' . (time()) . '")';
+				$getId = (int)$_GET['id'];
+				$timestamp = time();
+				dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, "1", ?, ?, ?)', 'issi', $getId, $_POST['contenu'], $_SESSION['login'], $timestamp);
 				//
-				mysqli_query($base, $sql) or die('Erreur SQL !' . $sql . '<br />' . mysql_error());
-				mysqli_query($base, 'DELETE FROM statutforum WHERE idsujet=\'' . $_GET['id'] . '\'') or die('Erreur SQL !<br />' . mysql_error());
-				$ex = mysqli_query($base, 'SELECT nbMessages FROM autre WHERE login=\'' . $_SESSION['login'] . '\'');
-				$nbMessages = mysqli_fetch_array($ex);
-				mysqli_query($base, 'UPDATE autre SET nbMessages=\'' . ($nbMessages['nbMessages'] + 1) . '\' WHERE login=\'' . $_SESSION['login'] . '\'');
+				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $getId);
+				$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $_SESSION['login']);
+				dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', ($nbMessages['nbMessages'] + 1), $_SESSION['login']);
 				$information = "Votre réponse a été créée.";
 			} else {
 				$erreur = "Tous les champs ne sont pas remplis.";
@@ -38,8 +37,8 @@ include("includes/tout.php");
 
 if (isset($_GET['id'])) {
 	$_GET['id'] = antiXSS($_GET['id']);
-	$sql = 'SELECT * FROM reponses WHERE idsujet=\'' . $_GET['id'] . '\'';
-	$ex = mysqli_query($base, $sql) or die('Erreur SQL !' . $sql . '<br />' . mysql_error());
+	$getId = (int)$_GET['id'];
+	$ex = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ?', 'i', $getId);
 	$nb_resultats = mysqli_num_rows($ex);
 	$nombreDeSujetsParPage = 10;
 	$nombreDePages  = ceil($nb_resultats / $nombreDeSujetsParPage);
@@ -60,30 +59,21 @@ if (isset($_GET['id'])) {
 
 	// Modifié par Yojim
 	if (isset($_SESSION['login'])) {
-		$sql5 = 'SELECT moderateur FROM membre WHERE login=\'' . $_SESSION['login'] . '\'';
-		$ex5 = mysqli_query($base, $sql5) or die('Erreur SQL !' . $sql5 . '<br />' . mysql_error());
-		$joueur = mysqli_fetch_array($ex5);
+		$joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
 		// Si le joueur est modérateur, il a accès aux messages masqués
 		if ($joueur['moderateur']) {
-			$sql1 = 'SELECT * FROM reponses WHERE idsujet=\'' . $_GET['id'] . '\' ORDER BY timestamp ASC LIMIT ' . $premierSujetAafficher . ', ' . $nombreDeSujetsParPage . '';
+			$ex1 = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ? ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
 		}
 		// Si le joueur n'est pas modérateur, il n'a pas accès au messages masqués
 		else {
-			$sql1 = 'SELECT * FROM reponses WHERE idsujet=\'' . $_GET['id'] . '\' AND visibilite=1 ORDER BY timestamp ASC LIMIT ' . $premierSujetAafficher . ', ' . $nombreDeSujetsParPage . '';
+			$ex1 = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ? AND visibilite=1 ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
 		}
 	} else {
-		$sql1 = 'SELECT * FROM reponses WHERE idsujet=\'' . $_GET['id'] . '\' AND visibilite=1 ORDER BY timestamp ASC LIMIT ' . $premierSujetAafficher . ', ' . $nombreDeSujetsParPage . '';
+		$ex1 = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ? AND visibilite=1 ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
 	}
 	//
 
-
-
-
-
-	$ex1 = mysqli_query($base, $sql1) or die('Erreur SQL !' . $sql1 . '<br />' . mysql_error());
-	$sql3 = 'SELECT * FROM sujets WHERE id=\'' . $_GET['id'] . '\'';
-	$ex3 = mysqli_query($base, $sql3) or die('Erreur SQL !' . $sql3 . '<br />' . mysql_error());
-	$sujet = mysqli_fetch_array($ex3);
+	$sujet = dbFetchOne($base, 'SELECT * FROM sujets WHERE id = ?', 'i', $getId);
 
 	$javascript = false;
 	if ($sujet['idforum'] == 8) {
@@ -91,23 +81,20 @@ if (isset($_GET['id'])) {
 	}
 
 	if (isset($_SESSION['login'])) {
-		$ex = mysqli_query($base, 'SELECT count(*) AS existeDeja FROM statutforum WHERE login=\'' . $_SESSION['login'] . '\' AND idsujet=\'' . $_GET['id'] . '\'');
-		$existeDeja = mysqli_fetch_array($ex);
+		$existeDeja = dbFetchOne($base, 'SELECT count(*) AS existeDeja FROM statutforum WHERE login = ? AND idsujet = ?', 'si', $_SESSION['login'], $getId);
 
 		if ($existeDeja['existeDeja'] == 0 and $sujet['statut'] != 1) {
-			mysqli_query($base, 'INSERT INTO statutforum VALUES("' . $_SESSION['login'] . '", "' . $_GET['id'] . '", "' . $sujet['idforum'] . '")') or die('Erreur SQL !<br />' . mysql_error());
+			dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sis', $_SESSION['login'], $getId, $sujet['idforum']);
 		}
 	}
-	$ex = mysqli_query($base, 'SELECT titre FROM forums WHERE id=\'' . $sujet['idforum'] . '\'');
-	$forum = mysqli_fetch_array($ex);
+	$forum = dbFetchOne($base, 'SELECT titre FROM forums WHERE id = ?', 'i', $sujet['idforum']);
 
 	// Ajout de Yojim
 	// On vérifie si l'utilisateur n'est pas banni du forum
 	if (isset($_SESSION['login'])) {
-		$sql4 = 'SELECT * FROM sanctions WHERE joueur=\'' . $_SESSION['login'] . '\'';
-		$ex4 = mysqli_query($base, $sql4) or die('Erreur SQL !' . $sql4 . '<br />' . mysql_error());
+		$ex4 = dbQuery($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
 	} else {
-		$ex4 = mysqli_query($base, 'SELECT * FROM sanctions WHERE joueur="lakzknsdjnsqjdnjibqsdhubqsdjqushd"'); //pour qu'il n'y ait aucun resultat si pas co
+		$ex4 = dbQuery($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', 'lakzknsdjnsqjdnjibqsdhubqsdjqushd');
 	}
 
 	// Si il est banni
@@ -115,12 +102,11 @@ if (isset($_GET['id'])) {
 		$sanction = mysqli_fetch_array($ex4);
 		list($annee, $mois, $jour) = explode('-', $sanction['dateFin']);
 		$sanction['dateFin'] = $jour . '/' . $mois . '/' . $annee;
-		echo "Vous ne pouvez plus accéder au forum car vous avez été banni par <a href=\"ecriremessage.php?destinataire=" . $sanction['moderateur'] . "\" class=\"lienVisible\">" . $sanction['moderateur'] . "</a> jusqu'au <strong>" . $sanction['dateFin'] . "</strong>.<br/>";
+		echo "Vous ne pouvez plus accéder au forum car vous avez été banni par <a href=\"ecriremessage.php?destinataire=" . htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8') . "\" class=\"lienVisible\">" . htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8') . "</a> jusqu'au <strong>" . htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8') . "</strong>.<br/>";
 		echo "Motif de la sanction : " . BBcode($sanction['motif']);
 	} else {
 
-		$ex = mysqli_query($base, 'SELECT image, count(image) as nb FROM autre WHERE login=\'' . $sujet['auteur'] . '\'');
-		$image = mysqli_fetch_array($ex);
+		$image = dbFetchOne($base, 'SELECT image, count(image) as nb FROM autre WHERE login = ?', 's', $sujet['auteur']);
 		$couleur = rangForum($sujet['auteur']);
 		if ($image['nb'] == 0) { // s'il le joueur n'existe plus, on prends l'image par défaut
 			$image['image'] = "defaut.png";
@@ -129,7 +115,7 @@ if (isset($_GET['id'])) {
 		$adresse = "sujet.php?";
 		$premier = '';
 		if ($page > 2) {
-			$premier = '<a href="' . $adresse . 'page=1&id=' . $_GET['id'] . '">1</a>';
+			$premier = '<a href="' . $adresse . 'page=1&id=' . $getId . '">1</a>';
 		}
 		$pointsD = '';
 		if ($page > 3) {
@@ -137,11 +123,11 @@ if (isset($_GET['id'])) {
 		}
 		$precedent = '';
 		if ($page > 1) {
-			$precedent = '<a href="' . $adresse . 'page=' . ($page - 1) . '&id=' . $_GET['id'] . '">' . ($page - 1) . '</a>';
+			$precedent = '<a href="' . $adresse . 'page=' . ($page - 1) . '&id=' . $getId . '">' . ($page - 1) . '</a>';
 		}
 		$suivant = '';
 		if ($page + 1 <= $nombreDePages) {
-			$suivant = '<a href="' . $adresse . 'page=' . ($page + 1) . '&id=' . $_GET['id'] . '">' . ($page + 1) . '</a>';
+			$suivant = '<a href="' . $adresse . 'page=' . ($page + 1) . '&id=' . $getId . '">' . ($page + 1) . '</a>';
 		}
 		$pointsF = '';
 		if ($page + 3 <= $nombreDePages) {
@@ -149,14 +135,13 @@ if (isset($_GET['id'])) {
 		}
 		$dernier = '';
 		if ($page + 2 <= $nombreDePages) {
-			$dernier = '<a href="' . $adresse . 'page=' . $nombreDePages . '&id=' . $_GET['id'] . '">' . $nombreDePages . '</a>';
+			$dernier = '<a href="' . $adresse . 'page=' . $nombreDePages . '&id=' . $getId . '">' . $nombreDePages . '</a>';
 		}
 		$pages = $premier . ' ' . $pointsD . ' ' . $precedent . ' <strong>' . $page . '</strong> ' . $suivant . ' ' . $pointsF . ' ' . $dernier;
 
 		debutCarte();
 		debutContent();
-		$ex = mysqli_query($base, 'SELECT titre FROM forums WHERE id=\'' . $sujet['idforum'] . '\'');
-		$forum = mysqli_fetch_array($ex);
+		$forum = dbFetchOne($base, 'SELECT titre FROM forums WHERE id = ?', 'i', $sujet['idforum']);
 		echo '<a href="forum.php">Forum</a> > <a href="listesujets.php?id=' . $sujet['idforum'] . '">' . $forum['titre'] . '</a> > ' . $sujet['titre'];
 		finContent();
 		finCarte();
@@ -180,8 +165,7 @@ if (isset($_GET['id'])) {
 				}
 				// Sinon on laisse la couleur normale
 				//
-				$ex = mysqli_query($base, 'SELECT image, count(image) as nb FROM autre WHERE login=\'' . $reponse['auteur'] . '\'');
-				$image = mysqli_fetch_array($ex);
+				$image = dbFetchOne($base, 'SELECT image, count(image) as nb FROM autre WHERE login = ?', 's', $reponse['auteur']);
 				if ($image['nb'] == 0) { // s'il le joueur n'existe plus, on prends l'image par défaut
 					$image['image'] = "defaut.png";
 				}
@@ -189,8 +173,7 @@ if (isset($_GET['id'])) {
 				// On regarde si l'utilisateur connecté est un modérateur
 				$editer = false;
 				if (isset($_SESSION['login'])) {
-					$ex4 = mysqli_query($base, 'SELECT moderateur FROM membre WHERE login=\'' . $_SESSION['login'] . '\'');
-					$donnees4 = mysqli_fetch_array($ex4);
+					$donnees4 = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
 				}
 				if (isset($_SESSION['login']) and $_SESSION['login'] == $reponse['auteur'] and $donnees4['moderateur'] == 0) {
 					$editer = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> <a href="editer.php?id=' . $reponse['id'] . '&type=3">Supprimer</a>';
@@ -228,7 +211,7 @@ if (isset($_GET['id'])) {
 			if ($sujet['statut'] == 0) {
 				debutListe();
 				creerBBcode("contenu");
-				item(['form' => ['sujet.php?id=' . $_GET['id'], "reponseForm"], 'floating' => false, 'titre' => "Réponse", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
+				item(['form' => ['sujet.php?id=' . $getId, "reponseForm"], 'floating' => false, 'titre' => "Réponse", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
 				item(['input' => submit(['titre' => 'Répondre', 'form' => 'reponseForm'])]);
 				finListe();
 			} else {

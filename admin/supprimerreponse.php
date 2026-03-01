@@ -4,10 +4,8 @@ include("../includes/connexion.php");
 include("redirectionmotdepasse.php");
 if (isset($_GET['supprimer']))
 {
-$_GET['supprimer'] = addslashes($_GET['supprimer']);
-$modif = 'DELETE FROM reponses WHERE id =\'' . $_GET['supprimer'] . '\'';
-
-$ex = mysqli_query($base,$modif) or die('Erreur SQL !<br/>'.$modif.'<br/>'.mysql_error());
+$supprimerId = (int)$_GET['supprimer'];
+dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $supprimerId);
 }
 ?>
 
@@ -44,18 +42,18 @@ border:1px solid black;
 <th>Date</th>
 </tr>
 <?php
-$retour = mysqli_query($base,'SELECT * FROM reponses ORDER BY auteur DESC');
+$retour = dbQuery($base, 'SELECT * FROM reponses ORDER BY auteur DESC');
 while ($donnees = mysqli_fetch_array($retour))
 {
 ?>
 <tr>
-<td><?php echo '<a href="supprimerreponse.php?supprimer=' . $donnees['id'] . '">';?>Supprimer</a></td>
-<td><?php echo stripslashes($donnees['contenu']); ?></td>
-<td><?php echo stripslashes($donnees['auteur']); ?></td>
+<td><?php echo '<a href="supprimerreponse.php?supprimer=' . (int)$donnees['id'] . '">';?>Supprimer</a></td>
+<td><?php echo htmlspecialchars(stripslashes($donnees['contenu']), ENT_QUOTES, 'UTF-8'); ?></td>
+<td><?php echo htmlspecialchars(stripslashes($donnees['auteur']), ENT_QUOTES, 'UTF-8'); ?></td>
 <td><?php echo date('d/m/Y', $donnees['timestamp']); ?></td>
 </tr>
 <?php
-} 
+}
 ?>
 </table>
 

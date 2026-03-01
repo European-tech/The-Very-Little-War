@@ -4,16 +4,14 @@ include("redirectionmotdepasse.php");
 include("../includes/fonctions.php");
 if (isset($_POST['supprimercompte']))
 {
-$sql = 'SELECT login FROM membre WHERE login=\''.$_POST['supprimer'].'\'';
-$ex = mysqli_query($base,$sql) or die('Erreur SQL !<br/>'.$sql.'<br/>'.mysql_error());
-$joueurExiste = mysqli_num_rows($ex);
+$joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['supprimer']);
 
 if($joueurExiste > 0 ) {
 		supprimerJoueur($_POST['supprimer']);
 	}
 	else {
 		echo "Ce joueur n'existe pas.";
-	} 
+	}
 }
 ?>
 
@@ -28,17 +26,17 @@ if($joueurExiste > 0 ) {
 
 <h3>Supprimer un compte</h3><br/>
 <form method = "post" action = "supprimercompte.php">
-<p> 
+<p>
 Login : <input type="text" name="supprimer"><br />
 <input type="submit" name="supprimercompte" value="Supprimer le compte">
 </form>
-<?php 
+<?php
 if (isset($_POST['supprimercompte']))
 {
 	if ($_POST['supprimercompte'] == "Supprimer le compte")
 	{
 		if($joueurExiste > 0 ) {
-			echo "Vous avez supprimer le compte " . $_POST['supprimer'] . ".";
+			echo "Vous avez supprimer le compte " . htmlspecialchars($_POST['supprimer'], ENT_QUOTES, 'UTF-8') . ".";
 		}
 	}
 }

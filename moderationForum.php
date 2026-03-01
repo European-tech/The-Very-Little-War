@@ -4,22 +4,20 @@ include("includes/bbcode.php");
 
 // Supression de sanction
 if (isset($_GET['supprimer'])) {
-	$sql4 = 'DELETE FROM sanctions WHERE idSanction=\'' . $_GET['supprimer'] . '\'';;
-	mysqli_query($base, $sql4) or die('Erreur SQL !<br />' . $sql4 . '<br />' . mysql_error());
+	$supprimerId = (int)$_GET['supprimer'];
+	dbExecute($base, 'DELETE FROM sanctions WHERE idSanction = ?', 'i', $supprimerId);
 }
 
 
 if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif'])) {
 	if (!empty($_POST['pseudo']) && !empty($_POST['dateFin']) && !empty($_POST['motif'])) {
-		$sql2 = 'SELECT * FROM membre WHERE login=\'' . $_POST['pseudo'] . '\'';
-		$ex2 = mysqli_query($base, $sql2) or die('Erreur SQL !<br/>' . $sql2 . '<br />' . mysql_error());
+		$nb = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['pseudo']);
 		// On vérifie que le joueur existe
-		if (mysqli_num_rows($ex2)) {
+		if ($nb > 0) {
 			// Convertion de la date au format anglais
 			list($jour, $mois, $annee) = explode('/', $_POST['dateFin']);
 			$date = $annee . '-' . $mois . '-' . $jour;
-			$sql1 = 'INSERT INTO sanctions VALUES (default,\'' . $_POST['pseudo'] . '\',CURRENT_DATE,\'' . $date . '\',\'' . $_POST['motif'] . '\',\'' . $_SESSION['login'] . '\')';
-			$ex1 = mysqli_query($base, $sql1) or die('Erreur SQL !<br/>' . $sql1 . '<br />' . mysql_error());
+			dbExecute($base, 'INSERT INTO sanctions VALUES (default, ?, CURRENT_DATE, ?, ?, ?)', 'ssss', $_POST['pseudo'], $date, $_POST['motif'], $_SESSION['login']);
 		} else {
 			$erreur = "<strong>Erreur</strong> : Ce joueur n'existe pas.";
 		}
@@ -29,9 +27,7 @@ if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif'])) {
 }
 
 include("includes/tout.php");
-$sql = 'SELECT moderateur FROM membre WHERE login=\'' . $_SESSION['login'] . '\'';
-$ex = mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysql_error());
-$joueur = mysqli_fetch_array($ex);
+$joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
 if ($joueur['moderateur']) {
 
 	debutCarte("Modération du forum");
@@ -71,8 +67,7 @@ if ($joueur['moderateur']) {
 	<?php
 	finCarte();
 	debutCarte("Sanctions en cours");
-	$sql3 = 'SELECT * FROM sanctions';
-	$ex3 = mysqli_query($base, $sql3) or die('Erreur SQL !<br/>' . $sql3 . '<br />' . mysql_error());
+	$ex3 = dbQuery($base, 'SELECT * FROM sanctions');
 	if (!mysqli_num_rows($ex3)) {
 		debutContent();
 		echo "Aucune sanction en cours.";
@@ -102,12 +97,12 @@ if ($joueur['moderateur']) {
 						$sanction['dateFin'] = $jour . '/' . $mois . '/' . $annee;
 						echo "
 							<tr>
-								<td>" . $sanction['joueur'] . "</td>
-								<td>" . $sanction['moderateur'] . "</td>
-								<td>" . $sanction['dateDebut'] . "</td>
-								<td>" . $sanction['dateFin'] . "</td>
+								<td>" . htmlspecialchars($sanction['joueur'], ENT_QUOTES, 'UTF-8') . "</td>
+								<td>" . htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8') . "</td>
+								<td>" . htmlspecialchars($sanction['dateDebut'], ENT_QUOTES, 'UTF-8') . "</td>
+								<td>" . htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8') . "</td>
 								<td>" . BBcode($sanction['motif']) . "</td>
-								<td><a href=\"moderationForum.php?supprimer=" . $sanction['idSanction'] . "\"><img  src=\"images/croix.png\" alt=\"supprimer\"></a></td>
+								<td><a href=\"moderationForum.php?supprimer=" . (int)$sanction['idSanction'] . "\"><img  src=\"images/croix.png\" alt=\"supprimer\"></a></td>
 							</tr>
 							";
 					}
