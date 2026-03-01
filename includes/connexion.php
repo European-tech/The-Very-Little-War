@@ -1,4 +1,15 @@
 <?php
-$base = mysql_connect('localhost', 'root', '');
-mysql_select_db('theveryl_theverylittlewar', $base) or die('Erreur de connexion a la base de données' . mysql_error());
-mysqli_query($base, "SET NAMES 'utf8'");
+$db_host = 'localhost';
+$db_user = 'root';
+$db_pass = '';
+$db_name = 'theveryl_theverylittlewar';
+
+$base = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
+
+if (!$base) {
+    die('Erreur de connexion à la base de données.');
+}
+
+mysqli_set_charset($base, 'utf8');
+
+require_once(__DIR__ . '/database.php');
