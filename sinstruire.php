@@ -14,13 +14,14 @@ include("includes/tout.php");
 
 $cours=["Introduction","Description de l'univers","De l'atome à l'élément chimique","Les molécules","L'élément chimique","Quantité d'espèce chimique"];
 
-if(!isset($_GET['cours']) || $_GET['cours'] <0 || $_GET['cours'] > sizeof($cours)) {
-	$_GET['cours'] = 0;
+$cours_id = isset($_GET['cours']) ? (int)$_GET['cours'] : 0;
+if($cours_id < 0 || $cours_id > sizeof($cours)) {
+	$cours_id = 0;
 }
 
-debutCarte($cours[$_GET['cours']],"",'images/accueil/wallpaper.jpg');
+debutCarte($cours[$cours_id],"",'images/accueil/wallpaper.jpg');
 debutContent(); 
-if($_GET['cours'] == 1) {
+if($cours_id == 1) {
 	?>
 	<div class="partie">I) Description de l'univers</div><hr/>
 	<div class="sousPartie">A) Vers l'infiniment petit</div><hr/>
@@ -74,7 +75,7 @@ if($_GET['cours'] == 1) {
 	</p>
 	<?php
 }
-elseif($_GET['cours'] == 2) {
+elseif($cours_id == 2) {
 	?>
 	<div class="partie">I) L'atome</div><hr/>
 	<div class="sousPartie">A) Description du modele de l'atome</div><hr/>
@@ -139,7 +140,7 @@ elseif($_GET['cours'] == 2) {
 	</p>
 	<?php
 }
-elseif($_GET['cours'] == 3) {
+elseif($cours_id == 3) {
 	?>
 	<div class="partie">I) Les molécules</div><hr/>
 	<div class="sousPartie">A) Les liaisons entre les molécules</div><hr/>
@@ -175,7 +176,7 @@ elseif($_GET['cours'] == 3) {
 	</p>
 	<?php
 }
-elseif($_GET['cours'] == 4) {
+elseif($cours_id == 4) {
 	?>
 	<div class="partie">I) Les éléments chimiques de l'univers</div><hr/>
 	<div class="sousPartie">A) L'origine des éléments</div><hr/>
@@ -222,7 +223,7 @@ elseif($_GET['cours'] == 4) {
 	</p>
 	<?php
 }
-elseif($_GET['cours'] == 5) {
+elseif($cours_id == 5) {
 	?>
 	<div class="partie">I) Quantité de matière</div><hr/>
 	<div class="sousPartie">A) Du microscopique au macroscopique</div><hr/>
@@ -305,19 +306,19 @@ debutListe();
 $options = "";
 foreach($cours as $num=>$titre){
     $selected = "";
-    if(isset($_GET['cours']) && $num == $_GET['cours']){
+    if($num == $cours_id){
         $selected="selected";
     }
     $options = $options."<option value=\"?cours=$num\" $selected>$titre</option>";
 }
 item(['select' => ['numeroCours',$options,'javascript' => 'onchange="document.location = \'sinstruire.php\' + this.options[this.selectedIndex].value;"']]);
 echo '<div class="row">';
-if($_GET['cours'] > 0) {
-	echo '<div class="col-50"><a href="sinstruire.php?cours='.($_GET['cours'] - 1).'"><img src="images/prev.png" alt="prev" style="margin-right: 10px"/></a></div>';
+if($cours_id > 0) {
+	echo '<div class="col-50"><a href="sinstruire.php?cours='.($cours_id - 1).'"><img src="images/prev.png" alt="prev" style="margin-right: 10px"/></a></div>';
 }
 
-if($_GET['cours'] < 5) {
-	echo '<div class="col-50"><a href="sinstruire.php?cours='.($_GET['cours'] + 1).'"><img src="images/next.png" alt="next" style="margin-left: 10px"/></a></div>';
+if($cours_id < 5) {
+	echo '<div class="col-50"><a href="sinstruire.php?cours='.($cours_id + 1).'"><img src="images/next.png" alt="next" style="margin-left: 10px"/></a></div>';
 }
 echo '</div>';
 finListe();

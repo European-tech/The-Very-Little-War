@@ -97,7 +97,7 @@ if (isset($_GET['id'])) {
 	$options = "";
 }
 
-item(['floating' => true, 'titre' => "Contenu", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50">' . $options . '</textarea>']);
+item(['floating' => true, 'titre' => "Contenu", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50">' . htmlspecialchars($options, ENT_QUOTES, 'UTF-8') . '</textarea>']);
 
 
 item(['input' => submit(['form' => 'formEcrire', 'titre' => 'Envoyer'])]);

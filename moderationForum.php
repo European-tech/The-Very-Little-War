@@ -1,15 +1,18 @@
 <?php
 include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
+require_once("includes/csrf.php");
 
-// Supression de sanction
-if (isset($_GET['supprimer'])) {
-	$supprimerId = (int)$_GET['supprimer'];
+// Supression de sanction (POST-based with CSRF)
+if (isset($_POST['supprimer'])) {
+	csrfCheck();
+	$supprimerId = (int)$_POST['supprimer'];
 	dbExecute($base, 'DELETE FROM sanctions WHERE idSanction = ?', 'i', $supprimerId);
 }
 
 
-if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif'])) {
+if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST['supprimer'])) {
+	csrfCheck();
 	if (!empty($_POST['pseudo']) && !empty($_POST['dateFin']) && !empty($_POST['motif'])) {
 		$nb = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['pseudo']);
 		// On vérifie que le joueur existe
@@ -35,6 +38,7 @@ if ($joueur['moderateur']) {
 	echo important("Bannir un membre");
 ?>
 	<form method="post" action="moderationForum.php" name="formModeration">
+		<?php echo csrfField(); ?>
 		<?php
 		debutListe();
 		item(['input' => '<input type="text" name="pseudo" id="pseudo" class="form-control"/>', 'floating' => true, 'titre' => 'Pseudo']);
@@ -47,9 +51,9 @@ if ($joueur['moderateur']) {
 		?>
 	</form>
 	<!-- Script JQuery pour la selection des dates -->
-	<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />
-	<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
-	<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+	<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css" />
+	<script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
 	<link rel="stylesheet" href="/resources/demos/style.css" />
 	<script>
 		$(function() {
@@ -102,7 +106,7 @@ if ($joueur['moderateur']) {
 								<td>" . htmlspecialchars($sanction['dateDebut'], ENT_QUOTES, 'UTF-8') . "</td>
 								<td>" . htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8') . "</td>
 								<td>" . BBcode($sanction['motif']) . "</td>
-								<td><a href=\"moderationForum.php?supprimer=" . (int)$sanction['idSanction'] . "\"><img  src=\"images/croix.png\" alt=\"supprimer\"></a></td>
+								<td><form method=\"post\" action=\"moderationForum.php\" style=\"display:inline\">" . csrfField() . "<input type=\"hidden\" name=\"supprimer\" value=\"" . (int)$sanction['idSanction'] . "\"/><input type=\"image\" src=\"images/croix.png\" alt=\"supprimer\"></form></td>
 							</tr>
 							";
 					}

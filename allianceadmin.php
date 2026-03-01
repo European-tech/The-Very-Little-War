@@ -332,13 +332,13 @@ include("includes/tout.php");
 debutCarte('Paramètres de l\'équipe');
 debutListe();
 if ($chef) {
-	item(['form' => ["allianceadmin.php", "changerNom"], 'floating' => true, 'titre' => "Nom de l'alliance", 'input' => '<input type="text" name="changernom" id="changernom" value="' . stripslashes($chef['nom']) . '" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'changerNom'])]);
+	item(['form' => ["allianceadmin.php", "changerNom"], 'floating' => true, 'titre' => "Nom de l'alliance", 'input' => '<input type="text" name="changernom" id="changernom" value="' . htmlspecialchars(stripslashes($chef['nom']), ENT_QUOTES, 'UTF-8') . '" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'changerNom'])]);
 
-	item(['form' => ["allianceadmin.php", "changerTAG"], 'floating' => true, 'titre' => "TAG", 'input' => '<input maxlength=10 type="text" name="changertag" id="changertag" value="' . stripslashes($chef['tag']) . '" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'changerTAG'])]);
+	item(['form' => ["allianceadmin.php", "changerTAG"], 'floating' => true, 'titre' => "TAG", 'input' => '<input maxlength=10 type="text" name="changertag" id="changertag" value="' . htmlspecialchars(stripslashes($chef['tag']), ENT_QUOTES, 'UTF-8') . '" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'changerTAG'])]);
 }
 if ($description) {
 	creerBBcode("changerdescription", $chef['description']);
-	item(['form' => ["allianceadmin.php", "description"], 'floating' => false, 'titre' => "Description", 'input' => '<textarea name="changerdescription" id="changerdescription" rows="10" cols="50">' . $chef['description'] . '</textarea>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'description'])]);
+	item(['form' => ["allianceadmin.php", "description"], 'floating' => false, 'titre' => "Description", 'input' => '<textarea name="changerdescription" id="changerdescription" rows="10" cols="50">' . htmlspecialchars($chef['description'], ENT_QUOTES, 'UTF-8') . '</textarea>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'description'])]);
 }
 if ($chef) {
 	item(['form' => ["allianceadmin.php", "supprimerAlliance"], 'floating' => false, 'input' => '<input type="hidden" name="supprimeralliance1"/>' . csrfField() . submit(['titre' => 'Supprimer l\'équipe', 'form' => 'supprimerAlliance', 'style' => 'background-color:red'])]);

@@ -312,7 +312,7 @@ if (isset($_POST['emplacementmoleculecreer'])) {
     foreach ($nomsRes as $num => $ressource) {
         item(['titre' => nombreAtome($num, 'Nombre ' . pref($ressource) . '<strong>' . $nomsAccents[$num] . '</strong>') . aide($ressource, true), 'input' => '<input type="number" name="' . $ressource . '" id="' . $ressource . '" placeholder="' . $utilite[$num] . '" class="form-control" oninput="javascript:actualiserStats()"/>']);
     }  ?>
-    <input type="hidden" name="emplacementmoleculecreer1" value="<?php echo $_POST['emplacementmoleculecreer']; ?>" />
+    <input type="hidden" name="emplacementmoleculecreer1" value="<?php echo htmlspecialchars($_POST['emplacementmoleculecreer'], ENT_QUOTES, 'UTF-8'); ?>" />
 <?php
     item(['input' => submit(['form' => 'creernouvelleclasse1', 'titre' => 'Créer'])]);
     finListe();

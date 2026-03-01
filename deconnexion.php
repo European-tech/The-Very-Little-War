@@ -20,9 +20,8 @@ session_destroy();
 </head>
 <body>
 
-<script> 
+<script>
     localStorage.removeItem("login");
-    localStorage.removeItem("mdp");
     window.location = "index.php";
-</script>';
+</script>
 </body>

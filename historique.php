@@ -31,7 +31,7 @@ if(isset($_GET['sub']) and isset($_POST['numeropartie'])) {
 debutCarte();
     echo important("Sélection de la partie").'<br/>';
     debutListe();
-    echo '<form action="historique.php?sub='.$_GET['sub'].'" method="post" name="formHistorique">';
+    echo '<form action="historique.php?sub=' . htmlspecialchars($_GET['sub'], ENT_QUOTES, 'UTF-8') . '" method="post" name="formHistorique">';
 
     $ex2 = dbQuery($base, 'SELECT * FROM parties ORDER BY id DESC');
     $options = "";
