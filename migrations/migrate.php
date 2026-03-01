@@ -1,0 +1,69 @@
+<?php
+/**
+ * Simple database migration runner for TVLW.
+ * Usage: php migrate.php
+ *
+ * Migrations are SQL files in this directory named:
+ *   NNNN_description.sql (e.g., 0001_add_indexes.sql)
+ *
+ * Applied migrations are tracked in the `migrations` table.
+ */
+
+require_once __DIR__ . '/../includes/connexion.php';
+
+// Create migrations table if not exists
+mysqli_query($base, "
+    CREATE TABLE IF NOT EXISTS migrations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        filename VARCHAR(255) NOT NULL UNIQUE,
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+");
+
+// Get applied migrations
+$applied = [];
+$result = mysqli_query($base, "SELECT filename FROM migrations ORDER BY id");
+while ($row = mysqli_fetch_assoc($result)) {
+    $applied[] = $row['filename'];
+}
+
+// Get pending migration files
+$files = glob(__DIR__ . '/*.sql');
+sort($files);
+
+$pending = 0;
+foreach ($files as $file) {
+    $filename = basename($file);
+    if (in_array($filename, $applied)) continue;
+
+    echo "Applying: $filename... ";
+    $sql = file_get_contents($file);
+
+    // Execute each statement
+    if (mysqli_multi_query($base, $sql)) {
+        do {
+            if ($result = mysqli_store_result($base)) {
+                mysqli_free_result($result);
+            }
+        } while (mysqli_next_result($base));
+    }
+
+    if (mysqli_errno($base)) {
+        echo "ERROR: " . mysqli_error($base) . "\n";
+        exit(1);
+    }
+
+    // Record migration
+    $stmt = mysqli_prepare($base, "INSERT INTO migrations (filename) VALUES (?)");
+    mysqli_stmt_bind_param($stmt, "s", $filename);
+    mysqli_stmt_execute($stmt);
+
+    echo "OK\n";
+    $pending++;
+}
+
+if ($pending == 0) {
+    echo "No pending migrations.\n";
+} else {
+    echo "\nApplied $pending migration(s).\n";
+}
