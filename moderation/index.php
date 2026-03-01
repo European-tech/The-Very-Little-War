@@ -2,6 +2,9 @@
 session_start();
 include("../includes/connexion.php");
 include("../includes/constantesBase.php");
+require_once("../includes/database.php");
+require_once("../includes/csrf.php");
+
 if (isset($_POST['motdepasseadmin'])) {
 	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		$_SESSION['motdepasseadmin'] = true;
@@ -15,6 +18,10 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 		<input type="submit" name="valider" value="Valider" />
 	</form> <?php
 		} else {
+
+			if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+				csrfCheck();
+			}
 
 			if (isset($_POST['deplacer']) and isset($_POST['deplacerSubmit']) and isset($_POST['idSujet'])) {
 				$deplacer = (int)$_POST['deplacer'];
@@ -34,18 +41,18 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 				}
 			}
 
-			if (isset($_GET['supprimersujet'])) {
-				$supprimersujet = (int)$_GET['supprimersujet'];
+			if (isset($_POST['supprimersujet'])) {
+				$supprimersujet = (int)$_POST['supprimersujet'];
 				dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
 				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
 			}
-			if (isset($_GET['verouillersujet'])) {
-				$verouillersujet = (int)$_GET['verouillersujet'];
+			if (isset($_POST['verouillersujet'])) {
+				$verouillersujet = (int)$_POST['verouillersujet'];
 				dbExecute($base, 'UPDATE sujets SET statut = 1 WHERE id = ?', 'i', $verouillersujet);
 				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $verouillersujet);
 			}
-			if (isset($_GET['deverouillersujet'])) {
-				$deverouillersujet = (int)$_GET['deverouillersujet'];
+			if (isset($_POST['deverouillersujet'])) {
+				$deverouillersujet = (int)$_POST['deverouillersujet'];
 				dbExecute($base, 'UPDATE sujets SET statut = 0 WHERE id = ?', 'i', $deverouillersujet);
 			}
 
@@ -78,15 +85,39 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 						if ($verification['joueurOuPas'] == 1) {
 							$ressourcesDestinataire = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ?', 's', $_POST['destinataire']);
 
-							$chaine = "";
+							// Build dynamic UPDATE for ressources using prepared statements
+							$setParts = ['energie = ?'];
+							$types = 'd';
+							$params = [round($ressourcesDestinataire['energie'] + (int)$_POST['energieEnvoyee'])];
+
 							foreach ($nomsRes as $num => $ressource) {
-								$plus = "";
-								if ($num < $nbRes) {
-									$plus = ",";
-								}
-								$chaine = $chaine . '' . $ressource . '=' . round($ressourcesDestinataire[$ressource] + $_POST[$ressource . 'Envoyee']) . '' . $plus;
+								$setParts[] = $ressource . ' = ?';
+								$types .= 'd';
+								$params[] = round($ressourcesDestinataire[$ressource] + (int)$_POST[$ressource . 'Envoyee']);
 							}
-							mysqli_query($base, 'UPDATE ressources SET energie=\'' . round($ressourcesDestinataire['energie'] + $_POST['energieEnvoyee']) . '\', ' . $chaine . ' WHERE login=\'' . mysqli_real_escape_string($base, $_POST['destinataire']) . '\'');
+
+							$types .= 's';
+							$params[] = $_POST['destinataire'];
+
+							dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setParts) . ' WHERE login = ?', $types, ...$params);
+
+							// Build INSERT for moderation log using prepared statements
+							$insertCols = 'default, ?, ?';
+							$insertTypes = 'si';
+							$insertParams = [$_POST['destinataire'], (int)$_POST['energieEnvoyee']];
+
+							foreach ($nomsRes as $num => $ressource) {
+								$insertCols .= ', ?';
+								$insertTypes .= 'i';
+								$insertParams[] = (int)$_POST[$ressource . 'Envoyee'];
+							}
+
+							$insertCols .= ', ?';
+							$insertTypes .= 's';
+							$justification = htmlentities(trim($_POST['justification']), ENT_QUOTES, 'UTF-8');
+							$insertParams[] = $justification;
+
+							dbExecute($base, 'INSERT INTO moderation VALUES(' . $insertCols . ')', $insertTypes, ...$insertParams);
 
 							$chaine = "";
 							foreach ($nomsRes as $num => $ressource) {
@@ -94,20 +125,9 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 								if ($num < $nbRes) {
 									$plus = ",";
 								}
-								$chaine = $chaine . '"' . (int)$_POST[$ressource . 'Envoyee'] . '"' . $plus;
+								$chaine = $chaine . '' . number_format((int)$_POST[$ressource . 'Envoyee'], 0, ' ', ' ') . '<img src="../images/' . htmlspecialchars($ressource, ENT_QUOTES, 'UTF-8') . '.png" alt="' . htmlspecialchars($ressource, ENT_QUOTES, 'UTF-8') . '"/>' . $plus;
 							}
-							$justification = mysqli_real_escape_string($base, stripslashes(htmlentities(trim($_POST['justification']))));
-							mysqli_query($base, 'INSERT INTO moderation VALUES(default,"' . mysqli_real_escape_string($base, $_POST['destinataire']) . '", "' . (int)$_POST['energieEnvoyee'] . '", ' . $chaine . ', "' . $justification . '")');
-
-							$chaine = "";
-							foreach ($nomsRes as $num => $ressource) {
-								$plus = "";
-								if ($num < $nbRes) {
-									$plus = ",";
-								}
-								$chaine = $chaine . '' . number_format($_POST[$ressource . 'Envoyee'], 0, ' ', ' ') . '<img src="../images/' . $ressource . '.png" alt="' . $ressource . '"/>' . $plus;
-							}
-							$erreur = "Vous avez donné " . number_format($_POST['energieEnvoyee'], 0, ' ', ' ') . "<img src=\"../images/energie.png\" alt=\"energie\"/>, " . $chaine . " à " . htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8') . ".";
+							$erreur = "Vous avez donné " . number_format((int)$_POST['energieEnvoyee'], 0, ' ', ' ') . "<img src=\"../images/energie.png\" alt=\"energie\"/>, " . $chaine . " à " . htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8') . ".";
 						} else {
 							$erreur = "Le destinataire n'existe pas.";
 						}
@@ -176,7 +196,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 					<p>
 
 						<span class="important">Ajouter +1 à la bombe</span> :
-					<form action="index.php" method="post"><input type="text" name="joueurBombe" /><input type="submit" name="bombe" value="ajouter" /></form>
+					<form action="index.php" method="post"><?php echo csrfField(); ?><input type="text" name="joueurBombe" /><input type="submit" name="bombe" value="ajouter" /></form>
 					</p>
 					<p>
 					<table>
@@ -195,9 +215,9 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 						while ($donnees = mysqli_fetch_array($retour)) {
 						?>
 							<tr>
-								<td><?php echo '<a href="index.php?verouillersujet=' . (int)$donnees['id'] . '">'; ?>Vérouiller</a></td>
-								<td><?php echo '<a href="index.php?deverouillersujet=' . (int)$donnees['id'] . '">'; ?>Dévérouiller</a></td>
-								<td><?php echo '<a href="index.php?supprimersujet=' . (int)$donnees['id'] . '">'; ?>Supprimer</a></td>
+								<td><form method="post" action="index.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="verouillersujet" value="<?php echo (int)$donnees['id']; ?>" /><button type="submit">Vérouiller</button></form></td>
+								<td><form method="post" action="index.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="deverouillersujet" value="<?php echo (int)$donnees['id']; ?>" /><button type="submit">Dévérouiller</button></form></td>
+								<td><form method="post" action="index.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="supprimersujet" value="<?php echo (int)$donnees['id']; ?>" /><button type="submit">Supprimer</button></form></td>
 								<td><?php echo htmlspecialchars(stripslashes($donnees['titre']), ENT_QUOTES, 'UTF-8'); ?></td>
 								<td><?php echo htmlspecialchars(stripslashes($donnees['auteur']), ENT_QUOTES, 'UTF-8'); ?></td>
 								<td><?php if ($donnees['statut'] == 0) {
@@ -207,6 +227,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 									} ?></td>
 								<td>
 									<form action="index.php" method="post">
+										<?php echo csrfField(); ?>
 										<select name="deplacer">
 											<?php
 											$ex = dbQuery($base, 'SELECT id,titre FROM forums');

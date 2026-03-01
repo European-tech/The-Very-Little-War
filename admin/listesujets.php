@@ -27,25 +27,27 @@ border:1px solid black;
 
 <?php
 include("../includes/connexion.php");
+require_once("../includes/database.php");
+require_once("../includes/csrf.php");
 
- 
+// All actions now require POST + CSRF
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrfCheck();
 
-if (isset($_GET['supprimersujet']))
-{
-    $_GET['supprimersujet'] = addslashes($_GET['supprimersujet']);
-    mysqli_query($base,'DELETE FROM sujets WHERE id=\'' . $_GET['supprimersujet'] . '\'');
-	mysqli_query($base,'DELETE FROM statutforum WHERE idsujet=\''. $_GET['supprimersujet'] . '\'');
-}
-if (isset($_GET['verouillersujet']))
-{
-    $_GET['verouillersujet'] = addslashes($_GET['verouillersujet']);
-    mysqli_query($base,'UPDATE sujets SET statut = 1 WHERE id=\'' . $_GET['verouillersujet'] . '\'');
-	mysqli_query($base,'DELETE FROM statutforum WHERE idsujet=\''. $_GET['verouillersujet'] . '\'');
-}
-if (isset($_GET['deverouillersujet']))
-{
-    $_GET['deverouillersujet'] = addslashes($_GET['deverouillersujet']);
-    mysqli_query($base,'UPDATE sujets SET statut = 0 WHERE id=\'' . $_GET['deverouillersujet'] . '\'');
+    if (isset($_POST['supprimersujet'])) {
+        $supprimersujet = (int)$_POST['supprimersujet'];
+        dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
+        dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
+    }
+    if (isset($_POST['verouillersujet'])) {
+        $verouillersujet = (int)$_POST['verouillersujet'];
+        dbExecute($base, 'UPDATE sujets SET statut = 1 WHERE id = ?', 'i', $verouillersujet);
+        dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $verouillersujet);
+    }
+    if (isset($_POST['deverouillersujet'])) {
+        $deverouillersujet = (int)$_POST['deverouillersujet'];
+        dbExecute($base, 'UPDATE sujets SET statut = 0 WHERE id = ?', 'i', $deverouillersujet);
+    }
 }
 ?>
 <table>
@@ -59,16 +61,17 @@ if (isset($_GET['deverouillersujet']))
 <th>Date</th>
 </tr>
 <?php
-$retour = mysqli_query($base,'SELECT * FROM sujets ORDER BY auteur DESC');
+$retour = dbQuery($base, 'SELECT * FROM sujets ORDER BY auteur DESC');
 while ($donnees = mysqli_fetch_array($retour))
 {
+$sujetId = (int)$donnees['id'];
 ?>
 <tr>
-<td><?php echo '<a href="listesujets.php?verouillersujet=' . $donnees['id'] . '">'; ?>Vérouiller</a></td>
-<td><?php echo '<a href="listesujets.php?deverouillersujet=' . $donnees['id'] . '">'; ?>Dévérouiller</a></td>
-<td><?php echo '<a href="listesujets.php?supprimersujet=' . $donnees['id'] . '">'; ?>Supprimer</a></td>
-<td><?php echo stripslashes($donnees['titre']); ?></td>
-<td><?php echo stripslashes($donnees['auteur']); ?></td>
+<td><form method="post" action="listesujets.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="verouillersujet" value="<?php echo $sujetId; ?>" /><button type="submit">Vérouiller</button></form></td>
+<td><form method="post" action="listesujets.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="deverouillersujet" value="<?php echo $sujetId; ?>" /><button type="submit">Dévérouiller</button></form></td>
+<td><form method="post" action="listesujets.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="supprimersujet" value="<?php echo $sujetId; ?>" /><button type="submit">Supprimer</button></form></td>
+<td><?php echo htmlspecialchars(stripslashes($donnees['titre']), ENT_QUOTES, 'UTF-8'); ?></td>
+<td><?php echo htmlspecialchars(stripslashes($donnees['auteur']), ENT_QUOTES, 'UTF-8'); ?></td>
 <td><?php if($donnees['statut'] == 0){ echo "Ouvert"; } else { echo "Vérouillé"; } ?></td>
 <td><?php echo date('d/m/Y', $donnees['timestamp']); ?></td>
 </tr>

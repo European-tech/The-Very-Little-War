@@ -8,7 +8,7 @@
 	style="display:inline-block;width:336px;height:280px"
 	data-ad-client="ca-pub-2378568784304627"
 	data-ad-slot="3314456198"></ins>
-	<script> 
+	<script>
 	(adsbygoogle = window.adsbygoogle || []).push({});
 	</script>
 	</p> -->
@@ -18,7 +18,7 @@
 	<div class="panel-heading"><h2><img alt="news" src="images/accueil/news.png"  style="margin-right: 10px"/>News</h2></div>
 	<div class="panel-body">
 	<?php
-	$retour = mysqli_query($base,'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
+	$retour = dbQuery($base, 'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
 	$nb = mysqli_num_rows($retour);
 	if($nb == 0)
 	{
@@ -27,7 +27,7 @@
 	while ($donnees = mysqli_fetch_array($retour))
 	{
 		?>
-		<span class="important"><?php echo $donnees['titre']; ?><em> le <?php echo date('d/m/Y Ã H\hi', $donnees['timestamp']); ?></em></span>  
+		<span class="important"><?php echo $donnees['titre']; ?><em> le <?php echo date('d/m/Y Ã H\hi', $donnees['timestamp']); ?></em></span>
 		<p>
 		<br/>
 		<?php
@@ -35,32 +35,31 @@
 		echo $contenu;
 		?></p><?php
 	}
-	?>    
+	?>
 	</div>
 	</div>
-	
+
 	<div class="panel panel-default margin-10 pattern-bg">
 	<div class="panel-heading"><h2><img alt="stats" src="images/accueil/statistiques.png"  style="margin-right: 10px"/>Statistiques</h2></div>
 	<div class="panel-body">
 	<p><img alt="user" src="images/accueil/user.png" style="margin-right: 5px"/>Inscrits :
-	<?php $sql = 'SELECT count(*) AS c FROM membre';
-	$req = mysqli_query($base,$sql) or die('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-	$inscrits = mysqli_fetch_array($req);
+	<?php
+	$inscrits = dbFetchOne($base, 'SELECT count(*) AS c FROM membre');
 	echo $inscrits['c'];?>
 	</p>
 	<p><img alt="actifs" src="images/accueil/actifs.png" style="margin-right: 5px"/>Actifs :
 	<?php
-	$req = mysqli_query($base,'SELECT count(*) AS c FROM membre WHERE derniereConnexion >=\''.(time()-2678400).'\'');
-	$actifs = mysqli_fetch_array($req);
+	$threshold = time() - 2678400;
+	$actifs = dbFetchOne($base, 'SELECT count(*) AS c FROM membre WHERE derniereConnexion >= ?', 'i', $threshold);
 	echo $actifs['c'];?>
 	</p>
-	<p><img alt="connectes" src="images/accueil/connectes.png" style="margin-right: 5px"/><a href="connectes.php">Connectés</a> : <?php $retour = mysqli_query($base,'SELECT COUNT(*) AS nbre_entrees FROM connectes');
-	$connectes = mysqli_fetch_array($retour); 
+	<p><img alt="connectes" src="images/accueil/connectes.png" style="margin-right: 5px"/><a href="connectes.php">Connectés</a> : <?php
+	$connectes = dbFetchOne($base, 'SELECT COUNT(*) AS nbre_entrees FROM connectes');
 	echo $connectes['nbre_entrees']; ?>
-	</p> 
+	</p>
 	</div>
 	</div>
-	
+
 	<div class="panel panel-default margin-10 pattern-bg">
 	<div class="panel-heading"><h2><img alt="screen" src="images/accueil/screen.png"  style="margin-right: 10px"/>Screenshots</h2></div>
 	<div class="panel-body">

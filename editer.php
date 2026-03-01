@@ -1,106 +1,100 @@
-<?php 
+<?php
 include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
 
+// Validate and sanitize ID early
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$type = isset($_GET['type']) ? (int)$_GET['type'] : 0;
+
 // On regarde si l'utilisateur est un modérateur
-$req = mysqli_query($base,'SELECT moderateur FROM membre WHERE login=\''.$_SESSION['login'].'\'');
-$moderateur = mysqli_fetch_array($req);
+$moderateur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
 
-// Ajout de Yojim
 // On recherche le sujet que l'on souhaite éditer
-$sql3 = 'SELECT idsujet FROM reponses WHERE id=\''.$_GET['id'].'\'';
-$ex3 = mysqli_query($base,$sql3) or die('Erreur SQL !'.$sql3.'<br />'.mysql_error());
-$sujet = mysqli_fetch_array($ex3);
-//
+$sujet = dbFetchOne($base, 'SELECT idsujet FROM reponses WHERE id = ?', 'i', $id);
 
-// Suppression 
-if($_GET['type'] == 3 AND isset($_GET['id']) AND !empty($_GET['id']) AND preg_match("#^[0-9]*$#", $_GET['id'])) {
-	$ex = mysqli_query($base,'SELECT auteur FROM reponses WHERE id=\''.$_GET['id'].'\'');
-	$auteur = mysqli_fetch_array($ex);
-	
-	$ex = mysqli_query($base,'SELECT count(*) AS modo FROM membre WHERE login=\''.$_SESSION['login'].'\' AND moderateur=1');
-	$modo = mysqli_fetch_array($ex);
-	if($auteur['auteur'] == $_SESSION['login'] OR $modo['modo'] >= 1) {
-		mysqli_query($base,'DELETE FROM reponses WHERE id=\''.$_GET['id'].'\'');
-		$ex = mysqli_query($base,'SELECT nbMessages FROM autre WHERE login=\''.$_SESSION['login'].'\'');
-		$nbMessages = mysqli_fetch_array($ex);
-		mysqli_query($base,'UPDATE autre SET nbMessages=\''.($nbMessages['nbMessages']-1).'\' WHERE login=\''.$_SESSION['login'].'\'');
-		// Modifié par Yojim
-		echo "<script>window.location.replace(\"sujet.php?id=".$sujet['idsujet']."\")</script>"; // Redirection
-		//
-	}
-	else {
+// Suppression - require POST with CSRF
+if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
+	csrfCheck();
+	$auteur = dbFetchOne($base, 'SELECT auteur FROM reponses WHERE id = ?', 'i', $id);
+
+	$modo = dbFetchOne($base, 'SELECT count(*) AS modo FROM membre WHERE login = ? AND moderateur = 1', 's', $_SESSION['login']);
+	if ($auteur && ($auteur['auteur'] == $_SESSION['login'] OR $modo['modo'] >= 1)) {
+		dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $id);
+		$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $_SESSION['login']);
+		$newNbMessages = $nbMessages['nbMessages'] - 1;
+		dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', $newNbMessages, $_SESSION['login']);
+		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
+		echo "<script>window.location.replace(\"sujet.php?id=" . $sujetId . "\")</script>";
+	} else {
 		$erreur = "Vous ne pouvez pas supprimer une réponse dont vous n'êtes pas l'auteur.";
 	}
 }
 
-// Ajout par Yojim
-// Si on souhaite masquer un message
-if($_GET['type'] == 5 AND isset($_GET['id']) AND !empty($_GET['id']) AND preg_match("#^[0-9]*$#", $_GET['id'])) {
-	$sql = 'UPDATE reponses SET visibilite=0 WHERE id=\''.$_GET['id'].'\'';
-	mysqli_query($base,$sql) or die('Erreur SQL !'.$sql.'<br />'.mysql_error());
-	echo "<script>window.location.replace(\"sujet.php?id=".$sujet['idsujet']."\")</script>"; // Redirection
+// Si on souhaite masquer un message - require POST with CSRF
+if ($type == 5 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
+	csrfCheck();
+	dbExecute($base, 'UPDATE reponses SET visibilite = 0 WHERE id = ?', 'i', $id);
+	$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
+	echo "<script>window.location.replace(\"sujet.php?id=" . $sujetId . "\")</script>";
 }
-// Si on souhaite afficher un message
-if($_GET['type'] == 4 AND isset($_GET['id']) AND !empty($_GET['id']) AND preg_match("#^[0-9]*$#", $_GET['id'])) {
-	$sql1 = 'UPDATE reponses SET visibilite=1 WHERE id=\''.$_GET['id'].'\'';
-	mysqli_query($base,$sql1) or die('Erreur SQL !'.$sql1.'<br />'.mysql_error());
-	echo "<script>window.location.replace(\"sujet.php?id=".$sujet['idsujet']."\")</script>"; // Redirection
+// Si on souhaite afficher un message - require POST with CSRF
+if ($type == 4 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
+	csrfCheck();
+	dbExecute($base, 'UPDATE reponses SET visibilite = 1 WHERE id = ?', 'i', $id);
+	$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
+	echo "<script>window.location.replace(\"sujet.php?id=" . $sujetId . "\")</script>";
 }
-//
 
-if(isset($_POST['contenu']) AND !empty($_POST['contenu']) AND isset($_GET['id']) AND preg_match("#^[0-9]*$#", $_GET['id']) AND isset($_GET['type'])) {
-	$_POST['contenu'] = mysqli_real_escape_string($base,$_POST['contenu']);
-	if(isset($_POST['titre']) AND !empty($_POST['titre'])) { // alors c'est un sujet
-		$_POST['titre'] = mysqli_real_escape_string($base,$_POST['titre']);
-		$ex = mysqli_query($base,'SELECT auteur FROM sujets WHERE id=\''.$_GET['id'].'\'');
-		$auteur = mysqli_fetch_array($ex);
-		if($_GET['type'] == 1) {
-			if($auteur['auteur'] == $_SESSION['login']) {
-				mysqli_query($base,'UPDATE sujets SET contenu=\''.$_POST['contenu'].'\', titre=\''.$_POST['titre'].'\' WHERE id=\''.$_GET['id'].'\'');
+if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type > 0) {
+	csrfCheck();
+	$contenu = $_POST['contenu'];
+	if (isset($_POST['titre']) AND !empty($_POST['titre'])) { // alors c'est un sujet
+		$titre = $_POST['titre'];
+		$auteur = dbFetchOne($base, 'SELECT auteur FROM sujets WHERE id = ?', 'i', $id);
+		if ($type == 1) {
+			if ($auteur && $auteur['auteur'] == $_SESSION['login']) {
+				dbExecute($base, 'UPDATE sujets SET contenu = ?, titre = ? WHERE id = ?', 'ssi', $contenu, $titre, $id);
 				$information = "Le sujet a bien été modifié";
-				mysqli_query($base,'DELETE FROM statutforum WHERE idsujet=\''.$_GET['id'].'\'') or die('Erreur SQL !<br />'.mysql_error());
+				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $id);
                 ?>
                 <script>
-                    window.location.replace("sujet.php?id=<?php echo $_GET['id']; ?>");
+                    window.location.replace("sujet.php?id=<?php echo $id; ?>");
                 </script> <?php
-			}
-			else {
+			} else {
 				$erreur = "Vous ne pouvez modifier un sujet donc vous n'êtes pas l'auteur";
 			}
 		}
 	}
-	if($_GET['type'] == 2) {
+	if ($type == 2) {
 		// Rajout de Yojim
-		if($moderateur[0] == '0'){
-			$ex = mysqli_query($base,'SELECT auteur FROM reponses WHERE id=\''.$_GET['id'].'\'');
-			$auteur = mysqli_fetch_array($ex);
-			if($auteur['auteur'] == $_SESSION['login']) {
-				$req1 = 'UPDATE reponses SET contenu=\''.$_POST['contenu'].'\' WHERE auteur=\''.$_SESSION['login'].'\' AND id=\''.$_GET['id'].'\'';
+		if ($moderateur['moderateur'] == '0') {
+			$auteur = dbFetchOne($base, 'SELECT auteur FROM reponses WHERE id = ?', 'i', $id);
+			if ($auteur && $auteur['auteur'] == $_SESSION['login']) {
+				dbExecute($base, 'UPDATE reponses SET contenu = ? WHERE auteur = ? AND id = ?', 'ssi', $contenu, $_SESSION['login'], $id);
 				$information = "La réponse a bien été modifiée";
-				$ex = mysqli_query($base,'SELECT * FROM reponses WHERE id=\''.$_GET['id'].'\'');
-				$reponse = mysqli_fetch_array($ex);
-				mysqli_query($base,'DELETE FROM statutforum WHERE idsujet=\''.$reponse['idsujet'].'\'') or die('Erreur SQL !<br />'.mysql_error());
-                
-                $ex = mysqli_query($base, 'SELECT idsujet FROM reponses WHERE id=\''.$_GET['id'].'\'');
-                $sujet = mysqli_fetch_array($ex);7
+				$reponse = dbFetchOne($base, 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
+				if ($reponse) {
+					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $reponse['idsujet']);
+				}
+
+                $sujetRow = dbFetchOne($base, 'SELECT idsujet FROM reponses WHERE id = ?', 'i', $id);
+                if ($sujetRow) {
                 ?>
                 <script>
-                    window.location.replace("sujet.php?id=<?php echo $sujet['idsujet']; ?>");
+                    window.location.replace("sujet.php?id=<?php echo (int)$sujetRow['idsujet']; ?>");
                 </script> <?php
-			}
-			else {
+                }
+			} else {
 				$erreur = "Vous ne pouvez pas modifier une réponse donc vous n'êtes pas l'auteur";
 			}
-		}
-		else{
-			$req1 = 'UPDATE reponses SET contenu=\''.$_POST['contenu'].'\' WHERE id=\''.$_GET['id'].'\'';
+		} else {
+			dbExecute($base, 'UPDATE reponses SET contenu = ? WHERE id = ?', 'si', $contenu, $id);
 			$information = "La réponse a bien été modifiée";
-			$ex = mysqli_query($base,'SELECT * FROM reponses WHERE id=\''.$_GET['id'].'\'');
-			$reponse = mysqli_fetch_array($ex);
-			mysqli_query($base,'DELETE FROM statutforum WHERE idsujet=\''.$reponse['idsujet'].'\'') or die('Erreur SQL !<br />'.mysql_error());
+			$reponse = dbFetchOne($base, 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
+			if ($reponse) {
+				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $reponse['idsujet']);
+			}
 		}
-		mysqli_query($base,$req1) or die('Erreur SQL !<br />'.mysql_error());
 	}
 }
 
@@ -108,41 +102,40 @@ include("includes/tout.php");
 
 debutCarte("Editer");
 
-if(isset($_GET['id']) AND isset($_GET['type']) AND preg_match("#^[0-9]*$#", $_GET['id'])) {
+if ($id > 0 AND $type > 0) {
 	// Modification du sujet
-	if($_GET['type'] == 1) {
-		$ex = mysqli_query($base,'SELECT * FROM sujets WHERE id=\''.$_GET['id'].'\'');
+	if ($type == 1) {
+		$ex = dbQuery($base, 'SELECT * FROM sujets WHERE id = ?', 'i', $id);
 	}
 	// Modification d'un des messages
 	else {
-		$ex = mysqli_query($base,'SELECT * FROM reponses WHERE id=\''.$_GET['id'].'\'');
+		$ex = dbQuery($base, 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
 	}
 	$reponse = mysqli_fetch_array($ex);
 	$nbReponses = mysqli_num_rows($ex);
-	if($_GET['id'] != 1 && $_GET['type'] == 2) { // si c'est un message il n'y a pas de titre
+	if ($id != 1 && $type == 2) { // si c'est un message il n'y a pas de titre
 		$reponse['titre'] = "";
 	}
-	
-	if($nbReponses == 1) {
+
+	if ($nbReponses == 1) {
 		debutListe();
         echo '<form method="post" action="" name="formEditer">';
-		if($_GET['type'] == 1) { 
-            item(['titre' => 'Titre', "floating" => true, 'input'=> '<input type="text" name="titre" id="titre" value="'.$reponse['titre'].'"/>']);
+        echo csrfField();
+		if ($type == 1) {
+            item(['titre' => 'Titre', "floating" => true, 'input'=> '<input type="text" name="titre" id="titre" value="'.htmlspecialchars($reponse['titre'], ENT_QUOTES, 'UTF-8').'"/>']);
 		}
-        
+
         creerBBcode("contenu", $reponse['contenu']);
-        item(['floating' => false, 'titre' => "Réponse", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50">'.$reponse['contenu'].'</textarea>']);
+        item(['floating' => false, 'titre' => "Réponse", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50">'.htmlspecialchars($reponse['contenu'], ENT_QUOTES, 'UTF-8').'</textarea>']);
         item(['input' => submit(['titre' => 'Editer', 'form'=>'formEditer'])]);
         echo '</form>';
 		finListe();
-	}
-	else {
-		if($_GET['id'] != 3) {
+	} else {
+		if ($id != 3) {
 			echo 'Ce sujet ou cette réponse n\'existe pas !';
 		}
 	}
-}
-else {
+} else {
 	echo 'Stop jouer avec la barre URL espèce de troll !';
 }
 

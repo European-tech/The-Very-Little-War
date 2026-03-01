@@ -15,12 +15,12 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
     $dateT = new DateTime();
     $dateT->setDate($annee, $mois, $jour);
     if ($dateT->getTimestamp() >= time() + (3600 * 24 * 3)) {
-        query('DELETE FROM actionsformation WHERE login=\'' . $_SESSION['login'] . '\'');
+        dbExecute($base, 'DELETE FROM actionsformation WHERE login = ?', 's', $_SESSION['login']);
         $date = $annee . '-' . $mois . '-' . $jour;
-        $sql3 = 'INSERT INTO vacances VALUES (default,' . $membre['id'] . ',CURRENT_DATE,\'' . $date . '\')';
-        mysqli_query($base, $sql3) or die('Erreur SQL !<br/>' . $sql3 . '<br />' . mysql_error());
-        $sql6 = 'UPDATE membre SET vacance=1 WHERE id=' . $membre['id'] . '';
-        mysqli_query($base, $sql6) or die('Erreur SQL !<br/>' . $sql6 . '<br/>' . mysql_error());
+        $membreRow = dbFetchOne($base, 'SELECT id FROM membre WHERE login = ?', 's', $_SESSION['login']);
+        $membreId = (int)$membreRow['id'];
+        dbExecute($base, 'INSERT INTO vacances VALUES (default, ?, CURRENT_DATE, ?)', 'is', $membreId, $date);
+        dbExecute($base, 'UPDATE membre SET vacance = 1 WHERE id = ?', 'i', $membreId);
         // Rafraichissement de la page
         echo "<script>window.location.replace(\"compte.php\")</script>";
     } else {
@@ -72,9 +72,8 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
 if (isset($_POST['changermail'])) {
     if (!empty($_POST['changermail'])) {
         if (preg_match("#^[a-z0-9._-]+@[a-z0-9._-]{2,}\.[a-z]{2,4}$#", $_POST['changermail'])) {
-            $_POST['changermail'] = antiXSS($_POST['changermail']);
-            $sql = 'UPDATE membre SET email=\'' . $_POST['changermail'] . '\' WHERE login=\'' . $_SESSION['login'] . '\'';
-            mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysql_error());
+            $newEmail = $_POST['changermail'];
+            dbExecute($base, 'UPDATE membre SET email = ? WHERE login = ?', 'ss', $newEmail, $_SESSION['login']);
             $information = "Votre adresse e-mail a été changée.";
         } else {
             $erreur = "Votre email n'est pas correct.";
@@ -85,41 +84,49 @@ if (isset($_POST['changermail'])) {
 }
 
 if (isset($_POST['changerdescription'])) {
-    $_POST['changerdescription'] = antiXSS($_POST['changerdescription'], true);
-    $sql = 'UPDATE autre SET description=\'' . $_POST['changerdescription'] . '\' WHERE login=\'' . $_SESSION['login'] . '\'';
-    mysqli_query($base, $sql) or die('Erreur SQL !<br />' . $sql . '<br />' . mysql_error());
-    $autre['description'] = $_POST['changerdescription'];
+    $newDescription = antiXSS($_POST['changerdescription'], true);
+    dbExecute($base, 'UPDATE autre SET description = ? WHERE login = ?', 'ss', $newDescription, $_SESSION['login']);
+    $autre['description'] = $newDescription;
 
     $information = "Votre description a été changée.";
 }
 
 if (isset($_FILES['photo']['name']) and !empty($_FILES['photo']['name'])) {
     $dossier = 'images/profil/';
-    $fichier = basename($_FILES['photo']['name']);
-    $taille_maxi = 100000;
+    $taille_maxi = 2000000; // 2MB max
     $taille = filesize($_FILES['photo']['tmp_name']);
-    $extensions = array('.png', '.gif', '.jpg', '.jpeg');
-    $extension = strrchr($_FILES['photo']['name'], '.');
+
+    // Validate extension whitelist
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+    $filenameParts = explode('.', $_FILES['photo']['name']);
+    $extension = strtolower(end($filenameParts));
+
+    // Validate MIME type with finfo
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $_FILES['photo']['tmp_name']);
+    finfo_close($finfo);
+    $allowedMimes = ['image/jpeg', 'image/png', 'image/gif'];
+
     $img_size = getimagesize($_FILES['photo']['tmp_name']);
+
     //Début des vérifications de sécurité...
-    if (!in_array($extension, $extensions)) //Si l'extension n'est pas dans le tableau
+    if (!in_array($extension, $allowedExtensions)) //Si l'extension n'est pas autorisée
     {
         $erreur = 'Seuls les fichiers de type png, gif, jpg, jpeg sont autorisés.';
+    } elseif (!in_array($mimeType, $allowedMimes)) {
+        $erreur = 'Le type MIME du fichier n\'est pas autorisé.';
+    } elseif ($img_size === false) {
+        $erreur = 'Le fichier n\'est pas une image valide.';
     } elseif ($img_size[0] > 150 or $img_size[1] > 150) {
         $erreur = "Erreur : image trop grande ! (les dimensions requises sont au maximum 150*150)";
     } elseif ($taille > $taille_maxi) {
-        $erreur = 'L\'image est trop grosse !';
+        $erreur = 'L\'image est trop grosse ! (maximum 2 Mo)';
     } else //S'il n'y a pas d'erreur, on upload
     {
-        //On formate le nom du fichier ici...
-        $fichier = strtr(
-            $fichier,
-            'ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜÝàáâãäåçèéêëìíîïðòóôõöùúûüýÿ',
-            'AAAAAACEEEEIIIIOOOOOUUUUYaaaaaaceeeeiiiioooooouuuuyy'
-        );
-        $fichier = preg_replace('/([^.a-z0-9]+)/i', '-', $fichier);
+        // Generate random filename to prevent path traversal and overwrite attacks
+        $fichier = uniqid('avatar_') . '.' . $extension;
         move_uploaded_file($_FILES['photo']['tmp_name'], $dossier . $fichier);
-        mysqli_query($base, 'UPDATE autre SET image=\'' . $fichier . '\' WHERE login=\'' . $_SESSION['login'] . '\'');
+        dbExecute($base, 'UPDATE autre SET image = ? WHERE login = ?', 'ss', $fichier, $_SESSION['login']);
         $information = "Votre image a bien été enregistrée.";
     }
 }
@@ -141,37 +148,29 @@ if (!isset($_POST['supprimercompte'])) {
 
     echo important("Changer le mail");
 
-    $sql = 'SELECT email FROM membre WHERE login=\'' . $_SESSION['login'] . '\'';
-    $ex = mysqli_query($base, $sql);
-    $mail = mysqli_fetch_array($ex);
+    $mail = dbFetchOne($base, 'SELECT email FROM membre WHERE login = ?', 's', $_SESSION['login']);
 
     debutListe();
     echo '<form action="compte.php" method="post" name="formChangerMail">';
     echo csrfField();
-    item(['media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'floating' => true, 'titre' => 'Mail', 'input' => '<input type="text" name="changermail" id="changermail" class="form-control" value="' . $mail['email'] . '"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'floating' => true, 'titre' => 'Mail', 'input' => '<input type="text" name="changermail" id="changermail" class="form-control" value="' . htmlspecialchars($mail['email'], ENT_QUOTES, 'UTF-8') . '"/>']);
     item(['input' => submit(['titre' => 'Changer', 'form' => 'formChangerMail'])]);
     echo '</form><br/>';
     finListe();
 
-    $sql2 = 'SELECT id FROM membre WHERE login=\'' . $_SESSION['login'] . '\'';
-    $ex2 = mysqli_query($base, $sql2) or die('Erreur SQL !<br />' . $sql2 . '<br />' . mysql_error());
-    $joueur = mysqli_fetch_array($ex2);
-    $sql4 = 'SELECT vacance FROM membre WHERE id=\'' . $joueur['id'] . '\'';
-    $ex4 = mysqli_query($base, $sql4) or die('Erreur SQL !<br />' . $sql4 . '<br />' . mysql_error());
-    $estEnVac = mysqli_fetch_array($ex4);
+    $joueur = dbFetchOne($base, 'SELECT id FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    $estEnVac = dbFetchOne($base, 'SELECT vacance FROM membre WHERE id = ?', 'i', $joueur['id']);
 
     // Si le joueur est déjà en vacances
-    if ($estEnVac[0]) {
-        $sql5 = 'SELECT dateDebut, dateFin FROM vacances WHERE idJoueur=\'' . $joueur['id'] . '\'';
-        $ex5 = mysqli_query($base, $sql5) or die('Erreur SQL !<br />' . $sql5 . '<br />' . mysql_error());
-        $vacance = mysqli_fetch_array($ex5);
-        // Convertion des dates 
+    if ($estEnVac['vacance']) {
+        $vacance = dbFetchOne($base, 'SELECT dateDebut, dateFin FROM vacances WHERE idJoueur = ?', 'i', $joueur['id']);
+        // Convertion des dates
         list($annee, $mois, $jour) = explode('-', $vacance['dateDebut']);
         $vacance['dateDebut'] = $jour . '/' . $mois . '/' . $annee;
         list($annee, $mois, $jour) = explode('-', $vacance['dateFin']);
         $vacance['dateFin'] = $jour . '/' . $mois . '/' . $annee;
         $debut =  $vacance['dateDebut'];
-        $fin =  "<input type=\"text\" name=\"dateFin\" id=\"dateFin\" class=\"form-control\" value=\"" . $vacance['dateFin'] . "\"/>";
+        $fin =  "<input type=\"text\" name=\"dateFin\" id=\"dateFin\" class=\"form-control\" value=\"" . htmlspecialchars($vacance['dateFin'], ENT_QUOTES, 'UTF-8') . "\"/>";
         $activation = "";
         $disabled = "disabled";
     }
@@ -188,7 +187,7 @@ if (!isset($_POST['supprimercompte'])) {
     echo '<form action="compte.php" method="post" name="formVacances">';
     echo csrfField();
     echo '<br/><br/><div class="content-block">La mise en vacance supprimera tout ordre de production de mol&eacute;cule en cours.</div><br/>';
-    item(['floating' => false, 'titre' => 'Date de début', 'input' => '<input type="text" name="dateDebut" id="dateDebut" class="form-control" value="' . $debut . '"/>', 'disabled' => true]);
+    item(['floating' => false, 'titre' => 'Date de début', 'input' => '<input type="text" name="dateDebut" id="dateDebut" class="form-control" value="' . htmlspecialchars($debut, ENT_QUOTES, 'UTF-8') . '"/>', 'disabled' => true]);
     item(['floating' => false, 'titre' => 'Date de fin', 'input' => $fin, 'disabled' => $disabled]);
     item(['input' => $activation]);
     echo '</form>';
@@ -196,10 +195,9 @@ if (!isset($_POST['supprimercompte'])) {
 
     echo important("Supprimer le compte");
     debutListe();
-    $ex = mysqli_query($base, 'SELECT timestamp FROM membre WHERE login=\'' . $_SESSION['login'] . '\'');
-    $donnees = mysqli_fetch_array($ex);
+    $donnees = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $_SESSION['login']);
     if ((time() - $donnees['timestamp']) > 604800) {
-        item(['form' => ["compte.php", "formSupprimer"], 'input' => '<input type="hidden" name="supprimercompte"/>' . submit(['titre' => 'Supprimer le compte', 'style' => 'background-color:red', 'form' => 'formSupprimer'])]);
+        item(['form' => ["compte.php", "formSupprimer"], 'input' => '<input type="hidden" name="supprimercompte"/>' . csrfField() . submit(['titre' => 'Supprimer le compte', 'style' => 'background-color:red', 'form' => 'formSupprimer'])]);
     } else {
         debutContent();
         echo '<br/>Le compte ne peut être supprimé qu\'au bout d\'une semaine.';
@@ -213,13 +211,11 @@ if (!isset($_POST['supprimercompte'])) {
     echo important("Modifier la description");
     debutListe();
 
-    $sql = 'SELECT description FROM autre WHERE login=\'' . $_SESSION['login'] . '\'';
-    $ex = mysqli_query($base, $sql);
-    $description = mysqli_fetch_array($ex);
+    $description = dbFetchOne($base, 'SELECT description FROM autre WHERE login = ?', 's', $_SESSION['login']);
     echo '<br/>';
     creerBBcode("changerdescription", $description['description']);
 
-    item(['form' => ["compte.php", "formChangerDescription"], 'floating' => false, 'titre' => "Description", 'input' => '<textarea name="changerdescription" id="changerdescription" rows="10" cols="50">' . $description['description'] . '</textarea>']);
+    item(['form' => ["compte.php", "formChangerDescription"], 'floating' => false, 'titre' => "Description", 'input' => '<textarea name="changerdescription" id="changerdescription" rows="10" cols="50">' . htmlspecialchars($description['description'], ENT_QUOTES, 'UTF-8') . '</textarea>' . csrfField()]);
     item(['input' => submit(['titre' => 'Modifier', 'form' => 'formChangerDescription'])]);
 
     finListe();
@@ -227,7 +223,7 @@ if (!isset($_POST['supprimercompte'])) {
 
     echo important("Photo de profil (150x150)") . '<br/>';
     debutListe();
-    item(['form' => ["compte.php", "formChangerPhoto", 'sup' => 'enctype="multipart/form-data"'], 'floating' => false, 'input' => '<input type="file" name="photo" id="photo" class="filestyle" data-buttonName="btn-primary" data-buttonBefore="true" data-icon="false"/><input type="hidden" name="MAX_FILE_SIZE" value="100000"/>']);
+    item(['form' => ["compte.php", "formChangerPhoto", 'sup' => 'enctype="multipart/form-data"'], 'floating' => false, 'input' => '<input type="file" name="photo" id="photo" class="filestyle" data-buttonName="btn-primary" data-buttonBefore="true" data-icon="false"/><input type="hidden" name="MAX_FILE_SIZE" value="2000000"/>' . csrfField()]);
 
     item(['input' => submit(['titre' => 'Modifier', 'form' => 'formChangerPhoto'])]);
     finListe();
@@ -240,6 +236,7 @@ if (!isset($_POST['supprimercompte'])) {
                  <center>
                     <input type="image" style="vertical-align:middle;margin-right:80px" src="images/yes.png" name="oui" value="Oui"/><input src="images/croix.png" style="vertical-align:middle" type ="image" name="non" value="Non"/>
 	               <input type="hidden" name="verification"/>
+                   ' . csrfField() . '
                 </center>', 'form' => ["compte.php", "supprimerLeCompte"]]);
     finListe();
     finCarte();
