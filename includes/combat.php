@@ -49,7 +49,7 @@ if ($idalliance['idalliance'] > 0) {
 	$bonusDuplicateurAttaque = 1 + ((0.1 * $duplicateurAttaque['duplicateur']) / 100);
 }
 
-$idallianceDef = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
+$idallianceDef = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['defenseur']);
 $bonusDuplicateurDefense = 1;
 if ($idallianceDef['idalliance'] > 0) {
 	$duplicateurDefense = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idallianceDef['idalliance']);
@@ -232,6 +232,7 @@ if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
 						break;
 					case 3:
 						$degatsProducteur += $degatsAMettre;
+						break;
 					default:
 						$degatsDepot += $degatsAMettre;
 						break;

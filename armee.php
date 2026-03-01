@@ -41,11 +41,11 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
         while ($actionsattaques = mysqli_fetch_array($ex)) {
             $explosion = explode(";", $actionsattaques['troupes']);
             $chaine = "";
-            for ($i = 1; $i < $nbClasses; $i++) {
+            for ($i = 1; $i <= $nbClasses; $i++) {
                 if ($i == $_POST['emplacementmoleculesupprimer']) {
-                    $chaine = "0;";
+                    $chaine .= "0;";
                 } else {
-                    $chaine = $explosion[$i - 1] . ";";
+                    $chaine .= $explosion[$i - 1] . ";";
                 }
             }
 
@@ -339,7 +339,7 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
         echo '<a href="molecule.php?id=' . $molecule['id'] . '" style="margin-left: 20px;font-weight:bold;" class="lienFormule">' . couleurFormule($molecule['formule']) . '</a>  ';
         echo nombreMolecules(ceil($molecule['nombre']));
         if ($molecule['formule'] != "Vide") {
-            $nbmoleculesMax = 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
+            $nbmoleculesMax = PHP_INT_MAX;
             foreach ($nomsRes as $num => $ressource) {
                 if ($molecule[$ressource] > 0) {
                     $nbmoleculesMax = min($nbmoleculesMax, floor($ressources[$ressource] / $molecule[$ressource]));

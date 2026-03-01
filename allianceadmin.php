@@ -278,13 +278,13 @@ if ($guerre) {
 	if (isset($_POST['adversaire']) and !empty($_POST['adversaire'])) {
 		csrfCheck();
 		$_POST['adversaire'] = intval($_POST['adversaire']);
-		$guerreExiste = dbCount($base, 'SELECT count(*) AS guerreExiste FROM declarations WHERE alliance2=? AND type=0', 'i', $_POST['adversaire']);
+		$guerreExiste = dbCount($base, 'SELECT count(*) AS guerreExiste FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=0 AND fin=0', 'iiii', $chef['id'], $_POST['adversaire'], $chef['id'], $_POST['adversaire']);
 
 		if ($guerreExiste > 0) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $_POST['adversaire']);
 
 			$now = time();
-			dbExecute($base, 'UPDATE declarations SET fin=? WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'iii', $now, $chef['id'], $allianceAdverse['id']);
+			dbExecute($base, 'UPDATE declarations SET fin=? WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND fin=0 AND type=0', 'iiiii', $now, $chef['id'], $allianceAdverse['id'], $chef['id'], $allianceAdverse['id']);
 			$rapportTitre = 'L\'alliance ' . $chef['tag'] . ' met fin à la guerre qui vous opposait.';
 			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chef['tag'] . '">' . $chef['tag'] . '</a> met fin à la guerre qui vous opposait.';
 			dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);

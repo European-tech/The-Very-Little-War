@@ -239,25 +239,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	}
 }
 elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
-	$ex = dbQuery($base, 'SELECT id FROM alliances');
-
-	while($donnees = mysqli_fetch_array($ex)) {
-		$ex1 = dbQuery($base, 'SELECT * FROM autre WHERE idalliance=?', 'i', $donnees['id']);
-		$pointstotaux = 0;
-        $cTotal = 0;
-        $aTotal = 0;
-        $dTotal = 0;
-        $pTotal = 0;
-		while($donnees1 = mysqli_fetch_array($ex1)){
-			$pointstotaux = $donnees1['totalPoints'] + $pointstotaux;
-            $cTotal += $donnees1['points'];
-            $aTotal += pointsAttaque($donnees1['pointsAttaque']);
-            $dTotal += pointsDefense($donnees1['pointsDefense']);
-            $pTotal += $donnees1['ressourcesPillees'];
-		}
-
-		dbExecute($base, 'UPDATE alliances SET pointstotaux=?, totalConstructions=?, totalAttaque=?, totalDefense=?, totalPillage=? WHERE id=?', 'ddddi', $pointstotaux, $cTotal, $aTotal, $dTotal, $pTotal, $donnees['id']);
-	}
+	recalculerStatsAlliances();
 
 
 
@@ -405,7 +387,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 }
 elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 	$nombreDeGuerresParPage = 20;
-	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_guerres FROM declarations WHERE pertesTotales!=0 AND type=0 AND fin!= 0');
+	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_guerres FROM declarations WHERE (pertes1 + pertes2) != 0 AND type=0 AND fin!= 0');
 	$totalDesGuerres = $retour['nb_guerres'];
 	$nombreDePages  = ceil($totalDesGuerres / $nombreDeGuerresParPage);
 
@@ -433,12 +415,7 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 	</thead>
 	<tbody>
 	<?php
-	$ex = dbQuery($base, 'SELECT id, pertes1, pertes2 FROM declarations WHERE type=0');
-	while($alliance = mysqli_fetch_array($ex)) {
-		$pertesTot = $alliance['pertes1'] + $alliance['pertes2'];
-		dbExecute($base, 'UPDATE declarations SET pertesTotales=? WHERE id=?', 'ii', $pertesTot, $alliance['id']);
-	}
-	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE pertesTotales!=0 AND type=0 AND fin!= 0 ORDER BY pertesTotales DESC LIMIT ?, ?', 'ii', $premiereGuerreAafficher, $nombreDeGuerresParPage);
+	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE type=0 AND fin!= 0 ORDER BY (pertes1 + pertes2) DESC LIMIT ?, ?', 'ii', $premiereGuerreAafficher, $nombreDeGuerresParPage);
 	while ($donnees = mysqli_fetch_array($ex)) {
 		$alliance1 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $donnees['alliance1']);
 
@@ -447,7 +424,7 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 		<tr>
 		<td><?php echo imageClassement($compteur) ; ?></td>
 		<td><?php echo alliance($alliance1['tag']); ?> contre <?php echo alliance($alliance2['tag']); ?></td>
-		<td><?php echo number_format($donnees['pertesTotales'], 0 , ' ', ' '); ?></td>
+		<td><?php echo number_format($donnees['pertes1'] + $donnees['pertes2'], 0 , ' ', ' '); ?></td>
 		<td><?php echo round(($donnees['fin'] - $donnees['timestamp'])/86400);?></td>
 		<td><a href="guerre.php?id=<?php echo $donnees['id']; ?>" class="lienVisible"><img src="images/classement/details.png" alt="details" title="Détails"/></a></td>
 		</tr>

@@ -10,9 +10,9 @@ dbExecute($base, 'UPDATE autre SET tempsPrecedent=? WHERE login=?', 'is', time()
 $donnees = dbFetchOne($base, 'SELECT energie, revenuenergie FROM ressources WHERE login=?', 's', $_POST['joueurAAttaquer']);
 
 $energie = $donnees['energie'] + round($donnees['revenuenergie']*$nbsecondesAdverse/3600);// On calcule l'energie que l'on doit avoir
-if($energie>=(4*pow(4, $depotAdverse['depot']+2)))
+if($energie>=(500 * $depotAdverse['depot']))
 {
-$energie= (4*pow(4, $depotAdverse['depot']+2)); // on limite l'energie pouvant être reçu (depots de ressources)
+$energie= (500 * $depotAdverse['depot']); // on limite l'energie pouvant être reçu (depots de ressources)
 }
 dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $energie, $_POST['joueurAAttaquer']);
 
@@ -22,9 +22,9 @@ foreach($nomsRes as $num => $ressource) {
 	$donnees = dbFetchOne($base, "SELECT $ressource, revenu$ressource FROM ressources WHERE login=?", 's', $_POST['joueurAAttaquer']);
 
 	$$ressource = $donnees[$ressource] + round($donnees['revenu'.$ressource]*$nbsecondesAdverse/3600);
-	if($$ressource>=(4*pow(4, $depotAdverse['depot']+2)))
+	if($$ressource>=(500 * $depotAdverse['depot']))
 	{
-		$$ressource = (4*pow(4, $depotAdverse['depot']+2));
+		$$ressource = (500 * $depotAdverse['depot']);
 	}
 	dbExecute($base, "UPDATE ressources SET $ressource=? WHERE login=?", 'ds', $$ressource, $_POST['joueurAAttaquer']);
 }
@@ -33,19 +33,10 @@ foreach($nomsRes as $num => $ressource) {
 
 $exResult = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? AND nombre > 0', 's', $_POST['joueurAAttaquer']);
 
+$compteurClasse = 0;
 while($molecules = mysqli_fetch_array($exResult)) {
-	$nbAtomes = 0;
-	foreach($nomsRes as $num => $ressource) {
-		$nbAtomes = $nbAtomes+$molecules[$ressource];
-	}
-	$nbheures = round($nbsecondesAdverse/3600);
-	$moleculesAEnlever = 0;
-	$moleculesRestantes = $molecules['nombre'];
-	while($nbheures > 0) {
-		$moleculesAEnlever = ($nbAtomes / 1000) * $moleculesRestantes;
-		$moleculesRestantes = $moleculesRestantes - $moleculesAEnlever;
-		$nbheures = $nbheures - 1;
-	}
+	$compteurClasse++;
+	$moleculesRestantes = pow(coefDisparition($_POST['joueurAAttaquer'], $compteurClasse), $nbsecondesAdverse) * $molecules['nombre'];
 
 	dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $moleculesRestantes, $molecules['id']);
 }

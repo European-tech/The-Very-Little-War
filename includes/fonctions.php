@@ -1666,25 +1666,6 @@ function remiseAZero()
 
     dbExecute($base, 'UPDATE statistiques SET nbDerniere=0, tailleCarte=1');
     dbExecute($base, 'UPDATE membre SET x=-1000, y=-1000'); // on les enleve de la carte, ils sont replacés quand ils se reconnectent
-    /* $ex = query('SELECT * FROM membre');
-    while($jou = mysqli_fetch_array($ex)){
-        $co = coordonneesAleatoires();
-        query('UPDATE membre SET x=\''.$co['x'].'\', y=\''.$co['y'].'\' WHERE login=\''.$jou['login'].'\'');
-    }*/
-
-
-
-    /*mysqli_query($base, 'DELETE FROM cours');
-
-    $chaine = "";
-    for ($i = 0; $i <= $nbRes; $i++) {
-        $plus = "";
-        if ($i != $nbRes) {
-            $plus = ",";
-        }
-        $chaine = $chaine . "1" . $plus;
-    }
-    mysqli_query($base, 'INSERT INTO cours VALUES (default,"' . $chaine . '","' . time() . '")');*/
 }
 
 function pref($ressource)
@@ -1758,6 +1739,29 @@ function chiffrePetit($chiffre, $type = 1)
         return '<span title="' . number_format($nombreDepart, 0, ' ', ' ') . '">' . $nombreFinal . '' . $derriere . '</span>';
     } else {
         return $nombreFinal . '' . $derriere . '';
+    }
+}
+
+function recalculerStatsAlliances()
+{
+    global $base;
+
+    $ex = dbQuery($base, 'SELECT id FROM alliances');
+    while ($donnees = mysqli_fetch_array($ex)) {
+        $ex1 = dbQuery($base, 'SELECT * FROM autre WHERE idalliance=?', 'i', $donnees['id']);
+        $pointstotaux = 0;
+        $cTotal = 0;
+        $aTotal = 0;
+        $dTotal = 0;
+        $pTotal = 0;
+        while ($donnees1 = mysqli_fetch_array($ex1)) {
+            $pointstotaux = $donnees1['totalPoints'] + $pointstotaux;
+            $cTotal += $donnees1['points'];
+            $aTotal += pointsAttaque($donnees1['pointsAttaque']);
+            $dTotal += pointsDefense($donnees1['pointsDefense']);
+            $pTotal += $donnees1['ressourcesPillees'];
+        }
+        dbExecute($base, 'UPDATE alliances SET pointstotaux=?, totalConstructions=?, totalAttaque=?, totalDefense=?, totalPillage=? WHERE id=?', 'ddddi', $pointstotaux, $cTotal, $aTotal, $dTotal, $pTotal, $donnees['id']);
     }
 }
 
