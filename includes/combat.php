@@ -46,14 +46,14 @@ $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's
 $bonusDuplicateurAttaque = 1;
 if ($idalliance['idalliance'] > 0) {
 	$duplicateurAttaque = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-	$bonusDuplicateurAttaque = 1 + ((0.1 * $duplicateurAttaque['duplicateur']) / 100);
+	$bonusDuplicateurAttaque = 1 + ($duplicateurAttaque['duplicateur'] / 100);
 }
 
 $idallianceDef = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['defenseur']);
 $bonusDuplicateurDefense = 1;
 if ($idallianceDef['idalliance'] > 0) {
 	$duplicateurDefense = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idallianceDef['idalliance']);
-	$bonusDuplicateurDefense = 1 + ((0.1 * $duplicateurDefense['duplicateur']) / 100);
+	$bonusDuplicateurDefense = 1 + ($duplicateurDefense['duplicateur'] / 100);
 }
 
 

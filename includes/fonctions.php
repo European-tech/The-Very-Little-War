@@ -41,6 +41,9 @@ function pointsVictoireJoueur($classement)
     if ($classement <= 50) {
         return floor(15 - ($classement - 20) * 0.5);
     }
+    if ($classement <= 100) {
+        return max(1, floor(15 - ($classement - 20) * 0.15));
+    }
     return 0;
 }
 
@@ -187,7 +190,7 @@ function revenuAtomeJavascript($joueur)
 function coutClasse($numero)
 {
     global $base;
-    return (pow($numero + 1, 6));
+    return (pow($numero + 1, 4));
 }
 
 function placeDepot($niveau)
@@ -263,7 +266,7 @@ function pillage($soufre, $niveau, $joueur)
 
 function productionEnergieMolecule($iode, $niveau)
 {
-    return round(0.01 * $iode * (1 + $niveau / 50));
+    return round(IODE_ENERGY_COEFFICIENT * $iode * (1 + $niveau / 50));
 }
 
 function vitesse($chlore, $niveau)
@@ -1257,7 +1260,7 @@ function initPlayer($joueur)
             'coutEnergie' => round((1 - ($bonus / 100)) * 25 * pow($niveauActuelCondenseur['niveau'], 0.6)),
             'coutAtomes' => round((1 - ($bonus / 100)) * 100 * pow($niveauActuelCondenseur['niveau'], 0.6)),
             'points' => 2 + floor($niveauActuelCondenseur['niveau'] * 0.1),
-            'tempsConstruction' => round(120 * pow($niveauActuelCondenseur['niveau'] + 1, 1.8))
+            'tempsConstruction' => round(120 * pow($niveauActuelCondenseur['niveau'] + 1, 1.6))
         ],
 
         'lieur' => [
@@ -1272,7 +1275,7 @@ function initPlayer($joueur)
             'description' => 'Le lieur forme des liaisons entre atomes afin de créer des molécules. Il permet ainsi de <strong>réduire le temps de formation des molécules</strong> de votre armée.',
             'coutAzote' => round((1 - ($bonus / 100)) * 100 * pow($niveauActuelLieur['niveau'], 0.6)),
             'points' => 2 + floor($niveauActuelLieur['niveau'] * 0.1),
-            'tempsConstruction' => round(100 * pow($niveauActuelLieur['niveau'] + 1, 1.7))
+            'tempsConstruction' => round(100 * pow($niveauActuelLieur['niveau'] + 1, 1.5))
         ],
 
 
@@ -1286,9 +1289,9 @@ function initPlayer($joueur)
             'revenu1' => (($niveauActuelStabilisateur['niveau'] + 1) * 0.5) . '% de réduction des chances de disparition des molécules',
             'effetSup' => '',
             'description' => 'Le stabilisateur permet à vos <strong>molécules d\'être plus stables</strong>, c\'est à dire qu\'elles disparaitront au bout d\'un temps plus long',
-            'coutAtomes' => round((1 - ($bonus / 100)) * 75 * pow($niveauActuelLieur['niveau'], 0.8)),
+            'coutAtomes' => round((1 - ($bonus / 100)) * 75 * pow($niveauActuelStabilisateur['niveau'], 0.8)),
             'points' => 3 + floor($niveauActuelStabilisateur['niveau'] * 0.1),
-            'tempsConstruction' => round(120 * pow($niveauActuelStabilisateur['niveau'] + 1, 1.7))
+            'tempsConstruction' => round(120 * pow($niveauActuelStabilisateur['niveau'] + 1, 1.5))
         ]
     ];
 }

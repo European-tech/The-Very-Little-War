@@ -23,7 +23,9 @@ define('MAX_CONCURRENT_CONSTRUCTIONS', 2);
 define('MAX_MOLECULE_CLASSES', 4);       // 4 classes per player
 define('MAX_ATOMS_PER_ELEMENT', 200);    // max atoms of one type in a molecule
 define('MAX_ALLIANCE_MEMBERS', 20);      // $joueursEquipe
-define('BEGINNER_PROTECTION_SECONDS', 2 * SECONDS_PER_DAY); // 3600 * 24 * 2
+define('BEGINNER_PROTECTION_SECONDS', 5 * SECONDS_PER_DAY); // 432000 = 5 days
+define('NEW_PLAYER_BOOST_DURATION', 3 * SECONDS_PER_DAY); // 259200 = 3 days of 2x production
+define('NEW_PLAYER_BOOST_MULTIPLIER', 2); // production multiplier during boost period
 define('ABSENCE_REPORT_THRESHOLD_HOURS', 6); // hours offline before loss report
 define('ONLINE_TIMEOUT_SECONDS', 300);   // 60 * 5 = 5 minutes for online status
 define('VICTORY_POINTS_TOTAL', 1000);    // $nbPointsVictoire
@@ -80,8 +82,9 @@ define('PILLAGE_ATOM_COEFFICIENT', 0.1);
 define('PILLAGE_SOUFRE_DIVISOR', 3);
 define('PILLAGE_LEVEL_DIVISOR', 50);
 
-// Iode energy production: round(0.01 * iode * (1 + niveau / 50))
-define('IODE_ENERGY_COEFFICIENT', 0.01);
+// Iode energy production: round(0.05 * iode * (1 + niveau / 50))
+// Buffed from 0.01 to 0.05 (5x) to make energy molecules viable
+define('IODE_ENERGY_COEFFICIENT', 0.05);
 define('IODE_LEVEL_DIVISOR', 50);
 
 // Speed (chlore): floor((1 + 0.5 * chlore) * (1 + niveau / 50) * 100) / 100
@@ -185,7 +188,7 @@ $BUILDING_CONFIG = [
         'cost_atoms_base'   => 100,
         'cost_atoms_exp'    => 0.6,
         'time_base'         => 120,
-        'time_exp'          => 1.8,
+        'time_exp'          => 1.6,  // reduced from 1.8 for faster military progression
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 2,
         'points_level_factor' => 0.1,
@@ -196,7 +199,7 @@ $BUILDING_CONFIG = [
         'cost_azote_base'   => 100,
         'cost_azote_exp'    => 0.6,
         'time_base'         => 100,
-        'time_exp'          => 1.7,
+        'time_exp'          => 1.5,  // reduced from 1.7 for faster military progression
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 2,
         'points_level_factor' => 0.1,
@@ -207,7 +210,7 @@ $BUILDING_CONFIG = [
         'cost_atoms_base'   => 75,
         'cost_atoms_exp'    => 0.8,
         'time_base'         => 120,
-        'time_exp'          => 1.7,
+        'time_exp'          => 1.5,  // reduced from 1.7 for faster military progression
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 3,
         'points_level_factor' => 0.1,
@@ -226,8 +229,9 @@ define('ATTACK_ENERGY_COST_FACTOR', 0.15);
 define('IONISATEUR_COMBAT_BONUS_PER_LEVEL', 2);  // +2% per level
 define('CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL', 2); // +2% per level
 
-// Duplicateur combat bonus in combat.php: (0.1 * duplicateur_level) / 100
-define('DUPLICATEUR_COMBAT_COEFFICIENT', 0.1);
+// Duplicateur combat bonus in combat.php: duplicateur_level / 100 (1% per level, matching resource bonus)
+// Fixed: was (0.1 * level) / 100 giving only 0.1% per level (10x too weak)
+define('DUPLICATEUR_COMBAT_COEFFICIENT', 1.0);
 
 // Building damage targeting: random 1-4 selects target building
 define('NUM_DAMAGEABLE_BUILDINGS', 4); // generateur, champdeforce, producteur, depot
@@ -247,6 +251,9 @@ define('NEUTRINO_COST', 50);     // energy per neutrino ($coutNeutrino)
 // MARKET
 // =============================================================================
 define('MARKET_VOLATILITY_FACTOR', 0.3); // $volatilite = 0.3 / nbActifs
+define('MARKET_PRICE_FLOOR', 0.1);       // minimum price any resource can reach
+define('MARKET_PRICE_CEILING', 10.0);    // maximum price any resource can reach
+define('MARKET_MEAN_REVERSION', 0.01);   // 1% pull toward baseline price per trade
 define('MERCHANT_SPEED', 20);    // cases per hour ($vitesseMarchands)
 
 // =============================================================================
@@ -266,8 +273,8 @@ define('ALLIANCE_TAG_MAX_LENGTH', 16);
 // =============================================================================
 // MOLECULE CLASS COST
 // =============================================================================
-// coutClasse = pow(numero + 1, 6)
-define('CLASS_COST_EXPONENT', 6);
+// coutClasse = pow(numero + 1, 4) -- reduced from 6 for accessible class unlocks
+define('CLASS_COST_EXPONENT', 4);
 define('CLASS_COST_OFFSET', 1); // pow(numero + CLASS_COST_OFFSET, CLASS_COST_EXPONENT)
 
 // =============================================================================
@@ -281,7 +288,8 @@ $VICTORY_POINTS_PLAYER = [
     // Ranks 4-10:  70 - (rank - 3) * 5  => 65, 60, 55, 50, 45, 40, 35
     // Ranks 11-20: 35 - (rank - 10) * 2 => 33, 31, 29, 27, 25, 23, 21, 19, 17, 15
     // Ranks 21-50: floor(15 - (rank - 20) * 0.5)
-    // Ranks 51+:   0
+    // Ranks 51-100: max(1, floor(15 - (rank - 20) * 0.15))
+    // Ranks 101+:   0
 ];
 define('VP_PLAYER_RANK1', 100);
 define('VP_PLAYER_RANK2', 80);

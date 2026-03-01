@@ -68,10 +68,10 @@ if (isset($_POST['joueurAAttaquer'])) {
 
             if ($enVac['vacance']) {
                 $erreur = "Vous ne pouvez pas attaquer un joueur en vacances";
-            } elseif (time() - $enVac['timestamp'] < 3600 * 24 * 2) {
+            } elseif (time() - $enVac['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
                 $erreur = "Le joueur est encore sous protection des débutants.";
-            } elseif (time() - $membre['timestamp'] < 3600 * 24 * 2) {
-                $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps(3600 * 24 * 2 - time() + $membre['timestamp']) . " h</strong>) et vous ne pouvez donc pas attaquer.";
+            } elseif (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
+                $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps(BEGINNER_PROTECTION_SECONDS - time() + $membre['timestamp']) . " h</strong>) et vous ne pouvez donc pas attaquer.";
             } else {
 
                 $joueurDefenseur = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $_POST['joueurAAttaquer']);
@@ -172,10 +172,10 @@ if (isset($_POST['joueurAAttaquer'])) {
 
 include("includes/tout.php");
 
-if (time() - $membre['timestamp'] < 3600 * 24 * 2) {
+if (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
     debutCarte();
     echo '<div class="table-responsive"><table>';
-    echo '<tr><td><img src="images/attaquer/baby.png" class="imageChip" alt="bebe"/><td><td>Fin de la protection des débutants le ' . strftime('%d/%m/%y à %Hh%M', $membre['timestamp'] + 3600 * 24 * 2);
+    echo '<tr><td><img src="images/attaquer/baby.png" class="imageChip" alt="bebe"/><td><td>Fin de la protection des débutants le ' . strftime('%d/%m/%y à %Hh%M', $membre['timestamp'] + BEGINNER_PROTECTION_SECONDS);
     echo '</table></div>';
     finCarte();
 }
