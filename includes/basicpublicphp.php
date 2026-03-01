@@ -2,6 +2,7 @@
 include("includes/connexion.php");
 include("includes/fonctions.php");
 require_once(__DIR__ . '/logger.php');
+require_once(__DIR__ . '/rate_limiter.php');
 
 if (!isset($_SESSION['start'])) {
 	session_start();
@@ -14,6 +15,11 @@ session_destroy();
 //Si le formulaire de connexion a ete soumis et que le couple mdp login est bon, on se connecte
 if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 	if (!empty($_POST['loginConnexion']) && !empty($_POST['passConnexion'])) {
+		// 10 attempts per 5 minutes per IP
+		if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'login', 10, 300)) {
+			die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
+		}
+
 		$loginInput = ucfirst(mb_strtolower(antiXSS($_POST['loginConnexion'])));
 		$passwordInput = $_POST['passConnexion'];
 

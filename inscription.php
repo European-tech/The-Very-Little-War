@@ -8,6 +8,11 @@ session_start();
 
 //Si le bouton inscription a ete clique
 if (isset($_POST['login'])) {
+	// Rate limit: 3 registrations per hour per IP
+	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'register', 3, 3600)) {
+		die('<p>Trop d\'inscriptions depuis cette adresse. Réessayez plus tard.</p>');
+	}
+
 	// CSRF check
 	csrfCheck();
 
