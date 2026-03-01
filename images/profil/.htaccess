@@ -1,0 +1,16 @@
+# Prevent PHP execution in upload directory
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<FilesMatch "\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
+
+# Only allow image files
+<FilesMatch "\.(?:jpe?g|png|gif)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+</FilesMatch>
