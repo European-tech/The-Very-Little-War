@@ -16,31 +16,29 @@ include("includes/tout.php");
 
 if (isset($_GET['id'])) {
 	$_GET['id'] = antiXSS($_GET['id']);
-	$sql = 'SELECT * FROM membre WHERE login="'.$_GET['id'].'"';
-	$req = mysqli_query($base,$sql) or die('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-	$membre = mysqli_fetch_array($req);
-	$nb = mysqli_num_rows($req);
-
-	$sql1 = 'SELECT * FROM autre WHERE login="'.mysqli_real_escape_string($base,stripslashes(antihtml($membre['login']))).'"';
-	$req1 = mysqli_query($base,$sql1) or die('Erreur SQL !<br />'.$sql1.'<br />'.mysql_error());
-	$donnees1 = mysqli_fetch_array($req1);
-	
-	$sql3 = 'SELECT idalliance FROM autre WHERE login="'.mysqli_real_escape_string($base,stripslashes(antihtml($membre['login']))).'"';
-	$req3 = mysqli_query($base,$sql3) or die('Erreur SQL !<br />'.$sql3.'<br />'.mysql_error());
-	$donnees3 = mysqli_fetch_array($req3);
-	
-	$sql2 = 'SELECT tag FROM alliances WHERE id="'.mysqli_real_escape_string($base,stripslashes(antihtml($donnees3['idalliance']))).'"';
-	$req2 = mysqli_query($base,$sql2) or die('Erreur SQL !<br />'.$sql2.'<br />'.mysql_error());
-	$donnees2 = mysqli_fetch_array($req2);
-	
-	$sql4 = 'SELECT nombre FROM molecules WHERE proprietaire=\''.$membre['login'].'\' AND nombre!=0';
-	$req4 = mysqli_query($base,$sql4) or die('Erreur SQL !<br />'.$sql4.'<br />'.mysql_error());
-	$nb_molecules = 0;
-	while($donnees4 = mysqli_fetch_array($req4)) {
-		$nb_molecules = $nb_molecules + $donnees4['nombre'];
+	$req = dbQuery($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
+	if (!$req) {
+		error_log("SQL error fetching membre for joueur page");
+		$membre = null;
+		$nb = 0;
+	} else {
+		$membre = mysqli_fetch_array($req);
+		$nb = mysqli_num_rows($req);
 	}
-    
-	if($nb > 0 ) {
+
+	if($nb > 0) {
+		$donnees1 = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $membre['login']);
+
+		$donnees3 = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $membre['login']);
+
+		$donnees2 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $donnees3['idalliance']);
+
+		$req4 = dbQuery($base, 'SELECT nombre FROM molecules WHERE proprietaire=? AND nombre!=0', 's', $membre['login']);
+		$nb_molecules = 0;
+		while($donnees4 = mysqli_fetch_array($req4)) {
+			$nb_molecules = $nb_molecules + $donnees4['nombre'];
+		}
+
         debutCarte($membre['login']);
         $titre = 'Joueur';
         if(statut($membre['login']) == 0){
@@ -52,7 +50,7 @@ if (isset($_GET['id'])) {
 		<img style="margin-right: 20px; float: right; border-radius: 10px;width:80px;" alt="profil" src="images/profil/<?php echo $donnees1['image']; ?>"/>
        <?php if($donnees3['idalliance'] > 0) { $alliance = alliance($donnees2['tag']); } else { $alliance = "Pas d'alliance";}
         
-        $rangQuery = query('SELECT login FROM autre ORDER BY totalPoints DESC');
+        $rangQuery = dbQuery($base, 'SELECT login FROM autre ORDER BY totalPoints DESC');
         $rang = 1;
                 
         while($rangEx = mysqli_fetch_array($rangQuery)){

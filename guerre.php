@@ -1,28 +1,26 @@
-<?php 
+<?php
 session_start();
-$_SESSION['start'] = "start"; 
+$_SESSION['start'] = "start";
 if (isset($_SESSION['login']))
 {
 	include("includes/basicprivatephp.php");
 }
 else
 {
-	include("includes/basicpublicphp.php"); 
+	include("includes/basicpublicphp.php");
 }
 
 include("includes/tout.php");
 
 if(isset($_GET['id'])) {
 	$_GET['id'] = antiXSS($_GET['id']);
-	$ex = mysqli_query($base,'SELECT * FROM declarations WHERE id=\''.$_GET['id'].'\' AND type=0');
+	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE id=? AND type=0', 'i', $_GET['id']);
 	$guerre = mysqli_fetch_array($ex);
 	$nbGuerres = mysqli_num_rows($ex);
-	
-	$ex = mysqli_query($base,'SELECT tag FROM alliances WHERE id=\''.$guerre['alliance1'].'\'');
-	$alliance1 = mysqli_fetch_array($ex);
-	
-	$ex = mysqli_query($base,'SELECT tag FROM alliances WHERE id=\''.$guerre['alliance2'].'\'');
-	$alliance2 = mysqli_fetch_array($ex);
+
+	$alliance1 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance1']);
+
+	$alliance2 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance2']);
 
 	if($nbGuerres > 0) {
         debutCarte('<a href="alliance.php?id='.$alliance1['tag'].'" style="color:white"><span class="lienTitre">'.$alliance1['tag'].'</span></a> VS <a href="alliance.php?id='.$alliance2['tag'].'"><span class="lienTitre" style="color:white">'.$alliance2['tag'].'</span></a>');
@@ -42,7 +40,7 @@ if(isset($_GET['id'])) {
 			';
 		}
 		echo '<br/><span class="subimportant">Date de début de la guerre : </span>'.date('d/m/Y à H\hi', $guerre['timestamp']).'<br/>';
-		
+
 		if($guerre['fin'] > $guerre['timestamp']) {
 			echo '<span class="subimportant">Date de fin de la guerre : </span>'.date('d/m/Y à H\hi', $guerre['fin']).'<br/>
 			Cette guerre a donc duré '.round(($guerre['fin'] - $guerre['timestamp'])/86400).' jours.';

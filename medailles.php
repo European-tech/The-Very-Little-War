@@ -4,39 +4,30 @@ include("includes/tout.php");
 
 if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login']))  {
 	if(isset($_GET['login']) AND $_GET['login'] != $_SESSION['login']) {
-		$_GET['login'] = mysqli_real_escape_string($base,stripslashes(antihtml($_GET['login'])));
-		$joueur = $_GET['login'];
+		$joueur = antiXSS($_GET['login']);
 	}
 	else {
 		$joueur = $_SESSION['login'];
 	}
 	
-	$ex = mysqli_query($base,'SELECT count(*) AS ok FROM membre WHERE login=\''.$joueur.'\'');
-	$donnees = mysqli_fetch_array($ex);
+	$donnees = dbFetchOne($base, 'SELECT count(*) AS ok FROM membre WHERE login=?', 's', $joueur);
 	
 	if($donnees['ok'] == 1) {
         
-        $ex = mysqli_query($base,'SELECT nbattaques FROM autre WHERE login=\''.$joueur.'\'');
-		$donnees = mysqli_fetch_array($ex);
+        $donnees = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $joueur);
         
-        $ex = mysqli_query($base,'SELECT count(*) AS nbmessages FROM reponses WHERE auteur=\''.$joueur.'\'');
-		$donnees1 = mysqli_fetch_array($ex);
+        $donnees1 = dbFetchOne($base, 'SELECT count(*) AS nbmessages FROM reponses WHERE auteur=?', 's', $joueur);
         
-        $ex = mysqli_query($base,'SELECT * FROM autre WHERE login=\''.$joueur.'\'');
-		$donnees2 = mysqli_fetch_array($ex);
+        $donnees2 = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $joueur);
         
-        $ex = mysqli_query($base,'SELECT energieDepensee FROM autre WHERE login=\''.$joueur.'\'');
-		$donnees3 = mysqli_fetch_array($ex);
+        $donnees3 = dbFetchOne($base, 'SELECT energieDepensee FROM autre WHERE login=?', 's', $joueur);
         
-        $ex = mysqli_query($base,'SELECT * FROM constructions WHERE login=\''.$joueur.'\'');
-		$donnees4 = mysqli_fetch_array($ex);
+        $donnees4 = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
         $plusHaut = batMax($donnees4['login'],$nomsRes,$nbRes);
         
-        $ex = mysqli_query($base,'SELECT troll FROM membre WHERE login=\''.$joueur.'\'');
-		$troll = mysqli_fetch_array($ex);
+        $troll = dbFetchOne($base, 'SELECT troll FROM membre WHERE login=?', 's', $joueur);
         
-        $ex = mysqli_query($base,'SELECT bombe FROM autre WHERE login=\''.$joueur.'\'');
-		$bombe = mysqli_fetch_array($ex);
+        $bombe = dbFetchOne($base, 'SELECT bombe FROM autre WHERE login=?', 's', $joueur);
             
 	    debutCarte("Médailles");
         debutListe();

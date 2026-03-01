@@ -1,16 +1,16 @@
-<?php 
+<?php
 include("includes/basicprivatephp.php");
 
 if(isset($_POST['idDeclaration'])) {
-	$ex = mysqli_query($base,'SELECT count(*) AS existe FROM declarations WHERE id=\''.$_POST['idDeclaration'].'\' AND valide=0');
-	$donnees = mysqli_fetch_array($ex);
-	
+	csrfCheck();
+	$donnees = dbFetchOne($base, 'SELECT count(*) AS existe FROM declarations WHERE id=? AND valide=0', 'i', $_POST['idDeclaration']);
+
 	if($donnees['existe'] == 1) {
 		if(isset($_POST['accepter'])) {
-			mysqli_query($base,'UPDATE declarations SET valide=1 WHERE id=\''.$_POST['idDeclaration'].'\'');
+			dbExecute($base, 'UPDATE declarations SET valide=1 WHERE id=?', 'i', $_POST['idDeclaration']);
 		}
 		else {
-			mysqli_query($base,'DELETE FROM declarations WHERE id=\''.$_POST['idDeclaration'].'\'');
+			dbExecute($base, 'DELETE FROM declarations WHERE id=?', 'i', $_POST['idDeclaration']);
 		}
 	}
 }
