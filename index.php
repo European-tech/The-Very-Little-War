@@ -9,7 +9,7 @@ if (isset($_SESSION['login'])) {
 
 
 if (isset($_GET['inscrit'])) {
-    $_GET['inscrit'] = mysqli_real_escape_string($base, (stripslashes(antihtml(trim($_GET['inscrit'])))));
+    $_GET['inscrit'] = intval($_GET['inscrit']);
     if ($_GET['inscrit'] == 1) {
         $information = "Vous avez bien été inscrit";
     } else {
@@ -18,7 +18,7 @@ if (isset($_GET['inscrit'])) {
 }
 
 if (isset($_GET['att'])) {
-    $_GET['att'] = mysqli_real_escape_string($base, (stripslashes(antihtml(trim($_GET['att'])))));
+    $_GET['att'] = intval($_GET['att']);
     if ($_GET['att'] == 1) {
         $erreur = "Un visiteur s'est inscrit il y a moins d'une minute, veuillez attendre s'il vous plait puis réessayez (anti-bot)";
     } else {
@@ -41,7 +41,7 @@ if (!isset($_SESSION['login'])) {
     finCarte();
 }
 
-$retour = mysqli_query($base, 'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
+$retour = dbQuery($base, 'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
 $nb = mysqli_num_rows($retour);
 if ($nb == 0) {
     $donnees['titre'] = "Aucun news";

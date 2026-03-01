@@ -3,6 +3,7 @@ session_start();
 include("includes/connexion.php");
 include("includes/fonctions.php");
 if(isset($_POST['verification']) AND isset($_POST['oui'])) {
+	csrfCheck();
 	supprimerJoueur($_SESSION['login']);
 }
   

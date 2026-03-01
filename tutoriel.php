@@ -2,26 +2,19 @@
 include("includes/basicprivatephp.php");
 
 if(isset($_POST['valider'])) {
-	$sql = 'SELECT niveaututo FROM autre WHERE login=\''.$_SESSION['login'].'\'';
-	$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-	$niveaututo = mysqli_fetch_array($ex);
+	csrfCheck();
+	$niveaututo = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login=?', 's', $_SESSION['login']);
 	if($niveaututo['niveaututo'] <= 8) {
-		$sqlTuto = 'SELECT * FROM tutoriel WHERE niveau=\''.$niveaututo['niveaututo'].'\'';
-		$exTuto = mysqli_query($base,$sqlTuto) or die ('Erreur SQL !<br />'.$sqlTuto.'<br />'.mysql_error());
-		$tuto = mysqli_fetch_array($exTuto);
+		$tuto = dbFetchOne($base, 'SELECT * FROM tutoriel WHERE niveau=?', 'i', $niveaututo['niveaututo']);
 		$valide = "pasok";
 		if($niveaututo['niveaututo'] == 1) {
-			$sql = 'SELECT count(*) AS nb_classes FROM molecules WHERE proprietaire=\''.$_SESSION['login'].'\' AND formule != \'Vide \'';
-			$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-			$donnees = mysqli_fetch_array($ex);
+			$donnees = dbFetchOne($base, 'SELECT count(*) AS nb_classes FROM molecules WHERE proprietaire=? AND formule != ?', 'ss', $_SESSION['login'], 'Vide ');
 			if($donnees['nb_classes'] > 0) {
 				$valide = "ok";
 			}
 		}
 		elseif($niveaututo['niveaututo'] == 2) {
-			$sql = 'SELECT count(*) AS nb_classes FROM molecules WHERE proprietaire=\''.$_SESSION['login'].'\' AND nombre != 0';
-			$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-			$donnees = mysqli_fetch_array($ex);
+			$donnees = dbFetchOne($base, 'SELECT count(*) AS nb_classes FROM molecules WHERE proprietaire=? AND nombre != 0', 's', $_SESSION['login']);
 			if($donnees['nb_classes'] > 0) {
 				$valide = "ok";
 			}
@@ -33,9 +26,8 @@ if(isset($_POST['valider'])) {
 				if($num < $nbRes) { $plus = ","; }
 					$chaine = $chaine.'generateur'.$ressource.''.$plus;
 			}
-			$sql = 'SELECT generateurenergie, '.$chaine.' FROM constructions WHERE login=\''.$_SESSION['login'].'\'';
-			$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-			$donnees = mysqli_fetch_array($ex);
+			// $chaine columns come from server-side $nomsRes whitelist
+			$donnees = dbFetchOne($base, 'SELECT generateurenergie, '.$chaine.' FROM constructions WHERE login=?', 's', $_SESSION['login']);
 			
 			$bool = 1;
 			foreach($nomsRes as $num => $ressource) {
@@ -46,62 +38,55 @@ if(isset($_POST['valider'])) {
 			}
 		}
 		elseif($niveaututo['niveaututo'] == 4) {
-			$sql = 'SELECT muraille FROM constructions WHERE login=\''.$_SESSION['login'].'\'';
-			$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-			$donnees = mysqli_fetch_array($ex);
+			$donnees = dbFetchOne($base, 'SELECT muraille FROM constructions WHERE login=?', 's', $_SESSION['login']);
 			if($donnees['muraille'] > 0) {
 				$valide = "ok";
 			}
 		}
 		elseif($niveaututo['niveaututo'] == 5) {
-			$sql = 'SELECT description FROM autre WHERE login=\''.$_SESSION['login'].'\'';
-			$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-			$donnees = mysqli_fetch_array($ex);
+			$donnees = dbFetchOne($base, 'SELECT description FROM autre WHERE login=?', 's', $_SESSION['login']);
 			if($donnees['description'] != "") {
 				$valide = "ok";
 			}
 		}
 		elseif($niveaututo['niveaututo'] == 6) {
-			$sql = 'SELECT nbattaques FROM autre WHERE login=\''.$_SESSION['login'].'\'';
-			$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-			$donnees = mysqli_fetch_array($ex);
+			$donnees = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $_SESSION['login']);
 			if($donnees['nbattaques'] > 0) {
 				$valide = "ok";
 			}
 		}
 		elseif($niveaututo['niveaututo'] == 7) {
-			$sql = 'SELECT terrain FROM ressources WHERE login=\''.$_SESSION['login'].'\'';
-			$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-			$donnees = mysqli_fetch_array($ex);
+			$donnees = dbFetchOne($base, 'SELECT terrain FROM ressources WHERE login=?', 's', $_SESSION['login']);
 			if($donnees['terrain'] > 100) {
 				$valide = "ok";
 			}
 			
 		}
 		elseif($niveaututo['niveaututo'] == 8) {
-			$sql = 'SELECT idalliance FROM autre WHERE login=\''.$_SESSION['login'].'\'';
-			$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-			$donnees = mysqli_fetch_array($ex);
+			$donnees = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 			if($donnees['idalliance'] != 0) {
 				$valide = "ok";
 			}
 		}
 		
 		if($valide == "ok") {
-			$sqlRessources1 = 'SELECT * FROM ressources WHERE login=\''.$_SESSION['login'].'\'';
-			$exRessources1 = mysqli_query($base,$sqlRessources1) or die ('Erreur SQL !<br />'.$sqlRessources1.'<br />'.mysql_error());
-			$ressources1 = mysqli_fetch_array($exRessources1);
-			$chaine = ""; 
+			$ressources1 = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $_SESSION['login']);
+			// Build SET clause with server-side $nomsRes column names
+			$chaine = "";
 			foreach($nomsRes as $num => $ressource) {
 				$plus = "";
 				if($num < $nbRes) { $plus = ","; }
-					$chaine = $chaine.''.$ressource.'='.($ressources1[$ressource] + $tuto['bonus'.$ressource]).''.$plus;
+					$chaine = $chaine.''.$ressource.'='.intval($ressources1[$ressource] + $tuto['bonus'.$ressource]).''.$plus;
 			}
-			$sqlRessources = 'UPDATE ressources SET energie=\''.($ressources1['energie'] + $tuto['bonusenergie']).'\','.$chaine.' WHERE login=\''.$_SESSION['login'].'\''; 
-			mysqli_query($base,$sqlRessources) or die ('Erreur SQL !<br />'.$sqlRessources.'<br />'.mysql_error());
-			
-			$sqlUpdateNiveau = 'UPDATE autre SET niveaututo=\''.($niveaututo['niveaututo'] + 1).'\' WHERE login=\''.$_SESSION['login'].'\'';
-			mysqli_query($base,$sqlUpdateNiveau) or die ('Erreur SQL !<br />'.$sqlUpdateNiveau.'<br />'.mysql_error());
+			$newEnergie = intval($ressources1['energie'] + $tuto['bonusenergie']);
+			// Column names from $nomsRes whitelist, values are server-computed integers
+			$stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?,'.$chaine.' WHERE login=?');
+			mysqli_stmt_bind_param($stmt, 'is', $newEnergie, $_SESSION['login']);
+			mysqli_stmt_execute($stmt);
+			mysqli_stmt_close($stmt);
+
+			$newNiveau = intval($niveaututo['niveaututo'] + 1);
+			dbExecute($base, 'UPDATE autre SET niveaututo=? WHERE login=?', 'is', $newNiveau, $_SESSION['login']);
 			?>
 			<script LANGUAGE="JavaScript">
 			window.location= "constructions.php";
@@ -121,9 +106,7 @@ if(isset($_POST['valider'])) {
 
 include("includes/tout.php");
 
-$sql = 'SELECT niveaututo FROM autre WHERE login=\''.$_SESSION['login'].'\'';
-$ex = mysqli_query($base,$sql) or die ('Erreur SQL !<br />'.$sql.'<br />'.mysql_error());
-$niveaututo = mysqli_fetch_array($ex);
+$niveaututo = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login=?', 's', $_SESSION['login']);
 if(!(isset($_GET['tuto']))){
 if($niveaututo['niveaututo'] > 8) {
 
