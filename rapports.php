@@ -23,7 +23,7 @@ if(isset($_GET['rapport'])) {
 	if($nb_rapports > 0) {
 		dbExecute($base, 'UPDATE rapports SET statut=1 WHERE id = ?', 'i', $rapportId);
 
-        debutCarte($rapports['titre']);
+        debutCarte(htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8'));
 		debutContent();
 		echo $rapports['contenu'];
         finContent();
@@ -62,12 +62,12 @@ else {
 		<table class="table table-striped table-bordered">
         <tbody>';
 		while($rapports = mysqli_fetch_array($ex)) {
-            echo '<td>'.$rapports['image'].'</td>';
+            echo '<td>'.htmlspecialchars($rapports['image'], ENT_QUOTES, 'UTF-8').'</td>';
 			if($rapports['statut'] != 0){
-				echo '<td><a href="rapports.php?rapport='.$rapports['id'].'">'.$rapports['titre'].'</a></td>';
+				echo '<td><a href="rapports.php?rapport='.$rapports['id'].'">'.htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 			}
 			else {
-				echo '<td><strong><a href="rapports.php?rapport='.$rapports['id'].'">'.$rapports['titre'].'</a></strong></td>';
+				echo '<td><strong><a href="rapports.php?rapport='.$rapports['id'].'">'.htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8').'</a></strong></td>';
 			}
 			echo '<td><em>'.date('d/m/Y à H\hi', $rapports['timestamp']).'</em></td>';
 			echo '<td><form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="w32"></button></form></td></tr>';

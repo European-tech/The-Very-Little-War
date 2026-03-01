@@ -47,7 +47,7 @@ if (isset($_GET['id'])) {
         echo important($titre);
 		?>
 		<br/>
-		<img style="margin-right: 20px; float: right; border-radius: 10px;width:80px;" alt="profil" src="images/profil/<?php echo $donnees1['image']; ?>"/>
+		<img style="margin-right: 20px; float: right; border-radius: 10px;width:80px;" alt="profil" src="images/profil/<?php echo htmlspecialchars($donnees1['image'], ENT_QUOTES, 'UTF-8'); ?>"/>
        <?php if($donnees3['idalliance'] > 0) { $alliance = alliance($donnees2['tag']); } else { $alliance = "Pas d'alliance";}
         
         $rangQuery = dbQuery($base, 'SELECT login FROM autre ORDER BY totalPoints DESC');

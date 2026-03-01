@@ -7,6 +7,7 @@ if (isset($_SESSION['login'])) {
 	include("includes/basicpublicphp.php");
 }
 include("includes/bbcode.php");
+require_once("includes/csrf.php");
 
 if(!isset($_GET['id'])
 	or intval(trim($_GET['id'])) == 0
@@ -21,6 +22,7 @@ $_GET['id'] = antiXSS($_GET['id']);
 $getId = (int)$_GET['id'];
 
 if (isset($_POST['titre']) and isset($_POST['contenu'])) {
+	csrfCheck();
 	if (isset($_SESSION['login'])) {
 		if (!empty($_POST['titre']) and !empty($_POST['contenu'])) {
 			$timestamp = time();
@@ -99,7 +101,7 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 			} else {
 				echo '<td><img src="images/forum/sujetVerouille.png" alt="sujetVerouille" class="w32"/></td>';
 			}
-			echo '<td><a href="sujet.php?id=' . $sujet['id'] . '">' . $sujet['titre'] . '</a>';
+			echo '<td><a href="sujet.php?id=' . $sujet['id'] . '">' . htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8') . '</a>';
 			if (isset($_SESSION['login']) and $_SESSION['login'] == $sujet['auteur']) {
 				echo '<br/><a href="editer.php?id=' . $sujet['id'] . '&type=1"><em>Editer</em></a>';
 			}
@@ -162,7 +164,7 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 
 		?><form action="listesujets.php?id=<?php if (isset($_GET['id'])) {
 									echo (int)$_GET['id'];
-								} ?>" method="post" name="formCreerSujet"><?php
+								} ?>" method="post" name="formCreerSujet"><?php echo csrfField();
 																																debutListe();
 																																item(['titre' => 'Titre', 'input' => '<input type="text" name="titre" id="titre" class="form-control"/>', 'floating' => true]);
 																																creerBBcode("contenu");

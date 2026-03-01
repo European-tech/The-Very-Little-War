@@ -7,8 +7,10 @@ if (isset($_SESSION['login'])) {
 	include("includes/basicpublicphp.php");
 }
 include("includes/bbcode.php");
+require_once("includes/csrf.php");
 
 if (isset($_POST['contenu']) and isset($_GET['id'])) {
+	csrfCheck();
 	$_GET['id'] = antiXSS($_GET['id']);
 	if (preg_match("#^[0-9]*$#", $_GET['id'])) {
 		if (isset($_SESSION['login'])) {
@@ -150,7 +152,7 @@ if (isset($_GET['id'])) {
 		if (isset($_SESSION['login']) and $_SESSION['login'] == $sujet['auteur']) {
 			$editer = '<a href="editer.php?id=' . $sujet['id'] . '&type=1">Editer</a>';
 		}
-		carteForum('<img alt="profil" src="images/profil/' . $image['image'] . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . $sujet['auteur'] . '">' . $sujet['auteur'] . '</a>', date('d/m/Y à H\hi', $sujet['timestamp']), $sujet['titre'], BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
+		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . $sujet['auteur'] . '">' . $sujet['auteur'] . '</a>', date('d/m/Y à H\hi', $sujet['timestamp']), $sujet['titre'], BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
 
 
 		if ($nb_resultats > 0) {
@@ -190,7 +192,7 @@ if (isset($_GET['id'])) {
 					}
 				}
 
-				carteForum('<img alt="profil" src="images/profil/' . $image['image'] . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . $reponse['auteur'] . '">' . $reponse['auteur'] . '</a>', date('d/m/Y à H\hi', $reponse['timestamp']), $sujet['titre'], BBcode($reponse['contenu'], $javascript), $couleur, $editer);
+				carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . $reponse['auteur'] . '">' . $reponse['auteur'] . '</a>', date('d/m/Y à H\hi', $reponse['timestamp']), $sujet['titre'], BBcode($reponse['contenu'], $javascript), $couleur, $editer);
 			}
 		} else {
 			debutCarte();
@@ -211,7 +213,7 @@ if (isset($_GET['id'])) {
 			if ($sujet['statut'] == 0) {
 				debutListe();
 				creerBBcode("contenu");
-				item(['form' => ['sujet.php?id=' . $getId, "reponseForm"], 'floating' => false, 'titre' => "Réponse", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
+				item(['form' => ['sujet.php?id=' . $getId, "reponseForm"], 'floating' => false, 'titre' => "Réponse", 'input' => csrfField() . '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
 				item(['input' => submit(['titre' => 'Répondre', 'form' => 'reponseForm'])]);
 				finListe();
 			} else {

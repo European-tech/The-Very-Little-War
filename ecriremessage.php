@@ -75,7 +75,7 @@ if (isset($_GET['reponse'])) {
 if (isset($_POST['titre'])) {
 	$valueTitre = $_POST['titre'];
 }
-item(['floating' => true, 'titre' => 'Titre', 'input' => '<input type="text" class="form-control" name="titre" id="titre" value="' . $valueTitre . '" />']);
+item(['floating' => true, 'titre' => 'Titre', 'input' => '<input type="text" class="form-control" name="titre" id="titre" value="' . htmlspecialchars($valueTitre, ENT_QUOTES, 'UTF-8') . '" />']);
 
 $valueDestinataire = antiXSS($message['expeditaire']);
 if (isset($_GET['destinataire'])) {
@@ -84,7 +84,7 @@ if (isset($_GET['destinataire'])) {
 if (isset($_POST['destinataire'])) {
 	$valueDestinataire = antiXSS($_POST['destinataire']);
 }
-item(['floating' => true, 'titre' => 'Destinataire', 'input' => '<input type="text" class="form-control" name="destinataire" id="destinataire" value="' . $valueDestinataire . '" />']);
+item(['floating' => true, 'titre' => 'Destinataire', 'input' => '<input type="text" class="form-control" name="destinataire" id="destinataire" value="' . htmlspecialchars($valueDestinataire, ENT_QUOTES, 'UTF-8') . '" />']);
 
 if (isset($_GET['id'])) {
 	creerBBcode("contenu", $message['contenu'], 1);

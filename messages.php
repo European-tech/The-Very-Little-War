@@ -74,7 +74,7 @@ else {
 			else {
 				echo '<tr><td><a href="messages.php?message='.$messages['id'].'"><img src="images/message_ferme.png" alt="ferme" title="Non lu" class="w32"/></td></a>';
 			}
-			echo '<td><a href="messages.php?message='.$messages['id'].'">'.$messages['titre'].'</a></td>';
+			echo '<td><a href="messages.php?message='.$messages['id'].'">'.htmlspecialchars($messages['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 			echo '<td><a href="joueur.php?id='.htmlspecialchars($messages['expeditaire'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($messages['expeditaire'], ENT_QUOTES, 'UTF-8').'</a></td>';
 			echo '<td><em>'.date('d/m/Y à H\hi', $messages['timestamp']).'</em></td>';
 			echo '<td><form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$messages['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="w32"></button></form></td></tr>';
