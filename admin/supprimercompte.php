@@ -2,6 +2,10 @@
 include("../includes/connexion.php");
 include("redirectionmotdepasse.php");
 include("../includes/fonctions.php");
+require_once(__DIR__ . '/../includes/csrf.php');
+
+csrfCheck();
+
 if (isset($_POST['supprimercompte']))
 {
 $joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['supprimer']);
@@ -26,6 +30,7 @@ if($joueurExiste > 0 ) {
 
 <h3>Supprimer un compte</h3><br/>
 <form method = "post" action = "supprimercompte.php">
+<?php echo csrfField(); ?>
 <p>
 Login : <input type="text" name="supprimer"><br />
 <input type="submit" name="supprimercompte" value="Supprimer le compte">

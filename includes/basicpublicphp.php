@@ -26,7 +26,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 		// Use prepared statement to fetch user
 		$row = dbFetchOne($base, 'SELECT login, pass_md5 FROM membre WHERE login = ?', 's', $loginInput);
 
-		$a = mysqli_query($base, "SELECT login FROM membre WHERE login LIKE 'Visiteur%' AND derniereConnexion < " . (time() - 3600 * 3) . "");
+		$a = dbQuery($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - 3600 * 3);
 		while ($supp = mysqli_fetch_array($a)) {
 			supprimerJoueur($supp['login']);
 		}
@@ -77,4 +77,4 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 
 // Toutes les entrees vieilles de plus de 5 minutes sont supprimees (nombres de connectes)
 $timestamp_5min = time() - (60 * 5); // 60 * 5 = nombre de secondes ecoulees en 5 minutes
-mysqli_query($base, 'DELETE FROM connectes WHERE timestamp < ' . $timestamp_5min);
+dbExecute($base, 'DELETE FROM connectes WHERE timestamp < ?', 'i', $timestamp_5min);

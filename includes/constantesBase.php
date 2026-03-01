@@ -48,6 +48,6 @@ $vitesseMarchands = 20;
 $vitesseEspionnage = 20;
 $coutNeutrino = 50;
 
-// Admin password hash - generate new with: php -r "echo password_hash('your-password', PASSWORD_DEFAULT);"
-define('ADMIN_PASSWORD_HASH', password_hash('Faux mot de passe', PASSWORD_DEFAULT));
+// Pre-computed hash. To change: php -r "echo password_hash('new-password', PASSWORD_DEFAULT);"
+define('ADMIN_PASSWORD_HASH', '$2y$10$DZKz3Mp7Q3PAfS31J3nS0ejnzY3yr.5FmzP8aLFLw./dQJANurUDq');
 ?>

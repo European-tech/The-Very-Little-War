@@ -1,5 +1,6 @@
 <?php
 include("redirectionmotdepasse.php");
+require_once(__DIR__ . '/../includes/csrf.php');
 ?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr" >
@@ -38,6 +39,7 @@ else // C'est qu'on rédige une nouvelle news.
 }
 ?>
 <form action="listenews.php" method="post">
+<?php echo csrfField(); ?>
 <p>Titre : <input type="text" size="30" name="titre" value="<?php echo htmlspecialchars($titre, ENT_QUOTES, 'UTF-8'); ?>" />
 </p>
 <p>

@@ -115,17 +115,5 @@ debutContent(); ?>
 finContent();
 finCarte();
 
-if (!isset($_SESSION['login']) && !isset($_GET['noAutoConnexion'])) {
-?>
-    <script>
-        document.getElementById("loginConnexion").value = localStorage.getItem("login");
-        document.getElementById("passConnexion").value = localStorage.getItem("mdp");
-
-        if (localStorage.getItem("login") != null && localStorage.getItem("mdp") != null) {
-            document.connexion.submit();
-        }
-    </script>
-<?php
-}
 include("includes/copyright.php");
 ?>

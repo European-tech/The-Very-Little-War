@@ -5,6 +5,7 @@ session_start();
 include("../includes/constantesBase.php");
 include("../includes/fonctions.php");
 require_once(__DIR__ . '/../includes/logger.php');
+require_once(__DIR__ . '/../includes/csrf.php');
 
 if (isset($_POST['motdepasseadmin'])) {
 	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
@@ -15,8 +16,11 @@ if (isset($_POST['motdepasseadmin'])) {
 	}
 }
 if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === true) {
-	if (isset($_GET['supprimercompte'])) {
-		$ip = $_GET['supprimercompte'];
+	// CSRF check for all POST actions
+	csrfCheck();
+
+	if (isset($_POST['supprimercompte'])) {
+		$ip = $_POST['supprimercompte'];
 		$rows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $ip);
 		foreach ($rows as $login) {
 			supprimerJoueur($login['login']);
@@ -24,11 +28,11 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	}
 
 	if (isset($_POST['maintenance'])) {
-		mysqli_query($base, 'UPDATE statistiques SET maintenance = 1');
+		dbExecute($base, 'UPDATE statistiques SET maintenance = ?', 'i', 1);
 	}
 
 	if (isset($_POST['plusmaintenance'])) {
-		mysqli_query($base, 'UPDATE statistiques SET maintenance = 0');
+		dbExecute($base, 'UPDATE statistiques SET maintenance = ?', 'i', 0);
 	}
 
 	if (isset($_POST['miseazero'])) {
@@ -96,7 +100,13 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 			?>
 					<tr>
 						<td><?php echo '<a href="ip.php?ip=' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '</a>'; ?></td>
-						<td><?php echo '<a href="index.php?supprimercompte=' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '">'; ?>Supprimer</a></td>
+						<td>
+							<form action="index.php" method="post" style="display:inline">
+								<?php echo csrfField(); ?>
+								<input type="hidden" name="supprimercompte" value="<?php echo htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8'); ?>" />
+								<input type="submit" value="Supprimer" />
+							</form>
+						</td>
 					</tr>
 			<?php
 				}
@@ -107,9 +117,9 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 		<h4>Mise en maintenance (plus personne ne pourra aller sur le site sauf ici)</h4>
 		<p>
 		<form action="index.php" method="post">
+			<?php echo csrfField(); ?>
 			<?php
-			$sqlMaintenance = mysqli_query($base, 'SELECT maintenance FROM statistiques');
-			$maintenance = mysqli_fetch_array($sqlMaintenance);
+			$maintenance = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
 			if ($maintenance['maintenance'] != 0) {
 			?>
 				<input type="submit" name="plusmaintenance" value="Enlever la mise en maintenance" />
@@ -152,6 +162,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 		<h4>Remise a zero et virage des joueurs inactifs</h4>
 		<p>
 		<form action="index.php" method="post">
+			<?php echo csrfField(); ?>
 			<input type="submit" name="miseazero" value="Remise à zero" />
 		</form>
 		</p>

@@ -321,7 +321,7 @@ function rangForum($joueur)
 
 function antihtml($phrase)
 {
-    return htmlspecialchars($phrase, ENT_SUBSTITUTE, 'ISO8859-1');
+    return htmlspecialchars($phrase, ENT_QUOTES, 'UTF-8');
 }
 
 function antiXSS($phrase, $specialTexte = false)

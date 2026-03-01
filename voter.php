@@ -1,30 +1,38 @@
 <?php
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Origin: *");
-$base = mysqli_connect ('localhost', 'theveryl_admin', 'mno33d65e') ; 
-mysqli_select_db ($base,'theveryl_testconnexion')or die ('Erreur de connexion a la base de données'.mysql_error()); 
-mysqli_query($base,"SET NAMES 'utf8'");
+session_start();
+include("includes/connexion.php");
+require_once("includes/database.php");
 
-if(isset($_GET['reponse']) && isset($_GET['login'])){
-	if(!empty($_GET['login']) && !empty($_GET['reponse'])){
-		$ex = mysqli_query($base,'SELECT * FROM sondages ORDER BY date DESC');
-		$data = mysqli_fetch_array($ex);
+// Auth check: must be logged in
+if (!isset($_SESSION['login'])) {
+    exit(json_encode(["erreur" => true]));
+}
 
-		$ex = mysqli_query($base,'SELECT count(*),id AS nb  FROM reponses WHERE login=\''.$_GET['login'].'\' AND sondage=\''.$data['id'].'\'');
-		$reponse = mysqli_fetch_array($ex);
+if (isset($_GET['reponse']) && isset($_GET['login'])) {
+    if (!empty($_GET['login']) && !empty($_GET['reponse'])) {
+        $login = $_SESSION['login']; // Use session login, not user-supplied
+        $reponse = $_GET['reponse'];
 
-		if($reponse['nb'] == 0){
-			mysqli_query($base,'INSERT INTO reponses VALUES(default,"'.$_GET['login'].'","'.$data['id'].'","'.$_GET['reponse'].'")');
-			exit(json_encode(array("erreur" => false,"dejaRepondu" => false)));
-		}
-		else {
-			if(!isset($_GET['pasDeVote'])){
-				mysqli_query($base,'UPDATE reponses SET reponse=\''.$_GET['reponse'].'\' WHERE login=\''.$_GET['login'].'\' AND sondage=\''.$data['id'].'\'');
-			}
-			exit(json_encode(array("erreur" => false,"dejaRepondu" => true)));
-		}
-	}
-	else {
-		exit(json_encode(array("erreur" => true)));
-	}
+        $data = dbFetchOne($base, 'SELECT id FROM sondages ORDER BY date DESC LIMIT 1');
+
+        if (!$data) {
+            exit(json_encode(["erreur" => true]));
+        }
+
+        $sondageId = $data['id'];
+
+        $existing = dbFetchOne($base, 'SELECT count(*) AS nb FROM reponses WHERE login = ? AND sondage = ?', 'si', $login, $sondageId);
+
+        if ($existing['nb'] == 0) {
+            dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, ?, ?)', 'sis', $login, $sondageId, $reponse);
+            exit(json_encode(["erreur" => false, "dejaRepondu" => false]));
+        } else {
+            if (!isset($_GET['pasDeVote'])) {
+                dbExecute($base, 'UPDATE reponses SET reponse = ? WHERE login = ? AND sondage = ?', 'ssi', $reponse, $login, $sondageId);
+            }
+            exit(json_encode(["erreur" => false, "dejaRepondu" => true]));
+        }
+    } else {
+        exit(json_encode(["erreur" => true]));
+    }
 }
