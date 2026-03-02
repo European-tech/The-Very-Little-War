@@ -4,11 +4,11 @@ include("redirectionmotdepasse.php");
 include("../includes/fonctions.php");
 require_once(__DIR__ . '/../includes/csrf.php');
 
-csrfCheck();
+$joueurExiste = 0;
 
-if (isset($_POST['supprimercompte']))
-{
-$joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['supprimer']);
+if (isset($_POST['supprimercompte'])) {
+    csrfCheck();
+    $joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['supprimer']);
 
 if($joueurExiste > 0 ) {
 		supprimerJoueur($_POST['supprimer']);

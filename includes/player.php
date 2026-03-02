@@ -148,7 +148,7 @@ function initPlayer($joueur)
 
     $revenuEnergie = revenuEnergie($constructions['generateur'], $joueur);
     $revenu['energie'] = $revenuEnergie;
-    $placeDepot = placeDepot($constructions['depot'], $joueur);
+    $placeDepot = placeDepot($constructions['depot']);
 
 
     // CONSTRUCTIONS
@@ -423,6 +423,7 @@ function initPlayer($joueur)
 
 function augmenterBatiment($nom, $joueur)
 { // BUG listeconstructions
+    global $base;
     global $listeConstructions;
     global $points;
     initPlayer($joueur);

@@ -82,7 +82,7 @@ class ConfigConsistencyTest extends TestCase
 
     public function testBeginnerProtection(): void
     {
-        $this->assertEquals(2 * SECONDS_PER_DAY, BEGINNER_PROTECTION_SECONDS);
+        $this->assertEquals(5 * SECONDS_PER_DAY, BEGINNER_PROTECTION_SECONDS);
         $this->assertGreaterThan(0, BEGINNER_PROTECTION_SECONDS);
     }
 
@@ -559,7 +559,7 @@ class ConfigConsistencyTest extends TestCase
         $this->assertEquals(0.1, HP_ATOM_COEFFICIENT);
         $this->assertEquals(0.075, DESTRUCTION_ATOM_COEFFICIENT);
         $this->assertEquals(0.1, PILLAGE_ATOM_COEFFICIENT);
-        $this->assertEquals(0.01, IODE_ENERGY_COEFFICIENT);
+        $this->assertEquals(0.05, IODE_ENERGY_COEFFICIENT);
         $this->assertEquals(0.5, SPEED_ATOM_COEFFICIENT);
         $this->assertEquals(0.09, FORMATION_AZOTE_COEFFICIENT);
     }
@@ -715,7 +715,7 @@ class ConfigConsistencyTest extends TestCase
         $this->assertEquals(0.15, ATTACK_ENERGY_COST_FACTOR);
         $this->assertEquals(2, IONISATEUR_COMBAT_BONUS_PER_LEVEL);
         $this->assertEquals(2, CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL);
-        $this->assertEquals(0.1, DUPLICATEUR_COMBAT_COEFFICIENT);
+        $this->assertEquals(1.0, DUPLICATEUR_COMBAT_COEFFICIENT);
         $this->assertEquals(4, NUM_DAMAGEABLE_BUILDINGS);
     }
 

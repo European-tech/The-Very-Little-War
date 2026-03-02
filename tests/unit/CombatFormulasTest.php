@@ -596,14 +596,14 @@ class CombatFormulasTest extends TestCase
 
     public function testIodeEnergyBasic(): void
     {
-        // round(0.01 * 100 * 1) = round(1) = 1
-        $this->assertEquals(1, $this->computeIodeEnergy(100, 0));
+        // round(0.05 * 100 * 1) = round(5) = 5
+        $this->assertEquals(5, $this->computeIodeEnergy(100, 0));
     }
 
     public function testIodeEnergyWithLevel(): void
     {
-        // round(0.01 * 100 * (1 + 50/50)) = round(0.01 * 100 * 2) = 2
-        $this->assertEquals(2, $this->computeIodeEnergy(100, 50));
+        // round(0.05 * 100 * (1 + 50/50)) = round(0.05 * 100 * 2) = 10
+        $this->assertEquals(10, $this->computeIodeEnergy(100, 50));
     }
 
     // =========================================================================

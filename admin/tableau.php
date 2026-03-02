@@ -1,5 +1,6 @@
 <?php
-include("debut.php");
+include("../includes/connexion.php");
+include("redirectionmotdepasse.php");
 ?>
                  <!-- Banner ends here -->
 
@@ -782,9 +783,7 @@ include("debut.php");
 
             </div>
             
-        <?php
-        include("footer.php");
-        ?>
+        <!-- Footer -->
         
 
 

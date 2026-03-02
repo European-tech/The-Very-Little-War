@@ -220,6 +220,5 @@ function coutClasse($numero)
 
 function placeDepot($niveau)
 {
-    global $base;
     return 500 * $niveau;
 }

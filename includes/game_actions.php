@@ -65,11 +65,11 @@ function updateActions($joueur)
 
                 if ($actions['attaquant'] == $joueur) {
                     $enFace = $actions['defenseur'];
-                    updateRessources($actions['defenseur'], $nomsRes);
+                    updateRessources($actions['defenseur']);
                     updateActions($actions['defenseur']);
                 } else {
                     $enFace = $actions['attaquant'];
-                    updateRessources($actions['attaquant'], $nomsRes);
+                    updateRessources($actions['attaquant']);
                     updateActions($actions['attaquant']);
                 }
 
@@ -485,5 +485,5 @@ function updateActions($joueur)
         dbExecute($base, 'UPDATE ressources SET ' . implode(',', $envoiSetClauses) . ' WHERE login=?', $envoiTypes, ...$envoiParams);
     }
 
-    initPlayer($_SESSION['login']);
+    initPlayer($joueur);
 }

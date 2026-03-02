@@ -2,17 +2,19 @@
 include("../includes/connexion.php");
 
 include("redirectionmotdepasse.php");
-if (isset($_GET['supprimer']))
-{
-$supprimerId = (int)$_GET['supprimer'];
-dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $supprimerId);
+require_once(__DIR__ . '/../includes/csrf.php');
+
+if (isset($_POST['supprimer'])) {
+    csrfCheck();
+    $supprimerId = (int)$_POST['supprimer'];
+    dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $supprimerId);
 }
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr" >
 <head>
-<title>Neocrea - Supprimmer une réponse(Forum)</title>
+<title>TVLW - Supprimer une réponse (Forum)</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style type="text/css">
@@ -47,7 +49,7 @@ while ($donnees = mysqli_fetch_array($retour))
 {
 ?>
 <tr>
-<td><?php echo '<a href="supprimerreponse.php?supprimer=' . (int)$donnees['id'] . '">';?>Supprimer</a></td>
+<td><form method="post" action="supprimerreponse.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="supprimer" value="<?php echo (int)$donnees['id']; ?>" /><input type="submit" value="Supprimer" /></form></td>
 <td><?php echo htmlspecialchars(stripslashes($donnees['contenu']), ENT_QUOTES, 'UTF-8'); ?></td>
 <td><?php echo htmlspecialchars(stripslashes($donnees['auteur']), ENT_QUOTES, 'UTF-8'); ?></td>
 <td><?php echo date('d/m/Y', $donnees['timestamp']); ?></td>

@@ -31,7 +31,7 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
         if ($_POST['joueurAEspionner'] != $_SESSION['login']) {
             if (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
                 $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
-                updateRessources($_POST['joueurAEspionner'], $nomsRes);
+                updateRessources($_POST['joueurAEspionner']);
                 updateActions($_POST['joueurAEspionner']);
 
 

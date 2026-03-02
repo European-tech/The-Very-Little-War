@@ -379,7 +379,7 @@ function accordion($options)
         $titre = "";
     }
 
-    if (array_key_exists("titre", $contenu) && $options["contenu"]) {
+    if (array_key_exists("contenu", $options) && $options["contenu"]) {
         $contenu =
             '<div class="item-media">
             ' . $options["contenu"] . '
