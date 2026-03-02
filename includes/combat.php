@@ -128,6 +128,7 @@ global $CHEMICAL_REACTIONS;
 $activeReactionsAtt = [];
 $activeReactionsDef = [];
 
+if (!function_exists('checkReactions')) {
 function checkReactions($classes, $nbClasses, &$activeReactions) {
 	global $CHEMICAL_REACTIONS;
 	for ($a = 1; $a <= $nbClasses; $a++) {
@@ -149,6 +150,7 @@ function checkReactions($classes, $nbClasses, &$activeReactions) {
 		}
 	}
 }
+} // end function_exists guard
 
 // Build class arrays for reaction checking
 $attClasses = [];

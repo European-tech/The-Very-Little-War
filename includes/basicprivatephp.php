@@ -15,14 +15,14 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
         exit();
     }
 
-    // Regenerate session ID to prevent session fixation
-    if (!isset($_SESSION['_regenerated'])) {
+    // Regenerate session ID periodically (every 30 min) to limit session fixation window
+    if (!isset($_SESSION['_last_regeneration']) || (time() - $_SESSION['_last_regeneration']) > 1800) {
         session_regenerate_id(true);
-        $_SESSION['_regenerated'] = true;
+        $_SESSION['_last_regeneration'] = time();
     }
 } elseif (isset($_SESSION['login']) && isset($_SESSION['mdp'])) {
     // Legacy fallback: password-hash-based sessions still active after upgrade
-    // Validate using old method, then migrate to session token
+    // TODO: Remove this block after migration window (all active sessions will have session_token)
     $row = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
     if (!$row || $row['pass_md5'] !== $_SESSION['mdp']) {
         session_destroy();
@@ -35,10 +35,8 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
     unset($_SESSION['mdp']);
     dbExecute($base, 'UPDATE membre SET session_token=? WHERE login=?', 'ss', $sessionToken, $_SESSION['login']);
 
-    if (!isset($_SESSION['_regenerated'])) {
-        session_regenerate_id(true);
-        $_SESSION['_regenerated'] = true;
-    }
+    session_regenerate_id(true);
+    $_SESSION['_last_regeneration'] = time();
 } else {
     session_destroy();
     header('Location: index.php');

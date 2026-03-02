@@ -53,7 +53,7 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 		$searchLogin = $_POST['joueurRecherche'];
 		$playerScore = dbFetchOne($base, 'SELECT ' . $order . ' AS score FROM autre WHERE login=?', 's', $searchLogin);
 		if ($playerScore) {
-			$rankRow = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'i', $playerScore['score']);
+			$rankRow = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'd', $playerScore['score']);
 			$place = ($rankRow['rank'] ?? 0) + 1;
 			$pageParDefaut = ceil($place / 20);
 		}
@@ -82,7 +82,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 				// Find logged-in player's rank with a count query instead of full table scan
 				$myScore = dbFetchOne($base, 'SELECT ' . $order . ' AS score FROM autre WHERE login=?', 's', $_SESSION['login']);
 				if ($myScore) {
-					$myRank = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'i', $myScore['score']);
+					$myRank = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'd', $myScore['score']);
 					$place = ($myRank['rank'] ?? 0) + 1;
 					$pageParDefaut = ceil($place / $nombreDeJoueursParPage);
 				} else {

@@ -157,6 +157,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
         }
         if ($bool == 0) { // verification que c'est une ressource qui existe
             $coutAchat = round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']);
+            // Advisory pre-check (may use stale data); authoritative check is inside the transaction with FOR UPDATE
             $diffEnergieAchat = $ressources['energie'] - $coutAchat;
             if ($diffEnergieAchat >= 0) {
                 $newResVal = $ressources[$nomsRes[$numRes]] + $_POST['nombreRessourceAAcheter'];
@@ -265,6 +266,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
             }
         }
         if ($bool == 0) { // verification que c'est une ressource qui existe
+            // Advisory pre-check (may use stale data); authoritative check is inside the transaction with FOR UPDATE
             if ($ressources[$nomsRes[$numRes]] >= $_POST['nombreRessourceAVendre']) {
                 // FIX FINDING-GAME-005: 5% sell tax to prevent buy-sell arbitrage for trade points
                 $sellTaxRate = 0.95; // 95% of value returned (5% fee)
