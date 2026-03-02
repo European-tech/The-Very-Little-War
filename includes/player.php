@@ -730,7 +730,7 @@ function remiseAZero()
     global $nbRes;
 
     dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, missions=\'\'');
-    dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0,vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?', 'dddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1));
+    dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?', 'dddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1));
     dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0');
     dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0');
     dbExecute($base, 'UPDATE membre SET timestamp=?', 'i', time());
@@ -756,4 +756,16 @@ function remiseAZero()
 
     dbExecute($base, 'UPDATE statistiques SET nbDerniere=0, tailleCarte=1');
     dbExecute($base, 'UPDATE membre SET x=-1000, y=-1000'); // on les enleve de la carte, ils sont replacés quand ils se reconnectent
+
+    // Apply prestige unlocks after reset
+    // Débutant Rapide: players with this unlock start with generateur level 2
+    $prestigePlayers = dbQuery($base, 'SELECT login, unlocks FROM prestige WHERE unlocks LIKE ?', 's', '%debutant_rapide%');
+    if ($prestigePlayers) {
+        while ($pp = mysqli_fetch_array($prestigePlayers)) {
+            dbExecute($base, 'UPDATE constructions SET generateur=2, vieGenerateur=? WHERE login=?', 'ds', pointsDeVie(2), $pp['login']);
+        }
+    }
+
+    // Clean up expired attack cooldowns
+    dbExecute($base, 'DELETE FROM attack_cooldowns');
 }

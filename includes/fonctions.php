@@ -14,3 +14,4 @@ require_once __DIR__ . '/player.php';          // Player management (init, build
 require_once __DIR__ . '/ui_components.php';   // UI rendering helpers (cards, lists, forms)
 require_once __DIR__ . '/display.php';         // Display/formatting helpers (images, numbers, text)
 require_once __DIR__ . '/db_helpers.php';      // DB helper wrappers (query, ajouter, alliance)
+require_once __DIR__ . '/prestige.php';       // Cross-season prestige system

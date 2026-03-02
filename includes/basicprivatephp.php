@@ -187,6 +187,10 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
 
     //remise à zéro et news
 
+    // Award prestige points BEFORE reset (cross-season progression)
+    require_once(__DIR__ . '/prestige.php');
+    awardPrestigePoints();
+
     $debutRow2 = dbFetchOne($base, 'SELECT debut FROM statistiques');
     $debut = $debutRow2;
     $now = time();

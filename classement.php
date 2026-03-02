@@ -145,6 +145,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	<th><a href="classement.php?sub=0&clas=3"><img src="images/classement/shield.png" alt="def" title="Défense" class="imageSousMenu"/><br/><span class="labelClassement">Défense</span></a></th>
 	<th><a href="classement.php?sub=0&clas=4"><img src="images/classement/bag.png" alt="bag" title="Pillage" class="imageSousMenu"/><br/><span class="labelClassement">Pillage</span></a></th>
 	<th><a href="classement.php?sub=0&clas=1"><img src="images/classement/victoires.png" alt="victoires" title="Points de victoire" class="imageSousMenu"/><br/><span class="labelClassement">Victoire</span></a></th>
+	<th><img src="images/classement/shield.png" alt="prestige" title="Prestige" class="imageSousMenu"/><br/><span class="labelClassement">PP</span></th>
 	</tr>
 	</thead>
 	<tbody>
@@ -190,6 +191,10 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 		<td><?php echo chiffrePetit($donnees['ressourcesPillees']); ?></td>
 		<td><?php $victoires = dbFetchOne($base, 'SELECT victoires FROM autre WHERE login=?', 's', $donnees['login']);
 		echo $victoires['victoires'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireJoueur($compteur).'</span>'; ?></td>
+		<td><?php
+		$prestigeData = dbFetchOne($base, 'SELECT total_pp FROM prestige WHERE login=?', 's', $donnees['login']);
+		echo $prestigeData ? $prestigeData['total_pp'] : 0;
+		?></td>
 		</tr>
 		<?php $compteur++;
 	}
