@@ -3,7 +3,7 @@ include("redirectionmotdepasse.php");
 require_once(__DIR__ . '/../includes/csrf.php');
 ?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr" >
+<html lang="fr">
 <head>
 <title>The Very Little War - Rédiger une news</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />

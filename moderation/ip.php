@@ -2,10 +2,9 @@
 include("mdp.php");
 ?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr" >
+<html lang="fr">
 <head>
 <title>The Very Little War - Ip multiple</title>
-<!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
 <link rel="stylesheet" type="text/css" href="../style.css" >
 </head>
 <body>

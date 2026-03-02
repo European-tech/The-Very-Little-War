@@ -76,17 +76,19 @@ function drainageProducteur($niveau)
     return round(PRODUCTEUR_DRAIN_PER_LEVEL * $niveau);
 }
 
-function attaque($oxygene, $niveau, $joueur)
+function attaque($oxygene, $niveau, $joueur, $medalData = null)
 {
     global $paliersAttaque;
     global $bonusMedailles;
 
-    global $base;
-    $donneesMedaille = dbFetchOne($base, 'SELECT pointsAttaque FROM autre WHERE login=?', 's', $joueur);
+    if ($medalData === null) {
+        global $base;
+        $medalData = dbFetchOne($base, 'SELECT pointsAttaque FROM autre WHERE login=?', 's', $joueur);
+    }
     $bonus = 0;
 
     foreach ($paliersAttaque as $num => $palier) {
-        if ($donneesMedaille['pointsAttaque'] >= $palier) {
+        if ($medalData['pointsAttaque'] >= $palier) {
             $bonus = $bonusMedailles[$num];
         }
     }
@@ -94,17 +96,19 @@ function attaque($oxygene, $niveau, $joueur)
     return round((1 + (ATTACK_ATOM_COEFFICIENT * $oxygene) * (ATTACK_ATOM_COEFFICIENT * $oxygene) + $oxygene) * (1 + $niveau / ATTACK_LEVEL_DIVISOR) * (1 + $bonus / 100));
 }
 
-function defense($carbone, $niveau, $joueur)
+function defense($carbone, $niveau, $joueur, $medalData = null)
 {
     global $paliersDefense;
     global $bonusMedailles;
 
-    global $base;
-    $donneesMedaille = dbFetchOne($base, 'SELECT pointsDefense FROM autre WHERE login=?', 's', $joueur);
+    if ($medalData === null) {
+        global $base;
+        $medalData = dbFetchOne($base, 'SELECT pointsDefense FROM autre WHERE login=?', 's', $joueur);
+    }
     $bonus = 0;
 
     foreach ($paliersDefense as $num => $palier) {
-        if ($donneesMedaille['pointsDefense'] >= $palier) {
+        if ($medalData['pointsDefense'] >= $palier) {
             $bonus = $bonusMedailles[$num];
         }
     }
@@ -122,17 +126,19 @@ function potentielDestruction($hydrogene, $niveau)
     return round(((DESTRUCTION_ATOM_COEFFICIENT * $hydrogene) * (DESTRUCTION_ATOM_COEFFICIENT * $hydrogene) + $hydrogene) * (1 + $niveau / DESTRUCTION_LEVEL_DIVISOR));
 }
 
-function pillage($soufre, $niveau, $joueur)
+function pillage($soufre, $niveau, $joueur, $medalData = null)
 {
     global $paliersPillage;
     global $bonusMedailles;
 
-    global $base;
-    $donneesMedaille = dbFetchOne($base, 'SELECT ressourcesPillees FROM autre WHERE login=?', 's', $joueur);
+    if ($medalData === null) {
+        global $base;
+        $medalData = dbFetchOne($base, 'SELECT ressourcesPillees FROM autre WHERE login=?', 's', $joueur);
+    }
     $bonus = 0;
 
     foreach ($paliersPillage as $num => $palier) {
-        if ($donneesMedaille['ressourcesPillees'] >= $palier) {
+        if ($medalData['ressourcesPillees'] >= $palier) {
             $bonus = $bonusMedailles[$num];
         }
     }

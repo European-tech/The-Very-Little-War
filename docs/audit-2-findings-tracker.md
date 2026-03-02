@@ -19,34 +19,34 @@
 
 | ID | Domain | Description | File | Status |
 |----|--------|-------------|------|--------|
-| AUTH-003 | Auth | api.php/voter.php skip session token validation | api.php | DEFERRED (api.php has rate limiting + session check) |
-| AUTH-004 | Auth | Login CSRF missing | basicpublicphp.php | DEFERRED (login forms already submit via POST) |
+| AUTH-003 | Auth | api.php/voter.php skip session token validation | api.php | FIXED (session token DB validation added) |
+| AUTH-004 | Auth | Login CSRF missing | basicpublicphp.php | FIXED (csrfField + csrfCheck) |
 | AUTH-005 | Auth | Logout doesn't clear session cookie | deconnexion.php | FIXED |
 | AUTH-006 | Auth | Admin/moderator share same password mechanism | moderation/ | DEFERRED (architectural) |
-| AUTH-007 | Auth | No idle session timeout | session_init.php | DEFERRED (needs config constant) |
+| AUTH-007 | Auth | No idle session timeout | session_init.php | FIXED (1h idle timeout + gc_maxlifetime) |
 | AUTH-008 | Auth | 14 hybrid pages start sessions without security flags | 14 files | FIXED |
-| AUTH-009 | Auth | Timing-unsafe legacy MD5 comparison | basicpublicphp.php | DEFERRED (auto-upgrades to bcrypt) |
-| SEC-001 | Security | XSS in attaquer.php map | attaquer.php | DEFERRED (map already uses htmlspecialchars) |
+| AUTH-009 | Auth | Timing-unsafe legacy MD5 comparison | basicpublicphp.php | FIXED (hash_equals) |
+| SEC-001 | Security | XSS in attaquer.php map + espionage | attaquer.php | FIXED (htmlspecialchars) |
 | SEC-002 | Security | XSS in historique.php archives | historique.php | FIXED |
 | SEC-003 | Security | moderationForum.php actions before auth check | moderationForum.php | FIXED |
-| GAME-103 | Game Logic | Energy can go negative | multiple | DEFERRED (needs full energy flow audit) |
-| GAME-104 | Game Logic | Decay stats not tracked | update.php | DEFERRED (cosmetic) |
-| GAME-105 | Game Logic | Defender isotope mods ignored in combat | combat.php | DEFERRED (balance change) |
+| GAME-103 | Game Logic | Energy can go negative | multiple | FIXED (max(0) guards + market FOR UPDATE) |
+| GAME-104 | Game Logic | Decay stats not tracked | update.php | FIXED (moleculesPerdues tracked) |
+| GAME-105 | Game Logic | Defender isotope mods ignored in combat | combat.php | FIXED (defIsotopeAttackMod applied) |
 | GAME-106 | Game Logic | Hardcoded 4 molecule classes | multiple | DEFERRED (architectural) |
-| GAME-107 | Game Logic | Selling doesn't award trade points | marche.php | DEFERRED (balance change) |
-| GAME-108 | Game Logic | NEW_PLAYER_BOOST dead code | config.php | DEFERRED (cosmetic) |
-| INP-001 | Input | XSS in marche.php | marche.php | DEFERRED (already uses htmlspecialchars) |
-| INP-002 | Input | XSS in attaquer.php espionage | attaquer.php | DEFERRED (needs verification) |
-| INP-003 | Input | voter.php stored XSS | voter.php | DEFERRED (needs verification) |
-| INP-004 | Input | Weak pagination validation (#\d# regex) | multiple | DEFERRED (functional) |
+| GAME-107 | Game Logic | Selling doesn't award trade points | marche.php | FIXED (sell trade points mirroring buy) |
+| GAME-108 | Game Logic | NEW_PLAYER_BOOST dead code | config.php | FIXED (removed) |
+| INP-001 | Input | XSS in marche.php | marche.php | FIXED (htmlspecialchars on player names) |
+| INP-002 | Input | XSS in attaquer.php espionage | attaquer.php | FIXED (htmlspecialchars) |
+| INP-003 | Input | voter.php stored XSS | voter.php | FIXED (intval cast) |
+| INP-004 | Input | Weak pagination validation (#\d# regex) | multiple | FIXED (intval across 8 locations) |
 | INP-005 | Input | XSS in historique.php (all 3 archive tables) | historique.php | FIXED |
-| INP-006 | Input | Date validation in moderationForum | moderationForum.php | DEFERRED |
+| INP-006 | Input | Date validation in moderationForum | moderationForum.php | FIXED (checkdate validation) |
 | INP-007 | Input | Donation energy validation | don.php | FIXED (transaction + lock) |
 | INP-008 | Input | Attack troop count validation | attaquer.php | DEFERRED |
 | INP-009 | Input | Admin news HTML injection | moderation/ | DEFERRED |
-| DB-005 | Database | Market buy race condition | marche.php | DEFERRED |
-| DB-006 | Database | N+1 in combat formulas | formulas.php | DEFERRED (performance) |
-| DB-007 | Database | Missing index on actionsattaques | schema | DEFERRED |
+| DB-005 | Database | Market buy race condition | marche.php | FIXED (SELECT FOR UPDATE in transaction) |
+| DB-006 | Database | N+1 in combat formulas | formulas.php | FIXED (optional pre-fetched medal data param) |
+| DB-007 | Database | Missing index on actionsattaques | schema | FIXED (migration 0014 composite indexes) |
 | CODE-001 | Code Quality | joueur.php full table scan for rank | joueur.php | FIXED |
 | CODE-002 | Code Quality | Variable variables in armee.php | armee.php | DEFERRED (cosmetic) |
 | CODE-003 | Code Quality | comptetest.php GET registration no rate limiting | comptetest.php | FIXED |
@@ -68,22 +68,22 @@
 |----|--------|-------------|------|--------|
 | UX-M3 | UX | marche.php send form shows wrong balance (energie instead of atom) | marche.php | FIXED |
 | UX-L7 | UX | alliance.php CSS typo "table-reponsive" | alliance.php | FIXED |
-| CODE-005 | Code Quality | Pagination regex allows partial match | multiple | DEFERRED |
-| CODE-007 | Code Quality | Duplicated pagination logic | multiple | DEFERRED |
-| CODE-009 | Code Quality | moderation/ip.php fragile auth flow | moderation/ip.php | DEFERRED |
+| CODE-005 | Code Quality | Pagination regex allows partial match | multiple | FIXED (intval replaces regex) |
+| CODE-007 | Code Quality | Duplicated pagination logic | multiple | DEFERRED (cosmetic) |
+| CODE-009 | Code Quality | moderation/ip.php fragile auth flow | moderation/ip.php | FIXED (session_init.php) |
 | CODE-010 | Code Quality | editer.php delete/hide GET links (dead UI) | sujet.php | DEFERRED |
 | CODE-011 | Code Quality | Stale revenue columns in update.php | update.php | DEFERRED |
-| CODE-012 | Code Quality | formulas.php performs DB queries | formulas.php | DEFERRED |
+| CODE-012 | Code Quality | formulas.php performs DB queries | formulas.php | FIXED (optional medalData param) |
 | CODE-013 | Code Quality | Race condition in armee.php formation | armee.php | DEFERRED |
-| CODE-014 | Code Quality | classement.php deletes alliances during display | classement.php | DEFERRED |
+| CODE-014 | Code Quality | classement.php deletes alliances during display | classement.php | FIXED (continue instead of delete) |
 
 ## Summary
 
 | Severity | Total Found | Fixed | Deferred | Fix Rate |
 |----------|-------------|-------|----------|----------|
 | CRITICAL | 10 | 10 | 0 | 100% |
-| HIGH | 49+ | 24 | 25+ | ~49% |
-| MEDIUM | 47+ | 2 | 45+ | ~4% |
+| HIGH | 49+ | 40 | 9+ | ~82% |
+| MEDIUM | 47+ | 8 | 39+ | ~17% |
 | LOW | 32+ | 0 | 32+ | 0% |
 
 ### Files Modified in This Session

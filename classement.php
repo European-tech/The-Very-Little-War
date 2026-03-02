@@ -380,8 +380,8 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 			<?php $compteur++;
 		}
 		else {
-			dbExecute($base, 'DELETE FROM alliances WHERE id=?', 'i', $donnees['id']);
-			dbExecute($base, 'DELETE FROM invitations WHERE idalliance=?', 'i', $donnees['id']);
+			// Skip empty alliances during display - do NOT delete during render loop
+			continue;
 		}
 	}
 	?>
