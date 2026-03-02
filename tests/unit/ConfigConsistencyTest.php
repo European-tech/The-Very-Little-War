@@ -121,7 +121,7 @@ class ConfigConsistencyTest extends TestCase
         $expectedBuildings = [
             'generateur', 'producteur', 'depot',
             'champdeforce', 'ionisateur',
-            'condenseur', 'lieur', 'stabilisateur'
+            'condenseur', 'lieur', 'stabilisateur', 'coffrefort'
         ];
 
         foreach ($expectedBuildings as $building) {
@@ -136,7 +136,9 @@ class ConfigConsistencyTest extends TestCase
     public function testBuildingConfigCount(): void
     {
         global $BUILDING_CONFIG;
-        $this->assertCount(8, $BUILDING_CONFIG);
+        // 9 buildings: generateur, producteur, depot, champdeforce, ionisateur,
+        //              condenseur, lieur, stabilisateur, coffrefort
+        $this->assertCount(9, $BUILDING_CONFIG);
     }
 
     public function testAllBuildingsHaveDescription(): void
@@ -559,7 +561,8 @@ class ConfigConsistencyTest extends TestCase
         $this->assertEquals(0.1, HP_ATOM_COEFFICIENT);
         $this->assertEquals(0.075, DESTRUCTION_ATOM_COEFFICIENT);
         $this->assertEquals(0.1, PILLAGE_ATOM_COEFFICIENT);
-        $this->assertEquals(0.05, IODE_ENERGY_COEFFICIENT);
+        // Buffed from 0.01 -> 0.05 -> 0.10 to make iodine a real energy source
+        $this->assertEquals(0.10, IODE_ENERGY_COEFFICIENT);
         $this->assertEquals(0.5, SPEED_ATOM_COEFFICIENT);
         $this->assertEquals(0.09, FORMATION_AZOTE_COEFFICIENT);
     }
@@ -746,9 +749,12 @@ class ConfigConsistencyTest extends TestCase
     public function testDecayConstants(): void
     {
         $this->assertEquals(0.99, DECAY_BASE);
-        $this->assertEquals(100, DECAY_ATOM_DIVISOR);
-        $this->assertEquals(5000, DECAY_POWER_DIVISOR);
-        $this->assertEquals(0.005, STABILISATEUR_BONUS_PER_LEVEL);
+        // Increased from 100: large molecules slightly more viable
+        $this->assertEquals(150, DECAY_ATOM_DIVISOR);
+        // Increased from 5000
+        $this->assertEquals(25000, DECAY_POWER_DIVISOR);
+        // Buffed from 0.01 -> 1.5% per level
+        $this->assertEquals(0.015, STABILISATEUR_BONUS_PER_LEVEL);
     }
 
     public function testDecayBaseIsLessThanOne(): void

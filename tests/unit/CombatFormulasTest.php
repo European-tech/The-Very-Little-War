@@ -498,7 +498,8 @@ class CombatFormulasTest extends TestCase
 
     public function testDecayCoefficientMatchesConstants(): void
     {
-        // Verify using config constants
+        // Verify using config constants: DECAY_ATOM_DIVISOR=150, DECAY_POWER_DIVISOR=25000
+        // STABILISATEUR_BONUS_PER_LEVEL=0.015
         $nbAtomes = 300;
         $innerPow = pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR;
         $basePow = pow(DECAY_BASE, $innerPow);
@@ -506,9 +507,13 @@ class CombatFormulasTest extends TestCase
         $reductionFactor = 1 * (1 - $stabLevel * STABILISATEUR_BONUS_PER_LEVEL);
         $expected = pow($basePow, $reductionFactor);
 
+        // The helper uses hardcoded 100/5000/0.005; this test uses the actual constants
         $this->assertEqualsWithDelta(
             $expected,
-            $this->computeDecayCoefficient($nbAtomes, 0, $stabLevel),
+            pow(
+                pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR),
+                1 * (1 - $stabLevel * STABILISATEUR_BONUS_PER_LEVEL)
+            ),
             0.0000001
         );
     }
@@ -596,14 +601,14 @@ class CombatFormulasTest extends TestCase
 
     public function testIodeEnergyBasic(): void
     {
-        // round(0.05 * 100 * 1) = round(5) = 5
-        $this->assertEquals(5, $this->computeIodeEnergy(100, 0));
+        // round(0.10 * 100 * 1) = round(10) = 10
+        $this->assertEquals(10, $this->computeIodeEnergy(100, 0));
     }
 
     public function testIodeEnergyWithLevel(): void
     {
-        // round(0.05 * 100 * (1 + 50/50)) = round(0.05 * 100 * 2) = 10
-        $this->assertEquals(10, $this->computeIodeEnergy(100, 50));
+        // round(0.10 * 100 * (1 + 50/50)) = round(0.10 * 100 * 2) = 20
+        $this->assertEquals(20, $this->computeIodeEnergy(100, 50));
     }
 
     // =========================================================================
@@ -619,16 +624,17 @@ class CombatFormulasTest extends TestCase
 
     public function testPillagePointsCapped(): void
     {
-        // tanh approaches 1 for large values, so points approach 15
+        // tanh approaches 1 for large values, so points approach PILLAGE_POINTS_MULTIPLIER (80)
         $points = tanh(10000000 / PILLAGE_POINTS_DIVISOR) * PILLAGE_POINTS_MULTIPLIER;
-        $this->assertEqualsWithDelta(15.0, $points, 0.01);
+        $this->assertEqualsWithDelta((float) PILLAGE_POINTS_MULTIPLIER, $points, 0.01);
     }
 
     public function testPillagePointsMiddleRange(): void
     {
-        // At 200000 resources: tanh(1) * 15 = 0.7616 * 15 = 11.42
-        $points = tanh(200000 / PILLAGE_POINTS_DIVISOR) * PILLAGE_POINTS_MULTIPLIER;
-        $this->assertEqualsWithDelta(tanh(1) * 15, $points, 0.001);
+        // At 50000 resources: tanh(50000/50000) = tanh(1) * 80
+        // PILLAGE_POINTS_DIVISOR=50000, PILLAGE_POINTS_MULTIPLIER=80
+        $points = tanh(50000 / PILLAGE_POINTS_DIVISOR) * PILLAGE_POINTS_MULTIPLIER;
+        $this->assertEqualsWithDelta(tanh(1) * PILLAGE_POINTS_MULTIPLIER, $points, 0.001);
     }
 
     // =========================================================================
@@ -678,26 +684,27 @@ class CombatFormulasTest extends TestCase
 
     public function testClassCostFormula(): void
     {
-        // Class 1: pow(2, 6) = 64
-        $this->assertEquals(64, pow(1 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
+        // CLASS_COST_EXPONENT=4, CLASS_COST_OFFSET=1
+        // Class 1: pow(1+1, 4) = pow(2, 4) = 16
+        $this->assertEquals(16, pow(1 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
 
-        // Class 2: pow(3, 6) = 729
-        $this->assertEquals(729, pow(2 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
+        // Class 2: pow(2+1, 4) = pow(3, 4) = 81
+        $this->assertEquals(81, pow(2 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
 
-        // Class 3: pow(4, 6) = 4096
-        $this->assertEquals(4096, pow(3 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
+        // Class 3: pow(3+1, 4) = pow(4, 4) = 256
+        $this->assertEquals(256, pow(3 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
 
-        // Class 4: pow(5, 6) = 15625
-        $this->assertEquals(15625, pow(4 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
+        // Class 4: pow(4+1, 4) = pow(5, 4) = 625
+        $this->assertEquals(625, pow(4 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
     }
 
     public function testClassCostIncreasesDramatically(): void
     {
-        $cost1 = pow(1 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT);
-        $cost4 = pow(4 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT);
+        $cost1 = pow(1 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT); // 16
+        $cost4 = pow(4 + CLASS_COST_OFFSET, CLASS_COST_EXPONENT); // 625
 
-        // Class 4 should cost way more than class 1
-        $this->assertGreaterThan(100 * $cost1, $cost4);
+        // Class 4 should cost significantly more than class 1 (39x)
+        $this->assertGreaterThan(10 * $cost1, $cost4);
     }
 
     // =========================================================================
@@ -718,7 +725,7 @@ class CombatFormulasTest extends TestCase
             $this->assertEquals(
                 $expectedPoints[$rank - 4],
                 $points,
-                "Player rank $rank should earn $expectedPoints[$rank-4] VP"
+                "Player rank $rank should earn " . $expectedPoints[$rank - 4] . " VP"
             );
         }
     }

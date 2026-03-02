@@ -7,11 +7,18 @@
 // Mock database connection for testing
 $base = null;
 
-// Load game constants
+// Load game constants (config.php is loaded by constantesBase.php)
 require_once __DIR__ . '/../includes/constantesBase.php';
 
 // Load validation helpers
 require_once __DIR__ . '/../includes/validation.php';
+
+// Load CSRF protection (no DB dependency, uses $_SESSION)
+require_once __DIR__ . '/../includes/csrf.php';
+
+// Load rate limiter (file-based, no DB dependency)
+// RATE_LIMIT_DIR is guarded with if (!defined()) so tests can override it
+require_once __DIR__ . '/../includes/rate_limiter.php';
 
 // Mock session for testing
 $_SESSION = [];

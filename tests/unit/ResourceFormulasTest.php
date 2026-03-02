@@ -5,11 +5,11 @@ use PHPUnit\Framework\TestCase;
  * Tests for resource production, storage, and building cost/time formulas.
  *
  * Formula references (from includes/fonctions.php and includes/config.php):
- *   Energy production: BASE_ENERGY_PER_LEVEL (65) * generator_level
- *   Atom production:   BASE_ATOMS_PER_POINT (30) * points
+ *   Energy production: BASE_ENERGY_PER_LEVEL (75) * generator_level
+ *   Atom production:   BASE_ATOMS_PER_POINT (60) * points
  *   Storage capacity:  BASE_STORAGE_PER_LEVEL (500) * depot_level
- *   Producteur drain:  PRODUCTEUR_DRAIN_PER_LEVEL (12) * level
- *   Net energy:        65 * gen_level - 12 * prod_level
+ *   Producteur drain:  PRODUCTEUR_DRAIN_PER_LEVEL (8) * level
+ *   Net energy:        75 * gen_level - 8 * prod_level
  *
  *   Building costs:    round((1 - medalBonus/100) * baseCost * pow(level, exponent))
  *   Building time:     round(baseTime * pow(level + offset, timeExponent))
@@ -20,30 +20,30 @@ class ResourceFormulasTest extends TestCase
 {
     // =========================================================================
     // ENERGY PRODUCTION
-    // Formula: 65 * generator_level (base only, before medals/duplicateur)
+    // Formula: 75 * generator_level (base only, before medals/duplicateur)
     // =========================================================================
 
     public function testBaseEnergyPerLevel(): void
     {
-        $this->assertEquals(65, BASE_ENERGY_PER_LEVEL);
+        $this->assertEquals(75, BASE_ENERGY_PER_LEVEL);
     }
 
     public function testEnergyProductionAtLevel1(): void
     {
         $production = BASE_ENERGY_PER_LEVEL * 1;
-        $this->assertEquals(65, $production);
+        $this->assertEquals(75, $production);
     }
 
     public function testEnergyProductionAtLevel10(): void
     {
         $production = BASE_ENERGY_PER_LEVEL * 10;
-        $this->assertEquals(650, $production);
+        $this->assertEquals(750, $production);
     }
 
     public function testEnergyProductionAtLevel50(): void
     {
         $production = BASE_ENERGY_PER_LEVEL * 50;
-        $this->assertEquals(3250, $production);
+        $this->assertEquals(3750, $production);
     }
 
     public function testEnergyProductionLinearGrowth(): void
@@ -59,24 +59,24 @@ class ResourceFormulasTest extends TestCase
 
     // =========================================================================
     // ATOM PRODUCTION
-    // Formula: bonusDuplicateur * 30 * niveau
+    // Formula: bonusDuplicateur * 60 * niveau
     // =========================================================================
 
     public function testBaseAtomsPerPoint(): void
     {
-        $this->assertEquals(30, BASE_ATOMS_PER_POINT);
+        $this->assertEquals(60, BASE_ATOMS_PER_POINT);
     }
 
     public function testAtomProductionAtLevel1(): void
     {
         $production = BASE_ATOMS_PER_POINT * 1;
-        $this->assertEquals(30, $production);
+        $this->assertEquals(60, $production);
     }
 
     public function testAtomProductionAtLevel10(): void
     {
         $production = BASE_ATOMS_PER_POINT * 10;
-        $this->assertEquals(300, $production);
+        $this->assertEquals(600, $production);
     }
 
     public function testAtomProductionWithDuplicateur(): void
@@ -87,8 +87,8 @@ class ResourceFormulasTest extends TestCase
         $bonusDuplicateur = 1 + $level / 100;
         $production = round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $prodPoints);
 
-        $this->assertEquals(round(1.05 * 30 * 10), $production);
-        $this->assertEquals(315, $production);
+        $this->assertEquals(round(1.05 * 60 * 10), $production);
+        $this->assertEquals(630, $production);
     }
 
     public function testAtomProductionWithoutAlliance(): void
@@ -96,7 +96,7 @@ class ResourceFormulasTest extends TestCase
         // No alliance means bonusDuplicateur = 1
         $prodPoints = 8;
         $production = round(1 * BASE_ATOMS_PER_POINT * $prodPoints);
-        $this->assertEquals(240, $production);
+        $this->assertEquals(480, $production);
     }
 
     // =========================================================================
@@ -136,35 +136,35 @@ class ResourceFormulasTest extends TestCase
 
     // =========================================================================
     // PRODUCTEUR ENERGY DRAIN
-    // Formula: round(12 * level)
+    // Formula: round(8 * level)
     // =========================================================================
 
     public function testProducteurDrainPerLevel(): void
     {
-        $this->assertEquals(12, PRODUCTEUR_DRAIN_PER_LEVEL);
+        $this->assertEquals(8, PRODUCTEUR_DRAIN_PER_LEVEL);
     }
 
     public function testProducteurDrainAtLevel1(): void
     {
         $drain = round(PRODUCTEUR_DRAIN_PER_LEVEL * 1);
-        $this->assertEquals(12, $drain);
+        $this->assertEquals(8, $drain);
     }
 
     public function testProducteurDrainAtLevel10(): void
     {
         $drain = round(PRODUCTEUR_DRAIN_PER_LEVEL * 10);
-        $this->assertEquals(120, $drain);
+        $this->assertEquals(80, $drain);
     }
 
     public function testProducteurDrainAtLevel50(): void
     {
         $drain = round(PRODUCTEUR_DRAIN_PER_LEVEL * 50);
-        $this->assertEquals(600, $drain);
+        $this->assertEquals(400, $drain);
     }
 
     // =========================================================================
     // NET ENERGY (Generation - Drain)
-    // Formula: 65 * genLevel - 12 * prodLevel
+    // Formula: 75 * genLevel - 8 * prodLevel
     // =========================================================================
 
     public function testNetEnergyPositive(): void
@@ -172,36 +172,36 @@ class ResourceFormulasTest extends TestCase
         $genLevel = 10;
         $prodLevel = 10;
         $net = BASE_ENERGY_PER_LEVEL * $genLevel - PRODUCTEUR_DRAIN_PER_LEVEL * $prodLevel;
-        // 650 - 120 = 530
-        $this->assertEquals(530, $net);
+        // 750 - 80 = 670
+        $this->assertEquals(670, $net);
     }
 
     public function testNetEnergyBreakEven(): void
     {
         // Find the ratio where energy goes negative
-        // 65 * gen = 12 * prod  =>  prod/gen = 65/12 = 5.417
-        // So if prod > 5.417 * gen, energy goes negative
+        // 75 * gen = 8 * prod  =>  prod/gen = 75/8 = 9.375
+        // So if prod > 9.375 * gen, energy goes negative
         $genLevel = 1;
-        $prodLevel = 6; // Above the 5.417 threshold
+        $prodLevel = 10; // Above the 9.375 threshold
         $net = BASE_ENERGY_PER_LEVEL * $genLevel - PRODUCTEUR_DRAIN_PER_LEVEL * $prodLevel;
-        // 65 - 72 = -7
+        // 75 - 80 = -5
         $this->assertLessThan(0, $net);
     }
 
     public function testNetEnergyExactBreakEvenRatio(): void
     {
-        // The break-even ratio is exactly 65/12
+        // The break-even ratio is exactly 75/8
         $ratio = BASE_ENERGY_PER_LEVEL / PRODUCTEUR_DRAIN_PER_LEVEL;
-        $this->assertEqualsWithDelta(5.4167, $ratio, 0.001);
+        $this->assertEqualsWithDelta(9.375, $ratio, 0.001);
     }
 
     public function testNetEnergyEqualLevels(): void
     {
-        // At equal levels, energy should always be positive since 65 > 12
+        // At equal levels, energy should always be positive since 75 > 8
         for ($level = 1; $level <= 50; $level++) {
             $net = BASE_ENERGY_PER_LEVEL * $level - PRODUCTEUR_DRAIN_PER_LEVEL * $level;
             $this->assertGreaterThan(0, $net, "Net energy should be positive at equal level $level");
-            $this->assertEquals(53 * $level, $net);
+            $this->assertEquals(67 * $level, $net);
         }
     }
 
@@ -223,13 +223,13 @@ class ResourceFormulasTest extends TestCase
         global $BUILDING_CONFIG;
 
         $base = $BUILDING_CONFIG['generateur']['cost_energy_base']; // 50
-        $exp = $BUILDING_CONFIG['generateur']['cost_energy_exp'];   // 0.4
+        $exp = $BUILDING_CONFIG['generateur']['cost_energy_exp'];   // 0.7
 
-        // Level 1: round(50 * pow(1, 0.4)) = round(50 * 1) = 50
+        // Level 1: round(50 * pow(1, 0.7)) = round(50 * 1) = 50
         $this->assertEquals(50, $this->computeBuildingCost($base, $exp, 1));
 
-        // Level 10: round(50 * pow(10, 0.4))
-        $expected = (int) round(50 * pow(10, 0.4));
+        // Level 10: round(50 * pow(10, 0.7))
+        $expected = (int) round(50 * pow(10, 0.7));
         $this->assertEquals($expected, $this->computeBuildingCost($base, $exp, 10));
     }
 
@@ -238,13 +238,13 @@ class ResourceFormulasTest extends TestCase
         global $BUILDING_CONFIG;
 
         $base = $BUILDING_CONFIG['generateur']['cost_atoms_base']; // 75
-        $exp = $BUILDING_CONFIG['generateur']['cost_atoms_exp'];   // 0.4
+        $exp = $BUILDING_CONFIG['generateur']['cost_atoms_exp'];   // 0.7
 
         // Level 1: round(75 * 1) = 75
         $this->assertEquals(75, $this->computeBuildingCost($base, $exp, 1));
 
-        // Level 10: round(75 * pow(10, 0.4))
-        $expected = (int) round(75 * pow(10, 0.4));
+        // Level 10: round(75 * pow(10, 0.7))
+        $expected = (int) round(75 * pow(10, 0.7));
         $this->assertEquals($expected, $this->computeBuildingCost($base, $exp, 10));
     }
 
@@ -253,7 +253,7 @@ class ResourceFormulasTest extends TestCase
         global $BUILDING_CONFIG;
 
         $base = $BUILDING_CONFIG['producteur']['cost_energy_base']; // 75
-        $exp = $BUILDING_CONFIG['producteur']['cost_energy_exp'];   // 0.4
+        $exp = $BUILDING_CONFIG['producteur']['cost_energy_exp'];   // 0.7
 
         $this->assertEquals(75, $this->computeBuildingCost($base, $exp, 1));
     }
@@ -263,7 +263,7 @@ class ResourceFormulasTest extends TestCase
         global $BUILDING_CONFIG;
 
         $base = $BUILDING_CONFIG['depot']['cost_energy_base']; // 100
-        $exp = $BUILDING_CONFIG['depot']['cost_energy_exp'];   // 0.4
+        $exp = $BUILDING_CONFIG['depot']['cost_energy_exp'];   // 0.7
 
         $this->assertEquals(100, $this->computeBuildingCost($base, $exp, 1));
     }
@@ -273,12 +273,12 @@ class ResourceFormulasTest extends TestCase
         global $BUILDING_CONFIG;
 
         $base = $BUILDING_CONFIG['condenseur']['cost_energy_base']; // 25
-        $exp = $BUILDING_CONFIG['condenseur']['cost_energy_exp'];   // 0.6
+        $exp = $BUILDING_CONFIG['condenseur']['cost_energy_exp'];   // 0.8
 
         $this->assertEquals(25, $this->computeBuildingCost($base, $exp, 1));
 
-        // Level 10: round(25 * pow(10, 0.6))
-        $expected = (int) round(25 * pow(10, 0.6));
+        // Level 10: round(25 * pow(10, 0.8))
+        $expected = (int) round(25 * pow(10, 0.8));
         $this->assertEquals($expected, $this->computeBuildingCost($base, $exp, 10));
     }
 
@@ -286,7 +286,7 @@ class ResourceFormulasTest extends TestCase
     {
         // 6% medal bonus reduces cost by 6%
         $baseCost = 100;
-        $exp = 0.4;
+        $exp = 0.7;
         $level = 10;
         $noMedal = $this->computeBuildingCost($baseCost, $exp, $level, 0);
         $withMedal = $this->computeBuildingCost($baseCost, $exp, $level, 6);
@@ -301,7 +301,7 @@ class ResourceFormulasTest extends TestCase
     public function testBuildingCostIncreasesWithLevel(): void
     {
         $baseCost = 50;
-        $exp = 0.4;
+        $exp = 0.7;
 
         $prevCost = 0;
         for ($level = 1; $level <= 20; $level++) {
@@ -317,9 +317,9 @@ class ResourceFormulasTest extends TestCase
 
     public function testCostGrowthIsSublinear(): void
     {
-        // With exponent 0.4 < 1, cost growth is sublinear (diminishing returns)
+        // With exponent 0.7 < 1, cost growth is sublinear (diminishing returns)
         $baseCost = 50;
-        $exp = 0.4;
+        $exp = 0.7;
 
         $cost1to5 = $this->computeBuildingCost($baseCost, $exp, 5) - $this->computeBuildingCost($baseCost, $exp, 1);
         $cost5to10 = $this->computeBuildingCost($baseCost, $exp, 10) - $this->computeBuildingCost($baseCost, $exp, 5);
@@ -391,59 +391,66 @@ class ResourceFormulasTest extends TestCase
 
     public function testCondenseurBuildTime(): void
     {
-        // Condenseur: round(120 * pow(level + 1, 1.8))
+        // Condenseur: round(120 * pow(level + 1, 1.6))
         global $BUILDING_CONFIG;
 
         $baseTime = $BUILDING_CONFIG['condenseur']['time_base']; // 120
-        $exp = $BUILDING_CONFIG['condenseur']['time_exp'];       // 1.8
+        $exp = $BUILDING_CONFIG['condenseur']['time_exp'];       // 1.6 (reduced from 1.8)
         $offset = $BUILDING_CONFIG['condenseur']['time_level_offset']; // 1
 
         $expected = (int) round($baseTime * pow(5 + $offset, $exp));
-        $this->assertEquals((int) round(120 * pow(6, 1.8)), $expected);
+        $this->assertEquals((int) round(120 * pow(6, 1.6)), $expected);
     }
 
     public function testLieurBuildTime(): void
     {
-        // Lieur: round(100 * pow(level + 1, 1.7))
+        // Lieur: round(100 * pow(level + 1, 1.5))
         global $BUILDING_CONFIG;
 
         $baseTime = $BUILDING_CONFIG['lieur']['time_base']; // 100
-        $exp = $BUILDING_CONFIG['lieur']['time_exp'];       // 1.7
+        $exp = $BUILDING_CONFIG['lieur']['time_exp'];       // 1.5 (reduced from 1.7)
         $offset = $BUILDING_CONFIG['lieur']['time_level_offset']; // 1
 
         $expected = (int) round($baseTime * pow(10 + $offset, $exp));
-        $this->assertEquals((int) round(100 * pow(11, 1.7)), $expected);
+        $this->assertEquals((int) round(100 * pow(11, 1.5)), $expected);
     }
 
     public function testStabilisateurBuildTime(): void
     {
-        // Stabilisateur: round(120 * pow(level + 1, 1.7))
+        // Stabilisateur: round(120 * pow(level + 1, 1.5))
         global $BUILDING_CONFIG;
 
         $baseTime = $BUILDING_CONFIG['stabilisateur']['time_base']; // 120
-        $exp = $BUILDING_CONFIG['stabilisateur']['time_exp'];       // 1.7
+        $exp = $BUILDING_CONFIG['stabilisateur']['time_exp'];       // 1.5 (reduced from 1.7)
         $offset = $BUILDING_CONFIG['stabilisateur']['time_level_offset']; // 1
 
         $expected = (int) round($baseTime * pow(3 + $offset, $exp));
-        $this->assertEquals((int) round(120 * pow(4, 1.7)), $expected);
+        $this->assertEquals((int) round(120 * pow(4, 1.5)), $expected);
     }
 
     public function testBuildTimesAlwaysIncrease(): void
     {
         // Verify construction times strictly increase with level for all buildings
+        // Uses actual values from BUILDING_CONFIG
+        global $BUILDING_CONFIG;
+
         $buildings = [
-            'depot' => ['base' => 80, 'exp' => 1.5, 'offset' => 0],
-            'champdeforce' => ['base' => 20, 'exp' => 1.7, 'offset' => 2],
-            'ionisateur' => ['base' => 20, 'exp' => 1.7, 'offset' => 2],
-            'condenseur' => ['base' => 120, 'exp' => 1.8, 'offset' => 1],
-            'lieur' => ['base' => 100, 'exp' => 1.7, 'offset' => 1],
-            'stabilisateur' => ['base' => 120, 'exp' => 1.7, 'offset' => 1],
+            'depot'         => ['offset' => 0],
+            'champdeforce'  => ['offset' => 2],
+            'ionisateur'    => ['offset' => 2],
+            'condenseur'    => ['offset' => 1],
+            'lieur'         => ['offset' => 1],
+            'stabilisateur' => ['offset' => 1],
         ];
 
-        foreach ($buildings as $name => $config) {
+        foreach ($buildings as $name => $extra) {
+            $base   = $BUILDING_CONFIG[$name]['time_base'];
+            $exp    = $BUILDING_CONFIG[$name]['time_exp'];
+            $offset = $extra['offset'];
+
             $prevTime = 0;
             for ($level = 1; $level <= 20; $level++) {
-                $time = round($config['base'] * pow($level + $config['offset'], $config['exp']));
+                $time = round($base * pow($level + $offset, $exp));
                 $this->assertGreaterThanOrEqual(
                     $prevTime,
                     $time,
@@ -601,19 +608,19 @@ class ResourceFormulasTest extends TestCase
 
     // =========================================================================
     // STABILISATEUR EFFECT
-    // Formula: 0.5% decay reduction per level
+    // Formula: 1.5% decay reduction per level (STABILISATEUR_BONUS_PER_LEVEL = 0.015)
     // =========================================================================
 
     public function testStabilisateurBonusPerLevel(): void
     {
-        $this->assertEquals(0.005, STABILISATEUR_BONUS_PER_LEVEL);
+        $this->assertEquals(0.015, STABILISATEUR_BONUS_PER_LEVEL);
 
-        // At level 10: 10 * 0.005 = 0.05 = 5% decay reduction
+        // At level 10: 10 * 0.015 = 0.15 = 15% decay reduction
         $reduction = 10 * STABILISATEUR_BONUS_PER_LEVEL;
-        $this->assertEquals(0.05, $reduction);
+        $this->assertEqualsWithDelta(0.15, $reduction, 0.0001);
 
-        // At level 100: 100 * 0.005 = 0.5 = 50% decay reduction
-        $reduction100 = 100 * STABILISATEUR_BONUS_PER_LEVEL;
-        $this->assertEquals(0.5, $reduction100);
+        // At level 20: 20 * 0.015 = 0.30 = 30% decay reduction
+        $reduction20 = 20 * STABILISATEUR_BONUS_PER_LEVEL;
+        $this->assertEqualsWithDelta(0.30, $reduction20, 0.0001);
     }
 }
