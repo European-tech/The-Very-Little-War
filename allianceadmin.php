@@ -234,7 +234,7 @@ if ($pacte) {
 
 		if ($pacteExiste > 0) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $_POST['allie']);
-			dbExecute($base, 'DELETE FROM declarations WHERE (alliance1=? AND alliance2=?) OR ((alliance2=? AND alliance1=?)) AND type=1', 'iiii', $chef['id'], $allianceAdverse['id'], $chef['id'], $allianceAdverse['id']);
+			dbExecute($base, 'DELETE FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=1', 'iiii', $chef['id'], $allianceAdverse['id'], $chef['id'], $allianceAdverse['id']);
 			$now = time();
 			$rapportTitre = 'L\'alliance ' . $chef['tag'] . ' met fin au pacte qui vous alliait.';
 			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chef['tag'] . '">' . $chef['tag'] . '</a> met fin au pacte qui vous alliait.';

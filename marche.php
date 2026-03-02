@@ -160,42 +160,46 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
             $diffEnergieAchat = $ressources['energie'] - $coutAchat;
             if ($diffEnergieAchat >= 0) {
                 $newResVal = $ressources[$nomsRes[$numRes]] + $_POST['nombreRessourceAAcheter'];
-                // $nomsRes[$numRes] is a server-side resource name, not user input
-                $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
-                if ($stmt) {
-                    mysqli_stmt_bind_param($stmt, 'dds', $diffEnergieAchat, $newResVal, $_SESSION['login']);
-                    mysqli_stmt_execute($stmt);
-                    mysqli_stmt_close($stmt);
-                }
-
-                $chaine = '';
-                foreach ($tabCours as $num => $cours) {
-                    if ($num < sizeof($tabCours) - 1) {
-                        $fin = ",";
-                    } else {
-                        $fin = "";
+                if ($newResVal > $placeDepot) {
+                    $erreur = "Vous n'avez pas assez de place dans votre stockage.";
+                } else {
+                    // $nomsRes[$numRes] is a server-side resource name, not user input
+                    $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
+                    if ($stmt) {
+                        mysqli_stmt_bind_param($stmt, 'dds', $diffEnergieAchat, $newResVal, $_SESSION['login']);
+                        mysqli_stmt_execute($stmt);
+                        mysqli_stmt_close($stmt);
                     }
 
-                    if ($numRes == $num) {
-                        $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / $placeDepot;
-                        // Mean-reversion: pull price toward baseline of 1.0
-                        $ajout = $ajout * (1 - MARKET_MEAN_REVERSION) + 1.0 * MARKET_MEAN_REVERSION;
-                        // Clamp to floor/ceiling
-                        $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
-                        $chaine = $chaine . $ajout . $fin;
-                    } else {
-                        $chaine = $chaine . $tabCours[$num] . $fin;
+                    $chaine = '';
+                    foreach ($tabCours as $num => $cours) {
+                        if ($num < sizeof($tabCours) - 1) {
+                            $fin = ",";
+                        } else {
+                            $fin = "";
+                        }
+
+                        if ($numRes == $num) {
+                            $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / $placeDepot;
+                            // Mean-reversion: pull price toward baseline of 1.0
+                            $ajout = $ajout * (1 - MARKET_MEAN_REVERSION) + 1.0 * MARKET_MEAN_REVERSION;
+                            // Clamp to floor/ceiling
+                            $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
+                            $chaine = $chaine . $ajout . $fin;
+                        } else {
+                            $chaine = $chaine . $tabCours[$num] . $fin;
+                        }
                     }
+
+                    $now = time();
+                    dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
+
+                    logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
+                    $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAAcheter'] . ".png\" alt=\"" . $_POST['typeRessourceAAcheter'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
+
+                    $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
+                    $tabCours = explode(",", $val['tableauCours']);
                 }
-
-                $now = time();
-                dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
-
-                logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
-                $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAAcheter'] . ".png\" alt=\"" . $_POST['typeRessourceAAcheter'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
-
-                $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
-                $tabCours = explode(",", $val['tableauCours']);
             } else {
                 $erreur = "Vous n'avez pas assez d'énergie.";
             }
@@ -223,6 +227,9 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
         if ($bool == 0) { // verification que c'est une ressource qui existe
             if ($ressources[$nomsRes[$numRes]] >= $_POST['nombreRessourceAVendre']) {
                 $newEnergie = $ressources['energie'] + round($tabCours[$numRes] * $_POST['nombreRessourceAVendre']);
+                if ($newEnergie > $placeDepot) {
+                    $newEnergie = $placeDepot; // Cap energy at storage limit
+                }
                 $newResVal = $ressources[$nomsRes[$numRes]] - $_POST['nombreRessourceAVendre'];
                 // $nomsRes[$numRes] is a server-side resource name
                 $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');

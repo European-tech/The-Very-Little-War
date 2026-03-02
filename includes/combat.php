@@ -91,7 +91,7 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 		}
 
 		if (${'classe' . $i . 'AttaquantMort'} < ${'classeAttaquant' . $i}['nombre']) {
-			$degatsUtilises = $degatsAttaquant;
+			$degatsUtilises = $degatsDefenseur;
 		} else {
 			$degatsUtilises = $degatsUtilises + ${'classe' . $i . 'AttaquantMort'} * pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque;
 		}
@@ -163,7 +163,7 @@ dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefen
 $ressourcesDefenseur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['defenseur']);
 
 $ressourcesJoueur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['attaquant']);
-if ($gagnant == 2 || $gagnant == 0) { // Si le joueur gagnant est l'attaquant
+if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 	$ressourcesTotalesDefenseur = 0;
 	foreach ($nomsRes as $num => $ressource) {
 		$ressourcesTotalesDefenseur = $ressourcesTotalesDefenseur +	$ressourcesDefenseur[$ressource];
@@ -263,7 +263,7 @@ if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
 	if ($degatschampdeforce > 0) {
 		$destructionchampdeforce = round($constructions['vieChampdeforce'] / vieChampDeForce($constructions['champdeforce']) * 100) . "% <img alt=\"fleche\" src=\"images/attaquer/arrow.png\"/ class=\"w16\" style=\"vertical-align:middle\"> " . max(round(($constructions['vieChampdeforce'] - $degatschampdeforce) / vieChampDeForce($constructions['champdeforce']) * 100), 0) . "%";
 		if ($degatschampdeforce >= $constructions['vieChampdeforce']) {
-			if ($constructions['champdeforce'] > 0) {
+			if ($constructions['champdeforce'] > 1) {
 				diminuerBatiment("champdeforce", $actions['defenseur']);
 			} else {
 				$degatschampdeforce = 0;
@@ -276,7 +276,7 @@ if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
 	if ($degatsProducteur > 0) {
 		$destructionProducteur = round($constructions['vieProducteur'] / pointsDeVie($constructions['producteur']) * 100) . "% <img alt=\"fleche\" src=\"images/attaquer/arrow.png\"/ class=\"w16\" style=\"vertical-align:middle\"> " . max(round(($constructions['vieProducteur'] - $degatsProducteur) / pointsDeVie($constructions['producteur']) * 100), 0) . "%";
 		if ($degatsProducteur >= $constructions['vieProducteur']) {
-			if ($constructions['producteur'] > 0) {
+			if ($constructions['producteur'] > 1) {
 				diminuerBatiment("producteur", $actions['defenseur']);
 			} else {
 				$degatsProducteur = 0;

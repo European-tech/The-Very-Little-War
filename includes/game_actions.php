@@ -6,6 +6,12 @@
 
 function updateActions($joueur)
 {
+    static $updating = [];
+    if (isset($updating[$joueur])) {
+        return; // Prevent infinite recursion
+    }
+    $updating[$joueur] = true;
+
     global $autre;
     global $points;
     global $constructions;
@@ -486,4 +492,5 @@ function updateActions($joueur)
     }
 
     initPlayer($joueur);
+    unset($updating[$joueur]);
 }

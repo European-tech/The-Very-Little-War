@@ -25,8 +25,8 @@ function updateTargetResources($targetPlayer)
     $donnees = dbFetchOne($base, 'SELECT energie, revenuenergie FROM ressources WHERE login=?', 's', $targetPlayer);
 
     $energie = $donnees['energie'] + round($donnees['revenuenergie'] * $nbsecondesAdverse / 3600); // On calcule l'energie que l'on doit avoir
-    if ($energie >= (500 * $depotAdverse['depot'])) {
-        $energie = (500 * $depotAdverse['depot']); // on limite l'energie pouvant être reçu (depots de ressources)
+    if ($energie >= placeDepot($depotAdverse['depot'])) {
+        $energie = placeDepot($depotAdverse['depot']); // on limite l'energie pouvant être reçu (depots de ressources)
     }
     dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $energie, $targetPlayer);
 
@@ -36,8 +36,8 @@ function updateTargetResources($targetPlayer)
         $donnees = dbFetchOne($base, "SELECT $ressource, revenu$ressource FROM ressources WHERE login=?", 's', $targetPlayer);
 
         $$ressource = $donnees[$ressource] + round($donnees['revenu' . $ressource] * $nbsecondesAdverse / 3600);
-        if ($$ressource >= (500 * $depotAdverse['depot'])) {
-            $$ressource = (500 * $depotAdverse['depot']);
+        if ($$ressource >= placeDepot($depotAdverse['depot'])) {
+            $$ressource = placeDepot($depotAdverse['depot']);
         }
         dbExecute($base, "UPDATE ressources SET $ressource=? WHERE login=?", 'ds', $$ressource, $targetPlayer);
     }

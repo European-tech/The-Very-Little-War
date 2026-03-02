@@ -111,12 +111,11 @@ else {
 $debutRow = dbFetchOne($base, 'SELECT debut FROM statistiques');
 $debut = $debutRow;
 
-if (date('n', time()) != date('n', $debut["debut"])) {
-    $exDejaFait = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
-    $maintenance = $exDejaFait;
+$maintenanceRow = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
+$maintenance = $maintenanceRow;
 
-    $erreur = "Une nouvelle partie recommencera dans 24 heures.";
-    dbExecute($base, 'UPDATE statistiques SET maintenance = 1');
+if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
+    // Phase 2: 24h have passed since maintenance was set, proceed with full reset
 
     //archivage de la partie (20 meilleurs)
     $chaine = '';
@@ -218,12 +217,12 @@ if (date('n', time()) != date('n', $debut["debut"])) {
             $passage_ligne = "\n";
         }
         //=====Déclaration des messages au format texte et au format HTML.
-        $message_txt = "Bonjour " . $donnees['login'] . " ! " . $_SESSION['login'] . " vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
-            vous pourrez commencer à rejouer la nouvelle partie à partir du " . date('d/m/Y Ã H\hi', time()) . " ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite
+        $message_txt = "Bonjour " . $donnees['login'] . " ! " . $vainqueurManche . " vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
+            vous pourrez commencer à rejouer la nouvelle partie à partir du " . date('d/m/Y à H\hi', time()) . " ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite
             et à bientôt sur The Very Little War !
             Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur www.theverylittlewar.com dans la partie \"Mon compte\".";
-        $message_html = "<html><head></head><body>Bonjour " . $donnees['login'] . " ! <b>" . $_SESSION['login'] . "</b> vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
-            vous pourrez commencer à rejouer la nouvelle partie à partir du <b>" . date('d/m/Y Ã H\hi', time()) . "</b> ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite
+        $message_html = "<html><head></head><body>Bonjour " . $donnees['login'] . " ! <b>" . $vainqueurManche . "</b> vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
+            vous pourrez commencer à rejouer la nouvelle partie à partir du <b>" . date('d/m/Y à H\hi', time()) . "</b> ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite
             et à bientôt sur <a href=\"www.theverylittlewar.com\">The Very Little War</a> !<br/><br/><br/><br/>
             <i>Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur <a href=\"www.theverylittlewar.com\">www.theverylittlewar.com</a> dans la partie \"Mon compte\".</i></body></html>";
         //==========
@@ -264,4 +263,17 @@ if (date('n', time()) != date('n', $debut["debut"])) {
         mail($mail, $sujet, $message, $header);
         //==========
     }
+
+    // Reset complete, disable maintenance mode
+    dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
+
+} elseif (date('n', time()) != date('n', $debut["debut"]) && $maintenance['maintenance'] == 0) {
+    // Phase 1: New month detected, enable maintenance and start 24h countdown
+    $erreur = "Une nouvelle partie recommencera dans 24 heures.";
+    dbExecute($base, 'UPDATE statistiques SET maintenance = 1');
+    $now = time();
+    dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
+} elseif ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) < 86400) {
+    // Still in maintenance period, 24h have not yet passed
+    $erreur = "Une nouvelle partie recommencera dans 24 heures.";
 }

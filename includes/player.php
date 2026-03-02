@@ -192,7 +192,7 @@ function initPlayer($joueur)
     $bonusDuplicateur = 1;
     if ($autre['idalliance'] > 0) {
         $duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $autre['idalliance']);
-        $bonusDuplicateur = 1 + ((0.1 * $duplicateur['duplicateur']) / 100);
+        $bonusDuplicateur = 1 + ($duplicateur['duplicateur'] / 100);
     }
 
     $productionCondenseur = '<strong><span id="nbPointsCondenseurRestants">' . $constructions['pointsCondenseurRestants'] . '</span> points</strong> à placer<br/><form method="post" action="constructions.php" name="formPointsCondenseur">';
@@ -469,7 +469,7 @@ function diminuerBatiment($nom, $joueur)
     global $base;
     $batiments = dbFetchOne($base, "SELECT $nom FROM constructions WHERE login=?", 's', $joueur);
 
-    if ($batiments[$nom] > 0) {
+    if ($batiments[$nom] > 1) {
         if ($nom == 'producteur') {
             if ($constructions['pointsProducteurRestants'] >= $points['producteur']) {
                 dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=? WHERE login=?', 'is', ($constructions['pointsProducteurRestants'] - $points['producteur']), $joueur);
@@ -500,12 +500,13 @@ function diminuerBatiment($nom, $joueur)
 
                 $chaine = "";
                 foreach ($nomsRes as $num => $ressource) {
-                    if ($pointsAEnlever <= ${'niveau' . $ressource}) {
-                        $chaine = $chaine . (${'niveau' . $ressource} - $pointsAEnlever) . ";";
-                        $pointsAEnlever = 0;
+                    $currentLevel = ${'niveau' . $ressource};
+                    if ($pointsAEnlever > 0 && $currentLevel > 0) {
+                        $canRemove = min($pointsAEnlever, $currentLevel);
+                        $chaine = $chaine . ($currentLevel - $canRemove) . ";";
+                        $pointsAEnlever -= $canRemove;
                     } else {
-                        $chaine = $chaine . "0;";
-                        $pointsAEnlever = $pointsAEnlever - (${'niveau' . $ressource} - 1);
+                        $chaine = $chaine . $currentLevel . ";";
                     }
                 }
 
@@ -557,17 +558,32 @@ function coordonneesAleatoires()
     $alea = mt_rand(0, 1);
     if ($alea == 0) { // horizontale
         $y = $inscrits['tailleCarte'] - 1;
-
         $x = mt_rand(0, $inscrits['tailleCarte'] - 1);
-        while ($carte[$x][$y] != 0) {
+        $maxAttempts = $inscrits['tailleCarte'] * 2;
+        $attempts = 0;
+        while ($carte[$x][$y] != 0 && $attempts < $maxAttempts) {
             $x = mt_rand(0, $inscrits['tailleCarte'] - 1);
+            $attempts++;
+        }
+        if ($attempts >= $maxAttempts) {
+            // Map edge is full, force expand
+            $inscrits['tailleCarte'] += 1;
+            $x = $inscrits['tailleCarte'] - 1;
+            $y = 0;
         }
     } else {
         $x = $inscrits['tailleCarte'] - 1;
-
         $y = mt_rand(0, $inscrits['tailleCarte'] - 1);
-        while ($carte[$x][$y] != 0) {
+        $maxAttempts = $inscrits['tailleCarte'] * 2;
+        $attempts = 0;
+        while ($carte[$x][$y] != 0 && $attempts < $maxAttempts) {
             $y = mt_rand(0, $inscrits['tailleCarte'] - 1);
+            $attempts++;
+        }
+        if ($attempts >= $maxAttempts) {
+            $inscrits['tailleCarte'] += 1;
+            $x = 0;
+            $y = $inscrits['tailleCarte'] - 1;
         }
     }
 
@@ -647,6 +663,7 @@ function supprimerJoueur($joueur)
     if (function_exists('logInfo')) {
         logInfo('ACCOUNT', 'Account deleted', ['deleted_player' => $joueur]);
     }
+    dbExecute($base, 'DELETE FROM vacances WHERE idJoueur IN (SELECT id FROM membre WHERE login=?)', 's', $joueur);
     dbExecute($base, 'DELETE FROM autre WHERE login=?', 's', $joueur);
     dbExecute($base, 'DELETE FROM membre WHERE login=?', 's', $joueur);
     dbExecute($base, 'DELETE FROM ressources WHERE login=?', 's', $joueur);
@@ -656,6 +673,10 @@ function supprimerJoueur($joueur)
     dbExecute($base, 'DELETE FROM messages WHERE destinataire=? OR expeditaire=?', 'ss', $joueur, $joueur);
     dbExecute($base, 'DELETE FROM rapports WHERE destinataire=?', 's', $joueur);
     dbExecute($base, 'DELETE FROM grades WHERE login=?', 's', $joueur);
+    dbExecute($base, 'DELETE FROM actionsattaques WHERE attaquant=? OR defenseur=?', 'ss', $joueur, $joueur);
+    dbExecute($base, 'DELETE FROM actionsformation WHERE login=?', 's', $joueur);
+    dbExecute($base, 'DELETE FROM actionsenvoi WHERE envoyeur=? OR receveur=?', 'ss', $joueur, $joueur);
+    dbExecute($base, 'DELETE FROM statutforum WHERE login=?', 's', $joueur);
 
     $donnees = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
     $nbinscrits = $donnees['inscrits'] - 1;
