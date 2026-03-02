@@ -73,6 +73,11 @@ if (isset($_POST['joueurAAttaquer'])) {
             } elseif (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
                 $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps(BEGINNER_PROTECTION_SECONDS - time() + $membre['timestamp']) . " h</strong>) et vous ne pouvez donc pas attaquer.";
             } else {
+                // Check attack cooldown (after failed attack on same target)
+                $cooldown = dbFetchOne($base, 'SELECT expires FROM attack_cooldowns WHERE attacker=? AND defender=? AND expires > ?', 'ssi', $_SESSION['login'], $_POST['joueurAAttaquer'], time());
+                if ($cooldown) {
+                    $erreur = "Vous devez attendre encore <strong>" . affichageTemps($cooldown['expires'] - time()) . "</strong> avant de pouvoir attaquer ce joueur.";
+                } else {
 
                 $joueurDefenseur = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $_POST['joueurAAttaquer']);
                 if ($joueurDefenseur) {
@@ -170,6 +175,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                 } else {
                     $erreur = "Ce joueur n\'existe pas.";
                 }
+                } // end cooldown else
             }
         } else {
             $erreur = "Vous ne pouvez pas vous attaquer.";

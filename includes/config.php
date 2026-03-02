@@ -248,6 +248,11 @@ define('COMBAT_POINTS_MAX_PER_BATTLE', 20);  // Cap per single battle
 define('ATTACK_POINTS_MULTIPLIER', 3.0);
 define('DEFENSE_POINTS_MULTIPLIER', 3.0);
 
+// Defensive rewards — incentivize defense as a viable playstyle
+define('DEFENSE_REWARD_RATIO', 0.20);         // 20% resource bonus on successful defense
+define('DEFENSE_POINTS_MULTIPLIER_BONUS', 1.5); // 1.5x combat points for defensive victories
+define('ATTACK_COOLDOWN_SECONDS', 4 * 3600);  // 4 hours before same attacker can hit same target
+
 // =============================================================================
 // ESPIONAGE
 // =============================================================================

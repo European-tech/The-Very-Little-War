@@ -395,6 +395,13 @@ function updateActions($joueur)
 
                 dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $actions['attaquant'], '<img alt="attaque" src="images/rapports/binoculars.png"/ class="imageAide">');
 
+                // Notify defender they were spied on (anonymous — doesn't reveal spy identity)
+                if (($nDef['neutrinos'] / 2) < $actions['nombreneutrinos']) {
+                    $titreRapportEspionDef = 'Tentative d\'espionnage détectée';
+                    $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
+                    dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $actions['defenseur'], '<img alt="spy" src="images/rapports/binoculars.png" class="imageAide"/>');
+                }
+
                 dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
             }
         }

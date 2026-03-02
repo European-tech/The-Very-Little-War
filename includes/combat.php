@@ -68,56 +68,54 @@ for ($c = 1; $c <= 4; $c++) {
 
 
 
-// Calcul des pertes
+// Calcul des pertes — PROPORTIONAL DAMAGE DISTRIBUTION
+// Damage is spread across classes proportional to each class's total HP pool.
+// This prevents meat-shield exploits where class 1 absorbs everything.
 
-// Attaquants
-
-$degatsUtilises = 0;
 $attaquantsRestants = 0;
 $defenseursRestants = 0;
 
+// --- Attacker casualties (from defender's damage) ---
+$totalAttackerHP = 0;
+for ($i = 1; $i <= $nbClasses; $i++) {
+	$hpPerMol = pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque;
+	${'attHP' . $i} = $hpPerMol * ${'classeAttaquant' . $i}['nombre'];
+	$totalAttackerHP += ${'attHP' . $i};
+}
+
 for ($i = 1; $i <= $nbClasses; $i++) {
 	${'classe' . $i . 'AttaquantMort'} = 0;
-	if (${'classeAttaquant' . $i}['nombre'] > 0 and $degatsUtilises < $degatsDefenseur) {
-		if (${'classeAttaquant' . $i}['brome'] > 0) {
-			${'classe' . $i . 'AttaquantMort'} = floor(($degatsDefenseur - $degatsUtilises) / (pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque));
-			if (${'classe' . $i . 'AttaquantMort'} >= ${'classeAttaquant' . $i}['nombre']) {
-				${'classe' . $i . 'AttaquantMort'} = ${'classeAttaquant' . $i}['nombre'];
-			}
+	if (${'classeAttaquant' . $i}['nombre'] > 0 && $degatsDefenseur > 0) {
+		$hpPerMol = pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque;
+		// Proportional damage share based on class HP pool
+		$damageShare = ($totalAttackerHP > 0) ? $degatsDefenseur * (${'attHP' . $i} / $totalAttackerHP) : 0;
+		if ($hpPerMol > 0) {
+			${'classe' . $i . 'AttaquantMort'} = min(${'classeAttaquant' . $i}['nombre'], floor($damageShare / $hpPerMol));
 		} else {
-			if ($degatsDefenseur > 0) {
-				${'classe' . $i . 'AttaquantMort'} = ${'classeAttaquant' . $i}['nombre'];
-			}
-		}
-
-		if (${'classe' . $i . 'AttaquantMort'} < ${'classeAttaquant' . $i}['nombre']) {
-			$degatsUtilises = $degatsDefenseur;
-		} else {
-			$degatsUtilises = $degatsUtilises + ${'classe' . $i . 'AttaquantMort'} * pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque;
+			// 0 Brome = 0 HP, any damage kills all
+			${'classe' . $i . 'AttaquantMort'} = ${'classeAttaquant' . $i}['nombre'];
 		}
 	}
 	$attaquantsRestants += ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
 }
 
-$degatsUtilises = 0;
-for ($i = 1; $i <= 4; $i++) {
-	${'classe' . $i . 'DefenseurMort'} = 0;
-	if (${'classeDefenseur' . $i}['nombre'] > 0 and $degatsUtilises < $degatsAttaquant) {
-		if (${'classeDefenseur' . $i}['brome'] > 0) {
-			${'classe' . $i . 'DefenseurMort'} = floor(($degatsAttaquant - $degatsUtilises) / (pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense));
-			if (${'classe' . $i . 'DefenseurMort'} >= ${'classeDefenseur' . $i}['nombre']) {
-				${'classe' . $i . 'DefenseurMort'} = ${'classeDefenseur' . $i}['nombre'];
-			}
-		} else {
-			if ($degatsAttaquant > 0) {
-				${'classe' . $i . 'DefenseurMort'} = ${'classeDefenseur' . $i}['nombre'];
-			}
-		}
+// --- Defender casualties (from attacker's damage) ---
+$totalDefenderHP = 0;
+for ($i = 1; $i <= $nbClasses; $i++) {
+	$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense;
+	${'defHP' . $i} = $hpPerMol * ${'classeDefenseur' . $i}['nombre'];
+	$totalDefenderHP += ${'defHP' . $i};
+}
 
-		if (${'classe' . $i . 'DefenseurMort'} < ${'classeDefenseur' . $i}['nombre']) {
-			$degatsUtilises = $degatsAttaquant;
+for ($i = 1; $i <= $nbClasses; $i++) {
+	${'classe' . $i . 'DefenseurMort'} = 0;
+	if (${'classeDefenseur' . $i}['nombre'] > 0 && $degatsAttaquant > 0) {
+		$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense;
+		$damageShare = ($totalDefenderHP > 0) ? $degatsAttaquant * (${'defHP' . $i} / $totalDefenderHP) : 0;
+		if ($hpPerMol > 0) {
+			${'classe' . $i . 'DefenseurMort'} = min(${'classeDefenseur' . $i}['nombre'], floor($damageShare / $hpPerMol));
 		} else {
-			$degatsUtilises = $degatsUtilises + ${'classe' . $i . 'DefenseurMort'} * pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense;
+			${'classe' . $i . 'DefenseurMort'} = ${'classeDefenseur' . $i}['nombre'];
 		}
 	}
 	$defenseursRestants += ${'classeDefenseur' . $i}['nombre'] - ${'classe' . $i . 'DefenseurMort'};
@@ -140,6 +138,22 @@ if ($attaquantsRestants == 0) {
 $gagnantLabels = [0 => 'draw', 1 => 'defender', 2 => 'attacker'];
 if (function_exists('logInfo')) {
 	logInfo('COMBAT', 'Combat resolved', ['attacker' => $actions['attaquant'], 'defender' => $actions['defenseur'], 'winner' => $gagnantLabels[$gagnant], 'attacker_remaining' => $attaquantsRestants, 'defender_remaining' => $defenseursRestants]);
+}
+
+// Defensive rewards — when defender wins, they earn bonus resources and points
+$defenseRewardEnergy = 0;
+if ($gagnant == 1) { // Defender wins
+	// Calculate what attacker would have pillaged (as a proxy for battle value)
+	$totalAttackerPillage = 0;
+	for ($c = 1; $c <= $nbClasses; $c++) {
+		$totalAttackerPillage += ${'classeAttaquant' . $c}['nombre'] * pillage(${'classeAttaquant' . $c}['soufre'], $niveauxAtt['soufre'], $actions['attaquant']);
+	}
+	$defenseRewardEnergy = floor($totalAttackerPillage * DEFENSE_REWARD_RATIO);
+
+	// Set attack cooldown — attacker can't attack this defender for ATTACK_COOLDOWN_SECONDS
+	$cooldownExpires = time() + ATTACK_COOLDOWN_SECONDS;
+	dbExecute($base, 'INSERT INTO attack_cooldowns (attacker, defender, expires) VALUES (?, ?, ?)',
+		'ssi', $actions['attaquant'], $actions['defenseur'], $cooldownExpires);
 }
 
 // On met à jour les troupes des deux joueurs
@@ -316,8 +330,8 @@ $pointsBDDefenseur = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefens
 $totalCasualties = $pertesAttaquant + $pertesDefenseur;
 $battlePoints = min(COMBAT_POINTS_MAX_PER_BATTLE, floor(COMBAT_POINTS_BASE + COMBAT_POINTS_CASUALTY_SCALE * sqrt($totalCasualties)));
 
-if ($gagnant == 1) { // DEFENSEUR wins
-    $pointsDefenseur = $battlePoints;
+if ($gagnant == 1) { // DEFENSEUR wins — enhanced defense points
+    $pointsDefenseur = floor($battlePoints * DEFENSE_POINTS_MULTIPLIER_BONUS);
     $pointsAttaquant = -$battlePoints;
 } else if ($gagnant == 2 && $pertesDefenseur > 0) { // ATTAQUANT wins
     $pointsAttaquant = $battlePoints;
@@ -370,6 +384,14 @@ foreach ($nomsRes as $num => $ressource) {
 	$setClauses[] = "$ressource=?";
 	$setTypes .= 'd';
 	$setParams[] = ($ressourcesDefenseur[$ressource] - ${$ressource . 'Pille'});
+}
+// Add defense reward energy to defender
+if ($defenseRewardEnergy > 0) {
+	$setClauses[] = "energie=?";
+	$setTypes .= 'd';
+	$depotDef = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['defenseur']);
+	$maxEnergy = placeDepot($depotDef['depot']);
+	$setParams[] = min($maxEnergy, $ressourcesDefenseur['energie'] + $defenseRewardEnergy);
 }
 $setParams[] = $actions['defenseur'];
 $setTypes .= 's';
