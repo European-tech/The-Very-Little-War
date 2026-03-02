@@ -236,6 +236,18 @@ define('DUPLICATEUR_COMBAT_COEFFICIENT', 1.0);
 // Building damage targeting: random 1-4 selects target building
 define('NUM_DAMAGEABLE_BUILDINGS', 4); // generateur, champdeforce, producteur, depot
 
+// Combat point scaling
+// Raw combat points awarded = floor(COMBAT_POINTS_BASE + COMBAT_POINTS_CASUALTY_SCALE * sqrt(total_casualties))
+// Only the winner gets positive points; loser gets negative
+define('COMBAT_POINTS_BASE', 1);           // Minimum points for any combat
+define('COMBAT_POINTS_CASUALTY_SCALE', 0.5); // Scale factor for sqrt(casualties)
+define('COMBAT_POINTS_MAX_PER_BATTLE', 20);  // Cap per single battle
+
+// pointsAttaque/pointsDefense scaling: sqrt(rawPoints) * MULTIPLIER
+// This makes accumulated combat points contribute meaningfully to totalPoints
+define('ATTACK_POINTS_MULTIPLIER', 3.0);
+define('DEFENSE_POINTS_MULTIPLIER', 3.0);
+
 // =============================================================================
 // ESPIONAGE
 // =============================================================================

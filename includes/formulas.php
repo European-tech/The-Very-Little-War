@@ -52,12 +52,14 @@ function pointsVictoireAlliance($classement)
 
 function pointsAttaque($pts)
 {
-    return $pts;
+    if ($pts <= 0) return 0;
+    return round(ATTACK_POINTS_MULTIPLIER * sqrt(abs($pts)));
 }
 
 function pointsDefense($pts)
 {
-    return $pts;
+    if ($pts <= 0) return 0;
+    return round(DEFENSE_POINTS_MULTIPLIER * sqrt(abs($pts)));
 }
 
 function pointsPillage($nbRessources)

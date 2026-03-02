@@ -312,25 +312,18 @@ $pointsDefenseur = 0;
 $pointsBDAttaquant = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=?', 's', $actions['attaquant']);
 $pointsBDDefenseur = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=?', 's', $actions['defenseur']);
 
-if ($gagnant == 1) { // DEFENSEUR
-	if ($pointsBDAttaquant['totalPoints'] >= $pointsBDDefenseur['totalPoints']) {
-		$pointsAttaquant += -1;
-		$pointsDefenseur += 1;
-	}
-	if ($pointsBDAttaquant['pointsAttaque'] >= $pointsBDDefenseur['pointsDefense']) {
-		$pointsAttaquant += -1;
-		$pointsDefenseur += 1;
-	}
-} else if ($gagnant == 2 && $pertesDefenseur > 0) { // ATTAQUANT
-	if ($pointsBDAttaquant['totalPoints'] <= $pointsBDDefenseur['totalPoints']) {
-		$pointsAttaquant += 1;
-		$pointsDefenseur += -1;
-	}
-	if ($pointsBDAttaquant['pointsAttaque'] <= $pointsBDDefenseur['pointsDefense']) {
-		$pointsAttaquant += 1;
-		$pointsDefenseur += -1;
-	}
+// Scale combat points with battle size (total casualties)
+$totalCasualties = $pertesAttaquant + $pertesDefenseur;
+$battlePoints = min(COMBAT_POINTS_MAX_PER_BATTLE, floor(COMBAT_POINTS_BASE + COMBAT_POINTS_CASUALTY_SCALE * sqrt($totalCasualties)));
+
+if ($gagnant == 1) { // DEFENSEUR wins
+    $pointsDefenseur = $battlePoints;
+    $pointsAttaquant = -$battlePoints;
+} else if ($gagnant == 2 && $pertesDefenseur > 0) { // ATTAQUANT wins
+    $pointsAttaquant = $battlePoints;
+    $pointsDefenseur = -$battlePoints;
 }
+// Draw ($gagnant == 0): both stay at 0
 
 $totalPille = 0;
 foreach ($nomsRes as $num => $ressource) {
