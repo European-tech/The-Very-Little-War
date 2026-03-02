@@ -268,6 +268,22 @@ define('DEFENSE_REWARD_RATIO', 0.20);         // 20% resource bonus on successfu
 define('DEFENSE_POINTS_MULTIPLIER_BONUS', 1.5); // 1.5x combat points for defensive victories
 define('ATTACK_COOLDOWN_SECONDS', 4 * 3600);  // 4 hours before same attacker can hit same target
 
+// Defensive formations — pre-battle defensive stance choices
+// 0 = Dispersée (default): damage split equally across all classes (25% each)
+// 1 = Phalange: class 1 absorbs 70% of damage, gets +30% defense
+// 2 = Embuscade: if defender has more total molecules, +25% attack bonus
+define('FORMATION_DISPERSEE', 0);
+define('FORMATION_PHALANGE', 1);
+define('FORMATION_EMBUSCADE', 2);
+define('FORMATION_PHALANX_ABSORB', 0.70);        // class 1 absorbs this % of damage
+define('FORMATION_PHALANX_DEFENSE_BONUS', 0.30);  // +30% defense for phalanx class 1
+define('FORMATION_AMBUSH_ATTACK_BONUS', 0.25);    // +25% attack when outnumbering attacker
+$FORMATIONS = [
+    FORMATION_DISPERSEE => ['name' => 'Dispersée', 'desc' => 'Les dégâts sont répartis également entre vos 4 classes (25% chacune). Efficace contre les attaques concentrées.'],
+    FORMATION_PHALANGE => ['name' => 'Phalange', 'desc' => 'Votre classe 1 absorbe 70% des dégâts et gagne +30% de défense. Idéal si votre classe 1 est très résistante.'],
+    FORMATION_EMBUSCADE => ['name' => 'Embuscade', 'desc' => 'Si vous avez plus de molécules que l\'attaquant, vous gagnez +25% d\'attaque. Idéal pour les armées nombreuses.'],
+];
+
 // =============================================================================
 // CHEMICAL REACTIONS — bonuses when specific atom combos deployed across classes
 // =============================================================================

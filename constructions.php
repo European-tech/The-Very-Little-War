@@ -77,6 +77,17 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
     }
 }
 
+// Handle formation change
+if (isset($_POST['formation'])) {
+    csrfCheck();
+    $newFormation = intval($_POST['formation']);
+    if ($newFormation >= 0 && $newFormation <= 2) {
+        dbExecute($base, 'UPDATE constructions SET formation=? WHERE login=?', 'is', $newFormation, $_SESSION['login']);
+        $information = "Formation défensive mise à jour.";
+        echo '<script>document.location.href="constructions.php?information=' . htmlspecialchars($information, ENT_QUOTES) . '"</script>';
+    }
+}
+
 // FONCTIONS CONSTRUCTIONS
 
 function mepConstructions($liste)
@@ -317,6 +328,23 @@ if ($nb > 0) {
 }
 
 include("includes/constantes.php"); // on actualise les constantes
+
+// --- Defensive Formation Selector ---
+$currentFormation = $constructions['formation'] ?? 0;
+global $FORMATIONS;
+debutCarte("Formation défensive");
+echo '<form action="constructions.php" method="post">' . csrfField();
+echo '<p style="margin:8px;">Choisissez votre formation défensive. Elle s\'applique automatiquement quand vous êtes attaqué.</p>';
+foreach ($FORMATIONS as $id => $f) {
+    $checked = ($currentFormation == $id) ? ' checked' : '';
+    echo '<label style="display:block;padding:8px;margin:4px 8px;border:1px solid #ddd;border-radius:4px;cursor:pointer;">';
+    echo '<input type="radio" name="formation" value="' . $id . '"' . $checked . ' style="margin-right:8px;"/>';
+    echo '<strong>' . htmlspecialchars($f['name']) . '</strong> — ' . htmlspecialchars($f['desc']);
+    echo '</label>';
+}
+echo '<div style="text-align:center;margin:12px 0;"><button type="submit" class="button button-fill">Changer de formation</button></div>';
+echo '</form>';
+finCarte();
 
 debutCarte("Constructions");
 debutListe();

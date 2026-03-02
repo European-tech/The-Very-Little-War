@@ -57,6 +57,10 @@ if ($idallianceDef['idalliance'] > 0) {
 }
 
 
+// Defensive Formation — read defender's chosen formation
+$formationData = dbFetchOne($base, 'SELECT formation FROM constructions WHERE login=?', 's', $actions['defenseur']);
+$defenderFormation = ($formationData && isset($formationData['formation'])) ? intval($formationData['formation']) : FORMATION_DISPERSEE;
+
 // Chemical Reaction Detection — check all class pairs for reaction conditions
 // Each reaction grants bonuses when two classes meet atom thresholds
 global $CHEMICAL_REACTIONS;
@@ -113,12 +117,34 @@ foreach ($activeReactionsDef as $name => $bonuses) {
 	if (isset($bonuses['attack'])) $defReactionDefenseBonus += 0; // defenders don't use attack bonus
 }
 
-// Calcul des dégâts totaux avec réactions chimiques
+// Formation bonuses applied to damage calculation
+$formationDefenseBonus = 1.0;
+$formationAttackBonus = 1.0; // for defender's counter-attack via Embuscade
+
+// Embuscade: if defender has more total molecules than attacker, defender gets +25% attack
+if ($defenderFormation == FORMATION_EMBUSCADE) {
+	$totalAttackerMols = 0;
+	$totalDefenderMols = 0;
+	for ($c = 1; $c <= $nbClasses; $c++) {
+		$totalAttackerMols += ${'classeAttaquant' . $c}['nombre'];
+		$totalDefenderMols += ${'classeDefenseur' . $c}['nombre'];
+	}
+	if ($totalDefenderMols > $totalAttackerMols) {
+		$formationDefenseBonus = 1.0 + FORMATION_AMBUSH_ATTACK_BONUS; // defender's defense acts as counter-attack boost
+	}
+}
+
+// Calcul des dégâts totaux avec réactions chimiques + formation bonuses
 $degatsAttaquant = 0;
 $degatsDefenseur = 0;
 for ($c = 1; $c <= 4; $c++) {
 	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * (1 + (($ionisateur['ionisateur'] * 2) / 100)) * $bonusDuplicateurAttaque * ${'classeAttaquant' . $c}['nombre'];
-	$degatsDefenseur += defense(${'classeDefenseur' . $c}['carbone'], $niveauxDef['carbone'], $actions['defenseur']) * $defReactionDefenseBonus * (1 + (($champdeforce['champdeforce'] * 2) / 100)) * $bonusDuplicateurDefense * ${'classeDefenseur' . $c}['nombre'];
+	$defBonusForClass = $defReactionDefenseBonus * $formationDefenseBonus;
+	// Phalange: class 1 gets extra defense bonus
+	if ($defenderFormation == FORMATION_PHALANGE && $c == 1) {
+		$defBonusForClass *= (1.0 + FORMATION_PHALANX_DEFENSE_BONUS);
+	}
+	$degatsDefenseur += defense(${'classeDefenseur' . $c}['carbone'], $niveauxDef['carbone'], $actions['defenseur']) * $defBonusForClass * (1 + (($champdeforce['champdeforce'] * 2) / 100)) * $bonusDuplicateurDefense * ${'classeDefenseur' . $c}['nombre'];
 }
 
 
@@ -154,7 +180,7 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 	$attaquantsRestants += ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
 }
 
-// --- Defender casualties (from attacker's damage) ---
+// --- Defender casualties (from attacker's damage) — FORMATION-AWARE ---
 $totalDefenderHP = 0;
 for ($i = 1; $i <= $nbClasses; $i++) {
 	$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense * $defReactionHpBonus;
@@ -162,11 +188,32 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 	$totalDefenderHP += ${'defHP' . $i};
 }
 
+// Calculate damage share per class based on formation
+$defDamageShares = [];
+if ($defenderFormation == FORMATION_DISPERSEE) {
+	// Equal split: 25% to each class
+	for ($i = 1; $i <= $nbClasses; $i++) {
+		$defDamageShares[$i] = $degatsAttaquant * 0.25;
+	}
+} elseif ($defenderFormation == FORMATION_PHALANGE) {
+	// Class 1 absorbs 70%, remaining 30% split equally among classes 2-4
+	$defDamageShares[1] = $degatsAttaquant * FORMATION_PHALANX_ABSORB;
+	$remainingShare = (1.0 - FORMATION_PHALANX_ABSORB) / max(1, $nbClasses - 1);
+	for ($i = 2; $i <= $nbClasses; $i++) {
+		$defDamageShares[$i] = $degatsAttaquant * $remainingShare;
+	}
+} else {
+	// Default proportional distribution (or Embuscade which affects damage, not distribution)
+	for ($i = 1; $i <= $nbClasses; $i++) {
+		$defDamageShares[$i] = ($totalDefenderHP > 0) ? $degatsAttaquant * (${'defHP' . $i} / $totalDefenderHP) : 0;
+	}
+}
+
 for ($i = 1; $i <= $nbClasses; $i++) {
 	${'classe' . $i . 'DefenseurMort'} = 0;
 	if (${'classeDefenseur' . $i}['nombre'] > 0 && $degatsAttaquant > 0) {
 		$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense * $defReactionHpBonus;
-		$damageShare = ($totalDefenderHP > 0) ? $degatsAttaquant * (${'defHP' . $i} / $totalDefenderHP) : 0;
+		$damageShare = $defDamageShares[$i];
 		if ($hpPerMol > 0) {
 			${'classe' . $i . 'DefenseurMort'} = min(${'classeDefenseur' . $i}['nombre'], floor($damageShare / $hpPerMol));
 		} else {

@@ -398,9 +398,16 @@ function updateActions($joueur)
                     <td>" . $constructionsJoueur['stabilisateur'] . "</td>
                     <td>Pas de vie</td>
                     </tr>
+                    <tr>
+                    <td>Coffre-fort</td>
+                    <td>" . ($constructionsJoueur['coffrefort'] ?? 0) . "</td>
+                    <td>Pas de vie</td>
+                    </tr>
                     </tbody>
                     </table>
                     </div>
+                    <br/>" . important('Formation défensive') . "
+                    <strong>" . htmlspecialchars($FORMATIONS[$constructionsJoueur['formation'] ?? 0]['name'] ?? 'Dispersée') . "</strong>
                     </p>";
                 } else {
                     $titreRapportJoueur = "Espionnage raté";
