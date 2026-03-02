@@ -110,8 +110,18 @@ function updateRessources($joueur)
 
     $donnees = dbFetchOne($base, 'SELECT tempsPrecedent FROM autre WHERE login=?', 's', $joueur);
     $nbsecondes = time() - $donnees['tempsPrecedent']; // On calcule la différence de secondes
+
+    if ($nbsecondes < 1) {
+        return; // Too fast, skip update
+    }
+
+    // Atomic: only update if tempsPrecedent hasn't changed since we read it
+    dbExecute($base, 'UPDATE autre SET tempsPrecedent=? WHERE login=? AND tempsPrecedent=?', 'isi', time(), $joueur, $donnees['tempsPrecedent']);
+    if (mysqli_affected_rows($base) === 0) {
+        return; // Another request already updated — skip to prevent double resources
+    }
+
     $donnees = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $joueur);
-    dbExecute($base, 'UPDATE autre SET tempsPrecedent=? WHERE login=?', 'is', time(), $joueur);
 
     $depot = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////ENERGIE

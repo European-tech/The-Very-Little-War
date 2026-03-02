@@ -4,7 +4,7 @@ include("includes/redirectionVacance.php");
 //tableau d'échange de ressources
 
 $actifs = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=?', 'i', (time() - 2678400));
-$volatilite = 0.3 / $actifs['nbActifs'];
+$volatilite = 0.3 / max(1, $actifs['nbActifs']);
 
 
 $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');

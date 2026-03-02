@@ -172,7 +172,7 @@ function initPlayer($joueur)
 
     $max = 0;
     foreach ($nomsRes as $num => $ressource) {
-        $max = max($max, 3600 * ($placeDepot - $ressources[$ressource]) / $revenu[$ressource]);
+        $max = max($max, 3600 * ($placeDepot - $ressources[$ressource]) / max(1, $revenu[$ressource]));
     }
 
     $production = '<strong><span id="nbPointsRestants">' . $constructions['pointsProducteurRestants'] . '</span> points</strong> à placer<br/><form method="post" action="constructions.php" name="formPointsProducteur">';

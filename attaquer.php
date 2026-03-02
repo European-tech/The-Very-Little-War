@@ -98,6 +98,15 @@ if (isset($_POST['joueurAAttaquer'])) {
                         }
                     }
 
+                    // Check at least 1 molecule is sent (prevent zero-troop exploit)
+                    $totalTroops = 0;
+                    for ($c = 1; $c <= $nbClasses; $c++) {
+                        $totalTroops += intval($_POST['nbclasse' . $c]);
+                    }
+                    if ($totalTroops < 1) {
+                        $troupesPositives = false;
+                    }
+
                     if ($troupesPositives) {
 
                         $c = 1;
