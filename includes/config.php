@@ -126,9 +126,9 @@ define('FORCEFIELD_HP_LEVEL_EXP', 1.2);
 $BUILDING_CONFIG = [
     'generateur' => [
         'cost_energy_base'  => 50,
-        'cost_energy_exp'   => 0.4,
+        'cost_energy_exp'   => 0.7,
         'cost_atoms_base'   => 75,   // cost per atom type
-        'cost_atoms_exp'    => 0.4,
+        'cost_atoms_exp'    => 0.7,
         'time_base'         => 60,   // seconds (level 1 = 10s special case)
         'time_exp'          => 1.5,
         'time_level1'       => 10,   // special case: level 1 construction time
@@ -138,9 +138,9 @@ $BUILDING_CONFIG = [
     ],
     'producteur' => [
         'cost_energy_base'  => 75,
-        'cost_energy_exp'   => 0.4,
+        'cost_energy_exp'   => 0.7,
         'cost_atoms_base'   => 50,
-        'cost_atoms_exp'    => 0.4,
+        'cost_atoms_exp'    => 0.7,
         'time_base'         => 40,
         'time_exp'          => 1.5,
         'time_level1'       => 10,
@@ -151,7 +151,7 @@ $BUILDING_CONFIG = [
     ],
     'depot' => [
         'cost_energy_base'  => 100,
-        'cost_energy_exp'   => 0.4,
+        'cost_energy_exp'   => 0.7,
         'cost_atoms_base'   => 0,    // no atom cost
         'cost_atoms_exp'    => 0,
         'time_base'         => 80,
@@ -162,7 +162,7 @@ $BUILDING_CONFIG = [
     ],
     'champdeforce' => [
         'cost_carbone_base' => 100,
-        'cost_carbone_exp'  => 0.4,
+        'cost_carbone_exp'  => 0.7,
         'time_base'         => 20,
         'time_exp'          => 1.7,
         'time_level_offset' => 2,    // pow(level + 2, exp)
@@ -173,7 +173,7 @@ $BUILDING_CONFIG = [
     ],
     'ionisateur' => [
         'cost_oxygene_base' => 100,
-        'cost_oxygene_exp'  => 0.4,
+        'cost_oxygene_exp'  => 0.7,
         'time_base'         => 20,
         'time_exp'          => 1.7,
         'time_level_offset' => 2,    // pow(level + 2, exp)
@@ -184,9 +184,9 @@ $BUILDING_CONFIG = [
     ],
     'condenseur' => [
         'cost_energy_base'  => 25,
-        'cost_energy_exp'   => 0.6,
+        'cost_energy_exp'   => 0.8,
         'cost_atoms_base'   => 100,
-        'cost_atoms_exp'    => 0.6,
+        'cost_atoms_exp'    => 0.8,
         'time_base'         => 120,
         'time_exp'          => 1.6,  // reduced from 1.8 for faster military progression
         'time_level_offset' => 1,    // pow(level + 1, exp)
@@ -197,7 +197,7 @@ $BUILDING_CONFIG = [
     ],
     'lieur' => [
         'cost_azote_base'   => 100,
-        'cost_azote_exp'    => 0.6,
+        'cost_azote_exp'    => 0.8,
         'time_base'         => 100,
         'time_exp'          => 1.5,  // reduced from 1.7 for faster military progression
         'time_level_offset' => 1,    // pow(level + 1, exp)
@@ -208,7 +208,7 @@ $BUILDING_CONFIG = [
     ],
     'stabilisateur' => [
         'cost_atoms_base'   => 75,
-        'cost_atoms_exp'    => 0.8,
+        'cost_atoms_exp'    => 0.9,
         'time_base'         => 120,
         'time_exp'          => 1.5,  // reduced from 1.7 for faster military progression
         'time_level_offset' => 1,    // pow(level + 1, exp)
