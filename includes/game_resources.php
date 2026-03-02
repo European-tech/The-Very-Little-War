@@ -44,7 +44,7 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
         }
     }
 
-    $prodBase = (65 * $niveau);
+    $prodBase = (BASE_ENERGY_PER_LEVEL * $niveau);
     $prodIode = $prodBase + $totalIode;
     $prodMedaille = (1 + ($bonus / 100)) * $prodIode;
     $prodDuplicateur = $bonusDuplicateur * $prodMedaille;
@@ -78,7 +78,7 @@ function revenuAtome($num, $joueur)
         $bonusDuplicateur = 1 + bonusDuplicateur($duplicateur['duplicateur']);
     }
 
-    return round($bonusDuplicateur * 30 * $niveau);
+    return round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau);
 }
 
 function revenuAtomeJavascript($joueur)
@@ -95,7 +95,7 @@ function revenuAtomeJavascript($joueur)
     echo '
     <script>
     function revenuAtomeJavascript(niveau){
-        return Math.round(' . $bonusDuplicateur . '*30*niveau);
+        return Math.round(' . $bonusDuplicateur . '*' . BASE_ATOMS_PER_POINT . '*niveau);
     }
     </script>
     ';
