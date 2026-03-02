@@ -17,7 +17,9 @@ if (isset($_GET['inscription'])) {
 		$visitorPass = "Visiteur" . $nb['numerovisiteur'];
 		$hashedPass = password_hash($visitorPass, PASSWORD_DEFAULT);
 		dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $hashedPass, $_SESSION['login']);
-		$_SESSION['mdp'] = $hashedPass;
+		$sessionToken = bin2hex(random_bytes(32));
+		$_SESSION['session_token'] = $sessionToken;
+		dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, $_SESSION['login']);
 		header('Location: tutoriel.php?deployer=1');
 		exit();
 	} else {
@@ -70,7 +72,9 @@ if (isset($_GET['inscription'])) {
 						dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $newLogin);
 
 						$_SESSION['login'] = $newLogin;
-						$_SESSION['mdp'] = $hashedPassword;
+						$sessionToken = bin2hex(random_bytes(32));
+						$_SESSION['session_token'] = $sessionToken;
+						dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, $newLogin);
 
 						echo '<script type="text/javascript">
 						window.location.href = "index.php?inscrit=1";

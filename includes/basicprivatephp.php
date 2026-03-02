@@ -17,7 +17,7 @@ require_once(__DIR__ . '/logger.php');
 if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
     $_SESSION['login'] = ucfirst(mb_strtolower(mysqli_real_escape_string($base, stripslashes(htmlentities($_SESSION['login'])))));
     $row = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
-    if (!$row || !isset($_SESSION['session_token']) || $row['session_token'] !== $_SESSION['session_token']) {
+    if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !hash_equals($row['session_token'], $_SESSION['session_token'])) {
         session_destroy();
         header('Location: index.php');
         exit();

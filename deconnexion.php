@@ -1,13 +1,18 @@
 <?php
-session_start(); 
+session_start();
 include("includes/connexion.php");
 include("includes/fonctions.php");
 if(isset($_POST['verification']) AND isset($_POST['oui'])) {
 	csrfCheck();
 	supprimerJoueur($_SESSION['login']);
 }
-  
-session_unset();  
+
+// Clear session token from DB to prevent reuse
+if (isset($_SESSION['login'])) {
+	dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE login = ?', 's', $_SESSION['login']);
+}
+
+session_unset();
 session_destroy();
 ?>
 

@@ -58,8 +58,10 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
             } else {
                 $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
                 dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $newHash, $_SESSION['login']);
-                // Update session hash so session validation keeps working
-                $_SESSION['mdp'] = $newHash;
+                // Regenerate session token so session validation keeps working
+                $newToken = bin2hex(random_bytes(32));
+                $_SESSION['session_token'] = $newToken;
+                dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $newToken, $_SESSION['login']);
 
                 $information = "Votre mot de passe a &eacute;t&eacute; chang&eacute;.";
             }
@@ -84,7 +86,7 @@ if (isset($_POST['changermail'])) {
 }
 
 if (isset($_POST['changerdescription'])) {
-    $newDescription = antiXSS($_POST['changerdescription'], true);
+    $newDescription = trim($_POST['changerdescription']);
     dbExecute($base, 'UPDATE autre SET description = ? WHERE login = ?', 'ss', $newDescription, $_SESSION['login']);
     $autre['description'] = $newDescription;
 
