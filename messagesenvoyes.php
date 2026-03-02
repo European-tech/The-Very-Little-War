@@ -18,7 +18,7 @@ if($nb_messages > 0) {
 	<th>Date</th>
 	</tr></thead><tbody>';
 	while($message = mysqli_fetch_array($ex)) {
-		echo '<tr><td><a href="messages.php?message='.$message['id'].'">'.$message['titre'].'</a></td>';
+		echo '<tr><td><a href="messages.php?message='.(int)$message['id'].'">'.htmlspecialchars($message['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 		echo '<td><a href="joueur.php?id='.htmlspecialchars($message['destinataire'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($message['destinataire'], ENT_QUOTES, 'UTF-8').'</a></td>';
 		echo '<td><em>'.date('d/m/Y à H\hi', $message['timestamp']).'</em></td></tr>';
 	}

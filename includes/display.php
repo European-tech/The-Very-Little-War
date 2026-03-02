@@ -326,12 +326,9 @@ function antihtml($phrase)
 
 function antiXSS($phrase, $specialTexte = false)
 {
-    global $base;
-    if ($specialTexte) {
-        return mysqli_real_escape_string($base, antihtml($phrase));
-    } else {
-        return mysqli_real_escape_string($base, addslashes(antihtml(trim($phrase))));
-    }
+    // Simplified: only HTML-encode for output safety
+    // SQL escaping is handled by prepared statements (no longer needed here)
+    return htmlspecialchars(trim($phrase), ENT_QUOTES, 'UTF-8');
 }
 
 function creerBBcode($nomTextArea, $interieur = NULL, $reponse = 0)

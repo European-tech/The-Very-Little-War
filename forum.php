@@ -74,7 +74,7 @@ while($forum = mysqli_fetch_array($ex)) {
 			echo '<td><img src="images/forum/nouveauMessage.png" alt="nouveauMessage" class="w32"/></td>';
 		}
 	}
-    echo '<td><a href="listesujets.php?id='.$forum['id'].'">'.$forum['titre'].'</a></td>';
+    echo '<td><a href="listesujets.php?id='.(int)$forum['id'].'">'.htmlspecialchars($forum['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 
 	echo '<td>'.$nbSujets['nbSujets'].'</td>';
 	$nbMessages = dbFetchOne($base, 'SELECT count(*) AS cnt FROM sujets s, reponses r WHERE idforum = ? AND s.id = r.idsujet', 'i', $forum['id']);

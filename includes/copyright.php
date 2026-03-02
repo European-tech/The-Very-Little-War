@@ -49,9 +49,9 @@ finCarte();
     <?php if(isset($_SESSION['login'])){ ?>
     var joueurs = [
         <?php
-        $ex = query('SELECT login FROM membre WHERE login!=\''.$_SESSION['login'].'\'');
+        $ex = dbQuery($base, 'SELECT login FROM membre WHERE login!=?', 's', $_SESSION['login']);
         while($noms = mysqli_fetch_array($ex)){
-            echo '"'.$noms['login'].'",';
+            echo '"'.htmlspecialchars($noms['login'], ENT_QUOTES, 'UTF-8').'",';
         }
         ?>
     ];
@@ -83,13 +83,12 @@ finCarte();
 
     <?php
         if(isset($erreur)){
-            echo "myApp.alert(\"".$erreur."\",\"<span style='color:red;text-weight:bold'>Erreur</span>\");";
+            echo "myApp.alert(".json_encode($erreur).",\"<span style='color:red;text-weight:bold'>Erreur</span>\");";
         }
-    
+
         if(isset($information)){
-            $information = addslashes($information);
             echo "myApp.addNotification({
-                    message: '$information',
+                    message: ".json_encode($information).",
                     button: {
                         text: 'Fermer',
                         color: 'green'

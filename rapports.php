@@ -25,7 +25,10 @@ if(isset($_GET['rapport'])) {
 
         debutCarte(htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8'));
 		debutContent();
-		echo $rapports['contenu'];
+		// Report content is HTML generated server-side by combat/game_actions
+		// Sanitize any residual user-controlled data (player names, alliance tags)
+		$allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><table><tr><td><th><ul><ol><li><hr>';
+		echo strip_tags($rapports['contenu'], $allowedTags);
         finContent();
         finCarte('<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="imageSousMenu"> Supprimer</button></form>');
 	}

@@ -27,11 +27,11 @@
 	while ($donnees = mysqli_fetch_array($retour))
 	{
 		?>
-		<span class="important"><?php echo $donnees['titre']; ?><em> le <?php echo date('d/m/Y Ã H\hi', $donnees['timestamp']); ?></em></span>
+		<span class="important"><?php echo htmlspecialchars($donnees['titre'], ENT_QUOTES, 'UTF-8'); ?><em> le <?php echo date('d/m/Y Ã H\hi', $donnees['timestamp']); ?></em></span>
 		<p>
 		<br/>
 		<?php
-		$contenu = nl2br(stripslashes($donnees['contenu']));
+		$contenu = nl2br(htmlspecialchars(stripslashes($donnees['contenu']), ENT_QUOTES, 'UTF-8'));
 		echo $contenu;
 		?></p><?php
 	}

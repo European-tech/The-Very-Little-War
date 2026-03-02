@@ -1,5 +1,5 @@
 <?php
-include("includes/connexion.php");
+require_once('includes/basicprivatephp.php');
 
 $ex = dbQuery($base, 'SELECT login FROM membre');
 

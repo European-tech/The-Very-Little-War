@@ -56,13 +56,13 @@ if ($gradeChef) {
 	if (isset($_POST['changernom'])) {
 		csrfCheck();
 		if (!empty($_POST['changernom'])) {
-			$_POST['changernom'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['changernom'])));
+			$_POST['changernom'] = trim($_POST['changernom']);
 			$nballiance = dbCount($base, 'SELECT count(*) as nb FROM alliances WHERE nom=?', 's', $_POST['changernom']);
 
 			if ($nballiance == 0) {
 				dbExecute($base, 'UPDATE alliances SET nom=? WHERE id=?', 'si', $_POST['changernom'], $idalliance['idalliance']);
 
-				$information = 'Le nom de l\'équipe a bien été changé et est devenu ' . $_POST['changernom'] . '.';
+				$information = 'Le nom de l\'équipe a bien été changé et est devenu ' . htmlspecialchars($_POST['changernom'], ENT_QUOTES, 'UTF-8') . '.';
 			} else {
 				$erreur = "Une équipe avec ce nom existe déjà.";
 			}
@@ -73,8 +73,8 @@ if ($gradeChef) {
 
 	if (isset($_POST['nomgrade']) and isset($_POST['personnegrade'])) {
 		csrfCheck();
-		$_POST['nomgrade'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['nomgrade'])));
-		$_POST['personnegrade'] = ucfirst(mysqli_real_escape_string($base, stripslashes(antihtml($_POST['personnegrade']))));
+		$_POST['nomgrade'] = trim($_POST['nomgrade']);
+		$_POST['personnegrade'] = ucfirst(trim($_POST['personnegrade']));
 		if (!empty($_POST['nomgrade']) and !empty($_POST['personnegrade'])) {
 			$gradee = dbCount($base, 'SELECT count(*) as nb FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
 			if ($_POST['personnegrade'] != $chef['chef'] and $gradee < 1) {
@@ -93,7 +93,7 @@ if ($gradeChef) {
 
 					$gradeStr = $droit_inviter . '.' . $droit_guerre . '.' . $droit_pacte . '.' . $droit_bannir . '.' . $droit_description;
 					dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $_POST['personnegrade'], $gradeStr, $chef['id'], $_POST['nomgrade']);
-					$information = "" . $_POST['personnegrade'] . " a été gradé " . $_POST['nomgrade'] . ".";
+					$information = "" . htmlspecialchars($_POST['personnegrade'], ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($_POST['nomgrade'], ENT_QUOTES, 'UTF-8') . ".";
 				} else {
 					$erreur = "Cette personne n'existe pas";
 				}
@@ -107,12 +107,12 @@ if ($gradeChef) {
 
 	if (isset($_POST['joueurGrade']) and !empty($_POST['joueurGrade'])) {
 		csrfCheck();
-		$_POST['joueurGrade'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['joueurGrade'])));
+		$_POST['joueurGrade'] = trim($_POST['joueurGrade']);
 		$gradeExiste = dbCount($base, 'SELECT count(*) AS gradeExiste FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['joueurGrade'], $chef['id']);
 
 		if ($gradeExiste > 0) {
 			dbExecute($base, 'DELETE FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['joueurGrade'], $chef['id']);
-			$information = "Vous avez supprimé le grade de " . $_POST['joueurGrade'] . ".";
+			$information = "Vous avez supprimé le grade de " . htmlspecialchars($_POST['joueurGrade'], ENT_QUOTES, 'UTF-8') . ".";
 		} else {
 			$erreur = "Cette guerre n'existe pas.";
 		}
@@ -121,13 +121,13 @@ if ($gradeChef) {
 	if (isset($_POST['changertag'])) {
 		csrfCheck();
 		if (!empty($_POST['changertag'])) {
-			$_POST['changertag'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['changertag'])));
+			$_POST['changertag'] = trim($_POST['changertag']);
 			$nballiance = dbCount($base, 'SELECT count(*) as nb FROM alliances WHERE tag=?', 's', $_POST['changertag']);
 
 			if ($nballiance == 0) {
 				dbExecute($base, 'UPDATE alliances SET tag=? WHERE id=?', 'si', $_POST['changertag'], $idalliance['idalliance']);
 
-				$information = 'Le tag de l\'équipe a bien été changé et est devenu ' . $_POST['changertag'] . '.';
+				$information = 'Le tag de l\'équipe a bien été changé et est devenu ' . htmlspecialchars($_POST['changertag'], ENT_QUOTES, 'UTF-8') . '.';
 			} else {
 				$erreur = "Une équipe avec ce tag existe déjà.";
 			}
@@ -139,7 +139,7 @@ if ($gradeChef) {
 	if (isset($_POST['changerchef'])) {
 		csrfCheck();
 		if (!empty($_POST['changerchef'])) {
-			$_POST['changerchef'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['changerchef'])));
+			$_POST['changerchef'] = trim($_POST['changerchef']);
 			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $idalliance['idalliance'], $_POST['changerchef']);
 			if ($dansLAlliance > 0) {
 				dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $_POST['changerchef'], $idalliance['idalliance']);
@@ -164,7 +164,7 @@ if ($description) {
 	if (isset($_POST['changerdescription'])) {
 		csrfCheck();
 		if (!empty($_POST['changerdescription'])) {
-			$_POST['changerdescription'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['changerdescription'])));
+			$_POST['changerdescription'] = trim($_POST['changerdescription']);
 			dbExecute($base, 'UPDATE alliances SET description=? WHERE id=?', 'si', $_POST['changerdescription'], $idalliance['idalliance']);
 			$information = 'La description de l\'équipe a bien été changée.';
 		} else {
@@ -177,12 +177,12 @@ if ($bannir) {
 	if (isset($_POST['bannirpersonne'])) {
 		csrfCheck();
 		if (!empty($_POST['bannirpersonne'])) {
-			$_POST['bannirpersonne'] = ucfirst(mysqli_real_escape_string($base, stripslashes(antihtml($_POST['bannirpersonne']))));
+			$_POST['bannirpersonne'] = ucfirst(trim($_POST['bannirpersonne']));
 			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $idalliance['idalliance'], $_POST['bannirpersonne']);
 			if ($dansLAlliance > 0) {
 				dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_POST['bannirpersonne']);
 				dbExecute($base, 'DELETE FROM grades WHERE idalliance=? AND login=?', 'is', $idalliance['idalliance'], $_POST['bannirpersonne']);
-				$information = 'Vous avez banni ' . $_POST['bannirpersonne'] . '.';
+				$information = 'Vous avez banni ' . htmlspecialchars($_POST['bannirpersonne'], ENT_QUOTES, 'UTF-8') . '.';
 			} else {
 				$erreur = "Le joueur que vous essayez de bannir n'existe pas ou n'est pas dans votre équipe.";
 			}
@@ -195,7 +195,7 @@ if ($bannir) {
 if ($pacte) {
 	if (isset($_POST['pacte'])) {
 		csrfCheck();
-		$_POST['pacte'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['pacte'])));
+		$_POST['pacte'] = trim($_POST['pacte']);
 		$ex = dbQuery($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['pacte'], $idalliance['idalliance']);
 		$existeAlliance = mysqli_num_rows($ex);
 		if ($existeAlliance > 0) {
@@ -218,7 +218,7 @@ if ($pacte) {
 				<input type="hidden" value="' . $idDeclaration['id'] . '" name="idDeclaration"/>
 				</form>';
 				dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAllie['chef']);
-				$information = "Vous avez proposé un pacte à l'alliance " . $_POST['pacte'] . ".";
+				$information = "Vous avez proposé un pacte à l'alliance " . htmlspecialchars($_POST['pacte'], ENT_QUOTES, 'UTF-8') . ".";
 			} else {
 				$erreur = "Soit vous êtes déjà allié avec cette équipe, soit vous êtes en guerre avec elle.";
 			}
@@ -249,7 +249,7 @@ if ($pacte) {
 if ($guerre) {
 	if (isset($_POST['guerre'])) {
 		csrfCheck();
-		$_POST['guerre'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['guerre'])));
+		$_POST['guerre'] = trim($_POST['guerre']);
 		$ex = dbQuery($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['guerre'], $idalliance['idalliance']);
 		$existeAlliance = mysqli_num_rows($ex);
 		if ($existeAlliance > 0) {
@@ -267,7 +267,7 @@ if ($guerre) {
 				$rapportTitre = 'L\'alliance ' . $chef['tag'] . ' vous déclare la guerre.';
 				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chef['tag'] . '">' . $chef['tag'] . '</a> vous déclare la guerre.';
 				dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
-				$information = "Vous avez déclaré la guerre à l'équipe " . $_POST['guerre'] . ".";
+				$information = "Vous avez déclaré la guerre à l'équipe " . htmlspecialchars($_POST['guerre'], ENT_QUOTES, 'UTF-8') . ".";
 			} else {
 				$erreur = "Soit une guerre est déjà déclarée contre cette équipe, soit vous êtes alliés avec elle.";
 			}
@@ -301,7 +301,7 @@ if ($inviter) {
 		csrfCheck();
 		if (!empty($_POST['inviterpersonne'])) {
 			if ($nombreJoueurs < $joueursEquipe) {
-				$_POST['inviterpersonne'] = ucfirst(mysqli_real_escape_string($base, stripslashes(antihtml($_POST['inviterpersonne']))));
+				$_POST['inviterpersonne'] = ucfirst(trim($_POST['inviterpersonne']));
 				$joueurExiste = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=?', 's', $_POST['inviterpersonne']);
 
 				$invitationDejaEnvoye = dbCount($base, 'SELECT count(*) as nb FROM invitations WHERE invite=? AND idalliance=?', 'si', $_POST['inviterpersonne'], $idalliance['idalliance']);
@@ -309,7 +309,7 @@ if ($inviter) {
 					if ($joueurExiste > 0) {
 						dbExecute($base, 'INSERT INTO invitations VALUES (default, ?, ?, ?)', 'iss', $idalliance['idalliance'], $chef['tag'], $_POST['inviterpersonne']);
 
-						$information = 'Vous avez invité ' . $_POST['inviterpersonne'] . '';
+						$information = 'Vous avez invité ' . htmlspecialchars($_POST['inviterpersonne'], ENT_QUOTES, 'UTF-8') . '';
 					} else {
 						$erreur = "Ce joueur n'existe pas.";
 					}

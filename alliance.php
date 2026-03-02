@@ -32,8 +32,8 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
     if (!empty($_POST['nomalliance']) and !empty($_POST['tagalliance'])) {
         $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
         if ($idalliance['idalliance'] <= 0) {
-            $_POST['nomalliance'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['nomalliance'])));
-            $_POST['tagalliance'] = mysqli_real_escape_string($base, stripslashes(antihtml($_POST['tagalliance'])));
+            $_POST['nomalliance'] = trim($_POST['nomalliance']);
+            $_POST['tagalliance'] = trim($_POST['tagalliance']);
 
             if (preg_match("#^[a-zA-Z0-9_]{3,16}$#", $_POST['tagalliance'])) {
 
@@ -99,7 +99,10 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
         $currentLevel = intval($allianceData[$techName]);
         $researchCost = round($tech['cost_base'] * pow($tech['cost_factor'], $currentLevel + 1));
 
-        if ($allianceData['energieAlliance'] >= $researchCost) {
+        // FIX FINDING-GAME-013: Enforce alliance research level cap
+        if ($currentLevel >= ALLIANCE_RESEARCH_MAX_LEVEL) {
+            $erreur = "Niveau maximum atteint (" . ALLIANCE_RESEARCH_MAX_LEVEL . ").";
+        } elseif ($allianceData['energieAlliance'] >= $researchCost) {
             $newLevel = $currentLevel + 1;
             $newEnergie = $allianceData['energieAlliance'] - $researchCost;
             dbExecute($base, 'UPDATE alliances SET ' . $techName . '=?, energieAlliance=? WHERE id=?', 'idi', $newLevel, $newEnergie, $idalliance['idalliance']);
@@ -231,7 +234,7 @@ if ($_GET['id'] != -1) {
             $ex = dbQuery($base, 'SELECT login FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $allianceJoueur['id']);
             $grade = mysqli_num_rows($ex);
             $admin = '';
-            if (mysqli_real_escape_string($base, stripslashes(antihtml($allianceJoueur['chef']))) == $_SESSION['login'] or $grade > 0) {
+            if ($allianceJoueur['chef'] == $_SESSION['login'] or $grade > 0) {
                 $admin = '<a href="allianceadmin.php" class="lienSousMenu"><img alt="admin" src="images/alliance/admin.png" title="Administration" class="imageSousMenu"/><br/><span class="labelSousMenu"  style="color:black">Administration</span></a>';
             }
 

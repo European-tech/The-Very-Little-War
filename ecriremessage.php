@@ -6,9 +6,9 @@ include("includes/bbcode.php");
 if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['contenu'])) {
 	csrfCheck();
 	if (!empty($_POST['titre']) and !empty($_POST['destinataire']) and !empty($_POST['contenu'])) {
-		$_POST['titre'] = mysqli_real_escape_string($base, antihtml($_POST['titre']));
-		$_POST['destinataire'] = ucfirst(mysqli_real_escape_string($base, $_POST['destinataire']));
-		$_POST['contenu'] = mysqli_real_escape_string($base, $_POST['contenu']);
+		$_POST['titre'] = trim($_POST['titre']);
+		$_POST['destinataire'] = ucfirst(trim($_POST['destinataire']));
+		$_POST['contenu'] = trim($_POST['contenu']);
 		if ($_POST['destinataire'] == "[alliance]") {
 			$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 			$ex = dbQuery($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
@@ -30,12 +30,10 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				$now = time();
 				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $_POST['destinataire']);
 				$information =  "Le message a bien été envoyé.";
-				echo '
-                <script>
-                document.location.href="messages.php?information=' . $information . '"
-                </script>';
+				header('Location: messages.php');
+			exit();
 			} else {
-				$erreur = 'Le joueur ' . mysqli_real_escape_string($base, stripslashes(antihtml($_POST['destinataire']))) . ' n\'existe pas.';
+				$erreur = 'Le joueur ' . htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8') . ' n\'existe pas.';
 			}
 		}
 	} else {

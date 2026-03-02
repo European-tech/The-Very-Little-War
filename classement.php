@@ -12,7 +12,7 @@ else
 
 
 if(isset($_GET['clas'])) {
-	$_GET['clas'] = mysqli_real_escape_string($base,stripslashes(antihtml($_GET['clas'])));
+	$_GET['clas'] = (int)$_GET['clas'];
 }
 
 // Whitelist the order column for player ranking
@@ -77,7 +77,7 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 
 include("includes/tout.php");
 
-$_GET['sub'] = isset($_GET['sub']) ? mysqli_real_escape_string($base,stripslashes(antihtml($_GET['sub']))) : '0';
+$_GET['sub'] = isset($_GET['sub']) ? (int)$_GET['sub'] : 0;
 debutCarte("Classement"); ?>
 <div class="table-responsive">
 <?php
@@ -132,6 +132,37 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 
 		$allianceJoueur = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 	}
+
+	// Optimization 4: Pre-load alliances, prestige, and declarations to eliminate
+	// the per-row queries (~7 queries * 20 rows = up to 140 queries saved per page).
+	$allianceCache = [];
+	$allianceRows = dbFetchAll($base, 'SELECT id, tag FROM alliances', '');
+	foreach ($allianceRows as $ar) {
+		$allianceCache[(int)$ar['id']] = $ar['tag'];
+	}
+
+	$prestigeCache = [];
+	$prestigeRows = dbFetchAll($base, 'SELECT login, total_pp FROM prestige', '');
+	foreach ($prestigeRows as $pr) {
+		$prestigeCache[$pr['login']] = (int)$pr['total_pp'];
+	}
+
+	// Pre-load war and pact sets for the logged-in player's alliance.
+	$warAllianceIdsClassement = [];
+	$pactAllianceIdsClassement = [];
+	$myAllianceIdClassement = isset($idalliance['idalliance']) ? (int)$idalliance['idalliance'] : 0;
+	if (isset($_SESSION['login']) && $myAllianceIdClassement > 0) {
+		$warsC = dbFetchAll($base, 'SELECT alliance1, alliance2 FROM declarations WHERE type=0 AND (alliance1=? OR alliance2=?) AND fin=0', 'ii', $myAllianceIdClassement, $myAllianceIdClassement);
+		foreach ($warsC as $wc) {
+			$oid = ($wc['alliance1'] == $myAllianceIdClassement) ? (int)$wc['alliance2'] : (int)$wc['alliance1'];
+			$warAllianceIdsClassement[$oid] = true;
+		}
+		$pactsC = dbFetchAll($base, 'SELECT alliance1, alliance2 FROM declarations WHERE type=1 AND (alliance1=? OR alliance2=?) AND valide!=0', 'ii', $myAllianceIdClassement, $myAllianceIdClassement);
+		foreach ($pactsC as $pc) {
+			$oid = ($pc['alliance1'] == $myAllianceIdClassement) ? (int)$pc['alliance2'] : (int)$pc['alliance1'];
+			$pactAllianceIdsClassement[$oid] = true;
+		}
+	}
 	?>
 	<table class="table table-striped table-bordered">
 	<thead>
@@ -151,50 +182,37 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	<tbody>
 	<?php
 	while($donnees = mysqli_fetch_array($classement)){
-		$enGuerre = "#2C2C2C";
-		if($donnees['idalliance'] > 0){
-			$alliance = dbFetchOne($base, 'SELECT tag, id FROM alliances WHERE id=?', 'i', $donnees['idalliance']);
-		}
-		$donnees1 = dbFetchOne($base, 'SELECT id FROM membre WHERE login=?', 's', $donnees['login']);
-
-		$ex4 = dbQuery($base, 'SELECT nombre FROM molecules WHERE proprietaire=? AND nombre!=0', 's', $donnees['login']);
-		$nb_molecules = 0;
-		while($donnees4 = mysqli_fetch_array($ex4)) {
-			$nb_molecules = $nb_molecules + $donnees4['nombre'];
-		}
+		$rowAllianceId = (int) $donnees['idalliance'];
 		$enGuerre = "";
+
 		if(isset($_SESSION['login'])) {
 			if($_SESSION['login'] == $donnees['login'] || (isset($_POST['joueurRecherche']) && $_POST['joueurRecherche']==$donnees['login'])) {
-					$enGuerre = "160,160,160";
+				$enGuerre = "160,160,160";
 			}
 		}
 
-		if(isset($_SESSION['login']) AND $donnees['idalliance'] > 0) {
-			$guerreCount = dbCount($base, 'SELECT count(*) AS estEnGuerre FROM declarations WHERE type=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND fin=0', 'iiii', $alliance['id'], $allianceJoueur['id'], $alliance['id'], $allianceJoueur['id']);
-			if($guerreCount != 0 AND $donnees['idalliance'] != $idalliance['idalliance'] AND $donnees['idalliance'] != 0) {
+		if(isset($_SESSION['login']) AND $rowAllianceId > 0) {
+			if(isset($warAllianceIdsClassement[$rowAllianceId]) AND $rowAllianceId != $myAllianceIdClassement) {
 				$enGuerre = "254,130,130";
 			}
-			$pacteCount = dbCount($base, 'SELECT count(*) AS estEnPacte FROM declarations WHERE type=1 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND valide!=0', 'iiii', $alliance['id'], $allianceJoueur['id'], $alliance['id'], $allianceJoueur['id']);
-			if(($pacteCount != 0 OR $donnees['idalliance'] == $idalliance['idalliance']) AND $donnees['idalliance'] != 0 AND $donnees['login'] != $_SESSION['login']) {
+			if((isset($pactAllianceIdsClassement[$rowAllianceId]) OR $rowAllianceId == $myAllianceIdClassement) AND $donnees['login'] != $_SESSION['login']) {
 				$enGuerre = "156,255,136";
 			}
 		}
+		// Retrieve alliance tag from pre-loaded cache (no DB query per row).
+		$allianceTag = ($rowAllianceId > 0 && isset($allianceCache[$rowAllianceId])) ? $allianceCache[$rowAllianceId] : '';
 		?>
 		<tr style="background-color: rgba(<?php if(isset($enGuerre)) { echo $enGuerre.",0.6)"; }?>;">
 		<td ><?php echo imageClassement($compteur) ; ?></td>
 		<td><?php echo joueur($donnees['login']); ?></td>
 		<td><?php echo number_format($donnees['totalPoints'], 0 , ' ', ' '); ?></td>
-		<td><?php if($donnees['idalliance'] > 0 ) {  echo alliance($alliance['tag']); } ?></td>
+		<td><?php if($rowAllianceId > 0 && $allianceTag !== '') { echo alliance($allianceTag); } ?></td>
 		<td><?php echo chiffrePetit($donnees['points']); ?></td>
 		<td><?php echo chiffrePetit(pointsAttaque($donnees['pointsAttaque'])); ?></td>
 		<td><?php echo chiffrePetit(pointsDefense($donnees['pointsDefense'])); ?></td>
 		<td><?php echo chiffrePetit($donnees['ressourcesPillees']); ?></td>
-		<td><?php $victoires = dbFetchOne($base, 'SELECT victoires FROM autre WHERE login=?', 's', $donnees['login']);
-		echo $victoires['victoires'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireJoueur($compteur).'</span>'; ?></td>
-		<td><?php
-		$prestigeData = dbFetchOne($base, 'SELECT total_pp FROM prestige WHERE login=?', 's', $donnees['login']);
-		echo $prestigeData ? $prestigeData['total_pp'] : 0;
-		?></td>
+		<td><?php echo $donnees['victoires'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireJoueur($compteur).'</span>'; ?></td>
+		<td><?php echo isset($prestigeCache[$donnees['login']]) ? $prestigeCache[$donnees['login']] : 0; ?></td>
 		</tr>
 		<?php $compteur++;
 	}

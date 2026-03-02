@@ -144,7 +144,7 @@ if (isset($_GET['id'])) {
 		debutCarte();
 		debutContent();
 		$forum = dbFetchOne($base, 'SELECT titre FROM forums WHERE id = ?', 'i', $sujet['idforum']);
-		echo '<a href="forum.php">Forum</a> > <a href="listesujets.php?id=' . $sujet['idforum'] . '">' . $forum['titre'] . '</a> > ' . $sujet['titre'];
+		echo '<a href="forum.php">Forum</a> > <a href="listesujets.php?id=' . (int)$sujet['idforum'] . '">' . htmlspecialchars($forum['titre'], ENT_QUOTES, 'UTF-8') . '</a> > ' . htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8');
 		finContent();
 		finCarte();
 
@@ -152,7 +152,7 @@ if (isset($_GET['id'])) {
 		if (isset($_SESSION['login']) and $_SESSION['login'] == $sujet['auteur']) {
 			$editer = '<a href="editer.php?id=' . $sujet['id'] . '&type=1">Editer</a>';
 		}
-		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . $sujet['auteur'] . '">' . $sujet['auteur'] . '</a>', date('d/m/Y à H\hi', $sujet['timestamp']), $sujet['titre'], BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
+		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . htmlspecialchars($sujet['auteur'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($sujet['auteur'], ENT_QUOTES, 'UTF-8') . '</a>', date('d/m/Y à H\hi', $sujet['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
 
 
 		if ($nb_resultats > 0) {
@@ -192,7 +192,7 @@ if (isset($_GET['id'])) {
 					}
 				}
 
-				carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . $reponse['auteur'] . '">' . $reponse['auteur'] . '</a>', date('d/m/Y à H\hi', $reponse['timestamp']), $sujet['titre'], BBcode($reponse['contenu'], $javascript), $couleur, $editer);
+				carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . htmlspecialchars($reponse['auteur'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($reponse['auteur'], ENT_QUOTES, 'UTF-8') . '</a>', date('d/m/Y à H\hi', $reponse['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($reponse['contenu'], $javascript), $couleur, $editer);
 			}
 		} else {
 			debutCarte();

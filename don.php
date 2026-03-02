@@ -30,7 +30,8 @@ if(isset($_POST['energieEnvoyee'])) {
 					$newEnergieTotale = $ressourcesAlliance['energieTotaleRecue'] + $_POST['energieEnvoyee'];
 					dbExecute($base, 'UPDATE alliances SET energieAlliance=?, energieTotaleRecue=? WHERE id=?', 'ddi', $newEnergieAlliance, $newEnergieTotale, $idalliance['idalliance']);
 					$information = "Le don a bien été reçu !";
-                    echo '<script>document.location.href=\'alliance.php?information='.$information.'\';</script>';
+                    header('Location: alliance.php?information=' . urlencode($information));
+                    exit();
 				}
 				else {
 					$erreur = "Vous n'avez pas assez d'energie.";

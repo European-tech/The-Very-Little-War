@@ -13,7 +13,7 @@ else
 include("includes/tout.php");
 
 if(isset($_GET['sub'])) {
-	$_GET['sub'] = mysqli_real_escape_string($base,stripslashes(antihtml($_GET['sub'])));
+	$_GET['sub'] = htmlspecialchars(trim($_GET['sub']), ENT_QUOTES, 'UTF-8');
 }
 if(isset($_POST['numeropartie'])) {
 	$_POST['numeropartie'] = intval($_POST['numeropartie']);
@@ -38,7 +38,7 @@ debutCarte();
     while ($data = mysqli_fetch_array($ex2)) {
         $s = "";
         if($_POST['numeropartie'] == $data['id']) {$s = "selected";}
-        $options = $options.'<option value='.$data['id'].' '.$s.'>'.date('m/Y',$data['debut']).'</option>';
+        $options = $options.'<option value="'.(int)$data['id'].'" '.$s.'>'.date('m/Y',$data['debut']).'</option>';
     }
 
     item(['select' => ["numeropartie",$options]]);

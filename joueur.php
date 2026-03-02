@@ -60,7 +60,7 @@ if (isset($_GET['id'])) {
             $rang++;
         }
         echo chipInfo('<span class="important">Rang : </span>'.imageClassement($rang),'images/alliance/up.png').'<br/>';
-        echo chip('<span class="important">Nom : </span>'.$membre['login'],'<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
+        echo chip('<span class="important">Nom : </span>'.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8'),'<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
         echo chip('<span class="important">Equipe : </span>'.$alliance,'<img alt="coupe" src="images/classement/alliance.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
         echo nombrePoints('<span class="important">Points : </span>'.$donnees1['totalPoints']).'<br/>';
 		echo chip('<span class="important">Victoires : </span>'.$donnees1['victoires'],'<img alt="coupe" src="images/classement/victoires.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
@@ -71,12 +71,12 @@ if (isset($_GET['id'])) {
         $fin = false;
 		if(isset($_SESSION['login'])) {
             if($membre['x'] != -1000 && $_SESSION['login'] != $membre['login']){
-			     $fin = '<a href="attaquer.php?id='.$membre['login'].'&type=1" class="lienSousMenu"><img src="images/classement/adversaires.png" class="imageSousMenu" alt="attaquer" title="Attaquer"/><br/><span class="labelSousMenu"  style="color:black">Attaquer</span></a>
-                <a href="attaquer.php?id='.$membre['login'].'&type=2" class="lienSousMenu"><img src="images/rapports/binoculars.png" class="imageSousMenu" alt="attaquer" title="Espionner"/><br/><span class="labelSousMenu"  style="color:black">Espionner</span></a>';
+			     $fin = '<a href="attaquer.php?id='.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8').'&type=1" class="lienSousMenu"><img src="images/classement/adversaires.png" class="imageSousMenu" alt="attaquer" title="Attaquer"/><br/><span class="labelSousMenu"  style="color:black">Attaquer</span></a>
+                <a href="attaquer.php?id='.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8').'&type=2" class="lienSousMenu"><img src="images/rapports/binoculars.png" class="imageSousMenu" alt="attaquer" title="Espionner"/><br/><span class="labelSousMenu"  style="color:black">Espionner</span></a>';
             }
 
-            $fin = $fin.'<a href="ecriremessage.php?destinataire='.$membre['login'].'" class="lienSousMenu"><img src="images/message_ferme.png" class="imageSousMenu" alt="attaquer" title="Ecrire un message"/><br/><span class="labelSousMenu"  style="color:black">Message</span></a>
-            <a href="medailles.php?login='.$membre['login'].'" class="lienSousMenu"><img src="images/medailles.png" class="imageSousMenu" alt="attaquer" title="Médailles"/><br/><span class="labelSousMenu"  style="color:black">Médailles</span></a>';
+            $fin = $fin.'<a href="ecriremessage.php?destinataire='.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8').'" class="lienSousMenu"><img src="images/message_ferme.png" class="imageSousMenu" alt="attaquer" title="Ecrire un message"/><br/><span class="labelSousMenu"  style="color:black">Message</span></a>
+            <a href="medailles.php?login='.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8').'" class="lienSousMenu"><img src="images/medailles.png" class="imageSousMenu" alt="attaquer" title="Médailles"/><br/><span class="labelSousMenu"  style="color:black">Médailles</span></a>';
             echo '<br/><br/>'.important("Actions");
 		}
         
