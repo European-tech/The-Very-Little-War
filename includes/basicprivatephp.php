@@ -219,9 +219,6 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
     $debutRow2 = dbFetchOne($base, 'SELECT debut FROM statistiques');
     $debut = $debutRow2;
     $now = time();
-    $chaineEscaped = mysqli_real_escape_string($base, $chaine);
-    $chaine1Escaped = mysqli_real_escape_string($base, $chaine1);
-    $chaine2Escaped = mysqli_real_escape_string($base, $chaine2);
     dbExecute($base, 'INSERT INTO parties VALUES(default, ?, ?, ?, ?)', 'isss', $now, $chaine, $chaine1, $chaine2);
     remiseAZero();
 
