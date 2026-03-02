@@ -50,7 +50,10 @@ function updateTargetResources($targetPlayer)
     while ($molecules = mysqli_fetch_array($exResult)) {
         $compteurClasse++;
         $moleculesRestantes = pow(coefDisparition($targetPlayer, $compteurClasse), $nbsecondesAdverse) * $molecules['nombre'];
-
+        $decayed = $molecules['nombre'] - $moleculesRestantes;
+        if ($decayed > 0) {
+            dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $decayed, $targetPlayer);
+        }
         dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $moleculesRestantes, $molecules['id']);
     }
 }

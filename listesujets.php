@@ -62,12 +62,9 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 	$nb_resultats = dbCount($base, 'SELECT count(*) FROM sujets WHERE idforum = ?', 'i', $getId);
 	$nombreDeSujetsParPage = 10;
 	$nombreDePages  = ceil($nb_resultats / $nombreDeSujetsParPage);
-	if (isset($_GET['page']) and $_GET['page'] <= $nombreDePages and $_GET['page'] > 0 and preg_match("#\d#", $_GET['page'])) // Quelques vérifications comme si la variable ne contient qu'une suite de chiffres
-	{
-		$page = $_GET['page']; // Récuperation du numéro de la page
-	} else // La variable n'existe pas, c'est la première fois qu'on charge la page
-	{
-		$page = 1; // On se met sur la page 1 (par défaut)
+	$page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+	if ($page < 1 || $page > $nombreDePages) {
+		$page = 1;
 	}
 
 	// On calcule le numéro du premier message qu'on prend pour le LIMIT de MySQL

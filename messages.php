@@ -42,13 +42,9 @@ else {
 	$nombreDePages  = ceil($totalDesMessages / $nombreDeMessagesParPage); // Calcul du nombre de pages créées
 	// Puis on fait une boucle pour écrire les liens vers chacune des pages
 
-	if (isset($_GET['page']) AND $_GET['page'] <= $nombreDePages AND $_GET['page'] > 0 AND preg_match("#\d#",$_GET['page']))// Quelques vérifications comme si la variable ne contient qu'une suite de chiffres
-	{
-        $page = $_GET['page']; // Récuperation du numéro de la page
-	}
-	else // La variable n'existe pas, c'est la première fois qu'on charge la page
-	{
-        $page = 1; // On se met sur la page 1 (par défaut)
+	$page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+	if ($page < 1 || $page > $nombreDePages) {
+		$page = 1;
 	}
 
 	// On calcule le numéro du premier message qu'on prend pour le LIMIT de MySQL

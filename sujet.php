@@ -44,16 +44,9 @@ if (isset($_GET['id'])) {
 	$nb_resultats = mysqli_num_rows($ex);
 	$nombreDeSujetsParPage = 10;
 	$nombreDePages  = ceil($nb_resultats / $nombreDeSujetsParPage);
-	if (isset($_GET['page']) and $_GET['page'] <= $nombreDePages and $_GET['page'] > 0 and preg_match("#\d#", $_GET['page'])) // Quelques vérifications comme si la variable ne contient qu'une suite de chiffres
-	{
-		$page = $_GET['page']; // Récuperation du numéro de la page
-	} else // La variable n'existe pas, c'est la première fois qu'on charge la page
-	{
-		if ($nombreDePages > 0) {
-			$page = $nombreDePages;
-		} else {
-			$page = 1;
-		}
+	$page = isset($_GET['page']) ? intval($_GET['page']) : 0;
+	if ($page < 1 || $page > $nombreDePages) {
+		$page = ($nombreDePages > 0) ? $nombreDePages : 1;
 	}
 
 	// On calcule le numéro du premier message qu'on prend pour le LIMIT de MySQL

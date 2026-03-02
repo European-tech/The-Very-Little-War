@@ -164,7 +164,17 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                     $erreur = "Vous n'avez pas assez de place dans votre stockage.";
                 } else {
                     try {
-                        withTransaction($base, function() use ($base, $diffEnergieAchat, $newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $coutAchat) {
+                        withTransaction($base, function() use ($base, &$diffEnergieAchat, &$newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $coutAchat) {
+                            // Re-read resources with lock to prevent race condition
+                            $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                            $diffEnergieAchat = $locked['energie'] - $coutAchat;
+                            if ($diffEnergieAchat < 0) {
+                                throw new Exception('NOT_ENOUGH_ENERGY');
+                            }
+                            $newResVal = $locked['res'] + $_POST['nombreRessourceAAcheter'];
+                            if ($newResVal > $placeDepot) {
+                                throw new Exception('NOT_ENOUGH_STORAGE');
+                            }
                             // $nomsRes[$numRes] is a server-side resource name, not user input
                             $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
                             if ($stmt) {
@@ -220,8 +230,14 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                         $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                         $tabCours = explode(",", $val['tableauCours']);
                     } catch (Exception $e) {
-                        $erreur = "Une erreur est survenue lors de l'achat. Veuillez réessayer.";
-                        error_log('Market buy transaction failed: ' . $e->getMessage());
+                        if ($e->getMessage() === 'NOT_ENOUGH_ENERGY') {
+                            $erreur = "Vous n'avez pas assez d'énergie.";
+                        } elseif ($e->getMessage() === 'NOT_ENOUGH_STORAGE') {
+                            $erreur = "Vous n'avez pas assez de place dans votre stockage.";
+                        } else {
+                            $erreur = "Une erreur est survenue lors de l'achat. Veuillez réessayer.";
+                            error_log('Market buy transaction failed: ' . $e->getMessage());
+                        }
                     }
                 } // end else (storage check)
             } else {
@@ -259,7 +275,18 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                 $newResVal = $ressources[$nomsRes[$numRes]] - $_POST['nombreRessourceAVendre'];
                 $energyGained = round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'] * $sellTaxRate);
                 try {
-                    withTransaction($base, function() use ($base, $newEnergie, $newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot) {
+                    withTransaction($base, function() use ($base, &$newEnergie, &$newResVal, &$energyGained, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $sellTaxRate) {
+                        // Re-read resources with lock to prevent race condition
+                        $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                        if ($locked['res'] < $_POST['nombreRessourceAVendre']) {
+                            throw new Exception('NOT_ENOUGH_ATOMS');
+                        }
+                        $newResVal = $locked['res'] - $_POST['nombreRessourceAVendre'];
+                        $energyGained = round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'] * $sellTaxRate);
+                        $newEnergie = $locked['energie'] + $energyGained;
+                        if ($newEnergie > $placeDepot) {
+                            $newEnergie = $placeDepot;
+                        }
                         // $nomsRes[$numRes] is a server-side resource name
                         $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
                         if ($stmt) {
@@ -292,6 +319,21 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
 
                         $now = time();
                         dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
+
+                        // Award trade points on sell (mirror buy logic)
+                        $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
+                        $tradeVolume = round($energyGained * $reseauBonus);
+                        $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', 's', $_SESSION['login']);
+                        $oldVolume = $autreData['tradeVolume'] ?? 0;
+                        $newVolume = $oldVolume + $tradeVolume;
+                        $oldTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($oldVolume)));
+                        $newTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($newVolume)));
+                        $pointsDelta = $newTradePoints - $oldTradePoints;
+                        if ($pointsDelta > 0) {
+                            dbExecute($base, 'UPDATE autre SET tradeVolume=?, totalPoints=? WHERE login=?', 'dds', $newVolume, ($autreData['totalPoints'] + $pointsDelta), $_SESSION['login']);
+                        } else {
+                            dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
+                        }
                     });
                     logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $_POST['nombreRessourceAVendre'], 'energy_gained' => $energyGained]);
                     $safeResName = $nomsRes[$numRes]; // server-side validated resource name
@@ -300,8 +342,12 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                     $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                     $tabCours = explode(",", $val['tableauCours']);
                 } catch (Exception $e) {
-                    $erreur = "Une erreur est survenue lors de la vente. Veuillez réessayer.";
-                    error_log('Market sell transaction failed: ' . $e->getMessage());
+                    if ($e->getMessage() === 'NOT_ENOUGH_ATOMS') {
+                        $erreur = "Vous n'avez pas assez d'atomes.";
+                    } else {
+                        $erreur = "Une erreur est survenue lors de la vente. Veuillez réessayer.";
+                        error_log('Market sell transaction failed: ' . $e->getMessage());
+                    }
                 }
             } else {
                 $erreur = "Vous n'avez pas assez d'atomes.";

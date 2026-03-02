@@ -70,7 +70,7 @@ if (isset($_POST['nombreneutrinos']) and !empty($_POST['nombreneutrinos'])) {
             dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $_SESSION['login']);
             $autre['neutrinos'] += $_POST['nombreneutrinos'];
 
-            $newEnergie = $ressources['energie'] - $_POST['nombreneutrinos'] * $coutNeutrino;
+            $newEnergie = max(0, $ressources['energie'] - $_POST['nombreneutrinos'] * $coutNeutrino);
             dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $newEnergie, $_SESSION['login']);
             $newEnergieDepensee = $autre['energieDepensee'] + $_POST['nombreneutrinos'] * $coutNeutrino;
             dbExecute($base, 'UPDATE autre SET energieDepensee=? WHERE login=?', 'ds', $newEnergieDepensee, $_SESSION['login']);
@@ -216,7 +216,7 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
                         mysqli_stmt_close($stmt);
                     }
 
-                    $newEnergie = $cout['energie'] - coutClasse($cout['niveauclasse']);
+                    $newEnergie = max(0, $cout['energie'] - coutClasse($cout['niveauclasse']));
                     dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $newEnergie, $_SESSION['login']);
 
                     $information = "Une nouvelle classe de molécule a été créée.";

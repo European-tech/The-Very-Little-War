@@ -24,8 +24,6 @@ define('MAX_MOLECULE_CLASSES', 4);       // 4 classes per player
 define('MAX_ATOMS_PER_ELEMENT', 200);    // max atoms of one type in a molecule
 define('MAX_ALLIANCE_MEMBERS', 20);      // $joueursEquipe
 define('BEGINNER_PROTECTION_SECONDS', 5 * SECONDS_PER_DAY); // 432000 = 5 days
-define('NEW_PLAYER_BOOST_DURATION', 3 * SECONDS_PER_DAY); // 259200 = 3 days of 2x production
-define('NEW_PLAYER_BOOST_MULTIPLIER', 2); // production multiplier during boost period
 define('ABSENCE_REPORT_THRESHOLD_HOURS', 6); // hours offline before loss report
 define('ONLINE_TIMEOUT_SECONDS', 300);   // 60 * 5 = 5 minutes for online status
 define('VICTORY_POINTS_TOTAL', 1000);    // $nbPointsVictoire

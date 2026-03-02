@@ -202,7 +202,7 @@ $degatsAttaquant = 0;
 $degatsDefenseur = 0;
 for ($c = 1; $c <= 4; $c++) {
 	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * 2) / 100)) * $bonusDuplicateurAttaque * $catalystAttackBonus * ${'classeAttaquant' . $c}['nombre'];
-	$defBonusForClass = $defReactionDefenseBonus; // FIX: removed $defIsotopeAttackMod and $formationDefenseBonus (embuscade now boosts $degatsDefenseur directly)
+	$defBonusForClass = $defReactionDefenseBonus * $defIsotopeAttackMod[$c]; // Apply defender isotope modifier to defense output
 	// Phalange: class 1 gets extra defense bonus
 	if ($defenderFormation == FORMATION_PHALANGE && $c == 1) {
 		$defBonusForClass *= (1.0 + FORMATION_PHALANX_DEFENSE_BONUS);

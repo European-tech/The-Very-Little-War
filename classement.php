@@ -101,13 +101,9 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	$totalDesJoueurs = $donnees['nb_joueurs'];
 	$nombreDePages  = ceil($totalDesJoueurs / $nombreDeJoueursParPage); // Calcul du nombre de pages créées
 
-	if (isset($_GET['page']) AND $_GET['page'] <= $nombreDePages AND $_GET['page'] > 0 AND preg_match("#\d#",$_GET['page']))
-	{
-        $page = $_GET['page'];
-	}
-	else
-	{
-        $page = $pageParDefaut;
+	$page = isset($_GET['page']) ? intval($_GET['page']) : $pageParDefaut;
+	if ($page < 1 || $page > $nombreDePages) {
+		$page = $pageParDefaut;
 	}
 
 	$premierJoueurAafficher = ($page - 1) * $nombreDeJoueursParPage;
@@ -270,13 +266,9 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 	$totalDesAlliances = $retour['nb_alliances'];
 	$nombreDePages  = ceil($totalDesAlliances / $nombreDeAlliancesParPage);
 
-	if (isset($_GET['page']) AND $_GET['page'] <= $nombreDePages AND $_GET['page'] > 0 AND preg_match("#\d#",$_GET['page']))
-	{
-        $page = $_GET['page'];
-	}
-	else
-	{
-        $page = 1;
+	$page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+	if ($page < 1 || $page > $nombreDePages) {
+		$page = 1;
 	}
 
 	$premiereAllianceAafficher = ($page - 1) * $nombreDeAlliancesParPage;
@@ -429,13 +421,9 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 	$totalDesGuerres = $retour['nb_guerres'];
 	$nombreDePages  = ceil($totalDesGuerres / $nombreDeGuerresParPage);
 
-	if (isset($_GET['page']) AND $_GET['page'] <= $nombreDePages AND $_GET['page'] > 0 AND preg_match("#\d#",$_GET['page']))
-	{
-        $page = $_GET['page'];
-	}
-	else
-	{
-        $page = 1;
+	$page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+	if ($page < 1 || $page > $nombreDePages) {
+		$page = 1;
 	}
 
 	$premiereGuerreAafficher = ($page - 1) * $nombreDeGuerresParPage;
@@ -512,13 +500,9 @@ else {
 	$totalDesMembres = $nbMembres['nbMembres'];
 	$nombreDePages  = ceil($totalDesMembres / $nombreDeForumParPage);
 
-	if (isset($_GET['page']) AND $_GET['page'] <= $nombreDePages AND $_GET['page'] > 0 AND preg_match("#\d#",$_GET['page']))
-	{
-        $page = $_GET['page'];
-	}
-	else
-	{
-        $page = 1;
+	$page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+	if ($page < 1 || $page > $nombreDePages) {
+		$page = 1;
 	}
 
 	$premierForumAafficher = ($page - 1) * $nombreDeForumParPage;

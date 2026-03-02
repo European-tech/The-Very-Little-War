@@ -32,9 +32,14 @@ if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST
 		// On vérifie que le joueur existe
 		if ($nb > 0) {
 			// Convertion de la date au format anglais
-			list($jour, $mois, $annee) = explode('/', $_POST['dateFin']);
-			$date = $annee . '-' . $mois . '-' . $jour;
-			dbExecute($base, 'INSERT INTO sanctions VALUES (default, ?, CURRENT_DATE, ?, ?, ?)', 'ssss', $_POST['pseudo'], $date, $_POST['motif'], $_SESSION['login']);
+			$parts = explode('/', $_POST['dateFin']);
+			if (count($parts) !== 3 || !checkdate((int)$parts[1], (int)$parts[0], (int)$parts[2])) {
+				$erreur = "<strong>Erreur</strong> : Date invalide.";
+			} else {
+				list($jour, $mois, $annee) = $parts;
+				$date = $annee . '-' . $mois . '-' . $jour;
+				dbExecute($base, 'INSERT INTO sanctions VALUES (default, ?, CURRENT_DATE, ?, ?, ?)', 'ssss', $_POST['pseudo'], $date, $_POST['motif'], $_SESSION['login']);
+			}
 		} else {
 			$erreur = "<strong>Erreur</strong> : Ce joueur n'existe pas.";
 		}
