@@ -83,6 +83,8 @@ class CsrfTest extends TestCase
         // Both should be valid tokens
         $this->assertEquals(64, strlen($token1));
         $this->assertEquals(64, strlen($token2));
+        // Clearing session must produce a different token
+        $this->assertNotEquals($token1, $token2);
     }
 
     // =========================================================================

@@ -353,7 +353,7 @@ if ($gradeChef) {
 	$options = '';
 	$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
 	while ($chef1 = mysqli_fetch_array($ex2)) {
-		$options = $options . '<option value=' . $chef1['login'] . '>' . $chef1['login'] . '</option>';
+		$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 	}
 	item(['form' => ["allianceadmin.php", "formChangerChef"], 'select' => ['changerchef', $options], 'titre' => 'Chef', 'input' => csrfField()]);
 	item(['input' => submit(['titre' => 'Changer', 'form' => 'formChangerChef'])]);
@@ -364,7 +364,7 @@ if ($bannir) {
 	$options = '';
 	$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
 	while ($chef1 = mysqli_fetch_array($ex2)) {
-		$options = $options . '<option value=' . $chef1['login'] . '>' . $chef1['login'] . '</option>';
+		$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 	}
 	item(['form' => ["allianceadmin.php", "bannir"], 'select' => ['bannirpersonne', $options], 'titre' => 'Bannir un membre', 'input' => csrfField()]);
 	item(['input' => submit(['titre' => 'Bannir', 'form' => 'bannir'])]);
@@ -397,7 +397,7 @@ if ($gradeChef) {
 		$options = '';
 		$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
 		while ($chef1 = mysqli_fetch_array($ex2)) {
-			$options = $options . '<option value=' . $chef1['login'] . '>' . $chef1['login'] . '</option>';
+			$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 		}
 		item(['select' => ['personnegrade', $options], 'titre' => 'Login du gradé']);
 		finListe();

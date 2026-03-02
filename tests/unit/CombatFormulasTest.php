@@ -498,24 +498,23 @@ class CombatFormulasTest extends TestCase
 
     public function testDecayCoefficientMatchesConstants(): void
     {
-        // Verify using config constants: DECAY_ATOM_DIVISOR=150, DECAY_POWER_DIVISOR=25000
-        // STABILISATEUR_BONUS_PER_LEVEL=0.015
+        // Pin the config-based formula to a pre-computed numeric result
+        // so the test catches regressions if constants change.
+        // With DECAY_BASE=0.99, DECAY_ATOM_DIVISOR=150, DECAY_POWER_DIVISOR=25000,
+        // STABILISATEUR_BONUS_PER_LEVEL=0.015, nbAtomes=300, stabLevel=5:
         $nbAtomes = 300;
-        $innerPow = pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR;
-        $basePow = pow(DECAY_BASE, $innerPow);
         $stabLevel = 5;
-        $reductionFactor = 1 * (1 - $stabLevel * STABILISATEUR_BONUS_PER_LEVEL);
-        $expected = pow($basePow, $reductionFactor);
-
-        // The helper uses hardcoded 100/5000/0.005; this test uses the actual constants
-        $this->assertEqualsWithDelta(
-            $expected,
-            pow(
-                pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR),
-                1 * (1 - $stabLevel * STABILISATEUR_BONUS_PER_LEVEL)
-            ),
-            0.0000001
+        $result = pow(
+            pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR),
+            1 * (1 - $stabLevel * STABILISATEUR_BONUS_PER_LEVEL)
         );
+
+        // Pre-computed expected value — will break if constants change (intentional)
+        $this->assertEqualsWithDelta(0.999996653243761, $result, 0.000000001);
+
+        // Sanity: decay coefficient must be in (0, 1)
+        $this->assertGreaterThan(0, $result);
+        $this->assertLessThan(1, $result);
     }
 
     // =========================================================================
