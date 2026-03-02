@@ -195,6 +195,19 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                     dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
 
                     logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
+                    // Award trade volume points
+                    $tradeVolume = $_POST['nombreRessourceAAcheter'];
+                    $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', 's', $_SESSION['login']);
+                    $oldVolume = $autreData['tradeVolume'] ?? 0;
+                    $newVolume = $oldVolume + $tradeVolume;
+                    $oldTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($oldVolume)));
+                    $newTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($newVolume)));
+                    $pointsDelta = $newTradePoints - $oldTradePoints;
+                    if ($pointsDelta > 0) {
+                        dbExecute($base, 'UPDATE autre SET tradeVolume=?, totalPoints=? WHERE login=?', 'dds', $newVolume, ($autreData['totalPoints'] + $pointsDelta), $_SESSION['login']);
+                    } else {
+                        dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
+                    }
                     $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAAcheter'] . ".png\" alt=\"" . $_POST['typeRessourceAAcheter'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
 
                     $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
@@ -263,6 +276,19 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                 dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
 
                 logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $_POST['nombreRessourceAVendre'], 'energy_gained' => round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'])]);
+                    // Award trade volume points
+                    $tradeVolume = $_POST['nombreRessourceAVendre'];
+                    $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', 's', $_SESSION['login']);
+                    $oldVolume = $autreData['tradeVolume'] ?? 0;
+                    $newVolume = $oldVolume + $tradeVolume;
+                    $oldTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($oldVolume)));
+                    $newTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($newVolume)));
+                    $pointsDelta = $newTradePoints - $oldTradePoints;
+                    if ($pointsDelta > 0) {
+                        dbExecute($base, 'UPDATE autre SET tradeVolume=?, totalPoints=? WHERE login=?', 'dds', $newVolume, ($autreData['totalPoints'] + $pointsDelta), $_SESSION['login']);
+                    } else {
+                        dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
+                    }
                 $information = "Vous avez vendu " . number_format($_POST['nombreRessourceAVendre'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAVendre'] . ".png\" alt=\"" . $_POST['typeRessourceAVendre'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAVendre']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
 
                 $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');

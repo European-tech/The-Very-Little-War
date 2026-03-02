@@ -262,11 +262,16 @@ define('NEUTRINO_COST', 50);     // energy per neutrino ($coutNeutrino)
 // =============================================================================
 // MARKET
 // =============================================================================
-define('MARKET_VOLATILITY_FACTOR', 0.3); // $volatilite = 0.3 / nbActifs
+define('MARKET_VOLATILITY_FACTOR', 0.5); // $volatilite = 0.3 / nbActifs
 define('MARKET_PRICE_FLOOR', 0.1);       // minimum price any resource can reach
 define('MARKET_PRICE_CEILING', 10.0);    // maximum price any resource can reach
 define('MARKET_MEAN_REVERSION', 0.01);   // 1% pull toward baseline price per trade
 define('MERCHANT_SPEED', 20);    // cases per hour ($vitesseMarchands)
+
+// Market trading points: contribute to totalPoints via trade volume
+// Points awarded = floor(MARKET_POINTS_SCALE * sqrt(totalTradeVolume))
+define('MARKET_POINTS_SCALE', 2.0);        // sqrt scaling for trade volume points
+define('MARKET_POINTS_MAX', 40);           // cap on market points contribution to totalPoints
 
 // =============================================================================
 // ALLIANCE / DUPLICATEUR
