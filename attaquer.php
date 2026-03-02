@@ -39,7 +39,7 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                 dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $_SESSION['login']);
                 $autre['neutrinos'] -= $_POST['nombreneutrinos'];
 
-                $information = 'Vous avez lancé l\'espionnage de ' . $_POST['joueurAEspionner'] . ' !';
+                $information = 'Vous avez lancé l\'espionnage de ' . htmlspecialchars($_POST['joueurAEspionner'], ENT_QUOTES, 'UTF-8') . ' !';
             } else {
                 $erreur = "Le nombre de neutrinos n'est pas valable.";
             }
@@ -355,7 +355,8 @@ if ($_GET['type'] == 0) {
                         $border = 'lightgray 1px';
                     }
 
-                    echo '<a href="joueur.php?id=' . $carte[$i][$j][1] . '"><img src="images/carte/' . $image . '" style="position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;outline:' . $border . ' solid;width:' . $tailleTile . 'px;height:' . $tailleTile . 'px;" /></a><span style="text-align:center;position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;width:' . $tailleTile . 'px;opacity:0.7;background-color:black;color:white;">' . $carte[$i][$j][1] . '</span>';
+                    $safeMapLogin = htmlspecialchars($carte[$i][$j][1], ENT_QUOTES, 'UTF-8');
+                    echo '<a href="joueur.php?id=' . $safeMapLogin . '"><img src="images/carte/' . $image . '" style="position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;outline:' . $border . ' solid;width:' . $tailleTile . 'px;height:' . $tailleTile . 'px;" /></a><span style="text-align:center;position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;width:' . $tailleTile . 'px;opacity:0.7;background-color:black;color:white;">' . $safeMapLogin . '</span>';
                 } else {
                     echo '<img src="images/carte/rien.png" style="position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;outline:lightgray 1px solid" />';
                 }

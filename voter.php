@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once("includes/session_init.php");
 include("includes/connexion.php");
 require_once("includes/database.php");
 require_once("includes/csrf.php");
@@ -9,14 +9,21 @@ if (!isset($_SESSION['login'])) {
     exit(json_encode(["erreur" => true]));
 }
 
+// Validate session token against DB
+$row = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
+if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !hash_equals($row['session_token'], $_SESSION['session_token'])) {
+    session_destroy();
+    exit(json_encode(["erreur" => true]));
+}
+
 // Accept both GET (legacy) and POST, require CSRF on POST
 $reponse = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrfCheck();
-    $reponse = $_POST['reponse'] ?? null;
+    $reponse = intval($_POST['reponse'] ?? 0);
 } elseif (isset($_GET['reponse'])) {
     // Legacy GET support — will be removed in future
-    $reponse = $_GET['reponse'];
+    $reponse = intval($_GET['reponse']);
 }
 
 if (!empty($reponse)) {

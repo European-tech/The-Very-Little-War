@@ -332,10 +332,12 @@ if ($nb > 0) {
 
     while ($actionsenvoi = mysqli_fetch_array($ex)) {
 
+        $safeReceveur = htmlspecialchars($actionsenvoi['receveur'], ENT_QUOTES, 'UTF-8');
+        $safeEnvoyeur = htmlspecialchars($actionsenvoi['envoyeur'], ENT_QUOTES, 'UTF-8');
         if ($_SESSION['login'] == $actionsenvoi['envoyeur']) { // faire si retour ou non
-            echo '<tr><td><img src="images/rapports/envoi.png" class="imageChip" alt="fleche"/></td><td><a href="joueur.php?id=' . $actionsenvoi['receveur'] . '">' . $actionsenvoi['receveur'] . '</a></td><td id="affichage' . $actionsenvoi['id'] . '">' . affichageTemps($actionsenvoi['tempsArrivee'] - time()) . '</td></tr>';
+            echo '<tr><td><img src="images/rapports/envoi.png" class="imageChip" alt="fleche"/></td><td><a href="joueur.php?id=' . $safeReceveur . '">' . $safeReceveur . '</a></td><td id="affichage' . $actionsenvoi['id'] . '">' . affichageTemps($actionsenvoi['tempsArrivee'] - time()) . '</td></tr>';
         } else {
-            echo '<tr><td><img src="images/rapports/retour.png" class="imageChip" alt="fleche"/></td><td><a href="joueur.php?id=' . $actionsenvoi['envoyeur'] . '">' . $actionsenvoi['envoyeur'] . '</a></td><td id="affichage' . $actionsenvoi['id'] . '">' . affichageTemps($actionsenvoi['tempsArrivee'] - time()) . '</td></tr>';
+            echo '<tr><td><img src="images/rapports/retour.png" class="imageChip" alt="fleche"/></td><td><a href="joueur.php?id=' . $safeEnvoyeur . '">' . $safeEnvoyeur . '</a></td><td id="affichage' . $actionsenvoi['id'] . '">' . affichageTemps($actionsenvoi['tempsArrivee'] - time()) . '</td></tr>';
         }
         echo '
                 <script>
