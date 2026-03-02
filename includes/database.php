@@ -97,3 +97,25 @@ function dbCount($base, $sql, $types = "", ...$params) {
     if (!$row) return 0;
     return (int) reset($row);
 }
+
+/**
+ * Execute a callable inside a database transaction.
+ * Automatically commits on success or rolls back on Exception.
+ *
+ * Usage:
+ *   $result = withTransaction($base, function() use ($base, ...) {
+ *       dbExecute($base, ...);
+ *       return $someValue;
+ *   });
+ */
+function withTransaction($base, callable $fn) {
+    mysqli_begin_transaction($base);
+    try {
+        $result = $fn();
+        mysqli_commit($base);
+        return $result;
+    } catch (Exception $e) {
+        mysqli_rollback($base);
+        throw $e;
+    }
+}

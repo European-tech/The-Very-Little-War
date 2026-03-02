@@ -4,7 +4,9 @@
  * Stores rate limit data in /tmp/tvlw_rates/
  */
 
-define('RATE_LIMIT_DIR', '/tmp/tvlw_rates');
+if (!defined('RATE_LIMIT_DIR')) {
+    define('RATE_LIMIT_DIR', '/tmp/tvlw_rates');
+}
 
 function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
     $dir = RATE_LIMIT_DIR;

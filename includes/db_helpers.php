@@ -4,28 +4,35 @@
  * Legacy database helper wrappers and lookup functions.
  */
 
-function query($truc)
-{
-    global $base;
-    $ex = mysqli_query($base, $truc);
-    if (!$ex) {
-        error_log('SQL Error: ' . mysqli_error($base) . ' | Query: ' . $truc);
-        return false;
-    }
-    return $ex;
-}
-
 function ajouter($champ, $bdd, $nombre, $joueur)
 {
     global $base;
-    $d = dbFetchOne($base, "SELECT $champ FROM $bdd WHERE login=?", 's', $joueur);
+    // Whitelist allowed column/table names to prevent SQL injection
+    static $allowedColumns = null;
+    static $allowedTables = ['autre', 'ressources'];
+    if ($allowedColumns === null) {
+        global $nomsRes;
+        $allowedColumns = array_merge(
+            ['victoires', 'energieDonnee', 'neutrinos', 'moleculesPerdues', 'totalPoints',
+             'pointsAttaque', 'pointsDefense', 'pointsPillage', 'pointsEspionnage',
+             'pointsMolecule', 'pointsBatiment', 'pointsNbMolecule', 'tradeVolume',
+             'nbattaques', 'nbdefenses', 'nbespionnages'],
+            is_array($nomsRes) ? $nomsRes : []
+        );
+    }
+    if (!in_array($champ, $allowedColumns) || !in_array($bdd, $allowedTables)) {
+        error_log("ajouter() blocked: invalid column '$champ' or table '$bdd'");
+        return;
+    }
 
-    dbExecute($base, "UPDATE $bdd SET $champ=? WHERE login=?", 'ds', ($d[$champ] + $nombre), $joueur);
+    // Use atomic increment instead of read-then-write
+    dbExecute($base, "UPDATE $bdd SET $champ = $champ + ? WHERE login=?", 'ds', $nombre, $joueur);
 }
 
 function alliance($alliance)
 {
-    return '<a href="alliance.php?id=' . $alliance . '" class="lienVisible">' . $alliance . '</a>';
+    $safe = htmlspecialchars($alliance, ENT_QUOTES, 'UTF-8');
+    return '<a href="alliance.php?id=' . $safe . '" class="lienVisible">' . $safe . '</a>';
 }
 
 /**
@@ -33,7 +40,9 @@ function alliance($alliance)
  * Returns 0 if the player has no alliance or the tech doesn't exist.
  */
 function allianceResearchLevel($joueur, $techName) {
-    global $base;
+    global $base, $ALLIANCE_RESEARCH;
+    // Whitelist tech names against config
+    if (!isset($ALLIANCE_RESEARCH[$techName])) return 0;
     $autre = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $joueur);
     if (!$autre || $autre['idalliance'] <= 0) return 0;
     $alliance = dbFetchOne($base, 'SELECT ' . $techName . ' FROM alliances WHERE id=?', 'i', $autre['idalliance']);

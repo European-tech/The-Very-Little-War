@@ -4,10 +4,19 @@ include("../includes/connexion.php");
 include("../includes/constantesBase.php");
 require_once("../includes/database.php");
 require_once("../includes/csrf.php");
+require_once(__DIR__ . '/../includes/rate_limiter.php');
+require_once(__DIR__ . '/../includes/logger.php');
 
 if (isset($_POST['motdepasseadmin'])) {
+	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'moderation_login', 5, 300)) {
+		logWarn('MODERATION', 'Moderation login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
+		die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
+	}
 	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		$_SESSION['motdepasseadmin'] = true;
+		logInfo('MODERATION', 'Moderation login successful');
+	} else {
+		logWarn('MODERATION', 'Moderation login failed');
 	}
 }
 if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== true) {

@@ -13,6 +13,7 @@ if (!isset($_SESSION['start'])) {
 if (isset($_SESSION['login'])) {
 	unset($_SESSION['login']);
 	unset($_SESSION['mdp']);
+	unset($_SESSION['session_token']);
 }
 // Note: We do NOT call session_destroy() here because it would wipe
 // the CSRF token needed for form submissions on public pages.
@@ -58,7 +59,9 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 					session_start();
 				}
 				$_SESSION['login'] = $loginInput;
-				$_SESSION['mdp'] = $storedHash;
+				$sessionToken = bin2hex(random_bytes(32));
+				$_SESSION['session_token'] = $sessionToken;
+				dbExecute($base, 'UPDATE membre SET session_token=? WHERE login=?', 'ss', $sessionToken, $loginInput);
 
 				dbExecute($base, 'UPDATE membre SET ip = ? WHERE login = ?', 'ss', $_SERVER['REMOTE_ADDR'], $loginInput);
 				logInfo('AUTH', 'Login successful', ['login' => $loginInput]);

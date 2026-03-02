@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.cookie_secure', 0);
     ini_set('session.use_strict_mode', 1);
+    ini_set('session.cookie_samesite', 'Lax');
     session_start();
 }
 
@@ -13,7 +14,23 @@ require_once(__DIR__ . '/csrf.php');
 require_once(__DIR__ . '/validation.php');
 require_once(__DIR__ . '/logger.php');
 
-if (isset($_SESSION['login']) && isset($_SESSION['mdp'])) {
+if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
+    $_SESSION['login'] = ucfirst(mb_strtolower(mysqli_real_escape_string($base, stripslashes(htmlentities($_SESSION['login'])))));
+    $row = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    if (!$row || !isset($_SESSION['session_token']) || $row['session_token'] !== $_SESSION['session_token']) {
+        session_destroy();
+        header('Location: index.php');
+        exit();
+    }
+
+    // Regenerate session ID to prevent session fixation
+    if (!isset($_SESSION['_regenerated'])) {
+        session_regenerate_id(true);
+        $_SESSION['_regenerated'] = true;
+    }
+} elseif (isset($_SESSION['login']) && isset($_SESSION['mdp'])) {
+    // Legacy fallback: password-hash-based sessions still active after upgrade
+    // Validate using old method, then migrate to session token
     $_SESSION['login'] = ucfirst(mb_strtolower(mysqli_real_escape_string($base, stripslashes(htmlentities($_SESSION['login'])))));
     $row = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
     if (!$row || $row['pass_md5'] !== $_SESSION['mdp']) {
@@ -21,8 +38,12 @@ if (isset($_SESSION['login']) && isset($_SESSION['mdp'])) {
         header('Location: index.php');
         exit();
     }
+    // Migrate to session token
+    $sessionToken = bin2hex(random_bytes(32));
+    $_SESSION['session_token'] = $sessionToken;
+    unset($_SESSION['mdp']);
+    dbExecute($base, 'UPDATE membre SET session_token=? WHERE login=?', 'ss', $sessionToken, $_SESSION['login']);
 
-    // Regenerate session ID to prevent session fixation
     if (!isset($_SESSION['_regenerated'])) {
         session_regenerate_id(true);
         $_SESSION['_regenerated'] = true;
@@ -116,6 +137,12 @@ $maintenance = $maintenanceRow;
 
 if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
     // Phase 2: 24h have passed since maintenance was set, proceed with full reset
+    // Advisory lock prevents concurrent resets when multiple players connect simultaneously
+    $lockResult = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_reset', 0) as locked", '');
+    if (!$lockResult || $lockResult['locked'] != 1) {
+        // Another request is already performing the reset — skip and show maintenance message
+        $erreur = "Une nouvelle partie recommencera dans 24 heures.";
+    } else {
 
     //archivage de la partie (20 meilleurs)
     $chaine = '';
@@ -270,6 +297,11 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
 
     // Reset complete, disable maintenance mode
     dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
+
+    // Release the advisory lock now that the reset is fully committed
+    dbExecute($base, "SELECT RELEASE_LOCK('tvlw_season_reset')", '');
+
+    } // end advisory lock else block
 
 } elseif (date('n', time()) != date('n', $debut["debut"]) && $maintenance['maintenance'] == 0) {
     // Phase 1: New month detected, enable maintenance and start 24h countdown

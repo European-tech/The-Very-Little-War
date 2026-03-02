@@ -6,8 +6,13 @@ include("../includes/constantesBase.php");
 include("../includes/fonctions.php");
 require_once(__DIR__ . '/../includes/logger.php');
 require_once(__DIR__ . '/../includes/csrf.php');
+require_once(__DIR__ . '/../includes/rate_limiter.php');
 
 if (isset($_POST['motdepasseadmin'])) {
+	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'admin_login', 5, 300)) {
+		logWarn('ADMIN', 'Admin login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
+		die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
+	}
 	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		$_SESSION['motdepasseadmin'] = true;
 		logInfo('ADMIN', 'Admin login successful');

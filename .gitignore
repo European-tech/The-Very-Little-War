@@ -1,4 +1,5 @@
 # Config with credentials
+.env
 includes/connexion.php.bak
 *.psd
 
