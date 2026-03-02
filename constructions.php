@@ -34,7 +34,8 @@ if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulai
         dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=?, pointsProducteur=? WHERE login=?', 'iss', $newPoints, $chaine, $_SESSION['login']);
 
         $information = "Les points du producteur ont été sauvegardés.";
-        echo '<script>document.location.href="constructions.php?information=' . $information . '"</script>';
+        header('Location: constructions.php?information=' . urlencode($information));
+        exit();
     } else {
         $erreur = "Le nombre de points n'est pas valide.";
     }
@@ -71,7 +72,8 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
         dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=?, pointsCondenseur=? WHERE login=?', 'iss', $newPoints, $chaine, $_SESSION['login']);
 
         $information = "Les points du condenseur ont été sauvegardés.";
-        echo '<script>document.location.href="constructions.php?information=' . $information . '"</script>';
+        header('Location: constructions.php?information=' . urlencode($information));
+        exit();
     } else {
         $erreur = "Le nombre de points n'est pas valide.";
     }
@@ -84,7 +86,8 @@ if (isset($_POST['formation'])) {
     if ($newFormation >= 0 && $newFormation <= 2) {
         dbExecute($base, 'UPDATE constructions SET formation=? WHERE login=?', 'is', $newFormation, $_SESSION['login']);
         $information = "Formation défensive mise à jour.";
-        echo '<script>document.location.href="constructions.php?information=' . htmlspecialchars($information, ENT_QUOTES) . '"</script>';
+        header('Location: constructions.php?information=' . urlencode($information));
+        exit();
     }
 }
 

@@ -178,11 +178,12 @@ foreach ($activeReactionsDef as $name => $bonuses) {
 	if (isset($bonuses['attack'])) $defReactionDefenseBonus += 0; // defenders don't use attack bonus
 }
 
-// Formation bonuses applied to damage calculation
-$formationDefenseBonus = 1.0;
-$formationAttackBonus = 1.0; // for defender's counter-attack via Embuscade
+// Formation bonuses — Embuscade now applied as $embuscadeDefBoost after damage calc (FIX FINDING-GAME-018)
 
-// Embuscade: if defender has more total molecules than attacker, defender gets +25% attack
+// FIX FINDING-GAME-018: Embuscade now correctly boosts defender's EFFECTIVE DAMAGE (defense score)
+// instead of misleadingly named $formationDefenseBonus. The bonus increases the defender's
+// damage output when they outnumber the attacker, matching the description.
+$embuscadeDefBoost = 1.0;
 if ($defenderFormation == FORMATION_EMBUSCADE) {
 	$totalAttackerMols = 0;
 	$totalDefenderMols = 0;
@@ -191,7 +192,7 @@ if ($defenderFormation == FORMATION_EMBUSCADE) {
 		$totalDefenderMols += ${'classeDefenseur' . $c}['nombre'];
 	}
 	if ($totalDefenderMols > $totalAttackerMols) {
-		$formationDefenseBonus = 1.0 + FORMATION_AMBUSH_ATTACK_BONUS; // defender's defense acts as counter-attack boost
+		$embuscadeDefBoost = 1.0 + FORMATION_AMBUSH_ATTACK_BONUS; // +25% to defender's effective damage
 	}
 }
 
@@ -201,7 +202,7 @@ $degatsAttaquant = 0;
 $degatsDefenseur = 0;
 for ($c = 1; $c <= 4; $c++) {
 	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * 2) / 100)) * $bonusDuplicateurAttaque * $catalystAttackBonus * ${'classeAttaquant' . $c}['nombre'];
-	$defBonusForClass = $defReactionDefenseBonus * $formationDefenseBonus * $defIsotopeAttackMod[$c];
+	$defBonusForClass = $defReactionDefenseBonus; // FIX: removed $defIsotopeAttackMod and $formationDefenseBonus (embuscade now boosts $degatsDefenseur directly)
 	// Phalange: class 1 gets extra defense bonus
 	if ($defenderFormation == FORMATION_PHALANGE && $c == 1) {
 		$defBonusForClass *= (1.0 + FORMATION_PHALANX_DEFENSE_BONUS);
@@ -209,7 +210,12 @@ for ($c = 1; $c <= 4; $c++) {
 	$degatsDefenseur += defense(${'classeDefenseur' . $c}['carbone'], $niveauxDef['carbone'], $actions['defenseur']) * $defBonusForClass * (1 + (($champdeforce['champdeforce'] * 2) / 100)) * $bonusDuplicateurDefense * ${'classeDefenseur' . $c}['nombre'];
 }
 
+// Apply prestige combat bonuses (FIX FINDING-GAME-002: these were defined but never called)
+$degatsAttaquant *= prestigeCombatBonus($actions['attaquant']);
+$degatsDefenseur *= prestigeCombatBonus($actions['defenseur']);
 
+// Apply Embuscade bonus to defender's effective damage (FIX FINDING-GAME-018)
+$degatsDefenseur *= $embuscadeDefBoost;
 
 // Calcul des pertes — PROPORTIONAL DAMAGE DISTRIBUTION
 // Damage is spread across classes proportional to each class's total HP pool.
@@ -253,9 +259,18 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 // Calculate damage share per class based on formation
 $defDamageShares = [];
 if ($defenderFormation == FORMATION_DISPERSEE) {
-	// Equal split: 25% to each class
+	// FIX FINDING-GAME-006: Only split damage among classes that have molecules
+	$activeDefClasses = 0;
 	for ($i = 1; $i <= $nbClasses; $i++) {
-		$defDamageShares[$i] = $degatsAttaquant * 0.25;
+		if (${'classeDefenseur' . $i}['nombre'] > 0) $activeDefClasses++;
+	}
+	$sharePerClass = ($activeDefClasses > 0) ? 1.0 / $activeDefClasses : 0.25;
+	for ($i = 1; $i <= $nbClasses; $i++) {
+		if (${'classeDefenseur' . $i}['nombre'] > 0) {
+			$defDamageShares[$i] = $degatsAttaquant * $sharePerClass;
+		} else {
+			$defDamageShares[$i] = 0;
+		}
 	}
 } elseif ($defenderFormation == FORMATION_PHALANGE) {
 	// Class 1 absorbs 70%, remaining 30% split equally among classes 2-4
@@ -313,8 +328,10 @@ if ($gagnant == 1) { // Defender wins
 		$totalAttackerPillage += ${'classeAttaquant' . $c}['nombre'] * pillage(${'classeAttaquant' . $c}['soufre'], $niveauxAtt['soufre'], $actions['attaquant']);
 	}
 	$defenseRewardEnergy = floor($totalAttackerPillage * DEFENSE_REWARD_RATIO);
+}
 
-	// Set attack cooldown — attacker can't attack this defender for ATTACK_COOLDOWN_SECONDS
+// FIX FINDING-GAME-007: Set attack cooldown on loss AND draw (not just defender wins)
+if ($gagnant != 2) { // Attacker did not win (draw or loss)
 	$cooldownExpires = time() + ATTACK_COOLDOWN_SECONDS;
 	dbExecute($base, 'INSERT INTO attack_cooldowns (attacker, defender, expires) VALUES (?, ?, ?)',
 		'ssi', $actions['attaquant'], $actions['defenseur'], $cooldownExpires);
@@ -407,21 +424,29 @@ $destructionDepot = "Non endommagé";
 
 $constructions = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $actions['defenseur']);
 
-if ($hydrogeneTotal > 0) { // si il y a de l'hydrogène
-	// gestion des degats infligés
+if ($gagnant == 2 && $hydrogeneTotal > 0) { // Only damage buildings when attacker WINS
+	// Recalculate hydrogeneTotal from SURVIVING attackers (FIX: was using pre-combat count)
+	$hydrogeneTotal = 0;
+	for ($i = 1; $i <= $nbClasses; $i++) {
+		$surviving = ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
+		$hydrogeneTotal += $surviving * potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], $niveauxAtt['hydrogene']);
+	}
 
+	// gestion des degats infligés
 	if ($constructions['champdeforce'] > $constructions['generateur'] && $constructions['champdeforce'] > $constructions['producteur'] && $constructions['champdeforce'] > $constructions['depot']) {
 		for ($i = 1; $i <= $nbClasses; $i++) {
-			if (${'classeAttaquant' . $i}['hydrogene'] > 0) {
-				$degatsAMettre = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], $niveauxAtt['hydrogene']) * ${'classeAttaquant' . $i}['nombre'];
+			$surviving = ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
+			if (${'classeAttaquant' . $i}['hydrogene'] > 0 && $surviving > 0) {
+				$degatsAMettre = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], $niveauxAtt['hydrogene']) * $surviving;
 				$degatschampdeforce += $degatsAMettre;
 			}
 		}
 	} else {
 		for ($i = 1; $i <= $nbClasses; $i++) {
-			if (${'classeAttaquant' . $i}['hydrogene'] > 0) {
+			$surviving = ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
+			if (${'classeAttaquant' . $i}['hydrogene'] > 0 && $surviving > 0) {
 				$bat = rand(1, 4);
-				$degatsAMettre = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], $niveauxAtt['hydrogene']) * ${'classeAttaquant' . $i}['nombre'];
+				$degatsAMettre = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], $niveauxAtt['hydrogene']) * $surviving;
 				switch ($bat) {
 					case 1:
 						$degatsGenEnergie += $degatsAMettre;
@@ -534,7 +559,9 @@ $perduesDefenseur = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE 
 ajouterPoints($pointsAttaquant, $actions['attaquant'], 1);
 ajouterPoints($totalPille, $actions['attaquant'], 3);
 ajouterPoints($pointsDefenseur, $actions['defenseur'], 2);
-ajouterPoints(-$totalPille, $actions['defenseur'], 3);
+// FIX FINDING-GAME-011: Do NOT subtract pillage from defender's ressourcesPillees stat.
+// That stat tracks how much a player has pillaged (offensive), not how much was stolen FROM them.
+// Removing: ajouterPoints(-$totalPille, $actions['defenseur'], 3);
 
 dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pertesAttaquant + $perduesAttaquant['moleculesPerdues']), $actions['attaquant']);
 dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pertesDefenseur + $perduesDefenseur['moleculesPerdues']), $actions['defenseur']);
@@ -544,13 +571,16 @@ dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pe
 
 // On met à jour les ressources
 // Build the SET clause and parameters dynamically for attacker
+// FIX FINDING-GAME-008: Cap pillaged resources at attacker's storage limit
+$depotAtt = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['attaquant']);
+$maxStorageAtt = placeDepot($depotAtt['depot']);
 $setClauses = [];
 $setTypes = '';
 $setParams = [];
 foreach ($nomsRes as $num => $ressource) {
 	$setClauses[] = "$ressource=?";
 	$setTypes .= 'd';
-	$setParams[] = ($ressourcesJoueur[$ressource] + ${$ressource . 'Pille'});
+	$setParams[] = min($maxStorageAtt, ($ressourcesJoueur[$ressource] + ${$ressource . 'Pille'}));
 }
 $setParams[] = $actions['attaquant'];
 $setTypes .= 's';
@@ -564,7 +594,7 @@ $setParams = [];
 foreach ($nomsRes as $num => $ressource) {
 	$setClauses[] = "$ressource=?";
 	$setTypes .= 'd';
-	$setParams[] = ($ressourcesDefenseur[$ressource] - ${$ressource . 'Pille'});
+	$setParams[] = max(0, ($ressourcesDefenseur[$ressource] - ${$ressource . 'Pille'})); // FIX FINDING-GAME-026: clamp at 0
 }
 // Add defense reward energy to defender
 if ($defenseRewardEnergy > 0) {

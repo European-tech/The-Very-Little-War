@@ -44,7 +44,8 @@ $PRESTIGE_UNLOCKS = [
  * Calculate prestige points earned for a player at end of season.
  */
 function calculatePrestigePoints($login) {
-    global $base;
+    global $base, $MEDAL_THRESHOLDS_TERREUR, $MEDAL_THRESHOLDS_ATTAQUE, $MEDAL_THRESHOLDS_DEFENSE,
+           $MEDAL_THRESHOLDS_PILLAGE, $MEDAL_THRESHOLDS_PERTES, $MEDAL_THRESHOLDS_ENERGIEVORE;
 
     $pp = 0;
 
@@ -54,28 +55,29 @@ function calculatePrestigePoints($login) {
         $pp += 5; // Active during final week
     }
 
-    // Medal tiers reached (each medal tier = 1 PP)
-    $medailles = dbFetchOne($base, 'SELECT * FROM medailles WHERE login=?', 's', $login);
-    if ($medailles) {
-        // Medal columns: 'terreur', 'explorateur', 'commercial', 'alchimiste', 'demolisseur', 'energetique'
-        $medalColumns = ['terreur', 'explorateur', 'commercial', 'alchimiste', 'demolisseur', 'energetique'];
-        foreach ($medalColumns as $medal) {
-            if (isset($medailles[$medal])) {
-                $pp += intval($medailles[$medal]); // 1 PP per tier
-            }
-        }
-    }
-
-    // Activity-based PP
-    $autre = dbFetchOne($base, 'SELECT nbattaques, moleculesPerdues, tradeVolume, energieDonnee FROM autre WHERE login=?', 's', $login);
+    // Medal tiers: count tiers reached dynamically from raw stats in `autre` table
+    // FIX: was querying non-existent `medailles` table, now uses actual medal threshold arrays
+    $autre = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $login);
     if ($autre) {
-        // Launched 10+ attacks
+        $medalChecks = [
+            [$autre['nbattaques'], $MEDAL_THRESHOLDS_TERREUR],
+            [$autre['pointsAttaque'], $MEDAL_THRESHOLDS_ATTAQUE],
+            [$autre['pointsDefense'], $MEDAL_THRESHOLDS_DEFENSE],
+            [$autre['ressourcesPillees'], $MEDAL_THRESHOLDS_PILLAGE],
+            [$autre['moleculesPerdues'], $MEDAL_THRESHOLDS_PERTES],
+            [$autre['energieDepensee'], $MEDAL_THRESHOLDS_ENERGIEVORE],
+        ];
+        foreach ($medalChecks as [$value, $thresholds]) {
+            $tier = 0;
+            foreach ($thresholds as $t) {
+                if ($value >= $t) $tier++;
+            }
+            $pp += $tier; // 1 PP per tier reached
+        }
+
+        // Activity-based PP
         if ($autre['nbattaques'] >= 10) $pp += 5;
-
-        // Traded 20+ times (use tradeVolume as proxy — each trade adds to it)
         if ($autre['tradeVolume'] >= 20) $pp += 3;
-
-        // Donated to alliance
         if ($autre['energieDonnee'] > 0) $pp += 2;
     }
 

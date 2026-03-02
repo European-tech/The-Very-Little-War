@@ -2,7 +2,7 @@
 include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 
-if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacementmoleculesupprimer']) and preg_match("#^[0-9]*$#", $_POST['emplacementmoleculesupprimer']) and $_POST['emplacementmoleculesupprimer'] <= 5) { // Si l'on veut supprimer une classe de molécules
+if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacementmoleculesupprimer']) and preg_match("#^[0-9]*$#", $_POST['emplacementmoleculesupprimer']) and $_POST['emplacementmoleculesupprimer'] <= MAX_MOLECULE_CLASSES and $_POST['emplacementmoleculesupprimer'] >= 1) { // FIX FINDING-GAME-022: was <= 5
     csrfCheck();
     $molecules = dbFetchOne($base, 'SELECT formule,id FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $_SESSION['login'], $_POST['emplacementmoleculesupprimer']);
 
@@ -84,7 +84,7 @@ if (isset($_POST['nombreneutrinos']) and !empty($_POST['nombreneutrinos'])) {
     }
 }
 
-if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmoleculeformer']) and preg_match("#^[0-9]*$#", $_POST['emplacementmoleculeformer']) and $_POST['emplacementmoleculeformer'] <= 5) {
+if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmoleculeformer']) and preg_match("#^[0-9]*$#", $_POST['emplacementmoleculeformer']) and $_POST['emplacementmoleculeformer'] <= MAX_MOLECULE_CLASSES and $_POST['emplacementmoleculeformer'] >= 1) { // FIX FINDING-GAME-022
     csrfCheck();
     $_POST['nombremolecules'] = transformInt($_POST['nombremolecules']);
     if (isset($_POST['nombremolecules']) and !empty($_POST['nombremolecules']) and preg_match("#^[0-9]*$#", $_POST['nombremolecules'])) {
@@ -148,7 +148,7 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
     }
 }
 
-if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmoleculecreer1']) and preg_match("#^[0-9]*$#", $_POST['emplacementmoleculecreer1']) and $_POST['emplacementmoleculecreer1'] <= 5) {
+if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmoleculecreer1']) and preg_match("#^[0-9]*$#", $_POST['emplacementmoleculecreer1']) and $_POST['emplacementmoleculecreer1'] <= MAX_MOLECULE_CLASSES and $_POST['emplacementmoleculecreer1'] >= 1) { // FIX FINDING-GAME-022
     csrfCheck();
     $bool = 1;
     foreach ($nomsRes as $num => $ressource) {

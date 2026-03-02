@@ -39,7 +39,7 @@ if(isset($_GET['id'])){
                     </script>';
             }
             else {
-                echo nombreTemps('<strong>Attaque</strong> : <span id="affichage'.$attaque['id'].'">'.affichageTemps($attaques['tempsAttaque']-time()).'</span>');
+                echo nombreTemps('<strong>Attaque</strong> : <span id="affichage'.$attaque['id'].'">'.affichageTemps($attaque['tempsAttaque']-time()).'</span>');
                 echo '
                 <script>
                     var valeur'.$attaque['id'].' = '.($attaque['tempsAttaque']-time()).';

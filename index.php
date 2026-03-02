@@ -48,7 +48,8 @@ if ($nb == 0) {
     $contenuNews = 'Aucune news pour l\'instant.';
 } else {
     $donnees = mysqli_fetch_array($retour);
-    $contenuNews = nl2br(stripslashes($donnees['contenu']));
+    $allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><hr>';
+    $contenuNews = nl2br(strip_tags(stripslashes($donnees['contenu']), $allowedTags));
 }
 
 debutCarte();

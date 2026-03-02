@@ -65,10 +65,10 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             $rapportEnergie = 1;
                         }
 
-                        $revenusJoueur = explode(";", $constructionsJoueur['pointsProducteur']);
+                        // FIX FINDING-GAME-029: revenuAtome expects atom index (0-7), not level value
                         foreach ($nomsRes as $num => $ressource) {
-                            if ($revenu[$ressource] >= revenuAtome($revenusJoueur[$num], $_POST['destinataire'])) {
-                                ${'rapport' . $ressource} = revenuAtome($revenusJoueur[$num], $_POST['destinataire']) / $revenu[$ressource];
+                            if ($revenu[$ressource] >= revenuAtome($num, $_POST['destinataire'])) {
+                                ${'rapport' . $ressource} = revenuAtome($num, $_POST['destinataire']) / $revenu[$ressource];
                             } else {
                                 ${'rapport' . $ressource} = 1;
                             }
@@ -163,58 +163,67 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                 if ($newResVal > $placeDepot) {
                     $erreur = "Vous n'avez pas assez de place dans votre stockage.";
                 } else {
-                    // $nomsRes[$numRes] is a server-side resource name, not user input
-                    $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
-                    if ($stmt) {
-                        mysqli_stmt_bind_param($stmt, 'dds', $diffEnergieAchat, $newResVal, $_SESSION['login']);
-                        mysqli_stmt_execute($stmt);
-                        mysqli_stmt_close($stmt);
+                    try {
+                        withTransaction($base, function() use ($base, $diffEnergieAchat, $newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $coutAchat) {
+                            // $nomsRes[$numRes] is a server-side resource name, not user input
+                            $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
+                            if ($stmt) {
+                                $login = $_SESSION['login'];
+                                mysqli_stmt_bind_param($stmt, 'dds', $diffEnergieAchat, $newResVal, $login);
+                                mysqli_stmt_execute($stmt);
+                                mysqli_stmt_close($stmt);
+                            }
+
+                            $chaine = '';
+                            foreach ($tabCours as $num => $cours) {
+                                if ($num < sizeof($tabCours) - 1) {
+                                    $fin = ",";
+                                } else {
+                                    $fin = "";
+                                }
+
+                                if ($numRes == $num) {
+                                    $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / $placeDepot;
+                                    // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
+                                    $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
+                                    $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
+                                    // Clamp to floor/ceiling
+                                    $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
+                                    $chaine = $chaine . $ajout . $fin;
+                                } else {
+                                    $chaine = $chaine . $tabCours[$num] . $fin;
+                                }
+                            }
+
+                            $now = time();
+                            dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
+
+                            // Award trade points based on energy spent (not atom volume, to prevent buy-sell exploits)
+                            $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
+                            $tradeVolume = round($coutAchat * $reseauBonus);
+                            $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', 's', $_SESSION['login']);
+                            $oldVolume = $autreData['tradeVolume'] ?? 0;
+                            $newVolume = $oldVolume + $tradeVolume;
+                            $oldTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($oldVolume)));
+                            $newTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($newVolume)));
+                            $pointsDelta = $newTradePoints - $oldTradePoints;
+                            if ($pointsDelta > 0) {
+                                dbExecute($base, 'UPDATE autre SET tradeVolume=?, totalPoints=? WHERE login=?', 'dds', $newVolume, ($autreData['totalPoints'] + $pointsDelta), $_SESSION['login']);
+                            } else {
+                                dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
+                            }
+                        });
+                        logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
+                        $safeResName = $nomsRes[$numRes]; // server-side validated resource name
+                        $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . ".png\" alt=\"" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
+
+                        $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
+                        $tabCours = explode(",", $val['tableauCours']);
+                    } catch (Exception $e) {
+                        $erreur = "Une erreur est survenue lors de l'achat. Veuillez réessayer.";
+                        error_log('Market buy transaction failed: ' . $e->getMessage());
                     }
-
-                    $chaine = '';
-                    foreach ($tabCours as $num => $cours) {
-                        if ($num < sizeof($tabCours) - 1) {
-                            $fin = ",";
-                        } else {
-                            $fin = "";
-                        }
-
-                        if ($numRes == $num) {
-                            $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / $placeDepot;
-                            // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
-                            $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
-                            $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
-                            // Clamp to floor/ceiling
-                            $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
-                            $chaine = $chaine . $ajout . $fin;
-                        } else {
-                            $chaine = $chaine . $tabCours[$num] . $fin;
-                        }
-                    }
-
-                    $now = time();
-                    dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
-
-                    logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
-                    // Award trade points based on energy spent (not atom volume, to prevent buy-sell exploits)
-                    $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
-                    $tradeVolume = round($coutAchat * $reseauBonus);
-                    $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', 's', $_SESSION['login']);
-                    $oldVolume = $autreData['tradeVolume'] ?? 0;
-                    $newVolume = $oldVolume + $tradeVolume;
-                    $oldTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($oldVolume)));
-                    $newTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($newVolume)));
-                    $pointsDelta = $newTradePoints - $oldTradePoints;
-                    if ($pointsDelta > 0) {
-                        dbExecute($base, 'UPDATE autre SET tradeVolume=?, totalPoints=? WHERE login=?', 'dds', $newVolume, ($autreData['totalPoints'] + $pointsDelta), $_SESSION['login']);
-                    } else {
-                        dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
-                    }
-                    $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAAcheter'] . ".png\" alt=\"" . $_POST['typeRessourceAAcheter'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
-
-                    $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
-                    $tabCours = explode(",", $val['tableauCours']);
-                }
+                } // end else (storage check)
             } else {
                 $erreur = "Vous n'avez pas assez d'énergie.";
             }
@@ -241,48 +250,59 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
         }
         if ($bool == 0) { // verification que c'est une ressource qui existe
             if ($ressources[$nomsRes[$numRes]] >= $_POST['nombreRessourceAVendre']) {
-                $newEnergie = $ressources['energie'] + round($tabCours[$numRes] * $_POST['nombreRessourceAVendre']);
+                // FIX FINDING-GAME-005: 5% sell tax to prevent buy-sell arbitrage for trade points
+                $sellTaxRate = 0.95; // 95% of value returned (5% fee)
+                $newEnergie = $ressources['energie'] + round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'] * $sellTaxRate);
                 if ($newEnergie > $placeDepot) {
                     $newEnergie = $placeDepot; // Cap energy at storage limit
                 }
                 $newResVal = $ressources[$nomsRes[$numRes]] - $_POST['nombreRessourceAVendre'];
-                // $nomsRes[$numRes] is a server-side resource name
-                $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
-                if ($stmt) {
-                    mysqli_stmt_bind_param($stmt, 'dds', $newEnergie, $newResVal, $_SESSION['login']);
-                    mysqli_stmt_execute($stmt);
-                    mysqli_stmt_close($stmt);
+                $energyGained = round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'] * $sellTaxRate);
+                try {
+                    withTransaction($base, function() use ($base, $newEnergie, $newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot) {
+                        // $nomsRes[$numRes] is a server-side resource name
+                        $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
+                        if ($stmt) {
+                            $login = $_SESSION['login'];
+                            mysqli_stmt_bind_param($stmt, 'dds', $newEnergie, $newResVal, $login);
+                            mysqli_stmt_execute($stmt);
+                            mysqli_stmt_close($stmt);
+                        }
+
+                        $chaine = '';
+                        foreach ($tabCours as $num => $cours) {
+                            if ($num < sizeof($tabCours) - 1) {
+                                $fin = ",";
+                            } else {
+                                $fin = "";
+                            }
+
+                            if ($numRes == $num) {
+                                $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $_POST['nombreRessourceAVendre'] / $placeDepot);
+                                // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
+                                $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
+                                $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
+                                // Clamp to floor/ceiling
+                                $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
+                                $chaine = $chaine . $ajout . $fin;
+                            } else {
+                                $chaine = $chaine . $tabCours[$num] . $fin;
+                            }
+                        }
+
+                        $now = time();
+                        dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
+                    });
+                    logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $_POST['nombreRessourceAVendre'], 'energy_gained' => $energyGained]);
+                    $safeResName = $nomsRes[$numRes]; // server-side validated resource name
+                    $information = "Vous avez vendu " . number_format($_POST['nombreRessourceAVendre'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . ".png\" alt=\"" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . "\"/> pour " . number_format($energyGained, 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/> (5% de frais)";
+
+                    $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
+                    $tabCours = explode(",", $val['tableauCours']);
+                } catch (Exception $e) {
+                    $erreur = "Une erreur est survenue lors de la vente. Veuillez réessayer.";
+                    error_log('Market sell transaction failed: ' . $e->getMessage());
                 }
-
-                $chaine = '';
-                foreach ($tabCours as $num => $cours) {
-                    if ($num < sizeof($tabCours) - 1) {
-                        $fin = ",";
-                    } else {
-                        $fin = "";
-                    }
-
-                    if ($numRes == $num) {
-                        $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $_POST['nombreRessourceAVendre'] / $placeDepot);
-                        // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
-                        $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
-                        $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
-                        // Clamp to floor/ceiling
-                        $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
-                        $chaine = $chaine . $ajout . $fin;
-                    } else {
-                        $chaine = $chaine . $tabCours[$num] . $fin;
-                    }
-                }
-
-                $now = time();
-                dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
-
-                logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $_POST['nombreRessourceAVendre'], 'energy_gained' => round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'])]);
-                $information = "Vous avez vendu " . number_format($_POST['nombreRessourceAVendre'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . $_POST['typeRessourceAVendre'] . ".png\" alt=\"" . $_POST['typeRessourceAVendre'] . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAVendre']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
-
-                $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
-                $tabCours = explode(",", $val['tableauCours']);
             } else {
                 $erreur = "Vous n'avez pas assez d'atomes.";
             }
@@ -455,6 +475,7 @@ if ($_GET['sub'] == 0) {
                 var typeRessourceAVendre = document.getElementById('typeRessourceAVendre').value;
                 var nombreRessourceAVendre = symboleEnNombre(document.getElementById('nombreRessourceAVendre').value);
                 var apportEnergie = symboleEnNombre(document.getElementById('apportEnergieVente').value);
+                var sellTaxRate = 0.95; // 5% sell tax
                 var echange = <?php echo json_encode($tabCours);
 
                                 foreach ($nomsRes as $num => $ressource) { // on récupére le numéro dans le tableau de ressources des ressources que l'on échange
@@ -473,10 +494,10 @@ if ($_GET['sub'] == 0) {
                 }
 
                 if (param) {
-                    apportEnergie = Math.round(nombreRessourceAVendre * echange[numVente]);
+                    apportEnergie = Math.round(nombreRessourceAVendre * echange[numVente] * sellTaxRate);
                     document.getElementById("apportEnergieVente").value = apportEnergie;
                 } else {
-                    nombreRessourceAVendre = Math.round(apportEnergie / echange[numVente]);
+                    nombreRessourceAVendre = Math.round(apportEnergie / (echange[numVente] * sellTaxRate));
                     document.getElementById("nombreRessourceAVendre").value = nombreRessourceAVendre;
                 }
             }

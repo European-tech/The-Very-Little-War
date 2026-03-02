@@ -51,6 +51,10 @@ $CATALYSTS = [
  * Returns the catalyst array with 'id' field added.
  */
 function getActiveCatalyst() {
+    // FIX FINDING-GAME-034: Cache catalyst per-request to avoid redundant DB queries
+    static $cachedCatalyst = null;
+    if ($cachedCatalyst !== null) return $cachedCatalyst;
+
     global $base, $CATALYSTS;
 
     $stats = dbFetchOne($base, 'SELECT catalyst, catalyst_week FROM statistiques');
@@ -67,7 +71,8 @@ function getActiveCatalyst() {
 
     $catalyst = $CATALYSTS[$catalystId] ?? $CATALYSTS[0];
     $catalyst['id'] = $catalystId;
-    return $catalyst;
+    $cachedCatalyst = $catalyst;
+    return $cachedCatalyst;
 }
 
 /**
