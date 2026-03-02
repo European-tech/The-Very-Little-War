@@ -269,9 +269,24 @@ function updateActions($joueur)
                             </tr>";
 
 
+                // Build reactions display for combat report
+                $reactionsHtml = '';
+                if (!empty($activeReactionsAtt) || !empty($activeReactionsDef)) {
+                    $reactionsHtml = important('Réactions chimiques') . '<br/>';
+                    foreach ($activeReactionsAtt as $name => $bonuses) {
+                        $reactionsHtml .= '<span style="color:#D07D00">&#9883; ' . htmlspecialchars($name) . ' (attaquant)</span><br/>';
+                    }
+                    foreach ($activeReactionsDef as $name => $bonuses) {
+                        $reactionsHtml .= '<span style="color:green">&#9883; ' . htmlspecialchars($name) . ' (défenseur)</span><br/>';
+                    }
+                    $reactionsHtml .= '<br/>';
+                }
+
                 $finRapport = "
                             </tbody>
                             </table></div><br/><br/>
+
+                            " . $reactionsHtml . "
 
                             " . important('Ressources pillées') . "
                             " . $chaine . "

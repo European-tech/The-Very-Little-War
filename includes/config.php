@@ -217,7 +217,22 @@ $BUILDING_CONFIG = [
         'stability_per_level' => 0.5, // 0.5% decay reduction per level
         'description'       => 'Reduces molecule decay rate',
     ],
+    'coffrefort' => [
+        'cost_energy_base'  => 150,
+        'cost_energy_exp'   => 0.7,
+        'cost_atoms_base'   => 0,
+        'cost_atoms_exp'    => 0,
+        'time_base'         => 90,
+        'time_exp'          => 1.2,
+        'time_level_offset' => 1,
+        'points_base'       => 1,
+        'points_level_factor' => 0.1,
+        'protection_per_level' => 100, // protects 100 * level of each resource from pillage
+        'description'       => 'Protects resources from pillage',
+    ],
 ];
+
+define('VAULT_PROTECTION_PER_LEVEL', 100); // resources protected per vault level
 
 // =============================================================================
 // COMBAT FORMULAS
@@ -252,6 +267,42 @@ define('DEFENSE_POINTS_MULTIPLIER', 5.0);
 define('DEFENSE_REWARD_RATIO', 0.20);         // 20% resource bonus on successful defense
 define('DEFENSE_POINTS_MULTIPLIER_BONUS', 1.5); // 1.5x combat points for defensive victories
 define('ATTACK_COOLDOWN_SECONDS', 4 * 3600);  // 4 hours before same attacker can hit same target
+
+// =============================================================================
+// CHEMICAL REACTIONS — bonuses when specific atom combos deployed across classes
+// =============================================================================
+$CHEMICAL_REACTIONS = [
+    'Combustion' => [
+        'condA' => ['oxygene' => 100],
+        'condB' => ['carbone' => 100],
+        'bonus' => ['attack' => 0.15],   // +15% attack for both classes
+        'description' => 'O>=100 + C>=100 : +15% attaque',
+    ],
+    'Hydrogénation' => [
+        'condA' => ['hydrogene' => 100],
+        'condB' => ['brome' => 100],
+        'bonus' => ['hp' => 0.15],       // +15% HP for both classes
+        'description' => 'H>=100 + Br>=100 : +15% points de vie',
+    ],
+    'Halogénation' => [
+        'condA' => ['chlore' => 80],
+        'condB' => ['iode' => 80],
+        'bonus' => ['speed' => 0.20],    // +20% fleet speed
+        'description' => 'Cl>=80 + I>=80 : +20% vitesse',
+    ],
+    'Sulfuration' => [
+        'condA' => ['soufre' => 100],
+        'condB' => ['azote' => 50],
+        'bonus' => ['pillage' => 0.20],  // +20% pillage capacity
+        'description' => 'S>=100 + N>=50 : +20% pillage',
+    ],
+    'Neutralisation' => [
+        'condA' => ['oxygene' => 80],
+        'condB' => ['hydrogene' => 80, 'carbone' => 80],
+        'bonus' => ['defense' => 0.15],  // +15% defense for both classes
+        'description' => 'O>=80 + H>=80+C>=80 : +15% défense',
+    ],
+];
 
 // =============================================================================
 // ESPIONAGE

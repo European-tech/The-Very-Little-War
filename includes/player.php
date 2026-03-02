@@ -284,6 +284,12 @@ function initPlayer($joueur)
     if ($nb == 0) {
         $niveauActuelStabilisateur['niveau'] = $constructions['stabilisateur'];
     }
+    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'coffrefort');
+    $niveauActuelCoffrefort = mysqli_fetch_array($exNiveauActuel1);
+    $nb = mysqli_num_rows($exNiveauActuel1);
+    if ($nb == 0) {
+        $niveauActuelCoffrefort['niveau'] = $constructions['coffrefort'] ?? 0;
+    }
 
     $listeConstructions = [
         'generateur' => [
@@ -422,6 +428,22 @@ function initPlayer($joueur)
             'coutAtomes' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['stabilisateur']['cost_atoms_base'] * pow($niveauActuelStabilisateur['niveau'], $BUILDING_CONFIG['stabilisateur']['cost_atoms_exp'])),
             'points' => $BUILDING_CONFIG['stabilisateur']['points_base'] + floor($niveauActuelStabilisateur['niveau'] * $BUILDING_CONFIG['stabilisateur']['points_level_factor']),
             'tempsConstruction' => round(120 * pow($niveauActuelStabilisateur['niveau'] + 1, 1.5))
+        ],
+
+        'coffrefort' => [
+            'titre' => 'Coffre-fort',
+            'bdd' => 'coffrefort',
+            'image' => 'images/batiments/shield.png',
+            'progressBar' => false,
+            'niveau' => $constructions['coffrefort'] ?? 0,
+            'revenu' => (($constructions['coffrefort'] ?? 0) * VAULT_PROTECTION_PER_LEVEL) . ' atomes protégés du pillage par ressource',
+            'revenu1' => (($niveauActuelCoffrefort['niveau'] + 1) * VAULT_PROTECTION_PER_LEVEL) . ' atomes protégés du pillage par ressource',
+            'effetSup' => '',
+            'description' => 'Le coffre-fort protège une partie de vos <strong>ressources contre le pillage</strong>. Chaque niveau protège ' . VAULT_PROTECTION_PER_LEVEL . ' atomes de chaque ressource.',
+            'coutEnergie' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['coffrefort']['cost_energy_base'] * pow($niveauActuelCoffrefort['niveau'], $BUILDING_CONFIG['coffrefort']['cost_energy_exp'])),
+            'coutAtomes' => 0,
+            'points' => $BUILDING_CONFIG['coffrefort']['points_base'] + floor($niveauActuelCoffrefort['niveau'] * $BUILDING_CONFIG['coffrefort']['points_level_factor']),
+            'tempsConstruction' => round($BUILDING_CONFIG['coffrefort']['time_base'] * pow($niveauActuelCoffrefort['niveau'] + $BUILDING_CONFIG['coffrefort']['time_level_offset'], $BUILDING_CONFIG['coffrefort']['time_exp']))
         ]
     ];
 }
@@ -604,7 +626,7 @@ function batMax($pseudo)
     global $nbRes;
     global $base;
 
-    $liste = ['generateur', 'producteur', 'champdeforce', 'ionisateur', 'depot', 'stabilisateur', 'condenseur', 'lieur'];
+    $liste = ['generateur', 'producteur', 'champdeforce', 'ionisateur', 'depot', 'stabilisateur', 'condenseur', 'lieur', 'coffrefort'];
     // on ne peut pas faire un foreach car il y a un probleme de priorités
     $tableau = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $pseudo);
     $plusHaut = $tableau['generateur'];

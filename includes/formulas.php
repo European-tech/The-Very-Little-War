@@ -7,7 +7,6 @@
 
 function pointsVictoireJoueur($classement)
 {
-    $actifs = compterActifs();
     if ($classement == 1) {
         return 100;
     }
@@ -24,10 +23,10 @@ function pointsVictoireJoueur($classement)
         return 35 - ($classement - 10) * 2;
     }
     if ($classement <= 50) {
-        return floor(15 - ($classement - 20) * 0.5);
+        return max(1, floor(15 - ($classement - 20) * 0.4));
     }
     if ($classement <= 100) {
-        return max(1, floor(15 - ($classement - 20) * 0.15));
+        return max(1, floor(3 - ($classement - 50) * 0.04));
     }
     return 0;
 }
