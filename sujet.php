@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once("includes/session_init.php");
 $_SESSION['start'] = "start"; // Sert a savoir si il faut de nouveau ouvrir une nouvelle session ou non
 if (isset($_SESSION['login'])) {
 	include("includes/basicprivatephp.php");
@@ -95,12 +95,11 @@ if (isset($_GET['id'])) {
 	// On vérifie si l'utilisateur n'est pas banni du forum
 	if (isset($_SESSION['login'])) {
 		$ex4 = dbQuery($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
-	} else {
-		$ex4 = dbQuery($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', 'lakzknsdjnsqjdnjibqsdhubqsdjqushd');
 	}
 
-	// Si il est banni
-	if (mysqli_num_rows($ex4)) {
+	// Si il est banni (skip check if not logged in)
+	$isBanned = isset($ex4) && mysqli_num_rows($ex4);
+	if ($isBanned) {
 		$sanction = mysqli_fetch_array($ex4);
 		list($annee, $mois, $jour) = explode('-', $sanction['dateFin']);
 		$sanction['dateFin'] = $jour . '/' . $mois . '/' . $annee;

@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once("includes/session_init.php");
 include("includes/connexion.php");
 include("includes/fonctions.php");
 if(isset($_POST['verification']) AND isset($_POST['oui'])) {
@@ -14,6 +14,15 @@ if (isset($_SESSION['login'])) {
 
 session_unset();
 session_destroy();
+
+// Clear session cookie to prevent reuse of old session ID
+if (ini_get("session.use_cookies")) {
+	$params = session_get_cookie_params();
+	setcookie(session_name(), '', time() - 42000,
+		$params["path"], $params["domain"],
+		$params["secure"], $params["httponly"]
+	);
+}
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -21,7 +30,6 @@ session_destroy();
 <head>
 <?php include("includes/meta.php"); ?>
 <title>The Very Little War - Deconnexion</title>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /> 
 </head>
 <body>
 

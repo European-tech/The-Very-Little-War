@@ -4,15 +4,7 @@ include("includes/fonctions.php");
 require_once(__DIR__ . '/logger.php');
 require_once(__DIR__ . '/rate_limiter.php');
 
-if (!isset($_SESSION['start'])) {
-	if (session_status() === PHP_SESSION_NONE) {
-		ini_set('session.cookie_httponly', 1);
-		ini_set('session.cookie_secure', !empty($_SERVER['HTTPS']) ? 1 : 0);
-		ini_set('session.use_strict_mode', 1);
-		ini_set('session.cookie_samesite', 'Lax');
-	}
-	session_start();
-}
+require_once(__DIR__ . '/session_init.php');
 
 // Clear login session data for public pages, but preserve CSRF tokens
 // so that forms (login, registration) can verify their submissions
@@ -64,6 +56,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 				if (session_status() === PHP_SESSION_NONE) {
 					session_start();
 				}
+				session_regenerate_id(true);
 				$_SESSION['login'] = $loginInput;
 				$sessionToken = bin2hex(random_bytes(32));
 				$_SESSION['session_token'] = $sessionToken;

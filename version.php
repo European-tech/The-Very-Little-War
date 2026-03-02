@@ -1,5 +1,5 @@
 <?php 
-session_start();
+require_once("includes/session_init.php");
 $_SESSION['start'] = "start"; // Sert a savoir si il faut de nouveau ouvrir une nouvelle session ou non
 if (isset($_SESSION['login']))
 {

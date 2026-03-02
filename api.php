@@ -9,7 +9,7 @@
  * 4. Replaced if/elseif chain with dispatch table
  */
 
-session_start();
+require_once("includes/session_init.php");
 
 header('Content-Type: application/json; charset=utf-8');
 

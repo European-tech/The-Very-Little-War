@@ -95,9 +95,9 @@ dbExecute($base, 'DELETE FROM connectes WHERE timestamp < ?', 'i', $timestamp_5m
 $joueurEnVac = dbFetchOne($base, 'SELECT vacance FROM membre WHERE login = ?', 's', $_SESSION['login']);
 
 
-updateRessources($_SESSION['login']); // mise a jour
 // Si le joueur n'est pas en vacance on fait la mise a jour des ressources ...
 if (!$joueurEnVac['vacance']) {
+    updateRessources($_SESSION['login']); // mise a jour
     $now = time();
     dbExecute($base, 'UPDATE membre SET derniereConnexion = ? WHERE login = ?', 'is', $now, $_SESSION['login']);
 

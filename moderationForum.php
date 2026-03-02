@@ -3,6 +3,20 @@ include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
 require_once("includes/csrf.php");
 
+// Check moderator status BEFORE processing any actions
+$joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
+if (!$joueur['moderateur']) {
+	include("includes/tout.php");
+	debutCarte();
+	debutContent();
+	echo '<span class="important">Erreur : Accès interdit</span>
+		Seul les modérateurs on accès à cette page.';
+	finContent();
+	finCarte();
+	include("includes/copyright.php");
+	exit();
+}
+
 // Supression de sanction (POST-based with CSRF)
 if (isset($_POST['supprimer'])) {
 	csrfCheck();
@@ -30,10 +44,8 @@ if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST
 }
 
 include("includes/tout.php");
-$joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
-if ($joueur['moderateur']) {
 
-	debutCarte("Modération du forum");
+debutCarte("Modération du forum");
 
 	echo important("Bannir un membre");
 ?>
@@ -118,18 +130,5 @@ if ($joueur['moderateur']) {
 	finCarte(); ?>
 
 <?php
-}
-// Si l'utilisateur n'est pas un modérateur, on affiche un message d'erreur
-else {
-	debutCarte();
-	debutContent();
-	echo
-	'
-							<span class="important">Erreur : Accès interdit</span>
-							Seul les modérateurs on accès à cette page.
-					';
-	finContent();
-	finCarte();
-}
 include("includes/copyright.php");
 ?>

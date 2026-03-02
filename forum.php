@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once("includes/session_init.php");
 include("includes/bbcode.php"); // Ajout de Yojim
 $_SESSION['start'] = "start"; // Sert a savoir si il faut de nouveau ouvrir une nouvelle session ou non
 if (isset($_SESSION['login']))
@@ -20,9 +20,14 @@ debutCarte("Forum"); ?>
 	if(isset($_SESSION['login'])) {
 		$ex4 = dbQuery($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
 	}
-	$ex4Result = isset($ex4) ? $ex4 : dbQuery($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', 'aabbqsdqsdqsdqsqqsd');
+	// If not logged in, skip the ban check entirely
+	$isBanned = false;
+	if (isset($ex4) && mysqli_num_rows($ex4)) {
+		$isBanned = true;
+	}
 	// Si il est banni
-	if (mysqli_num_rows($ex4Result)) {
+	if ($isBanned) {
+		$ex4Result = $ex4;
 		$sanction = mysqli_fetch_array($ex4Result);
 		// On calcul la différence entre la date de fin et la date actuelle
 		$ex5 = dbQuery($base, 'SELECT DATEDIFF(CURDATE(), ?)', 's', $sanction['dateFin']);

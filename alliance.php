@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once("includes/session_init.php");
 $_SESSION['start'] = "start";
 if (isset($_SESSION['login'])) {
     include("includes/basicprivatephp.php");
@@ -253,7 +253,7 @@ if ($_GET['id'] != -1) {
         debutCarte("Description");
         ?>
         <p>
-            <div class="table-reponsive">
+            <div class="table-responsive">
                 <?php echo BBcode($allianceJoueurPage['description']) ?>
             </div>
         </p>

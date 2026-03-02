@@ -1,25 +1,34 @@
 <?php
-session_start();
+require_once("includes/session_init.php");
 include("includes/connexion.php");
 include("includes/fonctions.php");
 require_once("includes/csrf.php");
 require_once("includes/database.php");
+require_once("includes/rate_limiter.php");
 
 if (isset($_GET['inscription'])) {
-	$nb = dbFetchOne($base, 'SELECT numerovisiteur FROM statistiques');
-	dbExecute($base, 'UPDATE statistiques SET numerovisiteur = ?', 'i', $nb['numerovisiteur'] + 1);
-	$log = 'Visiteur' . ($nb['numerovisiteur'] - 1);
+	// Rate limit visitor account creation: 3 per 5 minutes per IP
+	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'visitor_reg', 3, 300)) {
+		header('Location: index.php?att=1');
+		exit();
+	}
+	// Atomic read-and-increment using LAST_INSERT_ID to prevent TOCTOU race
+	dbExecute($base, 'UPDATE statistiques SET numerovisiteur = LAST_INSERT_ID(numerovisiteur) + 1');
+	$visitorNumRow = dbFetchOne($base, 'SELECT LAST_INSERT_ID() AS num');
+	$visitorNum = $visitorNumRow['num']; // original value before increment
+	$log = 'Visiteur' . ($visitorNum - 1);
 	$time = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $log);
 	if ($time && time() - $time['timestamp'] > 60) { // pour éviter d'avoir trop de joueurs
-		inscrire("Visiteur" . $nb['numerovisiteur'], "Visiteur" . $nb['numerovisiteur'], "Visiteur" . $nb['numerovisiteur'] . "@tvlw.com");
-		$_SESSION['login'] = ucfirst(mb_strtolower("Visiteur" . $nb['numerovisiteur']));
+		inscrire("Visiteur" . $visitorNum, "Visiteur" . $visitorNum, "Visiteur" . $visitorNum . "@tvlw.com");
+		session_regenerate_id(true);
+		$_SESSION['login'] = ucfirst(mb_strtolower("Visiteur" . $visitorNum));
 		// Use password_hash for visitor accounts too
-		$visitorPass = "Visiteur" . $nb['numerovisiteur'];
+		$visitorPass = "Visiteur" . $visitorNum;
 		$hashedPass = password_hash($visitorPass, PASSWORD_DEFAULT);
-		dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $hashedPass, $_SESSION['login']);
+		dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $hashedPass, "Visiteur" . $visitorNum);
 		$sessionToken = bin2hex(random_bytes(32));
 		$_SESSION['session_token'] = $sessionToken;
-		dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, $_SESSION['login']);
+		dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, "Visiteur" . $visitorNum);
 		header('Location: tutoriel.php?deployer=1');
 		exit();
 	} else {
@@ -53,23 +62,25 @@ if (isset($_GET['inscription'])) {
 						// Use password_hash instead of MD5
 						$hashedPassword = password_hash($_POST['pass'], PASSWORD_DEFAULT);
 
-						// Update all tables with prepared statements
-						dbExecute($base, 'UPDATE autre SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE grade SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE constructions SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE invitations SET invite = ? WHERE invite = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ? WHERE login = ?', 'ssss', $newLogin, $hashedPassword, $email, $oldLogin);
-						dbExecute($base, 'UPDATE messages SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE messages SET expeditaire = ? WHERE expeditaire = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE moderation SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE molecules SET proprietaire = ? WHERE proprietaire = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE rapports SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE reponses SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE ressources SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE sanctions SET joueur = ? WHERE joueur = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE statutforum SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE sujets SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
-						dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $newLogin);
+						// Wrap all 15 table renames in a transaction for atomicity
+						withTransaction($base, function() use ($base, $newLogin, $oldLogin, $hashedPassword, $email) {
+							dbExecute($base, 'UPDATE autre SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE grade SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE constructions SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE invitations SET invite = ? WHERE invite = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ? WHERE login = ?', 'ssss', $newLogin, $hashedPassword, $email, $oldLogin);
+							dbExecute($base, 'UPDATE messages SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE messages SET expeditaire = ? WHERE expeditaire = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE moderation SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE molecules SET proprietaire = ? WHERE proprietaire = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE rapports SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE reponses SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE ressources SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE sanctions SET joueur = ? WHERE joueur = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE statutforum SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE sujets SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $newLogin);
+						});
 
 						$_SESSION['login'] = $newLogin;
 						$sessionToken = bin2hex(random_bytes(32));

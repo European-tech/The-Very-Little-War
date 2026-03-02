@@ -7,34 +7,37 @@ if(isset($_POST['energieEnvoyee'])) {
 		$_POST['energieEnvoyee'] = 0;
 	}
 	$_POST['energieEnvoyee'] = transformInt($_POST['energieEnvoyee']);
-	if(preg_match("#^[0-9]*$#", $_POST['energieEnvoyee'])) {
+	if(preg_match("#^[0-9]+$#", $_POST['energieEnvoyee']) && $_POST['energieEnvoyee'] > 0) {
 		$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 
 		if($idalliance['idalliance'] > 0) {
 			$verification = dbFetchOne($base, 'SELECT count(*) AS verificationAlliance FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 
 			if($verification['verificationAlliance'] > 0) {
-					$ressources = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login=?', 's', $_SESSION['login']);
+				try {
+					withTransaction($base, function() use ($base, $idalliance) {
+						// Lock rows to prevent TOCTOU race condition
+						$ressources = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+						$energieDonnee = dbFetchOne($base, 'SELECT energieDonnee FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+						$ressourcesAlliance = dbFetchOne($base, 'SELECT energieAlliance, energieTotaleRecue FROM alliances WHERE id=? FOR UPDATE', 'i', $idalliance['idalliance']);
 
-					if($ressources['energie'] >= $_POST['energieEnvoyee']) {
+						if($ressources['energie'] < $_POST['energieEnvoyee']) {
+							throw new \RuntimeException("NOT_ENOUGH_ENERGY");
+						}
 
-					$energieDonnee = dbFetchOne($base, 'SELECT energieDonnee FROM autre WHERE login=?', 's', $_SESSION['login']);
-
-					$ressourcesAlliance = dbFetchOne($base, 'SELECT energieAlliance, energieTotaleRecue FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-
-					$newEnergie = $ressources['energie'] - $_POST['energieEnvoyee'];
-					dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $newEnergie, $_SESSION['login']);
-					$newEnergieDonnee = $energieDonnee['energieDonnee'] + $_POST['energieEnvoyee'];
-					dbExecute($base, 'UPDATE autre SET energieDonnee=? WHERE login=?', 'ds', $newEnergieDonnee, $_SESSION['login']);
-					$newEnergieAlliance = $ressourcesAlliance['energieAlliance'] + $_POST['energieEnvoyee'];
-					$newEnergieTotale = $ressourcesAlliance['energieTotaleRecue'] + $_POST['energieEnvoyee'];
-					dbExecute($base, 'UPDATE alliances SET energieAlliance=?, energieTotaleRecue=? WHERE id=?', 'ddi', $newEnergieAlliance, $newEnergieTotale, $idalliance['idalliance']);
+						dbExecute($base, 'UPDATE ressources SET energie = energie - ? WHERE login=?', 'ds', $_POST['energieEnvoyee'], $_SESSION['login']);
+						dbExecute($base, 'UPDATE autre SET energieDonnee = energieDonnee + ? WHERE login=?', 'ds', $_POST['energieEnvoyee'], $_SESSION['login']);
+						dbExecute($base, 'UPDATE alliances SET energieAlliance = energieAlliance + ?, energieTotaleRecue = energieTotaleRecue + ? WHERE id=?', 'ddi', $_POST['energieEnvoyee'], $_POST['energieEnvoyee'], $idalliance['idalliance']);
+					});
 					$information = "Le don a bien été reçu !";
-                    header('Location: alliance.php?information=' . urlencode($information));
-                    exit();
-				}
-				else {
-					$erreur = "Vous n'avez pas assez d'energie.";
+					header('Location: alliance.php?information=' . urlencode($information));
+					exit();
+				} catch (\RuntimeException $e) {
+					if ($e->getMessage() === "NOT_ENOUGH_ENERGY") {
+						$erreur = "Vous n'avez pas assez d'energie.";
+					} else {
+						throw $e;
+					}
 				}
 			}
 			else {

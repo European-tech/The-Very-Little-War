@@ -57,15 +57,17 @@ function inscrire($pseudo, $mdp, $mail)
     $vieGen = pointsDeVie(1);
     $vieCDF = vieChampDeForce(0);
 
-    dbExecute($base, 'INSERT INTO membre VALUES(default, ?, ?, ?, ?, ?, 0, ?, 0, 0, ?,-1000,-1000)', 'sssisis', $safePseudo, $hashedPassword, $now, $_SERVER['REMOTE_ADDR'], $now, $alea, $safeMail);
-    dbExecute($base, 'INSERT INTO autre VALUES(?, default, default, "Pas de description", ?, default, default, default, default, default, default, default, default,default,default,?,default,default,default,default,"",default)', 'sis', $safePseudo, $now, $timestamps);
-    dbExecute($base, 'INSERT INTO ressources VALUES(default,?, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default)', 's', $safePseudo);
-    dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
-    dbExecute($base, 'INSERT INTO molecules VALUES(default, default, default, default, default, default,default, default, default, default, 1, ?, default),
+    withTransaction($base, function() use ($base, $safePseudo, $hashedPassword, $now, $timestamps, $alea, $safeMail, $nbinscrits, $vieGen, $vieCDF) {
+        dbExecute($base, 'INSERT INTO membre VALUES(default, ?, ?, ?, ?, ?, 0, ?, 0, 0, ?,-1000,-1000)', 'sssisis', $safePseudo, $hashedPassword, $now, $_SERVER['REMOTE_ADDR'], $now, $alea, $safeMail);
+        dbExecute($base, 'INSERT INTO autre VALUES(?, default, default, "Pas de description", ?, default, default, default, default, default, default, default, default,default,default,?,default,default,default,default,"",default)', 'sis', $safePseudo, $now, $timestamps);
+        dbExecute($base, 'INSERT INTO ressources VALUES(default,?, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default)', 's', $safePseudo);
+        dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
+        dbExecute($base, 'INSERT INTO molecules VALUES(default, default, default, default, default, default,default, default, default, default, 1, ?, default),
 	(default, default, default, default, default, default,default, default, default, default, 2, ?, default),
 	(default, default, default, default, default, default,default, default, default, default, 3, ?, default),
 	(default , default, default, default, default, default,default, default, default, default, 4, ?, default)', 'ssss', $safePseudo, $safePseudo, $safePseudo, $safePseudo);
-    dbExecute($base, 'INSERT INTO constructions VALUES(?, default, default, default, default, default, default, default, default, ?, ?, ?,?,default,default,default,default)', 'sdddd', $safePseudo, $vieGen, $vieCDF, $vieGen, $vieGen);
+        dbExecute($base, 'INSERT INTO constructions VALUES(?, default, default, default, default, default, default, default, default, ?, ?, ?,?,default,default,default,default)', 'sdddd', $safePseudo, $vieGen, $vieCDF, $vieGen, $vieGen);
+    });
 }
 
 function ajouterPoints($nb, $joueur, $type = 0)
@@ -737,12 +739,14 @@ function recalculerStatsAlliances()
 function supprimerAlliance($alliance)
 {
     global $base;
-    dbExecute($base, 'UPDATE autre SET energieDonnee=0 WHERE idalliance=?', 'i', $alliance);
-    dbExecute($base, 'DELETE FROM alliances WHERE id=?', 'i', $alliance);
-    dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE idalliance=?', 'i', $alliance);
-    dbExecute($base, 'DELETE FROM invitations WHERE idalliance=?', 'i', $alliance);
-    dbExecute($base, 'DELETE FROM declarations WHERE (alliance1=? OR alliance2=?)', 'ii', $alliance, $alliance);
-    dbExecute($base, 'DELETE FROM grades WHERE idalliance=?', 'i', $alliance);
+    withTransaction($base, function() use ($base, $alliance) {
+        dbExecute($base, 'UPDATE autre SET energieDonnee=0 WHERE idalliance=?', 'i', $alliance);
+        dbExecute($base, 'DELETE FROM alliances WHERE id=?', 'i', $alliance);
+        dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE idalliance=?', 'i', $alliance);
+        dbExecute($base, 'DELETE FROM invitations WHERE idalliance=?', 'i', $alliance);
+        dbExecute($base, 'DELETE FROM declarations WHERE (alliance1=? OR alliance2=?)', 'ii', $alliance, $alliance);
+        dbExecute($base, 'DELETE FROM grades WHERE idalliance=?', 'i', $alliance);
+    });
 }
 
 function supprimerJoueur($joueur)
@@ -751,24 +755,26 @@ function supprimerJoueur($joueur)
     if (function_exists('logInfo')) {
         logInfo('ACCOUNT', 'Account deleted', ['deleted_player' => $joueur]);
     }
-    dbExecute($base, 'DELETE FROM vacances WHERE idJoueur IN (SELECT id FROM membre WHERE login=?)', 's', $joueur);
-    dbExecute($base, 'DELETE FROM autre WHERE login=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM membre WHERE login=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM ressources WHERE login=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM molecules WHERE proprietaire=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM constructions WHERE login=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM invitations WHERE invite=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM messages WHERE destinataire=? OR expeditaire=?', 'ss', $joueur, $joueur);
-    dbExecute($base, 'DELETE FROM rapports WHERE destinataire=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM grades WHERE login=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM actionsattaques WHERE attaquant=? OR defenseur=?', 'ss', $joueur, $joueur);
-    dbExecute($base, 'DELETE FROM actionsformation WHERE login=?', 's', $joueur);
-    dbExecute($base, 'DELETE FROM actionsenvoi WHERE envoyeur=? OR receveur=?', 'ss', $joueur, $joueur);
-    dbExecute($base, 'DELETE FROM statutforum WHERE login=?', 's', $joueur);
+    withTransaction($base, function() use ($base, $joueur) {
+        dbExecute($base, 'DELETE FROM vacances WHERE idJoueur IN (SELECT id FROM membre WHERE login=?)', 's', $joueur);
+        dbExecute($base, 'DELETE FROM autre WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM membre WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM ressources WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM molecules WHERE proprietaire=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM constructions WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM invitations WHERE invite=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM messages WHERE destinataire=? OR expeditaire=?', 'ss', $joueur, $joueur);
+        dbExecute($base, 'DELETE FROM rapports WHERE destinataire=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM grades WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM actionsattaques WHERE attaquant=? OR defenseur=?', 'ss', $joueur, $joueur);
+        dbExecute($base, 'DELETE FROM actionsformation WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM actionsenvoi WHERE envoyeur=? OR receveur=?', 'ss', $joueur, $joueur);
+        dbExecute($base, 'DELETE FROM statutforum WHERE login=?', 's', $joueur);
 
-    $donnees = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
-    $nbinscrits = $donnees['inscrits'] - 1;
-    dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
+        $donnees = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
+        $nbinscrits = $donnees['inscrits'] - 1;
+        dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
+    });
 }
 
 function miseAJour()

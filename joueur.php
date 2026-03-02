@@ -1,5 +1,5 @@
 <?php 
-session_start();
+require_once("includes/session_init.php");
 $_SESSION['start'] = "start"; 
 if (isset($_SESSION['login']))
 {
@@ -50,15 +50,9 @@ if (isset($_GET['id'])) {
 		<img style="margin-right: 20px; float: right; border-radius: 10px;width:80px;" alt="profil" src="images/profil/<?php echo htmlspecialchars($donnees1['image'], ENT_QUOTES, 'UTF-8'); ?>"/>
        <?php if($donnees3['idalliance'] > 0) { $alliance = alliance($donnees2['tag']); } else { $alliance = "Pas d'alliance";}
         
-        $rangQuery = dbQuery($base, 'SELECT login FROM autre ORDER BY totalPoints DESC');
-        $rang = 1;
-                
-        while($rangEx = mysqli_fetch_array($rangQuery)){
-            if($rangEx['login'] == $membre['login']){
-                break;
-            }
-            $rang++;
-        }
+        $playerPoints = dbFetchOne($base, 'SELECT totalPoints FROM autre WHERE login=?', 's', $membre['login']);
+        $rangData = dbFetchOne($base, 'SELECT COUNT(*) + 1 AS rang FROM autre WHERE totalPoints > ?', 'd', $playerPoints['totalPoints']);
+        $rang = $rangData['rang'];
         echo chipInfo('<span class="important">Rang : </span>'.imageClassement($rang),'images/alliance/up.png').'<br/>';
         echo chip('<span class="important">Nom : </span>'.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8'),'<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
         echo chip('<span class="important">Equipe : </span>'.$alliance,'<img alt="coupe" src="images/classement/alliance.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';

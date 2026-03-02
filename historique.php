@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once("includes/session_init.php");
 $_SESSION['start'] = "start"; // Sert a savoir si il faut de nouveau ouvrir une nouvelle session ou non
 if (isset($_SESSION['login']))
 {
@@ -81,14 +81,14 @@ if(isset($_POST['numeropartie'])) {
 				?>
 				<tr>
 				<td><?php echo imageClassement($compteur) ; ?></td>
-				<td><a href="joueur.php?id=<?php echo $valeurs[0];?>"><?php echo $valeurs[0]; ?></a></td>
-				<td><?php echo $valeurs[1]; ?></td>
-				<td><?php echo $valeurs[2]; ?></td>
-				<td><?php echo alliance($valeurs[3]); ?></td>
-				<td><?php echo $valeurs[4];?></td>
-				<td><?php echo $valeurs[5];?></td>
-				<td><?php echo $valeurs[6];?></td>
-				<td><?php echo $valeurs[7];?></td>
+				<td><a href="joueur.php?id=<?php echo urlencode($valeurs[0]);?>"><?php echo htmlspecialchars($valeurs[0], ENT_QUOTES, 'UTF-8'); ?></a></td>
+				<td><?php echo htmlspecialchars($valeurs[1], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[2], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo alliance(htmlspecialchars($valeurs[3], ENT_QUOTES, 'UTF-8')); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[4], ENT_QUOTES, 'UTF-8');?></td>
+				<td><?php echo htmlspecialchars($valeurs[5], ENT_QUOTES, 'UTF-8');?></td>
+				<td><?php echo htmlspecialchars($valeurs[6], ENT_QUOTES, 'UTF-8');?></td>
+				<td><?php echo htmlspecialchars($valeurs[7], ENT_QUOTES, 'UTF-8');?></td>
 				</tr>
 			<?php
 			}
@@ -119,7 +119,7 @@ if(isset($_POST['numeropartie'])) {
 		<tbody>
 		<?php
 		$data = dbFetchOne($base, 'SELECT * FROM parties WHERE id=?', 'i', $_POST['numeropartie']);
-		$tab = explode("[",$data['alliances']);
+		$tab = $data ? explode("[",$data['alliances']) : [];
 
 		foreach($tab as $compteur => $chaine){
 			if($compteur > 0){ //on ne prends pas le premier carcatere qui est un delimiteur
@@ -127,15 +127,15 @@ if(isset($_POST['numeropartie'])) {
 				?>
 				<tr>
 				<td><?php echo imageClassement($compteur) ; ?></td>
-				<td><?php echo alliance($valeurs[0]); ?></td>
-				<td><?php echo $valeurs[1]; ?></td>
-				<td><?php echo $valeurs[2]; ?></td>
-				<td><?php echo $valeurs[3]; ?></td>
-				<td><?php echo $valeurs[4]; ?></td>
-				<td><?php echo $valeurs[5]; ?></td>
-				<td><?php echo $valeurs[6]; ?></td>
-				<td><?php echo $valeurs[7]; ?></td>
-				<td><?php echo $valeurs[8]; ?></td>
+				<td><?php echo alliance(htmlspecialchars($valeurs[0], ENT_QUOTES, 'UTF-8')); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[1], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[2], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[3], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[4], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[5], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[6], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[7], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[8], ENT_QUOTES, 'UTF-8'); ?></td>
 				</tr>
 				<?php
 			}
@@ -160,17 +160,17 @@ if(isset($_POST['numeropartie'])) {
 		<tbody>
 		<?php
 		$data = dbFetchOne($base, 'SELECT * FROM parties WHERE id=?', 'i', $_POST['numeropartie']);
-		$tab = explode("[",$data['guerres']);
+		$tab = $data ? explode("[",$data['guerres']) : [];
 		foreach($tab as $compteur => $chaine){
 			if($compteur > 0){ //on ne prends pas le premier carcatere qui est un delimiteur
 				$valeurs = explode(",",$chaine);
 				?>
 				<tr>
 				<td><?php echo imageClassement($compteur) ; ?></td>
-				<td><?php echo $valeurs[0]; ?></td>
-				<td><?php echo $valeurs[1]; ?></td>
-				<td><?php echo $valeurs[2]; ?></td>
-				<td><?php echo '<a href="guerre.php?id='.$valeurs[3].'" class="lienVisible"><img src="images/classement/details.png" alt="details" title="Détails"/></a>';?></td>
+				<td><?php echo htmlspecialchars($valeurs[0], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[1], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[2], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo '<a href="guerre.php?id='.intval($valeurs[3]).'" class="lienVisible"><img src="images/classement/details.png" alt="details" title="Détails"/></a>';?></td>
 				</tr>
 				<?php
 			}

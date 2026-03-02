@@ -1,5 +1,5 @@
 <?php 
-session_start();
+require_once("includes/session_init.php");
 $_SESSION['start'] = "start"; // Sert a savoir si il faut de nouveau ouvrir une nouvelle session ou non
 if (isset($_SESSION['login']))
 {
@@ -15,7 +15,7 @@ include("includes/tout.php");
 $cours=["Introduction","Description de l'univers","De l'atome à l'élément chimique","Les molécules","L'élément chimique","Quantité d'espèce chimique"];
 
 $cours_id = isset($_GET['cours']) ? (int)$_GET['cours'] : 0;
-if($cours_id < 0 || $cours_id > sizeof($cours)) {
+if($cours_id < 0 || $cours_id >= sizeof($cours)) {
 	$cours_id = 0;
 }
 

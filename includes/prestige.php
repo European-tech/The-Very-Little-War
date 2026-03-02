@@ -148,24 +148,38 @@ function purchasePrestigeUnlock($login, $unlockKey) {
     }
 
     $unlock = $PRESTIGE_UNLOCKS[$unlockKey];
-    $prestige = getPrestige($login);
 
-    if (hasPrestigeUnlock($login, $unlockKey)) {
-        return 'Vous avez déjà cette amélioration.';
-    }
+    // Use transaction + row lock to prevent TOCTOU double-spend
+    $result = null;
+    withTransaction($base, function() use ($base, $login, $unlockKey, $unlock, &$result) {
+        $prestige = dbFetchOne($base, 'SELECT total_pp, unlocks FROM prestige WHERE login=? FOR UPDATE', 's', $login);
 
-    if ($prestige['total_pp'] < $unlock['cost']) {
-        return 'Pas assez de points de prestige (' . $prestige['total_pp'] . '/' . $unlock['cost'] . ').';
-    }
+        if (!$prestige) {
+            $result = 'Données de prestige introuvables.';
+            return;
+        }
 
-    // Add unlock to list
-    $unlocks = array_filter(explode(',', $prestige['unlocks']));
-    $unlocks[] = $unlockKey;
-    $newUnlocks = implode(',', $unlocks);
+        $unlocks = array_filter(explode(',', $prestige['unlocks']));
 
-    dbExecute($base, 'UPDATE prestige SET unlocks=? WHERE login=?', 'ss', $newUnlocks, $login);
+        if (in_array($unlockKey, $unlocks)) {
+            $result = 'Vous avez déjà cette amélioration.';
+            return;
+        }
 
-    return true;
+        if ($prestige['total_pp'] < $unlock['cost']) {
+            $result = 'Pas assez de points de prestige (' . $prestige['total_pp'] . '/' . $unlock['cost'] . ').';
+            return;
+        }
+
+        $unlocks[] = $unlockKey;
+        $newUnlocks = implode(',', $unlocks);
+
+        dbExecute($base, 'UPDATE prestige SET unlocks=?, total_pp = total_pp - ? WHERE login=? AND total_pp >= ?', 'sisi', $newUnlocks, $unlock['cost'], $login, $unlock['cost']);
+
+        $result = true;
+    });
+
+    return $result;
 }
 
 /**
