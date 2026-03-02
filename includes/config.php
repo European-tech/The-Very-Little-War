@@ -381,6 +381,9 @@ define('DUPLICATEUR_COST_FACTOR', 2.5);
 // Duplicateur resource bonus: bonusDuplicateur = level / 100 (i.e. 1% per level)
 define('DUPLICATEUR_BONUS_PER_LEVEL', 0.01); // 1% per level for resource production
 
+// Alliance research level cap
+define('ALLIANCE_RESEARCH_MAX_LEVEL', 25);
+
 // Alliance tag constraints
 define('ALLIANCE_TAG_MIN_LENGTH', 3);
 define('ALLIANCE_TAG_MAX_LENGTH', 16);
@@ -560,3 +563,67 @@ define('LIEUR_GROWTH_BASE', 1.07);
 // =============================================================================
 // A player is considered "active" if last connection was within this many seconds
 define('ACTIVE_PLAYER_THRESHOLD', SECONDS_PER_MONTH); // 2678400 = 31 days
+
+// =============================================================================
+// ATOM SPECIALIZATIONS — irreversible choices unlocked at building milestones
+// =============================================================================
+// 0 = not chosen, 1 = option A, 2 = option B
+$SPECIALIZATIONS = [
+    'combat' => [
+        'column' => 'spec_combat',
+        'unlock_building' => 'ionisateur',
+        'unlock_level' => 15,
+        'options' => [
+            1 => [
+                'name' => 'Oxydant',
+                'desc' => '+10% attaque, -5% défense',
+                'icon' => 'images/molecule/sword.png',
+                'modifiers' => ['attack' => 0.10, 'defense' => -0.05],
+            ],
+            2 => [
+                'name' => 'Réducteur',
+                'desc' => '+10% défense, -5% attaque',
+                'icon' => 'images/molecule/shield.png',
+                'modifiers' => ['defense' => 0.10, 'attack' => -0.05],
+            ],
+        ],
+    ],
+    'economy' => [
+        'column' => 'spec_economy',
+        'unlock_building' => 'producteur',
+        'unlock_level' => 20,
+        'options' => [
+            1 => [
+                'name' => 'Industriel',
+                'desc' => '+20% production d\'atomes, -10% production d\'énergie',
+                'icon' => 'images/atom.png',
+                'modifiers' => ['atom_production' => 0.20, 'energy_production' => -0.10],
+            ],
+            2 => [
+                'name' => 'Énergétique',
+                'desc' => '+20% production d\'énergie, -10% production d\'atomes',
+                'icon' => 'images/energie.png',
+                'modifiers' => ['energy_production' => 0.20, 'atom_production' => -0.10],
+            ],
+        ],
+    ],
+    'research' => [
+        'column' => 'spec_research',
+        'unlock_building' => 'condenseur',
+        'unlock_level' => 15,
+        'options' => [
+            1 => [
+                'name' => 'Théorique',
+                'desc' => '+2 points condenseur/niveau, -20% vitesse de formation',
+                'icon' => 'images/molecule/temps.png',
+                'modifiers' => ['condenseur_points' => 2, 'formation_speed' => -0.20],
+            ],
+            2 => [
+                'name' => 'Appliqué',
+                'desc' => '+20% vitesse de formation, -1 point condenseur/niveau',
+                'icon' => 'images/molecule/vitesse.png',
+                'modifiers' => ['formation_speed' => 0.20, 'condenseur_points' => -1],
+            ],
+        ],
+    ],
+];

@@ -277,7 +277,7 @@ include("redirectionmotdepasse.php");
                                 }
                                 
                                 <?php // on teste toutes les unites et sous-unites dans la base de données pour retrouver la compagnie associée
-                                $ex2 = query("SELECT * FROM unites");
+                                $ex2 = dbQuery($base, "SELECT * FROM unites");
                                 while($data1 = mysqli_fetch_array($ex2)) {
                                     $data1['unite'] = str_replace("COB","",$data1['unite']);
                                     $data1['unite'] = str_replace("BTA","",$data1['unite']);
@@ -289,7 +289,7 @@ include("redirectionmotdepasse.php");
                                     ";
                                 }
                                 
-                                $ex2 = query("SELECT * FROM unites WHERE sousunite!=''");
+                                $ex2 = dbQuery($base, "SELECT * FROM unites WHERE sousunite!=''");
                                 while($data1 = mysqli_fetch_array($ex2)){
                                     $data1['sousunite'] = str_replace("BP","",$data1['sousunite']);
                                     $data1['sousunite'] = trim($data1['sousunite']);
@@ -345,7 +345,7 @@ include("redirectionmotdepasse.php");
                                         break;
                                             
                                         case "Type (Residence, Commerce, Autres)": 
-                                            $req = query("SELECT * FROM lieux");
+                                            $req = dbQuery($base, "SELECT * FROM lieux");
                                             $correction = "";
                                             while($data = mysqli_fetch_array($req)){
                                                 $correction = $correction.'if(/'.$data['lieuCRPJ'].'/i.test(lieu) == true) {
@@ -630,7 +630,7 @@ include("redirectionmotdepasse.php");
                                                 var tableauSignalements = [];
                                                 signalementTotal = signalementTotal.replace(/( de | ou | des | d\'| que )/g," ");';
                                                 
-                                                $ex1 = query('SELECT * FROM signalement');
+                                                $ex1 = dbQuery($base, 'SELECT * FROM signalement');
                                                 while($data = mysqli_fetch_array($ex1)){
                                                     echo "tableauSignalements.push(/ ".$data['motCle']." /ig);
                                                     ";
