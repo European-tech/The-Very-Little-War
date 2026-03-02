@@ -195,11 +195,12 @@ if ($defenderFormation == FORMATION_EMBUSCADE) {
 	}
 }
 
-// Calcul des dégâts totaux avec réactions chimiques + formation bonuses
+// Calcul des dégâts totaux avec réactions chimiques + formation bonuses + catalyst
+$catalystAttackBonus = 1 + catalystEffect('attack_bonus');
 $degatsAttaquant = 0;
 $degatsDefenseur = 0;
 for ($c = 1; $c <= 4; $c++) {
-	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * 2) / 100)) * $bonusDuplicateurAttaque * ${'classeAttaquant' . $c}['nombre'];
+	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * 2) / 100)) * $bonusDuplicateurAttaque * $catalystAttackBonus * ${'classeAttaquant' . $c}['nombre'];
 	$defBonusForClass = $defReactionDefenseBonus * $formationDefenseBonus * $defIsotopeAttackMod[$c];
 	// Phalange: class 1 gets extra defense bonus
 	if ($defenderFormation == FORMATION_PHALANGE && $c == 1) {

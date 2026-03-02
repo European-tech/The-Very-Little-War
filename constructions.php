@@ -186,7 +186,7 @@ function mepConstructions($liste)
           ' . $liste['effetSup'] . '<br/><br/>' . finContent(false, true) . '
           <form action="constructions.php" method="post" name="form' . $liste['bdd'] . '">' . csrfField() .
             important('Augmenter') . '
-          ' . $cout . $drainage . nombreTemps(affichageTemps($liste['tempsConstruction'])) . nombrePoints('+' . $liste['points']) . '<br/><br/>
+          ' . $cout . $drainage . nombreTemps(affichageTemps(round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed'))))) . nombrePoints('+' . $liste['points']) . '<br/><br/>
           ' . $augmenter . '</form><hr>'
     ]);
 }
@@ -278,7 +278,8 @@ function traitementConstructions($liste)
                 }
 
                 $newNiveau = $niveauActuel['niveau'] + 1;
-                $finTemps = $tempsDebut + $liste['tempsConstruction'];
+                $adjustedConstructionTime = round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')));
+                $finTemps = $tempsDebut + $adjustedConstructionTime;
                 dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siissii',
                     $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
 

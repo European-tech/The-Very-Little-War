@@ -73,7 +73,7 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
 
     $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
     $duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-    $cout = round(10 * pow(2.5, ($duplicateur['duplicateur'] + 1)));
+    $cout = round(10 * pow(2.5, ($duplicateur['duplicateur'] + 1)) * (1 - catalystEffect('duplicateur_discount')));
 
     if (isset($_POST['augmenterDuplicateur'])) {
         csrfCheck();

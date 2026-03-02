@@ -15,3 +15,4 @@ require_once __DIR__ . '/ui_components.php';   // UI rendering helpers (cards, l
 require_once __DIR__ . '/display.php';         // Display/formatting helpers (images, numbers, text)
 require_once __DIR__ . '/db_helpers.php';      // DB helper wrappers (query, ajouter, alliance)
 require_once __DIR__ . '/prestige.php';       // Cross-season prestige system
+require_once __DIR__ . '/catalyst.php';       // Weekly catalyst system

@@ -137,7 +137,8 @@ function pillage($soufre, $niveau, $joueur)
         }
     }
 
-    return round(((0.1 * $soufre) * (0.1 * $soufre) + $soufre / 3) * (1 + $niveau / 50) * (1 + $bonus / 100));
+    $catalystPillageBonus = 1 + catalystEffect('pillage_bonus');
+    return round(((0.1 * $soufre) * (0.1 * $soufre) + $soufre / 3) * (1 + $niveau / 50) * (1 + $bonus / 100) * $catalystPillageBonus);
 }
 
 function productionEnergieMolecule($iode, $niveau)
@@ -159,7 +160,8 @@ function tempsFormation($azote, $niveau, $ntotal, $joueur)
 {
     global $base;
     $constructions = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $joueur);
-    return ceil($ntotal / (1 + pow(0.09 * $azote, 1.09)) / (1 + $niveau / 20) / bonusLieur($constructions['lieur']) * 100) / 100;
+    $catalystSpeedBonus = 1 + catalystEffect('formation_speed');
+    return ceil($ntotal / (1 + pow(0.09 * $azote, 1.09)) / (1 + $niveau / 20) / bonusLieur($constructions['lieur']) / $catalystSpeedBonus * 100) / 100;
 }
 
 
@@ -194,6 +196,12 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
         $nbAtomes = $classeOuNbTotal;
     }
     $baseDecay = pow(pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR), (1 - ($bonus / 100)) * (1 - ($stabilisateur['stabilisateur'] * STABILISATEUR_BONUS_PER_LEVEL)));
+
+    // Catalyst decay increase (Volatilité: +30% faster decay)
+    $catalystDecayIncrease = catalystEffect('decay_increase');
+    if ($catalystDecayIncrease > 0) {
+        $baseDecay = pow($baseDecay, 1.0 + $catalystDecayIncrease);
+    }
 
     // Isotope decay modifier: Stable = slower decay, Réactif = faster decay
     if ($type == 0 && isset($donnees['isotope'])) {
