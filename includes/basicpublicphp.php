@@ -8,9 +8,14 @@ if (!isset($_SESSION['start'])) {
 	session_start();
 }
 
-//Si une session existe elle est detruite
-session_unset();
-session_destroy();
+// Clear login session data for public pages, but preserve CSRF tokens
+// so that forms (login, registration) can verify their submissions
+if (isset($_SESSION['login'])) {
+	unset($_SESSION['login']);
+	unset($_SESSION['mdp']);
+}
+// Note: We do NOT call session_destroy() here because it would wipe
+// the CSRF token needed for form submissions on public pages.
 
 //Si le formulaire de connexion a ete soumis et que le couple mdp login est bon, on se connecte
 if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
@@ -49,19 +54,17 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 			}
 
 			if ($authenticated) {
-				session_start();
+				if (session_status() === PHP_SESSION_NONE) {
+					session_start();
+				}
 				$_SESSION['login'] = $loginInput;
 				$_SESSION['mdp'] = $storedHash;
 
 				dbExecute($base, 'UPDATE membre SET ip = ? WHERE login = ?', 'ss', $_SERVER['REMOTE_ADDR'], $loginInput);
 				logInfo('AUTH', 'Login successful', ['login' => $loginInput]);
 
-				$joueur = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ?', 's', $_SESSION['login']);
-				echo '
-            <script>
-                localStorage.setItem("login", "' . $_SESSION['login'] . '");
-                window.location = "constructions.php";
-            </script>';
+				header('Location: constructions.php');
+				exit();
 			} else {
 				logWarn('AUTH', 'Login failed - bad password', ['login' => $loginInput]);
 				$erreur = 'Le couple login-mot de passe est erronn&eacute;';

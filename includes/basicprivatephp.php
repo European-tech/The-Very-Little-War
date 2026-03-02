@@ -1,12 +1,11 @@
 <?php
-if (!isset($_SESSION['start'])) {
+// Session security hardening (must be set before session_start)
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.cookie_secure', 0);
+    ini_set('session.use_strict_mode', 1);
     session_start();
 }
-
-// Session security hardening
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 0);
-ini_set('session.use_strict_mode', 1);
 
 include("includes/connexion.php");
 include("includes/fonctions.php");

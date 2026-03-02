@@ -44,11 +44,12 @@ if (!isset($_SESSION['login'])) {
 $retour = dbQuery($base, 'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
 $nb = mysqli_num_rows($retour);
 if ($nb == 0) {
-    $donnees['titre'] = "Aucun news";
+    $donnees = ['titre' => 'Aucune news', 'contenu' => ''];
     $contenuNews = 'Aucune news pour l\'instant.';
+} else {
+    $donnees = mysqli_fetch_array($retour);
+    $contenuNews = nl2br(stripslashes($donnees['contenu']));
 }
-$donnees = mysqli_fetch_array($retour);
-$contenuNews = nl2br(stripslashes($donnees['contenu']));
 
 debutCarte();
 debutAccordion();

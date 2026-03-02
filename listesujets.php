@@ -6,7 +6,6 @@ if (isset($_SESSION['login'])) {
 } else {
 	include("includes/basicpublicphp.php");
 }
-include("includes/bbcode.php");
 require_once("includes/csrf.php");
 
 if(!isset($_GET['id'])
@@ -16,7 +15,10 @@ if(!isset($_GET['id'])
 	or !preg_match("#^[0-9]*$#", $_GET['id'])
 	) {
 	header('Location: forum.php');
+	exit();
 }
+
+include("includes/bbcode.php");
 
 $_GET['id'] = antiXSS($_GET['id']);
 $getId = (int)$_GET['id'];

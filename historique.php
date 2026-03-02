@@ -25,7 +25,7 @@ if(!isset($_POST['numeropartie'])) { if(!isset($_SESSION['numeropartie'])){$_POS
 $nArchive = "";
 if(isset($_GET['sub']) and isset($_POST['numeropartie'])) {
     $data = dbFetchOne($base, 'SELECT debut FROM parties WHERE id=?', 'i', $_POST['numeropartie']);
-	$nArchive = ' - '.date('m/Y',$data['debut']);
+	$nArchive = $data ? ' - '.date('m/Y',$data['debut']) : '';
 }
 
 debutCarte();
@@ -74,7 +74,7 @@ if(isset($_POST['numeropartie'])) {
 		<tbody>
 		<?php
 		$data = dbFetchOne($base, 'SELECT * FROM parties WHERE id=?', 'i', $_POST['numeropartie']);
-		$tab = explode("[",$data['joueurs']);
+		$tab = $data ? explode("[",$data['joueurs']) : [];
 		foreach($tab as $compteur => $chaine){
 			if($compteur > 0){ //on ne prends pas le premier carcatere qui est un delimiteur
 				$valeurs = explode(",",$chaine);

@@ -49,5 +49,7 @@ $vitesseEspionnage = 20;
 $coutNeutrino = 50;
 
 // Pre-computed hash. To change: php -r "echo password_hash('new-password', PASSWORD_DEFAULT);"
-define('ADMIN_PASSWORD_HASH', '$2y$10$DZKz3Mp7Q3PAfS31J3nS0ejnzY3yr.5FmzP8aLFLw./dQJANurUDq');
+if (!defined('ADMIN_PASSWORD_HASH')) {
+    define('ADMIN_PASSWORD_HASH', '$2y$10$PibWl.r/3LA3HMwuSchD0et2Mjkac0D6kzuwxvOAbSqUTBf7zhGES');
+}
 ?>

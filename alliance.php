@@ -7,14 +7,17 @@ if (isset($_SESSION['login'])) {
     include("includes/basicpublicphp.php");
 }
 include("includes/bbcode.php");
+require_once("includes/csrf.php");
 
 // alliance du joueur
-$ex = dbQuery($base, 'SELECT * FROM alliances WHERE id=?', 'i', $autre['idalliance']);
-$allianceJoueur = mysqli_fetch_array($ex);
-
-//si pas d'alliance alors -1
-if (mysqli_num_rows($ex) == 0) {
-    $allianceJoueur['tag'] = -1;
+if (isset($autre) && isset($autre['idalliance'])) {
+    $ex = dbQuery($base, 'SELECT * FROM alliances WHERE id=?', 'i', $autre['idalliance']);
+    $allianceJoueur = mysqli_fetch_array($ex);
+    if (mysqli_num_rows($ex) == 0) {
+        $allianceJoueur['tag'] = -1;
+    }
+} else {
+    $allianceJoueur = ['tag' => -1];
 }
 
 // si pas d'id alors on cherche notre alliance
@@ -361,6 +364,7 @@ if ($_GET['id'] != -1) {
 <?php
     finCarte();
 
+    if (isset($_SESSION['login'])) {
     debutCarte('Invitations');
     $ex = dbQuery($base, 'SELECT * FROM invitations WHERE invite=?', 's', $_SESSION['login']);
     $nbinvitations = mysqli_num_rows($ex);
@@ -374,6 +378,7 @@ if ($_GET['id'] != -1) {
     }
 
     finCarte();
+    } // end isset login for invitations
 }
 
 include("includes/copyright.php"); ?>

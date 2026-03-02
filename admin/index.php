@@ -16,8 +16,10 @@ if (isset($_POST['motdepasseadmin'])) {
 	}
 }
 if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === true) {
-	// CSRF check for all POST actions
-	csrfCheck();
+	// CSRF check for admin actions (not the login form itself)
+	if (isset($_POST['supprimercompte']) || isset($_POST['maintenance']) || isset($_POST['plusmaintenance']) || isset($_POST['miseazero'])) {
+		csrfCheck();
+	}
 
 	if (isset($_POST['supprimercompte'])) {
 		$ip = $_POST['supprimercompte'];

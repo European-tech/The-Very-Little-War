@@ -2,7 +2,7 @@
 //CONSTANTES DE RESSOURCES
 
 
-include("constantesBase.php");
+require_once(__DIR__ . "/constantesBase.php");
 
 //CONSTANTES DES MEDAILLES
 

@@ -3,9 +3,6 @@ include("includes/basicpublicphp.php");
 require_once("includes/csrf.php");
 require_once("includes/validation.php");
 
-// Start a fresh session for CSRF token generation on registration page
-session_start();
-
 //Si le bouton inscription a ete clique
 if (isset($_POST['login'])) {
 	// Rate limit: 3 registrations per hour per IP

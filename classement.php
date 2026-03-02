@@ -77,7 +77,7 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 
 include("includes/tout.php");
 
-$_GET['sub'] = mysqli_real_escape_string($base,stripslashes(antihtml($_GET['sub'])));
+$_GET['sub'] = isset($_GET['sub']) ? mysqli_real_escape_string($base,stripslashes(antihtml($_GET['sub']))) : '0';
 debutCarte("Classement"); ?>
 <div class="table-responsive">
 <?php
