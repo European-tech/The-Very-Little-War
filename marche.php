@@ -20,7 +20,7 @@ foreach ($nomsRes as $num => $ressource) {
 if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinataire'])) {
     csrfCheck();
     if (!empty($_POST['destinataire'])) {
-        $_POST['destinataire'] = antiXSS($_POST['destinataire']);
+        $_POST['destinataire'] = trim($_POST['destinataire']);
 
         $ipdd = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_POST['destinataire']);
         $ipmm = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
@@ -30,14 +30,14 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                 $_POST['energieEnvoyee'] = 0;
             }
             $_POST['energieEnvoyee'] = transformInt($_POST['energieEnvoyee']);
-            $_POST['energieEnvoyee'] = antiXSS($_POST['energieEnvoyee']);
+            $_POST['energieEnvoyee'] = intval($_POST['energieEnvoyee']);
 
             foreach ($nomsRes as $num => $ressource) {
                 if (empty($_POST[$ressource . 'Envoyee'])) {
                     $_POST[$ressource . 'Envoyee'] = 0;
                 }
                 $_POST[$ressource . 'Envoyee'] = transformInt($_POST[$ressource . 'Envoyee']);
-                $_POST[$ressource . 'Envoyee'] = antiXSS($_POST[$ressource . 'Envoyee']);
+                $_POST[$ressource . 'Envoyee'] = intval($_POST[$ressource . 'Envoyee']);
             }
             $bool = 1;
             foreach ($nomsRes as $num => $ressource) {
@@ -144,8 +144,8 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 
 if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAcheter'])) {
     csrfCheck();
-    $_POST['nombreRessourceAAcheter'] = antiXSS(transformInt($_POST['nombreRessourceAAcheter']));
-    $_POST['typeRessourceAAcheter'] = antiXSS($_POST['typeRessourceAAcheter']);
+    $_POST['nombreRessourceAAcheter'] = intval(transformInt($_POST['nombreRessourceAAcheter']));
+    $_POST['typeRessourceAAcheter'] = trim($_POST['typeRessourceAAcheter']);
     if (!empty($_POST['nombreRessourceAAcheter']) and preg_match("#^[0-9]*$#", $_POST['nombreRessourceAAcheter'])) {
         $bool = 1;
         $numRes = -1;
@@ -237,8 +237,8 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
 if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVendre'])) {
     csrfCheck();
-    $_POST['nombreRessourceAVendre'] = antiXSS(transformInt($_POST['nombreRessourceAVendre']));
-    $_POST['typeRessourceAVendre'] = antiXSS($_POST['typeRessourceAVendre']);
+    $_POST['nombreRessourceAVendre'] = intval(transformInt($_POST['nombreRessourceAVendre']));
+    $_POST['typeRessourceAVendre'] = trim($_POST['typeRessourceAVendre']);
     if (!empty($_POST['nombreRessourceAVendre']) and preg_match("#^[0-9]*$#", $_POST['nombreRessourceAVendre'])) {
         $bool = 1;
         $numRes = -1;

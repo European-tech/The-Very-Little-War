@@ -15,7 +15,7 @@ include("includes/bbcode.php");
 include("includes/tout.php");
 
 if (isset($_GET['id'])) {
-	$_GET['id'] = antiXSS($_GET['id']);
+	$_GET['id'] = trim($_GET['id']);
 	$req = dbQuery($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
 	if (!$req) {
 		error_log("SQL error fetching membre for joueur page");

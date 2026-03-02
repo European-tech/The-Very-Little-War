@@ -44,10 +44,10 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 include("includes/tout.php");
 
 if (isset($_GET['id'])) {
-	$_GET['id'] = antiXSS($_GET['id']);
+	$_GET['id'] = (int)$_GET['id'];
 	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=?', 'i', $_GET['id']);
 } elseif (isset($_POST['id'])) {
-	$_POST['id'] = antiXSS($_POST['id']);
+	$_POST['id'] = (int)$_POST['id'];
 	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=?', 'i', $_POST['id']);
 } else {
 	$message['contenu'] = "";
@@ -75,12 +75,12 @@ if (isset($_POST['titre'])) {
 }
 item(['floating' => true, 'titre' => 'Titre', 'input' => '<input type="text" class="form-control" name="titre" id="titre" value="' . htmlspecialchars($valueTitre, ENT_QUOTES, 'UTF-8') . '" />']);
 
-$valueDestinataire = antiXSS($message['expeditaire']);
+$valueDestinataire = trim($message['expeditaire']);
 if (isset($_GET['destinataire'])) {
-	$valueDestinataire = antiXSS($_GET['destinataire']);
+	$valueDestinataire = trim($_GET['destinataire']);
 }
 if (isset($_POST['destinataire'])) {
-	$valueDestinataire = antiXSS($_POST['destinataire']);
+	$valueDestinataire = trim($_POST['destinataire']);
 }
 item(['floating' => true, 'titre' => 'Destinataire', 'input' => '<input type="text" class="form-control" name="destinataire" id="destinataire" value="' . htmlspecialchars($valueDestinataire, ENT_QUOTES, 'UTF-8') . '" />']);
 

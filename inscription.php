@@ -16,10 +16,10 @@ if (isset($_POST['login'])) {
 	//Si les champs sont vides
 	if ((isset($_POST['login']) && !empty($_POST['login'])) && (isset($_POST['pass']) && !empty($_POST['pass'])) && (isset($_POST['pass_confirm']) && !empty($_POST['pass_confirm'])) && (isset($_POST['email']) && !empty($_POST['email']))) {
 		//Si les deux mots de passe sont differents
-		$loginInput = ucfirst(mb_strtolower(antiXSS($_POST['login'])));
+		$loginInput = ucfirst(mb_strtolower(trim($_POST['login'])));
 		$passInput = $_POST['pass'];
 		$passConfirm = $_POST['pass_confirm'];
-		$emailInput = antiXSS($_POST['email']);
+		$emailInput = trim($_POST['email']);
 
 		if ($passInput != $passConfirm) {
 			$erreur = 'Les deux mots de passe sont diff&eacute;rents.';

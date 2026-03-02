@@ -63,7 +63,7 @@ if (isset($_POST['nombreneutrinos']) and !empty($_POST['nombreneutrinos'])) {
     csrfCheck();
     $_POST['nombreneutrinos'] = transformInt($_POST['nombreneutrinos']);
     if (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1) {
-        $_POST['nombreneutrinos'] = antiXSS($_POST['nombreneutrinos']);
+        $_POST['nombreneutrinos'] = intval($_POST['nombreneutrinos']);
         if ($_POST['nombreneutrinos'] * $coutNeutrino <= $ressources['energie']) {
 
             $newNeutrinos = $autre['neutrinos'] + $_POST['nombreneutrinos'];

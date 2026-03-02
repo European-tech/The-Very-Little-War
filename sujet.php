@@ -11,7 +11,7 @@ require_once("includes/csrf.php");
 
 if (isset($_POST['contenu']) and isset($_GET['id'])) {
 	csrfCheck();
-	$_GET['id'] = antiXSS($_GET['id']);
+	$_GET['id'] = trim($_GET['id']);
 	if (preg_match("#^[0-9]*$#", $_GET['id'])) {
 		if (isset($_SESSION['login'])) {
 			if (!empty($_POST['contenu'])) {
@@ -38,7 +38,7 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 include("includes/tout.php");
 
 if (isset($_GET['id'])) {
-	$_GET['id'] = antiXSS($_GET['id']);
+	$_GET['id'] = trim($_GET['id']);
 	$getId = (int)$_GET['id'];
 	$ex = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ?', 'i', $getId);
 	$nb_resultats = mysqli_num_rows($ex);

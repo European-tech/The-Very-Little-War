@@ -20,7 +20,7 @@ if(!isset($_GET['id'])
 
 include("includes/bbcode.php");
 
-$_GET['id'] = antiXSS($_GET['id']);
+$_GET['id'] = trim($_GET['id']);
 $getId = (int)$_GET['id'];
 
 if (isset($_POST['titre']) and isset($_POST['contenu'])) {

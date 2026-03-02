@@ -68,7 +68,7 @@ include("redirectionmotdepasse.php");
                     <!-- Featured slider starts here -->
                 <div class="featured-slider">
                     <?php if(isset($_GET['id'])) {
-	                    $_GET['id'] = antiXSS($_GET['id']);
+	                    $_GET['id'] = (int)$_GET['id'];
                         $ex = dbQuery($base, 'SELECT *, count(*) AS nb FROM tableaux WHERE id = ?', 'i', (int)$_GET['id']);
                         $data = mysqli_fetch_array($ex);
                         if($data['nb'] >= 1){

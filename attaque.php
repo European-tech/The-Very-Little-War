@@ -5,7 +5,7 @@ include("includes/redirectionVacance.php");
 include("includes/tout.php");
 
 if(isset($_GET['id'])){
-    $_GET['id'] = antiXSS($_GET['id']);
+    $_GET['id'] = (int)$_GET['id'];
     $ex = dbQuery($base, 'SELECT * FROM actionsattaques WHERE id=? AND attaquant=? AND troupes!=?', 'iss', $_GET['id'], $_SESSION['login'], 'Espionnage');
     $nb = mysqli_num_rows($ex);
 

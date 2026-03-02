@@ -4,7 +4,7 @@ include("includes/tout.php");
 
 if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login']))  {
 	if(isset($_GET['login']) AND $_GET['login'] != $_SESSION['login']) {
-		$joueur = antiXSS($_GET['login']);
+		$joueur = trim($_GET['login']);
 	}
 	else {
 		$joueur = $_SESSION['login'];

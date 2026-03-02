@@ -4,7 +4,7 @@ include("includes/basicprivatephp.php");
 include("includes/tout.php");
 
 if(isset($_GET['id']) AND !empty($_GET['id'])) {
-	$_GET['id'] = antiXSS($_GET['id']);
+	$_GET['id'] = (int)$_GET['id'];
 	$ex = dbQuery($base, 'SELECT * FROM molecules WHERE id=? AND proprietaire=?', 'is', $_GET['id'], $_SESSION['login']);
 	if (!$ex) {
 		error_log("SQL error fetching molecule stats");

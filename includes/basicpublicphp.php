@@ -26,7 +26,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 			die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
 		}
 
-		$loginInput = ucfirst(mb_strtolower(antiXSS($_POST['loginConnexion'])));
+		$loginInput = ucfirst(mb_strtolower(trim($_POST['loginConnexion'])));
 		$passwordInput = $_POST['passConnexion'];
 
 		// Use prepared statement to fetch user

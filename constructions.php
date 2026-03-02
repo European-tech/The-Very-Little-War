@@ -9,7 +9,7 @@ if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulai
     $bool = true;
 
     foreach ($nomsRes as $num => $ressource) {
-        $_POST['nbPoints' . $ressource] = intval(antiXSS($_POST['nbPoints' . $ressource]));
+        $_POST['nbPoints' . $ressource] = intval($_POST['nbPoints' . $ressource]);
         if ($_POST['nbPoints' . $ressource] < 0) {
             $bool = false;
             echo intval($_POST['nbPoints' . $ressource]);
@@ -47,7 +47,7 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
     $bool = true;
 
     foreach ($nomsRes as $num => $ressource) {
-        $_POST['nbPointsCondenseur' . $ressource] = intval(antiXSS($_POST['nbPointsCondenseur' . $ressource]));
+        $_POST['nbPointsCondenseur' . $ressource] = intval($_POST['nbPointsCondenseur' . $ressource]);
         if ($_POST['nbPointsCondenseur' . $ressource] < 0) {
             $bool = false;
             echo intval($_POST['nbPointsCondenseur' . $ressource]);

@@ -22,9 +22,9 @@ if (isset($autre) && isset($autre['idalliance'])) {
 
 // si pas d'id alors on cherche notre alliance
 if (!isset($_GET['id'])) {
-    $_GET['id'] = antiXSS($allianceJoueur['tag']);
+    $_GET['id'] = trim($allianceJoueur['tag']);
 } else {
-    $_GET['id'] = antiXSS($_GET['id']);
+    $_GET['id'] = trim($_GET['id']);
 }
 
 if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJoueur['tag'] == -1) {
@@ -116,7 +116,7 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
 if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
     if (isset($_POST['actioninvitation']) and isset($_POST['idinvitation'])) {
         csrfCheck();
-        $_POST['idinvitation'] = antiXSS($_POST['idinvitation']);
+        $_POST['idinvitation'] = (int)$_POST['idinvitation'];
         $idalliance = dbFetchOne($base, 'SELECT idalliance FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
 
         $ex = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);

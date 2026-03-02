@@ -20,8 +20,8 @@ $coutPourUnAtome = 0.15 * (1 - $bonus / 100);
 if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
     csrfCheck();
     if (!empty($_POST['joueurAEspionner']) && !empty($_POST['nombreneutrinos'])) { // Vérification que la variable n'est pas vide
-        $_POST['joueurAEspionner'] = antiXSS($_POST['joueurAEspionner']);
-        $_POST['nombreneutrinos'] = antiXSS($_POST['nombreneutrinos']);
+        $_POST['joueurAEspionner'] = trim($_POST['joueurAEspionner']);
+        $_POST['nombreneutrinos'] = intval($_POST['nombreneutrinos']);
         if ($_POST['joueurAEspionner'] != $_SESSION['login']) {
             if (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
                 $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
@@ -55,7 +55,7 @@ if (isset($_POST['joueurAAttaquer'])) {
     csrfCheck();
     if (!empty($_POST['joueurAAttaquer'])) { // Vérification que la variable n'est pas vide
 
-        $_POST['joueurAAttaquer'] = antiXSS($_POST['joueurAAttaquer']);
+        $_POST['joueurAAttaquer'] = trim($_POST['joueurAAttaquer']);
         if ($_POST['joueurAAttaquer'] != $_SESSION['login']) {
 
             $enVac = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
@@ -275,13 +275,13 @@ if ($_GET['type'] == 0) {
     }
 
     if (isset($_GET['x'])) {
-        $x = antiXSS($_GET['x']);
+        $x = intval($_GET['x']);
     } else {
         $x = $centre['x'];
     }
 
     if (isset($_GET['y'])) {
-        $y = antiXSS($_GET['y']);
+        $y = intval($_GET['y']);
     } else {
         $y = $centre['y'];
     }
@@ -372,7 +372,7 @@ if ($_GET['type'] == 0) {
 }
 
 if (isset($_GET['id'])) {
-    $_GET['id'] = antiXSS($_GET['id']);
+    $_GET['id'] = trim($_GET['id']);
 
     $ex = dbQuery($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
     $nb = mysqli_num_rows($ex);
