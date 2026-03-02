@@ -64,7 +64,7 @@ function pointsDefense($pts)
 
 function pointsPillage($nbRessources)
 {
-    return (tanh($nbRessources / 200000) * 15);
+    return round(tanh($nbRessources / PILLAGE_POINTS_DIVISOR) * PILLAGE_POINTS_MULTIPLIER);
 }
 
 function bonusDuplicateur($niveau)

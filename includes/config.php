@@ -331,8 +331,8 @@ define('VP_ALLIANCE_RANK3', 7);
 // PILLAGE POINTS FORMULA
 // =============================================================================
 // pointsPillage = tanh(nbRessources / DIVISOR) * MULTIPLIER
-define('PILLAGE_POINTS_DIVISOR', 200000);
-define('PILLAGE_POINTS_MULTIPLIER', 15);
+define('PILLAGE_POINTS_DIVISOR', 100000);
+define('PILLAGE_POINTS_MULTIPLIER', 50);
 
 // =============================================================================
 // MEDALS / TIERS

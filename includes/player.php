@@ -91,8 +91,12 @@ function ajouterPoints($nb, $joueur, $type = 0)
         return -pointsDefense($points['pointsDefense']) + pointsDefense($points['pointsDefense'] + $nb);
     }
     if ($type == 3) {
-        // points de pillage
-        dbExecute($base, 'UPDATE autre SET ressourcesPillees=? WHERE login=?', 'ds', ($points['ressourcesPillees'] + $nb), $joueur);
+        // points de pillage - now contributes to totalPoints via pointsPillage()
+        $newPillage = $points['ressourcesPillees'] + $nb;
+        $oldPillageContrib = pointsPillage($points['ressourcesPillees']);
+        $newPillageContrib = pointsPillage(max(0, $newPillage));
+        $totalPointsDelta = $newPillageContrib - $oldPillageContrib;
+        dbExecute($base, 'UPDATE autre SET ressourcesPillees=?, totalPoints=? WHERE login=?', 'dds', $newPillage, ($points['totalPoints'] + $totalPointsDelta), $joueur);
         return chiffrePetit($nb, 0);
     }
 }
