@@ -8,25 +8,25 @@
 function pointsVictoireJoueur($classement)
 {
     if ($classement == 1) {
-        return 100;
+        return VP_PLAYER_RANK1;
     }
     if ($classement == 2) {
-        return 80;
+        return VP_PLAYER_RANK2;
     }
     if ($classement == 3) {
-        return 70;
+        return VP_PLAYER_RANK3;
     }
     if ($classement <= 10) {
-        return 70 - ($classement - 3) * 5;
+        return VP_PLAYER_RANK4_10_BASE - ($classement - 3) * VP_PLAYER_RANK4_10_STEP;
     }
     if ($classement <= 20) {
-        return 35 - ($classement - 10) * 2;
+        return VP_PLAYER_RANK11_20_BASE - ($classement - 10) * VP_PLAYER_RANK11_20_STEP;
     }
     if ($classement <= 50) {
-        return max(1, floor(15 - ($classement - 20) * 0.4));
+        return max(1, floor(VP_PLAYER_RANK21_50_BASE - ($classement - 20) * VP_PLAYER_RANK21_50_STEP));
     }
     if ($classement <= 100) {
-        return max(1, floor(3 - ($classement - 50) * 0.04));
+        return max(1, floor(VP_PLAYER_RANK51_100_BASE - ($classement - 50) * VP_PLAYER_RANK51_100_STEP));
     }
     return 0;
 }
@@ -34,16 +34,16 @@ function pointsVictoireJoueur($classement)
 function pointsVictoireAlliance($classement)
 {
     if ($classement == 1) {
-        return 15;
+        return VP_ALLIANCE_RANK1;
     }
     if ($classement == 2) {
-        return 10;
+        return VP_ALLIANCE_RANK2;
     }
     if ($classement == 3) {
-        return 7;
+        return VP_ALLIANCE_RANK3;
     }
     if ($classement < 10) {
-        return 10 - $classement;
+        return VP_ALLIANCE_RANK2 - $classement;
     }
 
     return 0;
@@ -68,7 +68,7 @@ function pointsPillage($nbRessources)
 
 function bonusDuplicateur($niveau)
 {
-    return $niveau / 100;
+    return $niveau * DUPLICATEUR_BONUS_PER_LEVEL;
 }
 
 function drainageProducteur($niveau)
@@ -91,7 +91,7 @@ function attaque($oxygene, $niveau, $joueur)
         }
     }
 
-    return round((1 + (0.1 * $oxygene) * (0.1 * $oxygene) + $oxygene) * (1 + $niveau / 50) * (1 + $bonus / 100));
+    return round((1 + (ATTACK_ATOM_COEFFICIENT * $oxygene) * (ATTACK_ATOM_COEFFICIENT * $oxygene) + $oxygene) * (1 + $niveau / ATTACK_LEVEL_DIVISOR) * (1 + $bonus / 100));
 }
 
 function defense($carbone, $niveau, $joueur)
@@ -109,17 +109,17 @@ function defense($carbone, $niveau, $joueur)
         }
     }
 
-    return round((1 + (0.1 * $carbone) * (0.1 * $carbone) + $carbone) * (1 + $niveau / 50) * (1 + $bonus / 100));
+    return round((1 + (DEFENSE_ATOM_COEFFICIENT * $carbone) * (DEFENSE_ATOM_COEFFICIENT * $carbone) + $carbone) * (1 + $niveau / DEFENSE_LEVEL_DIVISOR) * (1 + $bonus / 100));
 }
 
 function pointsDeVieMolecule($brome, $niveau)
 {
-    return round((1 + (0.1 * $brome) * (0.1 * $brome) + $brome) * (1 + $niveau / 50));
+    return round((1 + (HP_ATOM_COEFFICIENT * $brome) * (HP_ATOM_COEFFICIENT * $brome) + $brome) * (1 + $niveau / HP_LEVEL_DIVISOR));
 }
 
 function potentielDestruction($hydrogene, $niveau)
 {
-    return round(((0.075 * $hydrogene) * (0.075 * $hydrogene) + $hydrogene) * (1 + $niveau / 50));
+    return round(((DESTRUCTION_ATOM_COEFFICIENT * $hydrogene) * (DESTRUCTION_ATOM_COEFFICIENT * $hydrogene) + $hydrogene) * (1 + $niveau / DESTRUCTION_LEVEL_DIVISOR));
 }
 
 function pillage($soufre, $niveau, $joueur)
@@ -138,22 +138,22 @@ function pillage($soufre, $niveau, $joueur)
     }
 
     $catalystPillageBonus = 1 + catalystEffect('pillage_bonus');
-    return round(((0.1 * $soufre) * (0.1 * $soufre) + $soufre / 3) * (1 + $niveau / 50) * (1 + $bonus / 100) * $catalystPillageBonus);
+    return round(((PILLAGE_ATOM_COEFFICIENT * $soufre) * (PILLAGE_ATOM_COEFFICIENT * $soufre) + $soufre / PILLAGE_SOUFRE_DIVISOR) * (1 + $niveau / PILLAGE_LEVEL_DIVISOR) * (1 + $bonus / 100) * $catalystPillageBonus);
 }
 
 function productionEnergieMolecule($iode, $niveau)
 {
-    return round(IODE_ENERGY_COEFFICIENT * $iode * (1 + $niveau / 50));
+    return round(IODE_ENERGY_COEFFICIENT * $iode * (1 + $niveau / IODE_LEVEL_DIVISOR));
 }
 
 function vitesse($chlore, $niveau)
 {
-    return floor((1 + 0.5 * $chlore) * (1 + $niveau / 50) * 100) / 100;
+    return floor((1 + SPEED_ATOM_COEFFICIENT * $chlore) * (1 + $niveau / SPEED_LEVEL_DIVISOR) * 100) / 100;
 }
 
 function bonusLieur($niveau)
 {
-    return floor(100 * pow(1.07, $niveau)) / 100;
+    return floor(100 * pow(LIEUR_GROWTH_BASE, $niveau)) / 100;
 }
 
 function tempsFormation($azote, $niveau, $ntotal, $joueur)
@@ -162,7 +162,7 @@ function tempsFormation($azote, $niveau, $ntotal, $joueur)
     $constructions = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $joueur);
     $catalystSpeedBonus = 1 + catalystEffect('formation_speed');
     $allianceCatalyseurBonus = 1 + allianceResearchBonus($joueur, 'formation_speed');
-    return ceil($ntotal / (1 + pow(0.09 * $azote, 1.09)) / (1 + $niveau / 20) / bonusLieur($constructions['lieur']) / $catalystSpeedBonus / $allianceCatalyseurBonus * 100) / 100;
+    return ceil($ntotal / (1 + pow(FORMATION_AZOTE_COEFFICIENT * $azote, FORMATION_AZOTE_EXPONENT)) / (1 + $niveau / FORMATION_LEVEL_DIVISOR) / bonusLieur($constructions['lieur']) / $catalystSpeedBonus / $allianceCatalyseurBonus * 100) / 100;
 }
 
 
@@ -224,13 +224,13 @@ function demiVie($joueur, $classeOuNbTotal, $type = 0)
     // FIX FINDING-GAME-020: Prevent division by zero when decay coefficient >= 1.0 (no decay)
     $coef = coefDisparition($joueur, $classeOuNbTotal, $type);
     if ($coef >= 1.0) return PHP_INT_MAX; // No decay = infinite half-life
-    return round((log(0.5, 0.99) / log($coef, 0.99)));
+    return round((log(0.5, DECAY_BASE) / log($coef, DECAY_BASE)));
 }
 
 
 function pointsDeVie($niveau, $joueur = null)
 {
-    $base_hp = round(20 * (pow(1.2, $niveau) + pow($niveau, 1.2)));
+    $base_hp = round(BUILDING_HP_BASE * (pow(BUILDING_HP_GROWTH_BASE, $niveau) + pow($niveau, BUILDING_HP_LEVEL_EXP)));
     if ($joueur !== null) {
         $fortBonus = 1 + allianceResearchBonus($joueur, 'building_hp');
         return round($base_hp * $fortBonus);
@@ -240,7 +240,7 @@ function pointsDeVie($niveau, $joueur = null)
 
 function vieChampDeForce($niveau, $joueur = null)
 {
-    $base_hp = round(50 * (pow(1.2, $niveau) + pow($niveau, 1.2)));
+    $base_hp = round(FORCEFIELD_HP_BASE * (pow(FORCEFIELD_HP_GROWTH_BASE, $niveau) + pow($niveau, FORCEFIELD_HP_LEVEL_EXP)));
     if ($joueur !== null) {
         $fortBonus = 1 + allianceResearchBonus($joueur, 'building_hp');
         return round($base_hp * $fortBonus);
@@ -250,10 +250,10 @@ function vieChampDeForce($niveau, $joueur = null)
 
 function coutClasse($numero)
 {
-    return (pow($numero + 1, 4));
+    return (pow($numero + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));
 }
 
 function placeDepot($niveau)
 {
-    return 500 * $niveau;
+    return BASE_STORAGE_PER_LEVEL * $niveau;
 }

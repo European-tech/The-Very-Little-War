@@ -468,6 +468,8 @@ define('VP_PLAYER_RANK11_20_BASE', 35);
 define('VP_PLAYER_RANK11_20_STEP', 2);
 define('VP_PLAYER_RANK21_50_BASE', 15);
 define('VP_PLAYER_RANK21_50_STEP', 0.5);
+define('VP_PLAYER_RANK51_100_BASE', 3);
+define('VP_PLAYER_RANK51_100_STEP', 0.04);
 
 // =============================================================================
 // VICTORY POINTS - ALLIANCE RANKINGS
