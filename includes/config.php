@@ -192,7 +192,7 @@ $BUILDING_CONFIG = [
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 2,
         'points_level_factor' => 0.1,
-        'points_per_level'  => 3,    // condenseur points per level
+        'points_per_level'  => 5,    // condenseur points per level
         'description'       => 'Improves atom effectiveness via levels',
     ],
     'lieur' => [
