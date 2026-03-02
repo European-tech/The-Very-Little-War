@@ -161,7 +161,8 @@ function tempsFormation($azote, $niveau, $ntotal, $joueur)
     global $base;
     $constructions = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $joueur);
     $catalystSpeedBonus = 1 + catalystEffect('formation_speed');
-    return ceil($ntotal / (1 + pow(0.09 * $azote, 1.09)) / (1 + $niveau / 20) / bonusLieur($constructions['lieur']) / $catalystSpeedBonus * 100) / 100;
+    $allianceCatalyseurBonus = 1 + allianceResearchBonus($joueur, 'formation_speed');
+    return ceil($ntotal / (1 + pow(0.09 * $azote, 1.09)) / (1 + $niveau / 20) / bonusLieur($constructions['lieur']) / $catalystSpeedBonus / $allianceCatalyseurBonus * 100) / 100;
 }
 
 
@@ -224,15 +225,24 @@ function demiVie($joueur, $classeOuNbTotal, $type = 0)
 }
 
 
-function pointsDeVie($niveau)
+function pointsDeVie($niveau, $joueur = null)
 {
-    global $base;
-    return round(20 * (pow(1.2, $niveau) + pow($niveau, 1.2)));
+    $base_hp = round(20 * (pow(1.2, $niveau) + pow($niveau, 1.2)));
+    if ($joueur !== null) {
+        $fortBonus = 1 + allianceResearchBonus($joueur, 'building_hp');
+        return round($base_hp * $fortBonus);
+    }
+    return $base_hp;
 }
 
-function vieChampDeForce($niveau)
+function vieChampDeForce($niveau, $joueur = null)
 {
-    return round(50 * (pow(1.2, $niveau) + pow($niveau, 1.2)));
+    $base_hp = round(50 * (pow(1.2, $niveau) + pow($niveau, 1.2)));
+    if ($joueur !== null) {
+        $fortBonus = 1 + allianceResearchBonus($joueur, 'building_hp');
+        return round($base_hp * $fortBonus);
+    }
+    return $base_hp;
 }
 
 function coutClasse($numero)

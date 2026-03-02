@@ -363,6 +363,12 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 			($classeAttaquant3['nombre'] - $classe3AttaquantMort) * pillage($classeAttaquant3['soufre'], $niveauxAtt['soufre'], $actions['attaquant']) +
 			($classeAttaquant4['nombre'] - $classe4AttaquantMort) * pillage($classeAttaquant4['soufre'], $niveauxAtt['soufre'], $actions['attaquant'])) * $attReactionPillageBonus;
 
+		// Alliance Bouclier research reduces pillage losses for defender
+		$bouclierReduction = allianceResearchBonus($actions['defenseur'], 'pillage_defense');
+		if ($bouclierReduction > 0) {
+			$ressourcesAPiller = round($ressourcesAPiller * (1 - $bouclierReduction));
+		}
+
 		// Calcul du pourcentage de chaque ressource pillable (above vault protection)
 		foreach ($nomsRes as $num => $ressource) {
 			$pillageable = max(0, $ressourcesDefenseur[$ressource] - $vaultProtection);

@@ -88,6 +88,26 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
             $erreur = "Vous n'avez pas assez d'énergie.";
         }
     }
+
+    // Alliance research upgrades
+    global $ALLIANCE_RESEARCH;
+    if (isset($_POST['upgradeResearch']) && isset($ALLIANCE_RESEARCH[$_POST['upgradeResearch']])) {
+        csrfCheck();
+        $techName = $_POST['upgradeResearch'];
+        $tech = $ALLIANCE_RESEARCH[$techName];
+        $allianceData = dbFetchOne($base, 'SELECT ' . $techName . ', energieAlliance FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
+        $currentLevel = intval($allianceData[$techName]);
+        $researchCost = round($tech['cost_base'] * pow($tech['cost_factor'], $currentLevel + 1));
+
+        if ($allianceData['energieAlliance'] >= $researchCost) {
+            $newLevel = $currentLevel + 1;
+            $newEnergie = $allianceData['energieAlliance'] - $researchCost;
+            dbExecute($base, 'UPDATE alliances SET ' . $techName . '=?, energieAlliance=? WHERE id=?', 'idi', $newLevel, $newEnergie, $idalliance['idalliance']);
+            $information = htmlspecialchars($tech['name']) . " amélioré au niveau " . $newLevel . ".";
+        } else {
+            $erreur = "Vous n'avez pas assez d'énergie d'alliance.";
+        }
+    }
 }
 
 if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
@@ -257,6 +277,41 @@ if ($_GET['id'] != -1) {
                   ' . submit(['titre' => 'niveau ' . ($allianceJoueur['duplicateur'] + 1), 'image' => 'images/boutons/arrow.png', 'form' => 'augmenterDuplicateur']) . '
                 <input type="hidden" value="bla" name="augmenterDuplicateur"/></form>'
             ]);
+            finListe();
+            finCarte();
+
+            // Alliance Research Tree
+            global $ALLIANCE_RESEARCH;
+            $allianceResearchData = dbFetchOne($base, 'SELECT catalyseur, fortification, reseau, radar, bouclier, energieAlliance FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
+            debutCarte('Recherches');
+            debutListe();
+            foreach ($ALLIANCE_RESEARCH as $techName => $tech) {
+                $currentLevel = intval($allianceResearchData[$techName] ?? 0);
+                $researchCost = round($tech['cost_base'] * pow($tech['cost_factor'], $currentLevel + 1));
+                $currentBonus = round($currentLevel * $tech['effect_per_level'] * 100, 1);
+                $nextBonus = round(($currentLevel + 1) * $tech['effect_per_level'] * 100, 1);
+
+                $canAfford = ($allianceResearchData['energieAlliance'] >= $researchCost);
+                $upgradeButton = $canAfford
+                    ? '<form action="alliance.php" method="post" style="display:inline">' . csrfField() .
+                      '<input type="hidden" name="upgradeResearch" value="' . $techName . '"/>' .
+                      submit(['titre' => 'Niveau ' . ($currentLevel + 1), 'form' => 'form_' . $techName, 'image' => 'images/boutons/arrow.png']) .
+                      '</form>'
+                    : '<span style="color:#999">Énergie insuffisante</span>';
+
+                item([
+                    'titre' => htmlspecialchars($tech['name']),
+                    'media' => '<img src="' . htmlspecialchars($tech['icon']) . '" alt="' . htmlspecialchars($techName) . '" style="width:50px;height:50px;"/>',
+                    'soustitre' => '<strong>Niveau ' . $currentLevel . '</strong> (' . $currentBonus . '%)',
+                    'accordion' => debutContent(true, true) . htmlspecialchars($tech['desc']) . finContent(true, true) .
+                        '<br/><br/>' . debutContent(false, true) .
+                        $currentBonus . '% au <strong>niveau ' . $currentLevel . '</strong><br/>' .
+                        $nextBonus . '% au <strong>niveau ' . ($currentLevel + 1) . '</strong>' .
+                        finContent(false, true) . '<br/><br/>' .
+                        important('Améliorer') . ' ' . nombreEnergie($researchCost) . '<br/><br/>' .
+                        $upgradeButton
+                ]);
+            }
             finListe();
             finCarte();
         }

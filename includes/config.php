@@ -385,6 +385,56 @@ define('DUPLICATEUR_BONUS_PER_LEVEL', 0.01); // 1% per level for resource produc
 define('ALLIANCE_TAG_MIN_LENGTH', 3);
 define('ALLIANCE_TAG_MAX_LENGTH', 16);
 
+// Alliance Research Tree — 5 technologies alongside Duplicateur
+// Cost: round(BASE_COST * pow(COST_FACTOR, level + 1))
+$ALLIANCE_RESEARCH = [
+    'catalyseur' => [
+        'name' => 'Catalyseur',
+        'desc' => 'Réduit le temps de formation des molécules de 2% par niveau.',
+        'icon' => 'images/molecule/temps.png',
+        'effect_per_level' => 0.02,   // -2% formation time per level
+        'effect_type' => 'formation_speed',
+        'cost_base' => 15,
+        'cost_factor' => 2.0,
+    ],
+    'fortification' => [
+        'name' => 'Fortification',
+        'desc' => 'Augmente les points de vie des bâtiments de 1% par niveau.',
+        'icon' => 'images/batiments/shield.png',
+        'effect_per_level' => 0.01,   // +1% building HP per level
+        'effect_type' => 'building_hp',
+        'cost_base' => 15,
+        'cost_factor' => 2.0,
+    ],
+    'reseau' => [
+        'name' => 'Réseau',
+        'desc' => 'Augmente les points de commerce gagnés de 5% par niveau.',
+        'icon' => 'images/marche/achat.png',
+        'effect_per_level' => 0.05,   // +5% trade points per level
+        'effect_type' => 'trade_points',
+        'cost_base' => 12,
+        'cost_factor' => 1.8,
+    ],
+    'radar' => [
+        'name' => 'Radar',
+        'desc' => 'Réduit le coût en neutrinos pour l\'espionnage de 2% par niveau.',
+        'icon' => 'images/rapports/espionnage.png',
+        'effect_per_level' => 0.02,   // -2% neutrino cost per level
+        'effect_type' => 'espionage_cost',
+        'cost_base' => 20,
+        'cost_factor' => 2.5,
+    ],
+    'bouclier' => [
+        'name' => 'Bouclier',
+        'desc' => 'Réduit les pertes de pillage en défense de 1% par niveau.',
+        'icon' => 'images/molecule/shield.png',
+        'effect_per_level' => 0.01,   // -1% pillage losses per level
+        'effect_type' => 'pillage_defense',
+        'cost_base' => 15,
+        'cost_factor' => 2.0,
+    ],
+];
+
 // =============================================================================
 // MOLECULE CLASS COST
 // =============================================================================

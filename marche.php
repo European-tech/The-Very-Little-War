@@ -197,7 +197,8 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
                     logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
                     // Award trade points based on energy spent (not atom volume, to prevent buy-sell exploits)
-                    $tradeVolume = $coutAchat;
+                    $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
+                    $tradeVolume = round($coutAchat * $reseauBonus);
                     $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', 's', $_SESSION['login']);
                     $oldVolume = $autreData['tradeVolume'] ?? 0;
                     $newVolume = $oldVolume + $tradeVolume;
