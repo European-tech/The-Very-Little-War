@@ -270,7 +270,7 @@ define('MERCHANT_SPEED', 20);    // cases per hour ($vitesseMarchands)
 
 // Market trading points: contribute to totalPoints via trade volume
 // Points awarded = floor(MARKET_POINTS_SCALE * sqrt(totalTradeVolume))
-define('MARKET_POINTS_SCALE', 2.0);        // sqrt scaling for trade volume points
+define('MARKET_POINTS_SCALE', 0.05);       // sqrt scaling for energy spent on market buys
 define('MARKET_POINTS_MAX', 40);           // cap on market points contribution to totalPoints
 
 // =============================================================================
