@@ -79,6 +79,10 @@ function getActiveCatalyst() {
  * Check if a specific catalyst effect is active. Returns the bonus value or 0.
  */
 function catalystEffect($effectName) {
-    $catalyst = getActiveCatalyst();
-    return $catalyst['effects'][$effectName] ?? 0;
+    static $cache = null;
+    if ($cache === null) {
+        $catalyst = getActiveCatalyst();
+        $cache = $catalyst['effects'];
+    }
+    return $cache[$effectName] ?? 0;
 }

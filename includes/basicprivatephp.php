@@ -2,7 +2,7 @@
 // Session security hardening (must be set before session_start)
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
-    ini_set('session.cookie_secure', 0);
+    ini_set('session.cookie_secure', !empty($_SERVER['HTTPS']) ? 1 : 0);
     ini_set('session.use_strict_mode', 1);
     ini_set('session.cookie_samesite', 'Lax');
     session_start();
@@ -15,7 +15,6 @@ require_once(__DIR__ . '/validation.php');
 require_once(__DIR__ . '/logger.php');
 
 if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
-    $_SESSION['login'] = ucfirst(mb_strtolower(mysqli_real_escape_string($base, stripslashes(htmlentities($_SESSION['login'])))));
     $row = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
     if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !hash_equals($row['session_token'], $_SESSION['session_token'])) {
         session_destroy();
@@ -31,7 +30,6 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
 } elseif (isset($_SESSION['login']) && isset($_SESSION['mdp'])) {
     // Legacy fallback: password-hash-based sessions still active after upgrade
     // Validate using old method, then migrate to session token
-    $_SESSION['login'] = ucfirst(mb_strtolower(mysqli_real_escape_string($base, stripslashes(htmlentities($_SESSION['login'])))));
     $row = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
     if (!$row || $row['pass_md5'] !== $_SESSION['mdp']) {
         session_destroy();

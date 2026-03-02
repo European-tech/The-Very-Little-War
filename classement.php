@@ -49,23 +49,13 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 	$recherche = dbFetchOne($base, 'SELECT count(*) AS joueurExiste FROM autre WHERE login=?', 's', $_POST['joueurRecherche']);
 
 	if($recherche['joueurExiste'] == 1) {
-		// $order is whitelisted above, safe to use directly
-		$ex = dbQuery($base, 'SELECT * FROM autre ORDER BY ' . $order . ' DESC');
-		$compteur = 1;
-		while($donnees = mysqli_fetch_array($ex)) {
-			$_POST['joueurRecherche'] = lcfirst($_POST['joueurRecherche']);
-			if($donnees['login'] == $_POST['joueurRecherche']) {
-				$place = $compteur;
-				$pageParDefaut = ceil($place/20);
-
-			}
-			$_POST['joueurRecherche'] = ucfirst($_POST['joueurRecherche']);
-			if($donnees['login'] == $_POST['joueurRecherche']) {
-				$place = $compteur;
-				$pageParDefaut = ceil($place/20);
-
-			}
-			$compteur++;
+		// Count players ranked above the searched player to find their rank (single query instead of full scan)
+		$searchLogin = $_POST['joueurRecherche'];
+		$playerScore = dbFetchOne($base, 'SELECT ' . $order . ' AS score FROM autre WHERE login=?', 's', $searchLogin);
+		if ($playerScore) {
+			$rankRow = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'i', $playerScore['score']);
+			$place = ($rankRow['rank'] ?? 0) + 1;
+			$pageParDefaut = ceil($place / 20);
 		}
 		$pasTrouve = 1;
 	}
@@ -89,15 +79,14 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			if(isset($pasTrouve) AND $pasTrouve==1) {
 			}
 			else {
-				// recherche de la place du joueur - $order is whitelisted
-				$ex = dbQuery($base, 'SELECT * FROM autre ORDER BY ' . $order . ' DESC');
-				$compteur = 1;
-				while($donnees = mysqli_fetch_array($ex)) {
-					if($donnees['login'] == $_SESSION['login']) {
-						$place = $compteur;
-						$pageParDefaut = ceil($place/$nombreDeJoueursParPage);
-					}
-					$compteur++;
+				// Find logged-in player's rank with a count query instead of full table scan
+				$myScore = dbFetchOne($base, 'SELECT ' . $order . ' AS score FROM autre WHERE login=?', 's', $_SESSION['login']);
+				if ($myScore) {
+					$myRank = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'i', $myScore['score']);
+					$place = ($myRank['rank'] ?? 0) + 1;
+					$pageParDefaut = ceil($place / $nombreDeJoueursParPage);
+				} else {
+					$pageParDefaut = 1;
 				}
 			}
 		}
@@ -323,6 +312,30 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 	$classement = dbQuery($base, 'SELECT * FROM alliances ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premiereAllianceAafficher, $nombreDeAlliancesParPage);
 	$compteur = $nombreDeAlliancesParPage*($page-1)+1;
 
+	// Pre-load member counts per alliance to avoid N+1 queries
+	$memberCountCache = [];
+	$memberCountRows = dbFetchAll($base, 'SELECT idalliance, COUNT(*) AS nb FROM autre WHERE idalliance > 0 GROUP BY idalliance', '');
+	foreach ($memberCountRows as $mcr) {
+		$memberCountCache[(int)$mcr['idalliance']] = (int)$mcr['nb'];
+	}
+
+	// Pre-load war and pact sets for the logged-in player's alliance (alliance ranking tab)
+	$warAllianceIdsAllianceTab = [];
+	$pactAllianceIdsAllianceTab = [];
+	$myAllianceIdAllianceTab = isset($allianceJoueur['id']) ? (int)$allianceJoueur['id'] : 0;
+	if (isset($_SESSION['login']) && $myAllianceIdAllianceTab > 0) {
+		$warsAT = dbFetchAll($base, 'SELECT alliance1, alliance2 FROM declarations WHERE type=0 AND (alliance1=? OR alliance2=?) AND fin=0', 'ii', $myAllianceIdAllianceTab, $myAllianceIdAllianceTab);
+		foreach ($warsAT as $wat) {
+			$oid = ($wat['alliance1'] == $myAllianceIdAllianceTab) ? (int)$wat['alliance2'] : (int)$wat['alliance1'];
+			$warAllianceIdsAllianceTab[$oid] = true;
+		}
+		$pactsAT = dbFetchAll($base, 'SELECT alliance1, alliance2 FROM declarations WHERE type=1 AND (alliance1=? OR alliance2=?) AND valide!=0', 'ii', $myAllianceIdAllianceTab, $myAllianceIdAllianceTab);
+		foreach ($pactsAT as $pat) {
+			$oid = ($pat['alliance1'] == $myAllianceIdAllianceTab) ? (int)$pat['alliance2'] : (int)$pat['alliance1'];
+			$pactAllianceIdsAllianceTab[$oid] = true;
+		}
+	}
+
 	?>
 	<table class="table table-striped table-bordered">
 	<thead>
@@ -342,20 +355,22 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 	<tbody>
 	<?php
 	while($donnees = mysqli_fetch_array($classement)){
-
-		$guerreCount = dbCount($base, 'SELECT count(*) AS estEnGuerre FROM declarations WHERE type=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND fin=0', 'iiii', $donnees['id'], $allianceJoueur['id'], $donnees['id'], $allianceJoueur['id']);
+		$rowAllianceIdAT = (int)$donnees['id'];
 		$enGuerre = "";
-		if($guerreCount != 0 AND $donnees['id'] != $idalliance['idalliance']) {
-			$enGuerre = "254,130,130";
+
+		if (isset($_SESSION['login']) && $myAllianceIdAllianceTab > 0) {
+			if (isset($warAllianceIdsAllianceTab[$rowAllianceIdAT]) && $rowAllianceIdAT != $myAllianceIdAllianceTab) {
+				$enGuerre = "254,130,130";
+			}
+			if (isset($pactAllianceIdsAllianceTab[$rowAllianceIdAT]) && $rowAllianceIdAT != $myAllianceIdAllianceTab) {
+				$enGuerre = "156,255,136";
+			}
+			if ($rowAllianceIdAT == $myAllianceIdAllianceTab) {
+				$enGuerre = "160,160,160";
+			}
 		}
-		$pacteCount = dbCount($base, 'SELECT count(*) AS estEnPacte FROM declarations WHERE type=1 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND valide!=0', 'iiii', $donnees['id'], $allianceJoueur['id'], $donnees['id'], $allianceJoueur['id']);
-		if($pacteCount != 0 AND $donnees['id'] != $idalliance['idalliance']) {
-			$enGuerre = "156,255,136";
-		}
-		if($donnees['id'] == $allianceJoueur['id']) {
-			$enGuerre = "160,160,160";
-		}
-		$nbjoueurs = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=?', 'i', $donnees['id']);
+
+		$nbjoueurs = isset($memberCountCache[$rowAllianceIdAT]) ? $memberCountCache[$rowAllianceIdAT] : 0;
 		if ($nbjoueurs != 0) { // Pour éviter la division par zéro
 			?>
 			<tr style="background-color: rgba(<?php if(isset($enGuerre)) { echo $enGuerre.",0.6)"; }?>">
@@ -438,11 +453,17 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 	</thead>
 	<tbody>
 	<?php
+	// Pre-load all alliance tags to avoid per-row lookups
+	$allianceTagCache = [];
+	$allianceTagRows = dbFetchAll($base, 'SELECT id, tag FROM alliances', '');
+	foreach ($allianceTagRows as $atr) {
+		$allianceTagCache[(int)$atr['id']] = $atr['tag'];
+	}
+
 	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE type=0 AND fin!= 0 ORDER BY (pertes1 + pertes2) DESC LIMIT ?, ?', 'ii', $premiereGuerreAafficher, $nombreDeGuerresParPage);
 	while ($donnees = mysqli_fetch_array($ex)) {
-		$alliance1 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $donnees['alliance1']);
-
-		$alliance2 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $donnees['alliance2']);
+		$alliance1 = ['tag' => isset($allianceTagCache[(int)$donnees['alliance1']]) ? $allianceTagCache[(int)$donnees['alliance1']] : '???'];
+		$alliance2 = ['tag' => isset($allianceTagCache[(int)$donnees['alliance2']]) ? $allianceTagCache[(int)$donnees['alliance2']] : '???'];
 		?>
 		<tr>
 		<td><?php echo imageClassement($compteur) ; ?></td>
@@ -543,61 +564,38 @@ else {
 		$table = 'autre';
 	}
 
+	// Pre-load forum data to avoid N+1 queries (3 queries per row eliminated)
+	$autreForumCache = [];
+	$autreForumRows = dbFetchAll($base, 'SELECT login, nbMessages, bombe FROM autre', '');
+	foreach ($autreForumRows as $afr) {
+		$autreForumCache[$afr['login']] = $afr;
+	}
+
+	$membreForumCache = [];
+	$membreForumRows = dbFetchAll($base, 'SELECT login, troll FROM membre', '');
+	foreach ($membreForumRows as $mfr) {
+		$membreForumCache[$mfr['login']] = (int)$mfr['troll'];
+	}
+
+	$sujetsCountCache = [];
+	$sujetsCountRows = dbFetchAll($base, 'SELECT auteur, COUNT(*) AS nbSujets FROM sujets GROUP BY auteur', '');
+	foreach ($sujetsCountRows as $scr) {
+		$sujetsCountCache[$scr['auteur']] = (int)$scr['nbSujets'];
+	}
+
+	// Medal name mappings
+	$trollMedals = [0 => 'medaillebronze', 1 => 'medailleargent', 2 => 'medailleor', 3 => 'emeraude', 4 => 'saphir', 5 => 'rubis', 6 => 'diamant'];
+	$bombeMedals = [0 => 'Rien', 1 => 'Bronze', 2 => 'Argent', 3 => 'Or', 4 => 'Platine'];
+
 	// $order and $table are whitelisted
 	$ex = dbQuery($base, 'SELECT login FROM ' . $table . ' ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
 	while ($donnees = mysqli_fetch_array($ex)) {
-		$donnees1 = dbFetchOne($base, 'SELECT nbMessages,bombe FROM autre WHERE login=?', 's', $donnees['login']);
-
-		$troll = dbFetchOne($base, 'SELECT troll FROM membre WHERE login=?', 's', $donnees['login']);
-		switch($troll['troll']) {
-			case 0 :
-				$troll['troll'] = "medaillebronze";
-				break;
-			case 1 :
-				$troll['troll'] = "medailleargent";
-				break;
-			case 2 :
-				$troll['troll'] = "medailleor";
-				break;
-			case 3:
-				$troll['troll'] = "emeraude";
-				break;
-            case 4:
-				$troll['troll'] = "saphir";
-				break;
-            case 5:
-				$troll['troll'] = "rubis";
-				break;
-            case 6:
-				$troll['troll'] = "diamant";
-				break;
-			default :
-				$troll['troll'] = "diamantrouge";
-				break;
-		}
-
-		switch($donnees1['bombe']) {
-			case 0 :
-				$donnees1['bombe'] = "Rien";
-				break;
-			case 1 :
-				$donnees1['bombe'] = "Bronze";
-				break;
-			case 2 :
-				$donnees1['bombe'] = "Argent";
-				break;
-			case 3 :
-				$donnees1['bombe'] = "Or";
-				break;
-			case 4:
-				$donnees1['bombe'] = "Platine";
-				break;
-			default :
-				$donnees1['bombe'] = "Diamant";
-				break;
-		}
-
-		$nbSujets = dbFetchOne($base, 'SELECT count(*) AS nbSujets FROM sujets WHERE auteur=?', 's', $donnees['login']);
+		$donnees1 = isset($autreForumCache[$donnees['login']]) ? $autreForumCache[$donnees['login']] : ['nbMessages' => 0, 'bombe' => 0];
+		$trollLevel = isset($membreForumCache[$donnees['login']]) ? $membreForumCache[$donnees['login']] : 0;
+		$trollImage = isset($trollMedals[$trollLevel]) ? $trollMedals[$trollLevel] : 'diamantrouge';
+		$bombeLevel = (int)$donnees1['bombe'];
+		$bombeImage = isset($bombeMedals[$bombeLevel]) ? $bombeMedals[$bombeLevel] : 'Diamant';
+		$nbSujetsCount = isset($sujetsCountCache[$donnees['login']]) ? $sujetsCountCache[$donnees['login']] : 0;
 
 		$enGuerre = "";
 		if(isset($_SESSION['login'])) {
@@ -611,9 +609,9 @@ else {
 		<td><?php echo imageClassement($compteur) ; ?></td>
 		<td><?php echo joueur($donnees['login']); ?></td>
 		<td><?php echo $donnees1['nbMessages']; ?></td>
-		<td><?php echo $nbSujets['nbSujets']; ?></td>
-		<td><img alt="bombe" style="width:40px;height:40px" src="images/medailles/bombe<?php echo $donnees1['bombe'];?>.png"/></td>
-		<td><img alt="troll" style="width:40px;height:40px" src="images/classement/<?php echo $troll['troll'];?>.png"/></td>
+		<td><?php echo $nbSujetsCount; ?></td>
+		<td><img alt="bombe" style="width:40px;height:40px" src="images/medailles/bombe<?php echo $bombeImage;?>.png"/></td>
+		<td><img alt="troll" style="width:40px;height:40px" src="images/classement/<?php echo $trollImage;?>.png"/></td>
 		</tr>
 		<?php
 		$compteur++;
