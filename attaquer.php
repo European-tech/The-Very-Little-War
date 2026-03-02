@@ -12,7 +12,7 @@ foreach ($paliersTerreur as $num => $palier) {
     }
 }
 
-$coutPourUnAtome = 0.15 * (1 + $bonus / 100);
+$coutPourUnAtome = 0.15 * (1 - $bonus / 100);
 
 $donnees = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $_SESSION['login']);
 $reduction = 0;
