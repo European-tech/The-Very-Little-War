@@ -285,6 +285,31 @@ $FORMATIONS = [
 ];
 
 // =============================================================================
+// ISOTOPE VARIANTS — molecule specializations chosen at creation
+// =============================================================================
+define('ISOTOPE_NORMAL', 0);
+define('ISOTOPE_STABLE', 1);     // Tank: -10% attack, +20% HP, -30% decay
+define('ISOTOPE_REACTIF', 2);    // Glass cannon: +20% attack, -10% HP, +50% decay
+define('ISOTOPE_CATALYTIQUE', 3); // Support: -10% attack, -10% HP, +15% to other classes
+
+define('ISOTOPE_STABLE_ATTACK_MOD', -0.10);
+define('ISOTOPE_STABLE_HP_MOD', 0.20);
+define('ISOTOPE_STABLE_DECAY_MOD', -0.30);      // negative = slower decay
+define('ISOTOPE_REACTIF_ATTACK_MOD', 0.20);
+define('ISOTOPE_REACTIF_HP_MOD', -0.10);
+define('ISOTOPE_REACTIF_DECAY_MOD', 0.50);       // positive = faster decay
+define('ISOTOPE_CATALYTIQUE_ATTACK_MOD', -0.10);
+define('ISOTOPE_CATALYTIQUE_HP_MOD', -0.10);
+define('ISOTOPE_CATALYTIQUE_ALLY_BONUS', 0.15);  // +15% to all stats of other classes
+
+$ISOTOPES = [
+    ISOTOPE_NORMAL => ['name' => 'Normal', 'desc' => 'Pas de modification.'],
+    ISOTOPE_STABLE => ['name' => 'Stable', 'desc' => '-10% attaque, +20% points de vie, -30% vitesse de disparition. Rôle : tank/défenseur.'],
+    ISOTOPE_REACTIF => ['name' => 'Réactif', 'desc' => '+20% attaque, -10% points de vie, +50% vitesse de disparition. Rôle : canon de verre.'],
+    ISOTOPE_CATALYTIQUE => ['name' => 'Catalytique', 'desc' => '-10% attaque et PV, mais +15% à toutes les stats des AUTRES classes. Rôle : support.'],
+];
+
+// =============================================================================
 // CHEMICAL REACTIONS — bonuses when specific atom combos deployed across classes
 // =============================================================================
 $CHEMICAL_REACTIONS = [

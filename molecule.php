@@ -46,6 +46,12 @@ if(isset($_GET['id']) AND !empty($_GET['id'])) {
         item(['titre' => 'Capacité de pillage', 'soustitre' => pillage($molecule['soufre'],$niveausoufre,$_SESSION['login']), 'media' => '<img alt="moelcule" src="images/molecule/bag.png" class="imageMedia"/>']);
         item(['titre' => 'Production d\'énergie', 'soustitre' => nombreEnergie('<span style="color:green">+'.productionEnergieMolecule($molecule['iode'],$niveauiode).'/h</span>'), 'media' => '<img alt="moelcule" src="images/energie.png" class="imageMedia"/>']);
         item(['titre' => 'Demi-vie', 'soustitre' => $demivie, 'media' => '<img alt="moelcule" src="images/molecule/demivie.png" class="imageMedia"/>']);
+        // Display isotope variant
+        global $ISOTOPES;
+        $isoType = intval($molecule['isotope'] ?? 0);
+        $isoName = isset($ISOTOPES[$isoType]) ? $ISOTOPES[$isoType]['name'] : 'Normal';
+        $isoDesc = isset($ISOTOPES[$isoType]) ? $ISOTOPES[$isoType]['desc'] : '';
+        item(['titre' => 'Isotope', 'soustitre' => '<strong>' . htmlspecialchars($isoName) . '</strong>' . ($isoDesc ? ' — <small>' . htmlspecialchars($isoDesc) . '</small>' : ''), 'media' => '<img alt="isotope" src="images/molecule/molecule.png" class="imageMedia"/>']);
         finListe();
 	}
 	else {

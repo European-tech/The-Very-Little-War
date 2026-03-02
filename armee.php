@@ -190,6 +190,10 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
                     $newNiveauClasse = $cout['niveauclasse'] + 1;
                     dbExecute($base, 'UPDATE ressources SET niveauclasse=? WHERE login=?', 'is', $newNiveauClasse, $_SESSION['login']);
 
+                    // Isotope selection (validated integer 0-3)
+                    $isotope = isset($_POST['isotope']) ? intval($_POST['isotope']) : 0;
+                    if ($isotope < 0 || $isotope > 3) $isotope = 0;
+
                     // Build dynamic UPDATE for molecules - computed from validated integer POST values
                     $chaine = "";
                     foreach ($nomsRes as $num => $ressource) {
@@ -200,7 +204,7 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
                         $chaine = $chaine . '' . $ressource . '=' . intval($$ressource) . '' . $plus;
                     }
                     // $chaine has validated integers, formule and login are parameterized
-                    $stmt = mysqli_prepare($base, 'UPDATE molecules SET ' . $chaine . ', formule=? WHERE proprietaire=? AND numeroclasse=?');
+                    $stmt = mysqli_prepare($base, 'UPDATE molecules SET ' . $chaine . ', formule=?, isotope=' . $isotope . ' WHERE proprietaire=? AND numeroclasse=?');
                     if (!$stmt) {
                         error_log("SQL Prepare Error: " . mysqli_error($base));
                     } else {
@@ -314,6 +318,19 @@ if (isset($_POST['emplacementmoleculecreer'])) {
     }  ?>
     <input type="hidden" name="emplacementmoleculecreer1" value="<?php echo htmlspecialchars($_POST['emplacementmoleculecreer'], ENT_QUOTES, 'UTF-8'); ?>" />
 <?php
+    // Isotope variant selector
+    global $ISOTOPES;
+    item(['titre' => '<strong>Isotope</strong>', 'input' => '']);
+    echo '<div style="padding:4px 16px;">';
+    foreach ($ISOTOPES as $id => $iso) {
+        $checked = ($id === 0) ? ' checked' : '';
+        echo '<label style="display:block;padding:4px 0;cursor:pointer;">';
+        echo '<input type="radio" name="isotope" value="' . $id . '"' . $checked . ' style="margin-right:6px;"/>';
+        echo '<strong>' . htmlspecialchars($iso['name']) . '</strong> — <small>' . htmlspecialchars($iso['desc']) . '</small>';
+        echo '</label>';
+    }
+    echo '</div>';
+
     item(['input' => submit(['form' => 'creernouvelleclasse1', 'titre' => 'Créer'])]);
     finListe();
     echo '</form>';

@@ -193,7 +193,21 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
     } else {
         $nbAtomes = $classeOuNbTotal;
     }
-    return pow(pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR), (1 - ($bonus / 100)) * (1 - ($stabilisateur['stabilisateur'] * STABILISATEUR_BONUS_PER_LEVEL)));
+    $baseDecay = pow(pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR), (1 - ($bonus / 100)) * (1 - ($stabilisateur['stabilisateur'] * STABILISATEUR_BONUS_PER_LEVEL)));
+
+    // Isotope decay modifier: Stable = slower decay, Réactif = faster decay
+    if ($type == 0 && isset($donnees['isotope'])) {
+        $isotope = intval($donnees['isotope']);
+        if ($isotope == ISOTOPE_STABLE) {
+            // Reduce decay rate (move coefficient closer to 1.0)
+            $baseDecay = pow($baseDecay, 1.0 + ISOTOPE_STABLE_DECAY_MOD); // -30% = 0.7 exponent = slower
+        } elseif ($isotope == ISOTOPE_REACTIF) {
+            // Increase decay rate (move coefficient further from 1.0)
+            $baseDecay = pow($baseDecay, 1.0 + ISOTOPE_REACTIF_DECAY_MOD); // +50% = 1.5 exponent = faster
+        }
+    }
+
+    return $baseDecay;
 }
 
 function demiVie($joueur, $classeOuNbTotal, $type = 0)

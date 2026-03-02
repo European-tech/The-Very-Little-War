@@ -57,6 +57,67 @@ if ($idallianceDef['idalliance'] > 0) {
 }
 
 
+// Isotope Modifiers — per-class attack/HP multipliers based on isotope variant
+// Also calculate Catalytique ally bonus (boosts OTHER classes by 15%)
+$attIsotopeAttackMod = [];
+$attIsotopeHpMod = [];
+$defIsotopeAttackMod = [];
+$defIsotopeHpMod = [];
+$attHasCatalytique = false;
+$defHasCatalytique = false;
+
+for ($c = 1; $c <= $nbClasses; $c++) {
+	$attIso = intval(${'classeAttaquant' . $c}['isotope'] ?? 0);
+	$defIso = intval(${'classeDefenseur' . $c}['isotope'] ?? 0);
+
+	$attIsotopeAttackMod[$c] = 1.0;
+	$attIsotopeHpMod[$c] = 1.0;
+	$defIsotopeAttackMod[$c] = 1.0;
+	$defIsotopeHpMod[$c] = 1.0;
+
+	if ($attIso == ISOTOPE_STABLE) {
+		$attIsotopeAttackMod[$c] += ISOTOPE_STABLE_ATTACK_MOD;
+		$attIsotopeHpMod[$c] += ISOTOPE_STABLE_HP_MOD;
+	} elseif ($attIso == ISOTOPE_REACTIF) {
+		$attIsotopeAttackMod[$c] += ISOTOPE_REACTIF_ATTACK_MOD;
+		$attIsotopeHpMod[$c] += ISOTOPE_REACTIF_HP_MOD;
+	} elseif ($attIso == ISOTOPE_CATALYTIQUE) {
+		$attIsotopeAttackMod[$c] += ISOTOPE_CATALYTIQUE_ATTACK_MOD;
+		$attIsotopeHpMod[$c] += ISOTOPE_CATALYTIQUE_HP_MOD;
+		$attHasCatalytique = true;
+	}
+
+	if ($defIso == ISOTOPE_STABLE) {
+		$defIsotopeAttackMod[$c] += ISOTOPE_STABLE_ATTACK_MOD;
+		$defIsotopeHpMod[$c] += ISOTOPE_STABLE_HP_MOD;
+	} elseif ($defIso == ISOTOPE_REACTIF) {
+		$defIsotopeAttackMod[$c] += ISOTOPE_REACTIF_ATTACK_MOD;
+		$defIsotopeHpMod[$c] += ISOTOPE_REACTIF_HP_MOD;
+	} elseif ($defIso == ISOTOPE_CATALYTIQUE) {
+		$defIsotopeAttackMod[$c] += ISOTOPE_CATALYTIQUE_ATTACK_MOD;
+		$defIsotopeHpMod[$c] += ISOTOPE_CATALYTIQUE_HP_MOD;
+		$defHasCatalytique = true;
+	}
+}
+
+// Catalytique: boost non-catalytique classes by ISOTOPE_CATALYTIQUE_ALLY_BONUS
+if ($attHasCatalytique) {
+	for ($c = 1; $c <= $nbClasses; $c++) {
+		if (intval(${'classeAttaquant' . $c}['isotope'] ?? 0) != ISOTOPE_CATALYTIQUE) {
+			$attIsotopeAttackMod[$c] += ISOTOPE_CATALYTIQUE_ALLY_BONUS;
+			$attIsotopeHpMod[$c] += ISOTOPE_CATALYTIQUE_ALLY_BONUS;
+		}
+	}
+}
+if ($defHasCatalytique) {
+	for ($c = 1; $c <= $nbClasses; $c++) {
+		if (intval(${'classeDefenseur' . $c}['isotope'] ?? 0) != ISOTOPE_CATALYTIQUE) {
+			$defIsotopeAttackMod[$c] += ISOTOPE_CATALYTIQUE_ALLY_BONUS;
+			$defIsotopeHpMod[$c] += ISOTOPE_CATALYTIQUE_ALLY_BONUS;
+		}
+	}
+}
+
 // Defensive Formation — read defender's chosen formation
 $formationData = dbFetchOne($base, 'SELECT formation FROM constructions WHERE login=?', 's', $actions['defenseur']);
 $defenderFormation = ($formationData && isset($formationData['formation'])) ? intval($formationData['formation']) : FORMATION_DISPERSEE;
@@ -138,8 +199,8 @@ if ($defenderFormation == FORMATION_EMBUSCADE) {
 $degatsAttaquant = 0;
 $degatsDefenseur = 0;
 for ($c = 1; $c <= 4; $c++) {
-	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * (1 + (($ionisateur['ionisateur'] * 2) / 100)) * $bonusDuplicateurAttaque * ${'classeAttaquant' . $c}['nombre'];
-	$defBonusForClass = $defReactionDefenseBonus * $formationDefenseBonus;
+	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * 2) / 100)) * $bonusDuplicateurAttaque * ${'classeAttaquant' . $c}['nombre'];
+	$defBonusForClass = $defReactionDefenseBonus * $formationDefenseBonus * $defIsotopeAttackMod[$c];
 	// Phalange: class 1 gets extra defense bonus
 	if ($defenderFormation == FORMATION_PHALANGE && $c == 1) {
 		$defBonusForClass *= (1.0 + FORMATION_PHALANX_DEFENSE_BONUS);
@@ -159,7 +220,7 @@ $defenseursRestants = 0;
 // --- Attacker casualties (from defender's damage) ---
 $totalAttackerHP = 0;
 for ($i = 1; $i <= $nbClasses; $i++) {
-	$hpPerMol = pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque * $attReactionHpBonus;
+	$hpPerMol = pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque * $attReactionHpBonus * $attIsotopeHpMod[$i];
 	${'attHP' . $i} = $hpPerMol * ${'classeAttaquant' . $i}['nombre'];
 	$totalAttackerHP += ${'attHP' . $i};
 }
@@ -167,7 +228,7 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 for ($i = 1; $i <= $nbClasses; $i++) {
 	${'classe' . $i . 'AttaquantMort'} = 0;
 	if (${'classeAttaquant' . $i}['nombre'] > 0 && $degatsDefenseur > 0) {
-		$hpPerMol = pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque * $attReactionHpBonus;
+		$hpPerMol = pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], $niveauxAtt['brome']) * $bonusDuplicateurAttaque * $attReactionHpBonus * $attIsotopeHpMod[$i];
 		// Proportional damage share based on class HP pool
 		$damageShare = ($totalAttackerHP > 0) ? $degatsDefenseur * (${'attHP' . $i} / $totalAttackerHP) : 0;
 		if ($hpPerMol > 0) {
@@ -183,7 +244,7 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 // --- Defender casualties (from attacker's damage) — FORMATION-AWARE ---
 $totalDefenderHP = 0;
 for ($i = 1; $i <= $nbClasses; $i++) {
-	$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense * $defReactionHpBonus;
+	$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense * $defReactionHpBonus * $defIsotopeHpMod[$i];
 	${'defHP' . $i} = $hpPerMol * ${'classeDefenseur' . $i}['nombre'];
 	$totalDefenderHP += ${'defHP' . $i};
 }
@@ -212,7 +273,7 @@ if ($defenderFormation == FORMATION_DISPERSEE) {
 for ($i = 1; $i <= $nbClasses; $i++) {
 	${'classe' . $i . 'DefenseurMort'} = 0;
 	if (${'classeDefenseur' . $i}['nombre'] > 0 && $degatsAttaquant > 0) {
-		$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense * $defReactionHpBonus;
+		$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], $niveauxDef['brome']) * $bonusDuplicateurDefense * $defReactionHpBonus * $defIsotopeHpMod[$i];
 		$damageShare = $defDamageShares[$i];
 		if ($hpPerMol > 0) {
 			${'classe' . $i . 'DefenseurMort'} = min(${'classeDefenseur' . $i}['nombre'], floor($damageShare / $hpPerMol));
