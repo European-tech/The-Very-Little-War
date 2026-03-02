@@ -82,9 +82,9 @@ define('PILLAGE_ATOM_COEFFICIENT', 0.1);
 define('PILLAGE_SOUFRE_DIVISOR', 3);
 define('PILLAGE_LEVEL_DIVISOR', 50);
 
-// Iode energy production: round(0.05 * iode * (1 + niveau / 50))
-// Buffed from 0.01 to 0.05 (5x) to make energy molecules viable
-define('IODE_ENERGY_COEFFICIENT', 0.05);
+// Iode energy production: round(0.10 * iode * (1 + niveau / 50))
+// Buffed from 0.01→0.05→0.10 to make iodine a real energy source
+define('IODE_ENERGY_COEFFICIENT', 0.10);
 define('IODE_LEVEL_DIVISOR', 50);
 
 // Speed (chlore): floor((1 + 0.5 * chlore) * (1 + niveau / 50) * 100) / 100
@@ -101,9 +101,9 @@ define('FORMATION_LEVEL_DIVISOR', 20);
 // =============================================================================
 // coefDisparition = pow(pow(0.99, pow(1 + nbAtomes / 100, 2) / 5000), ...)
 define('DECAY_BASE', 0.99);
-define('DECAY_ATOM_DIVISOR', 100);
+define('DECAY_ATOM_DIVISOR', 150); // Increased from 100 — large molecules slightly more viable
 define('DECAY_POWER_DIVISOR', 25000);
-define('STABILISATEUR_BONUS_PER_LEVEL', 0.01); // 1% per level
+define('STABILISATEUR_BONUS_PER_LEVEL', 0.015); // 1.5% per level (buffed from 1%)
 
 // =============================================================================
 // BUILDING HP FORMULAS
@@ -244,9 +244,9 @@ define('COMBAT_POINTS_CASUALTY_SCALE', 0.5); // Scale factor for sqrt(casualties
 define('COMBAT_POINTS_MAX_PER_BATTLE', 20);  // Cap per single battle
 
 // pointsAttaque/pointsDefense scaling: sqrt(rawPoints) * MULTIPLIER
-// This makes accumulated combat points contribute meaningfully to totalPoints
-define('ATTACK_POINTS_MULTIPLIER', 3.0);
-define('DEFENSE_POINTS_MULTIPLIER', 3.0);
+// Boosted from 3.0 to 5.0 to bring combat from ~10% to ~25-30% of total points
+define('ATTACK_POINTS_MULTIPLIER', 5.0);
+define('DEFENSE_POINTS_MULTIPLIER', 5.0);
 
 // Defensive rewards — incentivize defense as a viable playstyle
 define('DEFENSE_REWARD_RATIO', 0.20);         // 20% resource bonus on successful defense
@@ -275,8 +275,9 @@ define('MERCHANT_SPEED', 20);    // cases per hour ($vitesseMarchands)
 
 // Market trading points: contribute to totalPoints via trade volume
 // Points awarded = floor(MARKET_POINTS_SCALE * sqrt(totalTradeVolume))
-define('MARKET_POINTS_SCALE', 0.05);       // sqrt scaling for energy spent on market buys
-define('MARKET_POINTS_MAX', 40);           // cap on market points contribution to totalPoints
+// Boosted: scale 0.05→0.08, cap 40→80 to reward active traders
+define('MARKET_POINTS_SCALE', 0.08);       // sqrt scaling for energy spent on market buys
+define('MARKET_POINTS_MAX', 80);           // cap on market points contribution to totalPoints
 
 // =============================================================================
 // ALLIANCE / DUPLICATEUR
@@ -341,8 +342,9 @@ define('VP_ALLIANCE_RANK3', 7);
 // PILLAGE POINTS FORMULA
 // =============================================================================
 // pointsPillage = tanh(nbRessources / DIVISOR) * MULTIPLIER
-define('PILLAGE_POINTS_DIVISOR', 100000);
-define('PILLAGE_POINTS_MULTIPLIER', 50);
+// Boosted: divisor 100k→50k, multiplier 50→80 to reward raiders
+define('PILLAGE_POINTS_DIVISOR', 50000);
+define('PILLAGE_POINTS_MULTIPLIER', 80);
 
 // =============================================================================
 // MEDALS / TIERS
