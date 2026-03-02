@@ -1,0 +1,1 @@
+ALTER TABLE membre ADD COLUMN session_token VARCHAR(64) DEFAULT NULL;
