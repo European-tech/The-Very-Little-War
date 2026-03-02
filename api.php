@@ -19,6 +19,17 @@ if (empty($_SESSION['login'])) {
     exit;
 }
 
+// Validate session token against DB
+include("includes/connexion.php");
+require_once("includes/database.php");
+$tokenRow = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
+if (!$tokenRow || empty($_SESSION['session_token']) || empty($tokenRow['session_token']) || !hash_equals($tokenRow['session_token'], $_SESSION['session_token'])) {
+    session_destroy();
+    http_response_code(401);
+    echo json_encode(['error' => 'Session invalid']);
+    exit;
+}
+
 require_once('includes/rate_limiter.php');
 
 // Rate limit: 60 API calls per 60 seconds per IP
@@ -29,7 +40,6 @@ if (!rateLimitCheck($ip, 'api', 60, 60)) {
     exit;
 }
 
-include("includes/connexion.php");
 include("includes/constantesBase.php");
 include("includes/fonctions.php");
 

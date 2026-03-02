@@ -1,12 +1,5 @@
 <?php
-// Session security hardening (must be set before session_start)
-if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_httponly', 1);
-    ini_set('session.cookie_secure', !empty($_SERVER['HTTPS']) ? 1 : 0);
-    ini_set('session.use_strict_mode', 1);
-    ini_set('session.cookie_samesite', 'Lax');
-    session_start();
-}
+require_once(__DIR__ . '/session_init.php');
 
 include("includes/connexion.php");
 include("includes/fonctions.php");
@@ -52,6 +45,13 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
     exit();
 }
 
+// Idle timeout: 1 hour of inactivity
+if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > 3600) {
+    session_destroy();
+    header('Location: index.php?erreur=' . urlencode('Session expirée. Veuillez vous reconnecter.'));
+    exit();
+}
+$_SESSION['last_activity'] = time();
 
 // si c'est la premiere connexion depuis la derniere partie, on le replace
 $posAct = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login = ?', 's', $_SESSION['login']);

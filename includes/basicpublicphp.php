@@ -1,6 +1,7 @@
 <?php
 include("includes/connexion.php");
 include("includes/fonctions.php");
+require_once(__DIR__ . '/csrf.php');
 require_once(__DIR__ . '/logger.php');
 require_once(__DIR__ . '/rate_limiter.php');
 
@@ -18,6 +19,7 @@ if (isset($_SESSION['login'])) {
 
 //Si le formulaire de connexion a ete soumis et que le couple mdp login est bon, on se connecte
 if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
+	csrfCheck();
 	if (!empty($_POST['loginConnexion']) && !empty($_POST['passConnexion'])) {
 		// 10 attempts per 5 minutes per IP
 		if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'login', 10, 300)) {
@@ -44,7 +46,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 				$authenticated = true;
 			}
 			// Fall back to legacy MD5 check, then auto-upgrade to bcrypt
-			elseif (md5($passwordInput) === $storedHash) {
+			elseif (hash_equals(md5($passwordInput), $storedHash)) {
 				$authenticated = true;
 				// Auto-upgrade: replace MD5 hash with bcrypt
 				$newHash = password_hash($passwordInput, PASSWORD_DEFAULT);

@@ -32,6 +32,7 @@ if (!isset($_SESSION['login'])) {
     debutCarte("Connexion", "background-color:#8A0000");
     debutListe();
     echo '<form action="index.php?noAutoConnexion=1" method="post" name="connexion">';
+    echo csrfField();
     item(['floating' => true, 'titre' => 'Login', 'media' => '<img src="images/accueil/player.png" alt="user" class="w32"/>', 'input' => '<input type="text" name="loginConnexion" id="loginConnexion">']);
     item(['floating' => true, 'titre' => 'Mot de passe', 'media' => '<img src="images/accueil/door-key.png" alt="lock" class="w32"/>', 'input' => '<input type="password" name="passConnexion" id="passConnexion">']);
     finListe();
