@@ -51,10 +51,8 @@ if ($joueur['moderateur']) {
 		?>
 	</form>
 	<!-- Script JQuery pour la selection des dates -->
-	<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css" />
-	<script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
-	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-	<link rel="stylesheet" href="/resources/demos/style.css" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/themes/smoothness/jquery-ui.min.css" integrity="sha512-EPEm2NPSRmFKzSAFm4xFSVpZMC3cKgBSxMxIfiUVGJGwSCuikYmGmFiuxmGxTQsLMOuQOBVEfCm8bnYJnQMnQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js" integrity="sha512-Ww1y9OuQ2kehgVWSD/3nhgfrb424O3SgrGCDBOd1cMWcz1ZEAIjq7bZQTDsRP3VdJHTbJcNGFKYBKwF7OoWFbA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script>
 		$(function() {
 			// Construction et paramétrage du selecteur de date

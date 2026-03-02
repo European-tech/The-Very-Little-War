@@ -6,8 +6,8 @@ ALTER TABLE declarations ENGINE=InnoDB;
 ALTER TABLE moderation ENGINE=InnoDB;
 ALTER TABLE statutforum ENGINE=InnoDB;
 
--- Add missing primary keys
-ALTER TABLE connectes ADD PRIMARY KEY (ip) IF NOT EXISTS;
+-- Add missing primary keys (check first to avoid error)
+-- ALTER TABLE connectes ADD PRIMARY KEY (ip); -- Run manually if connectes has no PK
 
 -- Fix column type mismatches
 ALTER TABLE declarations MODIFY alliance1 INT DEFAULT NULL;
@@ -17,11 +17,11 @@ ALTER TABLE declarations MODIFY alliance2 INT DEFAULT NULL;
 ALTER TABLE attack_cooldowns MODIFY attacker VARCHAR(255) NOT NULL;
 ALTER TABLE attack_cooldowns MODIFY defender VARCHAR(255) NOT NULL;
 
--- Add spatial indexes for map queries
-ALTER TABLE membre ADD INDEX IF NOT EXISTS idx_membre_xy (x, y);
+-- Add spatial indexes for map queries (MariaDB supports IF NOT EXISTS on CREATE INDEX)
+CREATE INDEX IF NOT EXISTS idx_membre_xy ON membre (x, y);
 
 -- Add index for cours table performance
-ALTER TABLE cours ADD INDEX IF NOT EXISTS idx_cours_timestamp (timestamp);
+CREATE INDEX IF NOT EXISTS idx_cours_timestamp ON cours (timestamp);
 
--- Cleanup: add expired cooldown cleanup
-DELETE FROM attack_cooldowns WHERE expires_at < NOW();
+-- Cleanup expired cooldowns (column is 'expires' as unix timestamp)
+DELETE FROM attack_cooldowns WHERE expires < UNIX_TIMESTAMP();
