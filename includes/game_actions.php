@@ -67,7 +67,12 @@ function updateActions($joueur)
     while ($actions = mysqli_fetch_array($ex)) {
         if ($actions['attaqueFaite'] == 0 && $actions['tempsAttaque'] < time()) { // on fait l'attaque
             if ($actions['troupes'] != 'Espionnage') {
-                dbExecute($base, 'UPDATE actionsattaques SET attaqueFaite=1 WHERE id=?', 'i', $actions['id']);
+                // CAS guard: only proceed if this request is the first to claim the action
+                $casAffected = dbExecute($base, 'UPDATE actionsattaques SET attaqueFaite=1 WHERE id=? AND attaqueFaite=0', 'i', $actions['id']);
+                if ($casAffected === 0 || $casAffected === false) {
+                    // Another concurrent request already resolved this combat — skip it
+                    continue;
+                }
 
                 if ($actions['attaquant'] == $joueur) {
                     $enFace = $actions['defenseur'];
@@ -99,17 +104,19 @@ function updateActions($joueur)
 
                 $actions['troupes'] = $chaine;
 
+                mysqli_begin_transaction($base);
+                try {
                 include("includes/combat.php"); // Les pertes sont calculées, le gagnant est désigné et les troupes sont mises à jour dans la BD, les ressources sont pillées
 
                 if ($gagnant == 2) {
-                    $titreRapportJoueur = "Vous gagnez contre " . $actions['defenseur'] . " !";
-                    $titreRapportDefenseur = "Vous perdez contre " . $actions['attaquant'] . " !";
+                    $titreRapportJoueur = "Vous gagnez contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
+                    $titreRapportDefenseur = "Vous perdez contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
                 } elseif ($gagnant == 1) {
-                    $titreRapportJoueur = "Vous perdez contre " . $actions['defenseur'] . " !";
-                    $titreRapportDefenseur = "Vous gagnez contre " . $actions['attaquant'] . " !";
+                    $titreRapportJoueur = "Vous perdez contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
+                    $titreRapportDefenseur = "Vous gagnez contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
                 } else {
-                    $titreRapportJoueur = "Egalité contre " . $actions['defenseur'] . " !";
-                    $titreRapportDefenseur = "Egalité contre " . $actions['attaquant'] . " !";
+                    $titreRapportJoueur = "Egalité contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
+                    $titreRapportDefenseur = "Egalité contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
                 }
 
                 $chaine = "Aucune";
@@ -137,7 +144,7 @@ function updateActions($joueur)
 
                 $information = "";
                 if ($attaquantsRestants == 0) {
-                    $information = "<strong>Aucune molécule n\'est revenue !</strong><br/><br/>";
+                    $information = "<strong>Aucune mol&eacute;cule n'est revenue !</strong><br/><br/>";
                 }
 
                 $debutRapport = "<p>
@@ -145,7 +152,7 @@ function updateActions($joueur)
                             " . important('Attaquant') . "<br/>
                             " . chipInfo($attaquePts, 'images/molecule/sword.png') . chipInfo($pillagePts, 'images/molecule/bag.png') . "<br/><br/>
                             <table class=\"table table-bordered\">
-                            <caption style=\"color:red;font-weight:bold;\"><img src=\"images/attaquer/gladius.png\" alt=\"epee\" class=\"imageAide\"/><a style=\"color:red\" href=\"joueur.php?id=" . $actions['attaquant'] . "\">" . $actions['attaquant'] . "</caption>
+                            <caption style=\"color:red;font-weight:bold;\"><img src=\"images/attaquer/gladius.png\" alt=\"epee\" class=\"imageAide\"/><a style=\"color:red\" href=\"joueur.php?id=" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "</caption>
                             <thead>
                             <tr>
                             <th></th>
@@ -181,7 +188,7 @@ function updateActions($joueur)
                             " . chipInfo($defensePts, 'images/molecule/shield.png') . chipInfo($pillagePts1, 'images/molecule/bag.png') . "<br/><br/>
                             <div class=\"table-responsive\">
                             <table class=\"table table-bordered\">
-                            <caption style=\"color:green;font-weight:bold;\"><img src=\"images/attaquer/shield.png\" alt=\"bouclier\" class=\"imageAide\"/><a style=\"color:green\" href=\"joueur.php?id=" . $actions['defenseur'] . "\">" . $actions['defenseur'] . "</a></caption>
+                            <caption style=\"color:green;font-weight:bold;\"><img src=\"images/attaquer/shield.png\" alt=\"bouclier\" class=\"imageAide\"/><a style=\"color:green\" href=\"joueur.php?id=" . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . "</a></caption>
 
                             <thead>
                             <tr>
@@ -309,6 +316,11 @@ function updateActions($joueur)
                 dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportAttaquant, $actions['attaquant'], $rapportImage);
 
                 dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage);
+                mysqli_commit($base);
+                } catch (Exception $combatException) {
+                    mysqli_rollback($base);
+                    error_log('Combat transaction rolled back for action ' . $actions['id'] . ': ' . $combatException->getMessage());
+                }
             } else {
                 $nDef = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $actions['defenseur']);
                 // Radar research reduces the neutrino threshold for successful espionage
@@ -328,7 +340,7 @@ function updateActions($joueur)
 
                     $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $actions['defenseur']);
 
-                    $titreRapportJoueur = "Vous espionnez " . $actions['defenseur'];
+                    $titreRapportJoueur = "Vous espionnez " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8');
                     $chaine1 = "";
                     foreach ($nomsRes as $num => $ressource) {
                         $chaine1 = $chaine1 . nombreAtome($num, number_format($ressourcesJoueur[$ressource], 0, ' ', ' '));
@@ -488,8 +500,8 @@ function updateActions($joueur)
             $energieRecue = nombreEnergie(number_format($recues[sizeof($nomsRes)], 0, ' ', ' '));
         }
 
-        $titreRapport = "Rapport d\'apport de ressources par " . $actions['envoyeur'];
-        $contenuRapport = "<a href=\"joueur.php?id=" . $actions['envoyeur'] . "\">" . $actions['envoyeur'] . "</a> vous envoie les ressources suivantes : <br/><br/>
+        $titreRapport = "Rapport d\'apport de ressources par " . htmlspecialchars($actions['envoyeur'], ENT_QUOTES, 'UTF-8');
+        $contenuRapport = "<a href=\"joueur.php?id=" . htmlspecialchars($actions['envoyeur'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['envoyeur'], ENT_QUOTES, 'UTF-8') . "</a> vous envoie les ressources suivantes : <br/><br/>
         " . important('Ressources envoyées') . "
         " . $energieEnvoyee . $chaine1 . "<br/><br/>
         " . important('Ressources reçues') . "
@@ -498,6 +510,9 @@ function updateActions($joueur)
         dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
 
         $ressourcesDestinataire = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['receveur']);
+        // FIX FINDING-GAME-009: Cap received resources at storage limit
+        $depotReceveur = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['receveur']);
+        $maxStorageRecv = placeDepot($depotReceveur['depot']);
         $chaine = "";
         foreach ($nomsRes as $num => $ressource) {
             $plus = "";
@@ -505,18 +520,18 @@ function updateActions($joueur)
             if ($num < $nbRes) {
                 $plus = ",";
             }
-            $chaine = $chaine . '' . $ressource . '=' . round($ressourcesDestinataire[$ressource] + $recues[$num]) . '' . $plus;
+            $chaine = $chaine . '' . $ressource . '=' . min($maxStorageRecv, round($ressourcesDestinataire[$ressource] + $recues[$num])) . '' . $plus;
         }
 
         $recues[sizeof($nomsRes)] = max(0, $recues[sizeof($nomsRes)]);
         // Build parameterized update for envoi resources
         $envoiSetClauses = ['energie=?'];
         $envoiTypes = 'd';
-        $envoiParams = [round($ressourcesDestinataire['energie'] + $recues[sizeof($nomsRes)])];
+        $envoiParams = [min($maxStorageRecv, round($ressourcesDestinataire['energie'] + $recues[sizeof($nomsRes)]))];
         foreach ($nomsRes as $num => $ressource) {
             $envoiSetClauses[] = "$ressource=?";
             $envoiTypes .= 'd';
-            $envoiParams[] = round($ressourcesDestinataire[$ressource] + $recues[$num]);
+            $envoiParams[] = min($maxStorageRecv, round($ressourcesDestinataire[$ressource] + $recues[$num]));
         }
         $envoiParams[] = $actions['receveur'];
         $envoiTypes .= 's';

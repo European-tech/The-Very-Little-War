@@ -3,25 +3,19 @@
 include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 
+// Single query for nbattaques (was duplicated — optimization 7).
 $donneesMedaille = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $_SESSION['login']);
 $bonus = 0;
+$reduction = 0;
 
 foreach ($paliersTerreur as $num => $palier) {
     if ($donneesMedaille['nbattaques'] >= $palier) {
         $bonus = $bonusMedailles[$num];
+        $reduction = $bonusMedailles[$num];
     }
 }
 
 $coutPourUnAtome = 0.15 * (1 - $bonus / 100);
-
-$donnees = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $_SESSION['login']);
-$reduction = 0;
-
-foreach ($paliersTerreur as $num => $palier) {
-    if ($donnees['nbattaques'] >= $palier) {
-        $reduction = $bonusMedailles[$num];
-    }
-}
 
 if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
     csrfCheck();
@@ -190,7 +184,7 @@ include("includes/tout.php");
 if (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
     debutCarte();
     echo '<div class="table-responsive"><table>';
-    echo '<tr><td><img src="images/attaquer/baby.png" class="imageChip" alt="bebe"/><td><td>Fin de la protection des débutants le ' . strftime('%d/%m/%y à %Hh%M', $membre['timestamp'] + BEGINNER_PROTECTION_SECONDS);
+    echo '<tr><td><img src="images/attaquer/baby.png" class="imageChip" alt="bebe"/><td><td>Fin de la protection des débutants le ' . date('d/m/y \à H\hi', $membre['timestamp'] + BEGINNER_PROTECTION_SECONDS);
     echo '</table></div>';
     finCarte();
 }
@@ -292,26 +286,43 @@ if ($_GET['type'] == 0) {
         $y = $centre['y'];
     }
 
-    $ex = dbQuery($base, 'SELECT * FROM membre');
-    while ($tableau = mysqli_fetch_array($ex)) {
-        $points = dbFetchOne($base, 'SELECT points,idalliance FROM autre WHERE login=?', 's', $tableau['login']);
+    // Optimization 5: single JOIN to get all players with their alliance info,
+    // then pre-load all active wars and pacts — eliminates ~2 queries per player.
+    $myAllianceId = (int) $autre['idalliance'];
 
-        $guerreCount = dbCount($base, 'SELECT count(*) AS estEnGuerre FROM declarations WHERE type=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND fin=0', 'iiii', $points['idalliance'], $autre['idalliance'], $points['idalliance'], $autre['idalliance']);
+    $allPlayers = dbFetchAll($base, 'SELECT m.id, m.login, m.x, m.y, a.points, a.idalliance FROM membre m JOIN autre a ON m.login = a.login', '');
 
-        $pacteCount = dbCount($base, 'SELECT count(*) AS estEnPacte FROM declarations WHERE type=1 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND valide!=0', 'iiii', $points['idalliance'], $autre['idalliance'], $points['idalliance'], $autre['idalliance']);
+    // Pre-load active wars and pacts involving my alliance (only meaningful when in an alliance).
+    $warAllianceIds = [];
+    $pactAllianceIds = [];
+    if ($myAllianceId > 0) {
+        $wars = dbFetchAll($base, 'SELECT alliance1, alliance2 FROM declarations WHERE type=0 AND (alliance1=? OR alliance2=?) AND fin=0', 'ii', $myAllianceId, $myAllianceId);
+        foreach ($wars as $w) {
+            $otherId = ($w['alliance1'] == $myAllianceId) ? (int)$w['alliance2'] : (int)$w['alliance1'];
+            $warAllianceIds[$otherId] = true;
+        }
+        $pacts = dbFetchAll($base, 'SELECT alliance1, alliance2 FROM declarations WHERE type=1 AND (alliance1=? OR alliance2=?) AND valide!=0', 'ii', $myAllianceId, $myAllianceId);
+        foreach ($pacts as $p) {
+            $otherId = ($p['alliance1'] == $myAllianceId) ? (int)$p['alliance2'] : (int)$p['alliance1'];
+            $pactAllianceIds[$otherId] = true;
+        }
+    }
+
+    foreach ($allPlayers as $tableau) {
+        $playerAllianceId = (int) $tableau['idalliance'];
 
         if ($tableau['login'] == $_SESSION['login']) {
             $type = 'soi';
-        } elseif ($guerreCount > 0) {
+        } elseif ($myAllianceId > 0 && $playerAllianceId > 0 && isset($warAllianceIds[$playerAllianceId])) {
             $type = 'guerre';
-        } elseif ($pacteCount > 0) {
+        } elseif ($myAllianceId > 0 && $playerAllianceId > 0 && isset($pactAllianceIds[$playerAllianceId])) {
             $type = 'pacte';
-        } elseif ($points['idalliance'] == $autre['idalliance'] && $autre['idalliance'] != 0) {
+        } elseif ($playerAllianceId == $myAllianceId && $myAllianceId != 0) {
             $type = 'alliance';
         } else {
             $type = 'rien';
         }
-        $carte[$tableau['x']][$tableau['y']] = [$tableau['id'], $tableau['login'], $points['points'], $type];
+        $carte[$tableau['x']][$tableau['y']] = [$tableau['id'], $tableau['login'], $tableau['points'], $type];
     }
 
 ?>
@@ -405,7 +416,7 @@ if (isset($_GET['id'])) {
                         item(['titre' => '<a href="molecule.php?id=' . $molecules['id'] . '" class="lienFormule">' . couleurFormule($molecules['formule']) . '</a>', 'floating' => false, 'input' => '<input type="number" name="nbclasse' . $molecules['numeroclasse'] . '" id="nbclasse' . $molecules['numeroclasse'] . '" placeholder="Nombre" />', 'after' => nombreMolecules('<a href="javascript:document.getElementById(\'nbclasse' . $molecules['numeroclasse'] . '\').value = ' . ceil($molecules['nombre']) . ';actualiseTemps();actualiseCout();" class="lienVisible">' . ceil($molecules['nombre']) . '</a>')]);
                     }
                 }
-                echo '<input type="hidden" name="joueurAAttaquer" value="' . $joueur['login'] . '"/><br/>';
+                echo '<input type="hidden" name="joueurAAttaquer" value="' . htmlspecialchars($joueur['login'], ENT_QUOTES, 'UTF-8') . '"/><br/>';
                 echo submit(['titre' => 'Attaquer', 'image' => 'images/attaquer/attaquer.png', 'form' => 'formAttaquer']);
                 finListe();
             }
@@ -487,7 +498,7 @@ if (isset($_GET['id'])) {
             echo csrfField();
             echo important("Cible");
 
-            echo chip($joueur['login'], '<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>', "white", false, true);
+            echo chip(htmlspecialchars($joueur['login'], ENT_QUOTES, 'UTF-8'), '<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>', "white", false, true);
             echo chip('<a href="attaquer.php?x=' . $joueur['x'] . '&y=' . $joueur['y'] . '">' . $joueur['x'] . ';' . $joueur['y'] . ' - ' . (round(10 * (pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5))) / 10) . ' cases</a>', '<img alt="coupe" src="images/attaquer/map.png" class="imageChip" style="width:25px;border-radius:0px;"/>', "white", false, true);
             echo '<br/><br/>';
 
@@ -500,7 +511,7 @@ if (isset($_GET['id'])) {
             echo important("Coût");
             echo nombreTemps(affichageTemps(3600 * pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5) / $vitesseEspionnage));
 
-            echo '<input type="hidden" name="joueurAEspionner" value="' . $joueur['login'] . '"/><br/><br/>';
+            echo '<input type="hidden" name="joueurAEspionner" value="' . htmlspecialchars($joueur['login'], ENT_QUOTES, 'UTF-8') . '"/><br/><br/>';
             echo submit(['titre' => 'Espionner', 'image' => 'images/attaquer/espionner.png', 'form' => 'formEspionner']);
 
             finCarte();

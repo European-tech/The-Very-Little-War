@@ -221,7 +221,10 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
 
 function demiVie($joueur, $classeOuNbTotal, $type = 0)
 {
-    return round((log(0.5, 0.99) / log(coefDisparition($joueur, $classeOuNbTotal, $type), 0.99)));
+    // FIX FINDING-GAME-020: Prevent division by zero when decay coefficient >= 1.0 (no decay)
+    $coef = coefDisparition($joueur, $classeOuNbTotal, $type);
+    if ($coef >= 1.0) return PHP_INT_MAX; // No decay = infinite half-life
+    return round((log(0.5, 0.99) / log($coef, 0.99)));
 }
 
 
@@ -247,7 +250,6 @@ function vieChampDeForce($niveau, $joueur = null)
 
 function coutClasse($numero)
 {
-    global $base;
     return (pow($numero + 1, 4));
 }
 

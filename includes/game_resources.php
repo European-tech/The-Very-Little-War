@@ -48,7 +48,8 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     $prodIode = $prodBase + $totalIode;
     $prodMedaille = (1 + ($bonus / 100)) * $prodIode;
     $prodDuplicateur = $bonusDuplicateur * $prodMedaille;
-    $prodProducteur = $prodDuplicateur - drainageProducteur($producteur['producteur']);
+    $prodPrestige = $prodDuplicateur * prestigeProductionBonus($joueur);
+    $prodProducteur = $prodPrestige - drainageProducteur($producteur['producteur']);
     if ($detail == 0) {
         return round($prodProducteur);
     } elseif ($detail == 1) {
@@ -78,7 +79,7 @@ function revenuAtome($num, $joueur)
         $bonusDuplicateur = 1 + bonusDuplicateur($duplicateur['duplicateur']);
     }
 
-    return round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau);
+    return round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur));
 }
 
 function revenuAtomeJavascript($joueur)
@@ -137,14 +138,24 @@ function updateRessources($joueur)
     dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $energie, $joueur);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////RESSOURCES
+    // Optimization: build one UPDATE with all 8 atom columns instead of 8 separate queries.
+    $placeMax = placeDepot($depot['depot']);
+    $sqlParts = [];
+    $sqlTypes = '';
+    $sqlParams = [];
     foreach ($nomsRes as $num => $ressource) {
         ${'revenu' . $ressource} = revenuAtome($num, $joueur);
         $$ressource = $donnees[$ressource] + ${'revenu' . $ressource} * ($nbsecondes / 3600);
-        if ($$ressource >= placeDepot($depot['depot'])) {
-            $$ressource = placeDepot($depot['depot']);
+        if ($$ressource >= $placeMax) {
+            $$ressource = $placeMax;
         }
-        dbExecute($base, "UPDATE ressources SET $ressource=? WHERE login=?", 'ds', $$ressource, $joueur);
+        $sqlParts[] = "$ressource=?";
+        $sqlTypes .= 'd';
+        $sqlParams[] = $$ressource;
     }
+    $sqlParams[] = $joueur;
+    $sqlTypes .= 's';
+    dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $sqlParts) . ' WHERE login=?', $sqlTypes, ...$sqlParams);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////Gestion des molécules disparaissant
 

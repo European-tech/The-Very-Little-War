@@ -81,14 +81,16 @@ function ajouterPoints($nb, $joueur, $type = 0)
         }
     }
     if ($type == 1) {
-        // points d'attaque
-        dbExecute($base, 'UPDATE autre SET pointsAttaque=?, totalPoints=? WHERE login=?', 'dds', ($points['pointsAttaque'] + $nb), ($points['totalPoints'] - pointsAttaque($points['pointsAttaque']) + pointsAttaque($points['pointsAttaque'] + $nb)), $joueur);
-        return -pointsAttaque($points['pointsAttaque']) + pointsAttaque($points['pointsAttaque'] + $nb);
+        // points d'attaque — FIX FINDING-GAME-010: clamp at 0 minimum
+        $newPoints = max(0, $points['pointsAttaque'] + $nb);
+        dbExecute($base, 'UPDATE autre SET pointsAttaque=?, totalPoints=? WHERE login=?', 'dds', $newPoints, ($points['totalPoints'] - pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints)), $joueur);
+        return -pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints);
     }
     if ($type == 2) {
-        // points de defense
-        dbExecute($base, 'UPDATE autre SET pointsDefense=?, totalPoints=? WHERE login=?', 'dds', ($points['pointsDefense'] + $nb), ($points['totalPoints'] - pointsDefense($points['pointsDefense']) + pointsDefense($points['pointsDefense'] + $nb)), $joueur);
-        return -pointsDefense($points['pointsDefense']) + pointsDefense($points['pointsDefense'] + $nb);
+        // points de defense — FIX FINDING-GAME-010: clamp at 0 minimum
+        $newPoints = max(0, $points['pointsDefense'] + $nb);
+        dbExecute($base, 'UPDATE autre SET pointsDefense=?, totalPoints=? WHERE login=?', 'dds', $newPoints, ($points['totalPoints'] - pointsDefense($points['pointsDefense']) + pointsDefense($newPoints)), $joueur);
+        return -pointsDefense($points['pointsDefense']) + pointsDefense($newPoints);
     }
     if ($type == 3) {
         // points de pillage - now contributes to totalPoints via pointsPillage()
@@ -103,6 +105,20 @@ function ajouterPoints($nb, $joueur, $type = 0)
 
 function initPlayer($joueur)
 {
+    // Per-request cache stored in $GLOBALS so it can be invalidated externally
+    // (e.g. after augmenterBatiment writes new DB data).
+    // Avoids 60-80 redundant queries when initPlayer is called multiple times
+    // per page load.
+    if (!isset($GLOBALS['_initPlayerCache'])) {
+        $GLOBALS['_initPlayerCache'] = [];
+    }
+    if (isset($GLOBALS['_initPlayerCache'][$joueur])) {
+        foreach ($GLOBALS['_initPlayerCache'][$joueur] as $key => $value) {
+            $GLOBALS[$key] = $value;
+        }
+        return;
+    }
+
     global $nomsRes;
     global $base;
     global $paliersConstructeur;
@@ -220,12 +236,19 @@ function initPlayer($joueur)
 
 
     /////////////////////////////////////////
+    // Optimization: single query for all building queues instead of 9 separate queries.
+    // Build a lookup: batiment => highest queued niveau (the next level being built).
+    $allQueues = dbFetchAll($base, 'SELECT batiment, MAX(niveau) AS niveau FROM actionsconstruction WHERE login=? GROUP BY batiment', 's', $joueur);
+    $queuedNiveaux = [];
+    foreach ($allQueues as $row) {
+        $queuedNiveaux[$row['batiment']] = (int) $row['niveau'];
+    }
 
-    $exNiveauActuel = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'generateur');
-    $niveauActuel = mysqli_fetch_array($exNiveauActuel);
-    $nb = mysqli_num_rows($exNiveauActuel);
-    if ($nb == 0) {
-        $niveauActuel['niveau'] = $constructions['generateur'];
+    // generateur
+    if (isset($queuedNiveaux['generateur'])) {
+        $niveauActuel = ['niveau' => $queuedNiveaux['generateur']];
+    } else {
+        $niveauActuel = ['niveau' => $constructions['generateur']];
     }
 
     if ($niveauActuel['niveau'] == 1) {
@@ -234,12 +257,11 @@ function initPlayer($joueur)
         $tempsGenerateur = round(60 * pow($niveauActuel['niveau'], 1.5));
     }
 
-
-    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'producteur');
-    $niveauActuel1 = mysqli_fetch_array($exNiveauActuel1);
-    $nb1 = mysqli_num_rows($exNiveauActuel1);
-    if ($nb1 == 0) {
-        $niveauActuel1['niveau'] = $constructions['producteur'];
+    // producteur
+    if (isset($queuedNiveaux['producteur'])) {
+        $niveauActuel1 = ['niveau' => $queuedNiveaux['producteur']];
+    } else {
+        $niveauActuel1 = ['niveau' => $constructions['producteur']];
     }
 
     if ($niveauActuel1['niveau'] == 1) {
@@ -248,47 +270,53 @@ function initPlayer($joueur)
         $tempsProducteur = round(40 * pow($niveauActuel1['niveau'], 1.5));
     }
 
-    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'depot');
-    $niveauActuelDepot = mysqli_fetch_array($exNiveauActuel1);
-    $nb = mysqli_num_rows($exNiveauActuel1);
-    if ($nb == 0) {
-        $niveauActuelDepot['niveau'] = $constructions['depot'];
+    // depot
+    if (isset($queuedNiveaux['depot'])) {
+        $niveauActuelDepot = ['niveau' => $queuedNiveaux['depot']];
+    } else {
+        $niveauActuelDepot = ['niveau' => $constructions['depot']];
     }
-    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'champdeforce');
-    $niveauActuelChampDeForce = mysqli_fetch_array($exNiveauActuel1);
-    $nb = mysqli_num_rows($exNiveauActuel1);
-    if ($nb == 0) {
-        $niveauActuelChampDeForce['niveau'] = $constructions['champdeforce'];
+
+    // champdeforce
+    if (isset($queuedNiveaux['champdeforce'])) {
+        $niveauActuelChampDeForce = ['niveau' => $queuedNiveaux['champdeforce']];
+    } else {
+        $niveauActuelChampDeForce = ['niveau' => $constructions['champdeforce']];
     }
-    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'ionisateur');
-    $niveauActuelIonisateur = mysqli_fetch_array($exNiveauActuel1);
-    $nb = mysqli_num_rows($exNiveauActuel1);
-    if ($nb == 0) {
-        $niveauActuelIonisateur['niveau'] = $constructions['ionisateur'];
+
+    // ionisateur
+    if (isset($queuedNiveaux['ionisateur'])) {
+        $niveauActuelIonisateur = ['niveau' => $queuedNiveaux['ionisateur']];
+    } else {
+        $niveauActuelIonisateur = ['niveau' => $constructions['ionisateur']];
     }
-    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'condenseur');
-    $niveauActuelCondenseur = mysqli_fetch_array($exNiveauActuel1);
-    $nb = mysqli_num_rows($exNiveauActuel1);
-    if ($nb == 0) {
-        $niveauActuelCondenseur['niveau'] = $constructions['condenseur'];
+
+    // condenseur
+    if (isset($queuedNiveaux['condenseur'])) {
+        $niveauActuelCondenseur = ['niveau' => $queuedNiveaux['condenseur']];
+    } else {
+        $niveauActuelCondenseur = ['niveau' => $constructions['condenseur']];
     }
-    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'lieur');
-    $niveauActuelLieur = mysqli_fetch_array($exNiveauActuel1);
-    $nb = mysqli_num_rows($exNiveauActuel1);
-    if ($nb == 0) {
-        $niveauActuelLieur['niveau'] = $constructions['lieur'];
+
+    // lieur
+    if (isset($queuedNiveaux['lieur'])) {
+        $niveauActuelLieur = ['niveau' => $queuedNiveaux['lieur']];
+    } else {
+        $niveauActuelLieur = ['niveau' => $constructions['lieur']];
     }
-    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'stabilisateur');
-    $niveauActuelStabilisateur = mysqli_fetch_array($exNiveauActuel1);
-    $nb = mysqli_num_rows($exNiveauActuel1);
-    if ($nb == 0) {
-        $niveauActuelStabilisateur['niveau'] = $constructions['stabilisateur'];
+
+    // stabilisateur
+    if (isset($queuedNiveaux['stabilisateur'])) {
+        $niveauActuelStabilisateur = ['niveau' => $queuedNiveaux['stabilisateur']];
+    } else {
+        $niveauActuelStabilisateur = ['niveau' => $constructions['stabilisateur']];
     }
-    $exNiveauActuel1 = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $joueur, 'coffrefort');
-    $niveauActuelCoffrefort = mysqli_fetch_array($exNiveauActuel1);
-    $nb = mysqli_num_rows($exNiveauActuel1);
-    if ($nb == 0) {
-        $niveauActuelCoffrefort['niveau'] = $constructions['coffrefort'] ?? 0;
+
+    // coffrefort
+    if (isset($queuedNiveaux['coffrefort'])) {
+        $niveauActuelCoffrefort = ['niveau' => $queuedNiveaux['coffrefort']];
+    } else {
+        $niveauActuelCoffrefort = ['niveau' => $constructions['coffrefort'] ?? 0];
     }
 
     $listeConstructions = [
@@ -446,6 +474,33 @@ function initPlayer($joueur)
             'tempsConstruction' => round($BUILDING_CONFIG['coffrefort']['time_base'] * pow($niveauActuelCoffrefort['niveau'] + $BUILDING_CONFIG['coffrefort']['time_level_offset'], $BUILDING_CONFIG['coffrefort']['time_exp']))
         ]
     ];
+
+    // Save all computed globals into the per-request global cache so subsequent
+    // calls within the same request (e.g. augmenterBatiment → initPlayer twice)
+    // skip all DB queries entirely.
+    $snapshot = ['ressources' => $ressources, 'revenu' => $revenu, 'constructions' => $constructions,
+        'autre' => $autre, 'membre' => $membre, 'revenuEnergie' => $revenuEnergie,
+        'placeDepot' => $placeDepot, 'points' => $points, 'plusHaut' => $plusHaut,
+        'production' => $production, 'productionCondenseur' => $productionCondenseur,
+        'listeConstructions' => $listeConstructions];
+    foreach ($nomsRes as $num => $ressource) {
+        $snapshot['revenu' . $ressource] = ${'revenu' . $ressource};
+        $snapshot['points' . $ressource] = ${'points' . $ressource};
+        $snapshot['niveau' . $ressource] = ${'niveau' . $ressource};
+    }
+    $GLOBALS['_initPlayerCache'][$joueur] = $snapshot;
+}
+
+/**
+ * Invalidate the per-request initPlayer() cache for a given player.
+ * Must be called before re-invoking initPlayer() after any DB write that
+ * changes constructions, ressources, autre, or membre data.
+ */
+function invalidatePlayerCache($joueur)
+{
+    if (isset($GLOBALS['_initPlayerCache'][$joueur])) {
+        unset($GLOBALS['_initPlayerCache'][$joueur]);
+    }
 }
 
 function augmenterBatiment($nom, $joueur)
@@ -453,6 +508,7 @@ function augmenterBatiment($nom, $joueur)
     global $base;
     global $listeConstructions;
     global $points;
+    invalidatePlayerCache($joueur);
     initPlayer($joueur);
 
     $batiments = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
@@ -477,6 +533,7 @@ function augmenterBatiment($nom, $joueur)
     }
     ajouterPoints($listeConstructions[$nom]['points'], $joueur);
 
+    invalidatePlayerCache($_SESSION['login']);
     initPlayer($_SESSION['login']);
 }
 
@@ -491,6 +548,7 @@ function diminuerBatiment($nom, $joueur)
         global ${'niveau' . $ressource};
     }
 
+    invalidatePlayerCache($joueur);
     initPlayer($joueur);
 
     global $base;
@@ -504,14 +562,15 @@ function diminuerBatiment($nom, $joueur)
                 $pointsAEnlever = $points['producteur'] - $constructions['pointsProducteurRestants'];
                 dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=0 WHERE login=?', 's', $joueur);
 
+                // FIX FINDING-GAME-025: minimum is 0 (not 1) to avoid granting free production
                 $chaine = "";
                 foreach ($nomsRes as $num => $ressource) {
-                    if ($pointsAEnlever <= ${'points' . $ressource} - 1) {
+                    if ($pointsAEnlever <= ${'points' . $ressource}) {
                         $chaine = $chaine . (${'points' . $ressource} - $pointsAEnlever) . ";";
                         $pointsAEnlever = 0;
                     } else {
-                        $chaine = $chaine . "1;";
-                        $pointsAEnlever = $pointsAEnlever - (${'points' . $ressource} - 1);
+                        $chaine = $chaine . "0;";
+                        $pointsAEnlever = $pointsAEnlever - ${'points' . $ressource};
                     }
                 }
 
@@ -555,6 +614,7 @@ function diminuerBatiment($nom, $joueur)
         ajouterPoints(-$listeConstructions[$nom]['points'], $joueur);
     }
 
+    invalidatePlayerCache($_SESSION['login']);
     initPlayer($_SESSION['login']);
 }
 
@@ -642,11 +702,12 @@ function batMax($pseudo)
 
 function joueur($joueur)
 {
+    $safe = htmlspecialchars($joueur, ENT_QUOTES, 'UTF-8');
     $act = statut($joueur);
     if ($act == 0) {
-        return '<a href="joueur.php?id=' . $joueur . '" class="lienVisible"><span style="color:darkgray">' . $joueur . '</span></a>';
+        return '<a href="joueur.php?id=' . $safe . '" class="lienVisible"><span style="color:darkgray">' . $safe . '</span></a>';
     } else {
-        return '<a href="joueur.php?id=' . $joueur . '" class="lienVisible">' . $joueur . '</a>';
+        return '<a href="joueur.php?id=' . $safe . '" class="lienVisible">' . $safe . '</a>';
     }
 }
 
