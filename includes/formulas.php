@@ -74,7 +74,7 @@ function bonusDuplicateur($niveau)
 
 function drainageProducteur($niveau)
 {
-    return round(12 * $niveau);
+    return round(PRODUCTEUR_DRAIN_PER_LEVEL * $niveau);
 }
 
 function attaque($oxygene, $niveau, $joueur)
@@ -194,7 +194,7 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
     } else {
         $nbAtomes = $classeOuNbTotal;
     }
-    return pow(pow(0.99, pow(1 + $nbAtomes / 100, 2) / 5000), (1 - ($bonus / 100)) * (1 - ($stabilisateur['stabilisateur'] * 0.005)));
+    return pow(pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR), (1 - ($bonus / 100)) * (1 - ($stabilisateur['stabilisateur'] * STABILISATEUR_BONUS_PER_LEVEL)));
 }
 
 function demiVie($joueur, $classeOuNbTotal, $type = 0)

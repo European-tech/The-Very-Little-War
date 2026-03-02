@@ -45,16 +45,16 @@ $RESOURCE_LETTERS = ['C', 'N', 'H', 'O', 'Cl', 'S', 'Br', 'I'];
 // RESOURCE PRODUCTION FORMULAS
 // =============================================================================
 // Energy: revenuEnergie = BASE_ENERGY_PER_LEVEL * generateur_level
-define('BASE_ENERGY_PER_LEVEL', 65);
+define('BASE_ENERGY_PER_LEVEL', 75);
 
 // Atoms: revenuAtome = bonusDuplicateur * BASE_ATOMS_PER_POINT * niveau
-define('BASE_ATOMS_PER_POINT', 30);
+define('BASE_ATOMS_PER_POINT', 60);
 
 // Storage: placeDepot = BASE_STORAGE_PER_LEVEL * depot_level
 define('BASE_STORAGE_PER_LEVEL', 500);
 
 // Producteur energy drain: drainageProducteur = PRODUCTEUR_DRAIN_PER_LEVEL * level
-define('PRODUCTEUR_DRAIN_PER_LEVEL', 12);
+define('PRODUCTEUR_DRAIN_PER_LEVEL', 8);
 
 // =============================================================================
 // MOLECULE STAT FORMULAS
@@ -102,8 +102,8 @@ define('FORMATION_LEVEL_DIVISOR', 20);
 // coefDisparition = pow(pow(0.99, pow(1 + nbAtomes / 100, 2) / 5000), ...)
 define('DECAY_BASE', 0.99);
 define('DECAY_ATOM_DIVISOR', 100);
-define('DECAY_POWER_DIVISOR', 5000);
-define('STABILISATEUR_BONUS_PER_LEVEL', 0.005); // 0.5% per level
+define('DECAY_POWER_DIVISOR', 25000);
+define('STABILISATEUR_BONUS_PER_LEVEL', 0.01); // 1% per level
 
 // =============================================================================
 // BUILDING HP FORMULAS
