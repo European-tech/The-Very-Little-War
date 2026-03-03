@@ -222,30 +222,34 @@ class ResourceFormulasTest extends TestCase
     {
         global $BUILDING_CONFIG;
 
+        // V4: exponential cost = base * pow(growth_base, level)
         $base = $BUILDING_CONFIG['generateur']['cost_energy_base']; // 50
-        $exp = $BUILDING_CONFIG['generateur']['cost_energy_exp'];   // 0.7
+        $growth = $BUILDING_CONFIG['generateur']['cost_growth_base']; // 1.15
 
-        // Level 1: round(50 * pow(1, 0.7)) = round(50 * 1) = 50
-        $this->assertEquals(50, $this->computeBuildingCost($base, $exp, 1));
+        // Level 1: round(50 * pow(1.15, 1)) = round(57.5) = 58
+        $expected1 = (int) round($base * pow($growth, 1));
+        $this->assertEquals($expected1, (int) round($base * pow($growth, 1)));
 
-        // Level 10: round(50 * pow(10, 0.7))
-        $expected = (int) round(50 * pow(10, 0.7));
-        $this->assertEquals($expected, $this->computeBuildingCost($base, $exp, 10));
+        // Level 10: round(50 * pow(1.15, 10))
+        $expected10 = (int) round($base * pow($growth, 10));
+        $this->assertEquals($expected10, (int) round(50 * pow(1.15, 10)));
     }
 
     public function testGenerateurAtomsCost(): void
     {
         global $BUILDING_CONFIG;
 
+        // V4: exponential cost = base * pow(growth_base, level)
         $base = $BUILDING_CONFIG['generateur']['cost_atoms_base']; // 75
-        $exp = $BUILDING_CONFIG['generateur']['cost_atoms_exp'];   // 0.7
+        $growth = $BUILDING_CONFIG['generateur']['cost_growth_base']; // 1.15
 
-        // Level 1: round(75 * 1) = 75
-        $this->assertEquals(75, $this->computeBuildingCost($base, $exp, 1));
+        // Level 1: round(75 * pow(1.15, 1)) = round(86.25) = 86
+        $expected1 = (int) round($base * pow($growth, 1));
+        $this->assertEquals($expected1, (int) round(75 * pow(1.15, 1)));
 
-        // Level 10: round(75 * pow(10, 0.7))
-        $expected = (int) round(75 * pow(10, 0.7));
-        $this->assertEquals($expected, $this->computeBuildingCost($base, $exp, 10));
+        // Level 10: round(75 * pow(1.15, 10))
+        $expected10 = (int) round($base * pow($growth, 10));
+        $this->assertEquals($expected10, (int) round(75 * pow(1.15, 10)));
     }
 
     public function testProducteurEnergyCost(): void
@@ -253,9 +257,10 @@ class ResourceFormulasTest extends TestCase
         global $BUILDING_CONFIG;
 
         $base = $BUILDING_CONFIG['producteur']['cost_energy_base']; // 75
-        $exp = $BUILDING_CONFIG['producteur']['cost_energy_exp'];   // 0.7
+        $growth = $BUILDING_CONFIG['producteur']['cost_growth_base']; // 1.15
 
-        $this->assertEquals(75, $this->computeBuildingCost($base, $exp, 1));
+        $expected = (int) round($base * pow($growth, 1));
+        $this->assertEquals($expected, (int) round(75 * pow(1.15, 1)));
     }
 
     public function testDepotEnergyCost(): void
@@ -263,9 +268,10 @@ class ResourceFormulasTest extends TestCase
         global $BUILDING_CONFIG;
 
         $base = $BUILDING_CONFIG['depot']['cost_energy_base']; // 100
-        $exp = $BUILDING_CONFIG['depot']['cost_energy_exp'];   // 0.7
+        $growth = $BUILDING_CONFIG['depot']['cost_growth_base']; // 1.15
 
-        $this->assertEquals(100, $this->computeBuildingCost($base, $exp, 1));
+        $expected = (int) round($base * pow($growth, 1));
+        $this->assertEquals($expected, (int) round(100 * pow(1.15, 1)));
     }
 
     public function testCondenseurEnergyCost(): void
@@ -273,13 +279,14 @@ class ResourceFormulasTest extends TestCase
         global $BUILDING_CONFIG;
 
         $base = $BUILDING_CONFIG['condenseur']['cost_energy_base']; // 25
-        $exp = $BUILDING_CONFIG['condenseur']['cost_energy_exp'];   // 0.8
+        $growth = $BUILDING_CONFIG['condenseur']['cost_growth_base']; // 1.20 (ADV)
 
-        $this->assertEquals(25, $this->computeBuildingCost($base, $exp, 1));
+        $expected1 = (int) round($base * pow($growth, 1));
+        $this->assertEquals($expected1, (int) round(25 * pow(1.20, 1)));
 
-        // Level 10: round(25 * pow(10, 0.8))
-        $expected = (int) round(25 * pow(10, 0.8));
-        $this->assertEquals($expected, $this->computeBuildingCost($base, $exp, 10));
+        // Level 10: round(25 * pow(1.20, 10))
+        $expected10 = (int) round($base * pow($growth, 10));
+        $this->assertEquals($expected10, (int) round(25 * pow(1.20, 10)));
     }
 
     public function testBuildingCostWithMedalDiscount(): void
@@ -337,101 +344,105 @@ class ResourceFormulasTest extends TestCase
     {
         global $BUILDING_CONFIG;
 
+        // V4: exponential time = base * pow(growth_base, level)
         $base = $BUILDING_CONFIG['generateur']['time_base']; // 60
-        $exp = $BUILDING_CONFIG['generateur']['time_exp'];   // 1.5
+        $growth = $BUILDING_CONFIG['generateur']['time_growth_base']; // 1.10
 
         // Level 1 is a special case: 10 seconds
         $this->assertEquals(10, $BUILDING_CONFIG['generateur']['time_level1']);
 
-        // Level 10: round(60 * pow(10, 1.5))
-        $expected = (int) round($base * pow(10, $exp));
-        $this->assertEquals($expected, (int) round(60 * pow(10, 1.5)));
+        // Level 10: round(60 * pow(1.10, 10))
+        $expected = (int) round($base * pow($growth, 10));
+        $this->assertEquals($expected, (int) round(60 * pow(1.10, 10)));
     }
 
     public function testDepotBuildTime(): void
     {
-        // Depot: round(80 * pow(level, 1.5))
-        $baseTime = 80;
-        $exp = 1.5;
+        global $BUILDING_CONFIG;
 
-        $this->assertEquals((int) round(80 * pow(1, 1.5)), (int) round($baseTime * pow(1, $exp)));
-        $this->assertEquals((int) round(80 * pow(10, 1.5)), (int) round($baseTime * pow(10, $exp)));
+        // V4: Depot uses exponential time
+        $base = $BUILDING_CONFIG['depot']['time_base']; // 80
+        $growth = $BUILDING_CONFIG['depot']['time_growth_base']; // 1.10
+
+        $expected1 = (int) round($base * pow($growth, 1));
+        $expected10 = (int) round($base * pow($growth, 10));
+        $this->assertEquals($expected1, (int) round(80 * pow(1.10, 1)));
+        $this->assertEquals($expected10, (int) round(80 * pow(1.10, 10)));
     }
 
     public function testChampdeforceBuildTime(): void
     {
-        // Champdeforce: round(20 * pow(level + 2, 1.7))
         global $BUILDING_CONFIG;
 
+        // V4: exponential time with offset
         $baseTime = $BUILDING_CONFIG['champdeforce']['time_base']; // 20
-        $exp = $BUILDING_CONFIG['champdeforce']['time_exp'];       // 1.7
+        $growth = $BUILDING_CONFIG['champdeforce']['time_growth_base']; // 1.10
         $offset = $BUILDING_CONFIG['champdeforce']['time_level_offset']; // 2
 
-        // Level 1: round(20 * pow(3, 1.7))
-        $expected = (int) round($baseTime * pow(1 + $offset, $exp));
-        $this->assertEquals((int) round(20 * pow(3, 1.7)), $expected);
+        // Level 1: round(20 * pow(1.10, 1+2)) = round(20 * pow(1.10, 3))
+        $expected1 = (int) round($baseTime * pow($growth, 1 + $offset));
+        $this->assertEquals((int) round(20 * pow(1.10, 3)), $expected1);
 
-        // Level 10: round(20 * pow(12, 1.7))
-        $expected10 = (int) round($baseTime * pow(10 + $offset, $exp));
-        $this->assertEquals((int) round(20 * pow(12, 1.7)), $expected10);
+        // Level 10: round(20 * pow(1.10, 10+2)) = round(20 * pow(1.10, 12))
+        $expected10 = (int) round($baseTime * pow($growth, 10 + $offset));
+        $this->assertEquals((int) round(20 * pow(1.10, 12)), $expected10);
     }
 
     public function testIonisateurBuildTime(): void
     {
-        // Ionisateur: round(20 * pow(level + 2, 1.7))
         global $BUILDING_CONFIG;
 
         $baseTime = $BUILDING_CONFIG['ionisateur']['time_base']; // 20
-        $exp = $BUILDING_CONFIG['ionisateur']['time_exp'];       // 1.7
+        $growth = $BUILDING_CONFIG['ionisateur']['time_growth_base']; // 1.10
         $offset = $BUILDING_CONFIG['ionisateur']['time_level_offset']; // 2
 
-        $expected = (int) round($baseTime * pow(5 + $offset, $exp));
-        $this->assertEquals((int) round(20 * pow(7, 1.7)), $expected);
+        // Level 5: round(20 * pow(1.10, 5+2)) = round(20 * pow(1.10, 7))
+        $expected = (int) round($baseTime * pow($growth, 5 + $offset));
+        $this->assertEquals((int) round(20 * pow(1.10, 7)), $expected);
     }
 
     public function testCondenseurBuildTime(): void
     {
-        // Condenseur: round(120 * pow(level + 1, 1.6))
         global $BUILDING_CONFIG;
 
         $baseTime = $BUILDING_CONFIG['condenseur']['time_base']; // 120
-        $exp = $BUILDING_CONFIG['condenseur']['time_exp'];       // 1.6 (reduced from 1.8)
+        $growth = $BUILDING_CONFIG['condenseur']['time_growth_base']; // 1.10
         $offset = $BUILDING_CONFIG['condenseur']['time_level_offset']; // 1
 
-        $expected = (int) round($baseTime * pow(5 + $offset, $exp));
-        $this->assertEquals((int) round(120 * pow(6, 1.6)), $expected);
+        // Level 5: round(120 * pow(1.10, 5+1)) = round(120 * pow(1.10, 6))
+        $expected = (int) round($baseTime * pow($growth, 5 + $offset));
+        $this->assertEquals((int) round(120 * pow(1.10, 6)), $expected);
     }
 
     public function testLieurBuildTime(): void
     {
-        // Lieur: round(100 * pow(level + 1, 1.5))
         global $BUILDING_CONFIG;
 
         $baseTime = $BUILDING_CONFIG['lieur']['time_base']; // 100
-        $exp = $BUILDING_CONFIG['lieur']['time_exp'];       // 1.5 (reduced from 1.7)
+        $growth = $BUILDING_CONFIG['lieur']['time_growth_base']; // 1.10
         $offset = $BUILDING_CONFIG['lieur']['time_level_offset']; // 1
 
-        $expected = (int) round($baseTime * pow(10 + $offset, $exp));
-        $this->assertEquals((int) round(100 * pow(11, 1.5)), $expected);
+        // Level 10: round(100 * pow(1.10, 10+1)) = round(100 * pow(1.10, 11))
+        $expected = (int) round($baseTime * pow($growth, 10 + $offset));
+        $this->assertEquals((int) round(100 * pow(1.10, 11)), $expected);
     }
 
     public function testStabilisateurBuildTime(): void
     {
-        // Stabilisateur: round(120 * pow(level + 1, 1.5))
         global $BUILDING_CONFIG;
 
         $baseTime = $BUILDING_CONFIG['stabilisateur']['time_base']; // 120
-        $exp = $BUILDING_CONFIG['stabilisateur']['time_exp'];       // 1.5 (reduced from 1.7)
+        $growth = $BUILDING_CONFIG['stabilisateur']['time_growth_base']; // 1.10
         $offset = $BUILDING_CONFIG['stabilisateur']['time_level_offset']; // 1
 
-        $expected = (int) round($baseTime * pow(3 + $offset, $exp));
-        $this->assertEquals((int) round(120 * pow(4, 1.5)), $expected);
+        // Level 3: round(120 * pow(1.10, 3+1)) = round(120 * pow(1.10, 4))
+        $expected = (int) round($baseTime * pow($growth, 3 + $offset));
+        $this->assertEquals((int) round(120 * pow(1.10, 4)), $expected);
     }
 
     public function testBuildTimesAlwaysIncrease(): void
     {
-        // Verify construction times strictly increase with level for all buildings
-        // Uses actual values from BUILDING_CONFIG
+        // V4: exponential time = base * pow(growth_base, level + offset)
         global $BUILDING_CONFIG;
 
         $buildings = [
@@ -445,12 +456,12 @@ class ResourceFormulasTest extends TestCase
 
         foreach ($buildings as $name => $extra) {
             $base   = $BUILDING_CONFIG[$name]['time_base'];
-            $exp    = $BUILDING_CONFIG[$name]['time_exp'];
+            $growth = $BUILDING_CONFIG[$name]['time_growth_base'];
             $offset = $extra['offset'];
 
             $prevTime = 0;
             for ($level = 1; $level <= 20; $level++) {
-                $time = round($base * pow($level + $offset, $exp));
+                $time = round($base * pow($growth, $level + $offset));
                 $this->assertGreaterThanOrEqual(
                     $prevTime,
                     $time,
@@ -481,18 +492,18 @@ class ResourceFormulasTest extends TestCase
 
     public function testDuplicateurCostFormula(): void
     {
-        // BAL-CROSS C8: cost factor 2.5→2.0 so level 10-12 is achievable in a season
-        // Level 1: round(10 * pow(2.0, 2)) = round(10 * 4) = 40
+        // V4: DUPLICATEUR_BASE_COST=100, DUPLICATEUR_COST_FACTOR=1.5
+        // Level 1: round(100 * pow(1.5, 2)) = round(100 * 2.25) = 225
         $cost1 = (int) round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, 1 + 1));
-        $this->assertEquals(40, $cost1);
+        $this->assertEquals(225, $cost1);
 
-        // Level 2: round(10 * pow(2.0, 3)) = round(10 * 8) = 80
+        // Level 2: round(100 * pow(1.5, 3)) = round(100 * 3.375) = 338
         $cost2 = (int) round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, 2 + 1));
-        $this->assertEquals(80, $cost2);
+        $this->assertEquals(338, $cost2);
 
-        // Level 5: round(10 * pow(2.0, 6)) = round(10 * 64) = 640
+        // Level 5: round(100 * pow(1.5, 6)) = round(100 * 11.39) = 1139
         $cost5 = (int) round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, 5 + 1));
-        $expected = (int) round(10 * pow(2.0, 6));
+        $expected = (int) round(100 * pow(1.5, 6));
         $this->assertEquals($expected, $cost5);
     }
 

@@ -106,13 +106,13 @@ class GameBalanceTest extends TestCase
     {
         global $BUILDING_CONFIG;
 
-        // Generateur energy cost increases with level
+        // V4: exponential cost = base * pow(growth_base, level)
         $base = $BUILDING_CONFIG['generateur']['cost_energy_base'];
-        $exp = $BUILDING_CONFIG['generateur']['cost_energy_exp'];
+        $growth = $BUILDING_CONFIG['generateur']['cost_growth_base'];
 
-        $cost5 = round($base * pow(5, $exp));
-        $cost10 = round($base * pow(10, $exp));
-        $cost20 = round($base * pow(20, $exp));
+        $cost5 = round($base * pow($growth, 5));
+        $cost10 = round($base * pow($growth, 10));
+        $cost20 = round($base * pow($growth, 20));
 
         $this->assertGreaterThan($cost5, $cost10, 'Level 10 must cost more than level 5');
         $this->assertGreaterThan($cost10, $cost20, 'Level 20 must cost more than level 10');
@@ -122,12 +122,13 @@ class GameBalanceTest extends TestCase
     {
         global $BUILDING_CONFIG;
 
+        // V4: exponential cost = base * pow(growth_base, level)
         $base = $BUILDING_CONFIG['condenseur']['cost_energy_base'];
-        $exp = $BUILDING_CONFIG['condenseur']['cost_energy_exp'];
+        $growth = $BUILDING_CONFIG['condenseur']['cost_growth_base'];
 
-        $cost1 = round($base * pow(1, $exp));
-        $cost5 = round($base * pow(5, $exp));
-        $cost15 = round($base * pow(15, $exp));
+        $cost1 = round($base * pow($growth, 1));
+        $cost5 = round($base * pow($growth, 5));
+        $cost15 = round($base * pow($growth, 15));
 
         $this->assertLessThan($cost5, $cost1, 'Level 1 must cost less than level 5');
         $this->assertLessThan($cost15, $cost5, 'Level 5 must cost less than level 15');
@@ -231,7 +232,8 @@ class GameBalanceTest extends TestCase
     public function testBonusLieurLevel5ReturnsGreaterThanOne(): void
     {
         $bonus = bonusLieur(5);
-        $expected = floor(100 * pow(LIEUR_GROWTH_BASE, 5)) / 100;
+        // V4: 1 + 5 * 0.15 = 1.75
+        $expected = 1 + 5 * LIEUR_LINEAR_BONUS_PER_LEVEL;
         $this->assertEquals($expected, $bonus);
         $this->assertGreaterThan(1.0, $bonus, 'Lieur at level 5 must provide speed bonus');
     }
@@ -247,39 +249,49 @@ class GameBalanceTest extends TestCase
         }
     }
 
-    public function testDrainageProducteurScalesLinearly(): void
+    public function testDrainageProducteurScalesExponentially(): void
     {
+        // V4: drainageProducteur = round(8 * pow(1.15, level))
         $drain5 = drainageProducteur(5);
         $drain10 = drainageProducteur(10);
         $drain20 = drainageProducteur(20);
 
-        $this->assertEquals($drain5 * 2, $drain10);
-        $this->assertEquals($drain10 * 2, $drain20);
-        $this->assertEquals(40, $drain5, 'Drain at level 5 = 8 * 5 = 40');
+        $expected5 = round(PRODUCTEUR_DRAIN_PER_LEVEL * pow(ECO_GROWTH_BASE, 5));
+        $expected10 = round(PRODUCTEUR_DRAIN_PER_LEVEL * pow(ECO_GROWTH_BASE, 10));
+        $expected20 = round(PRODUCTEUR_DRAIN_PER_LEVEL * pow(ECO_GROWTH_BASE, 20));
+
+        $this->assertEquals($expected5, $drain5);
+        $this->assertEquals($expected10, $drain10);
+        $this->assertEquals($expected20, $drain20);
+
+        // Exponential: each level costs more than previous
+        $this->assertGreaterThan($drain5, $drain10);
+        $this->assertGreaterThan($drain10, $drain20);
     }
 
-    public function testProductionEnergieMoleculeScalesWithIodeAndLevel(): void
+    public function testProductionEnergieMoleculeScalesWithIode(): void
     {
-        // BAL-CROSS C2: quadratic iode formula
-        // round((0.003 * 100^2 + 0.04 * 100) * (1 + niveau / 50))
+        // V4: productionEnergieMolecule = round(iode)
         $energy0 = productionEnergieMolecule(100, 0);
         $energy50 = productionEnergieMolecule(100, 50);
 
-        $this->assertEquals(34, $energy0, '100 iode at level 0 = 34 energy');
-        $this->assertEquals(68, $energy50, '100 iode at level 50 = 68 energy (2x multiplier)');
+        $this->assertEquals(100, $energy0, '100 iode = 100 energy');
+        $this->assertEquals(100, $energy50, '100 iode at any level = 100 energy');
     }
 
     public function testVitesseBaseIsOneWithNoChlorine(): void
     {
-        $speed = vitesse(0, 0);
+        // V4: vitesse($Cl, $N, $nivCondCl)
+        $speed = vitesse(0, 0, 0);
         $this->assertEquals(1.0, $speed, 'Base speed with 0 chlore must be 1.0');
     }
 
     public function testVitesseIncreasesWithChlorine(): void
     {
-        $speed10 = vitesse(10, 0);
-        $speed50 = vitesse(50, 0);
-        $speed100 = vitesse(100, 0);
+        // V4: vitesse($Cl, $N, $nivCondCl)
+        $speed10 = vitesse(10, 0, 0);
+        $speed50 = vitesse(50, 0, 0);
+        $speed100 = vitesse(100, 0, 0);
 
         $this->assertGreaterThan(1.0, $speed10);
         $this->assertGreaterThan($speed10, $speed50);
@@ -298,12 +310,16 @@ class GameBalanceTest extends TestCase
         $this->assertLessThan($cost4, $cost3, 'Class 3 must cost less than class 4');
     }
 
-    public function testPlaceDepotScalesLinearly(): void
+    public function testPlaceDepotScalesExponentially(): void
     {
-        $this->assertEquals(0, placeDepot(0));
-        $this->assertEquals(500, placeDepot(1));
-        $this->assertEquals(5000, placeDepot(10));
-        $this->assertEquals(50000, placeDepot(100));
+        // V4: placeDepot = round(1000 * pow(1.15, niveau))
+        $this->assertEquals(round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, 0)), placeDepot(0));
+        $this->assertEquals(round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, 1)), placeDepot(1));
+        $this->assertEquals(round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, 10)), placeDepot(10));
+
+        // Always increasing
+        $this->assertGreaterThan(placeDepot(0), placeDepot(1));
+        $this->assertGreaterThan(placeDepot(1), placeDepot(10));
     }
 
     public function testPointsPillageCapsTanhAsymptote(): void

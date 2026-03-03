@@ -82,7 +82,7 @@ class ConfigConsistencyTest extends TestCase
 
     public function testBeginnerProtection(): void
     {
-        $this->assertEquals(5 * SECONDS_PER_DAY, BEGINNER_PROTECTION_SECONDS);
+        $this->assertEquals(3 * SECONDS_PER_DAY, BEGINNER_PROTECTION_SECONDS);
         $this->assertGreaterThan(0, BEGINNER_PROTECTION_SECONDS);
     }
 
@@ -169,9 +169,9 @@ class ConfigConsistencyTest extends TestCase
                 "Building '$name' should have time_base"
             );
             $this->assertArrayHasKey(
-                'time_exp',
+                'time_growth_base',
                 $config,
-                "Building '$name' should have time_exp"
+                "Building '$name' should have time_growth_base"
             );
             $this->assertGreaterThan(
                 0,
@@ -180,8 +180,8 @@ class ConfigConsistencyTest extends TestCase
             );
             $this->assertGreaterThan(
                 0,
-                $config['time_exp'],
-                "Building '$name' time_exp should be positive"
+                $config['time_growth_base'],
+                "Building '$name' time_growth_base should be positive"
             );
         }
     }
@@ -254,7 +254,6 @@ class ConfigConsistencyTest extends TestCase
         global $BUILDING_CONFIG;
 
         $this->assertEquals(0, $BUILDING_CONFIG['depot']['cost_atoms_base']);
-        $this->assertEquals(0, $BUILDING_CONFIG['depot']['cost_atoms_exp']);
     }
 
     public function testSpecialBuildingsHaveSpecificCosts(): void
@@ -574,16 +573,14 @@ class ConfigConsistencyTest extends TestCase
 
     public function testBuildingHPConstants(): void
     {
-        $this->assertEquals(20, BUILDING_HP_BASE);
-        $this->assertEquals(1.2, BUILDING_HP_GROWTH_BASE);
-        $this->assertEquals(1.2, BUILDING_HP_LEVEL_EXP);
+        $this->assertEquals(50, BUILDING_HP_BASE);
+        $this->assertEquals(2.5, BUILDING_HP_POLY_EXP);
     }
 
     public function testForceFieldHPConstants(): void
     {
-        $this->assertEquals(50, FORCEFIELD_HP_BASE);
-        $this->assertEquals(1.2, FORCEFIELD_HP_GROWTH_BASE);
-        $this->assertEquals(1.2, FORCEFIELD_HP_LEVEL_EXP);
+        $this->assertEquals(125, FORCEFIELD_HP_BASE);
+        $this->assertEquals(2.5, BUILDING_HP_POLY_EXP);
     }
 
     public function testForceFieldHPBaseHigherThanBuilding(): void
@@ -604,8 +601,8 @@ class ConfigConsistencyTest extends TestCase
 
     public function testDuplicateurConstants(): void
     {
-        $this->assertEquals(10, DUPLICATEUR_BASE_COST);
-        $this->assertEquals(2.0, DUPLICATEUR_COST_FACTOR);
+        $this->assertEquals(100, DUPLICATEUR_BASE_COST);
+        $this->assertEquals(1.5, DUPLICATEUR_COST_FACTOR);
         $this->assertEquals(0.01, DUPLICATEUR_BONUS_PER_LEVEL);
     }
 
@@ -737,10 +734,10 @@ class ConfigConsistencyTest extends TestCase
     // LIEUR CONSTANTS
     // =========================================================================
 
-    public function testLieurGrowthBase(): void
+    public function testLieurLinearBonusPerLevel(): void
     {
-        $this->assertEquals(1.07, LIEUR_GROWTH_BASE);
-        $this->assertGreaterThan(1.0, LIEUR_GROWTH_BASE, 'Lieur growth base should be > 1 for actual growth');
+        $this->assertEquals(0.15, LIEUR_LINEAR_BONUS_PER_LEVEL);
+        $this->assertGreaterThan(0, LIEUR_LINEAR_BONUS_PER_LEVEL, 'Lieur bonus per level should be positive');
     }
 
     // =========================================================================
