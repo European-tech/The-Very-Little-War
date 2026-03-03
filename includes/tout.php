@@ -77,13 +77,21 @@
             <div class="toolbar toolbar-bottom toolbarcustom">
             <div class="toolbar-inner" style="background-color:lightgray;overflow-x:auto;" >
                 <?php
-                echo chipInfo(attaque(0,$niveauoxygene,$_SESSION['login']),'images/molecule/sword.png','attaque');
-                echo chipInfo(defense(0,$niveaucarbone,$_SESSION['login']),'images/molecule/shield.png','defense');
-                echo chipInfo(pointsDeVieMolecule(0,$niveaubrome),'images/molecule/sante.png','vie').'<br/>';
-                echo chipInfo(vitesse(0,$niveauchlore).' cases/h','images/molecule/vitesse.png','vitesse');
-                echo chipInfo(potentielDestruction(0,$niveauhydrogene),'images/molecule/fire.png','destruction');
-                echo chipInfo(affichageTemps(tempsFormation(0,$niveauazote,0,$_SESSION['login']),true),'images/molecule/temps.png','tempsFormation');
-                echo chipInfo(pillage(0,$niveausoufre,$_SESSION['login']).' ressources','images/molecule/bag.png','pillage').'<br/>';
+                // V4: Pre-compute medal bonuses and lieur level for covalent formulas
+                $medalDataTout = dbFetchOne($base, 'SELECT pointsAttaque, pointsDefense, ressourcesPillees FROM autre WHERE login=?', 's', $_SESSION['login']);
+                $bonusAttaqueTout = computeMedalBonus($medalDataTout ? $medalDataTout['pointsAttaque'] : 0, $paliersAttaque, $bonusMedailles);
+                $bonusDefenseTout = computeMedalBonus($medalDataTout ? $medalDataTout['pointsDefense'] : 0, $paliersDefense, $bonusMedailles);
+                $bonusPillageTout = computeMedalBonus($medalDataTout ? $medalDataTout['ressourcesPillees'] : 0, $paliersPillage, $bonusMedailles);
+                $lieurDataTout = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $_SESSION['login']);
+                $nivLieurTout = ($lieurDataTout && isset($lieurDataTout['lieur'])) ? $lieurDataTout['lieur'] : 0;
+
+                echo chipInfo(attaque(0,0,$niveauoxygene,$bonusAttaqueTout),'images/molecule/sword.png','attaque');
+                echo chipInfo(defense(0,0,$niveaucarbone,$bonusDefenseTout),'images/molecule/shield.png','defense');
+                echo chipInfo(pointsDeVieMolecule(0,0,$niveaubrome),'images/molecule/sante.png','vie').'<br/>';
+                echo chipInfo(vitesse(0,0,$niveauchlore).' cases/h','images/molecule/vitesse.png','vitesse');
+                echo chipInfo(potentielDestruction(0,0,$niveauhydrogene),'images/molecule/fire.png','destruction');
+                echo chipInfo(affichageTemps(tempsFormation(0,0,0,$niveauazote,$nivLieurTout,$_SESSION['login']),true),'images/molecule/temps.png','tempsFormation');
+                echo chipInfo(pillage(0,0,$niveausoufre,$bonusPillageTout).' ressources','images/molecule/bag.png','pillage').'<br/>';
                 echo nombreEnergie('<span style="color:green">+'.productionEnergieMolecule(0,$niveauiode).'/h</span>','productionIode');
                 echo chipInfo(affichageTemps(demiVie($_SESSION['login'],0,1)),'images/molecule/demivie.png','demiVie');
                 ?>
@@ -100,49 +108,49 @@
                         ';
                     }
                     echo '
-                    $.ajax({url: "api.php?id=attaque&joueur='.$_SESSION['login'].'&niveau='.$niveauoxygene.'&nombre="+document.getElementById(\'oxygene\').value,
+                    $.ajax({url: "api.php?id=attaque&joueur='.$_SESSION['login'].'&niveau='.$niveauoxygene.'&nombre="+document.getElementById(\'oxygene\').value+"&nombre2="+document.getElementById(\'hydrogene\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         document.getElementById(\'attaque\').innerHTML = contenu.valeur;
                     }});
-                    
-                    $.ajax({url: "api.php?id=defense&joueur='.$_SESSION['login'].'&niveau='.$niveaucarbone.'&nombre="+document.getElementById(\'carbone\').value,
+
+                    $.ajax({url: "api.php?id=defense&joueur='.$_SESSION['login'].'&niveau='.$niveaucarbone.'&nombre="+document.getElementById(\'carbone\').value+"&nombre2="+document.getElementById(\'brome\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         document.getElementById(\'defense\').innerHTML = contenu.valeur;
                     }});
-                    
-                    $.ajax({url: "api.php?id=pointsDeVieMolecule&joueur='.$_SESSION['login'].'&niveau='.$niveaubrome.'&nombre="+document.getElementById(\'brome\').value,
+
+                    $.ajax({url: "api.php?id=pointsDeVieMolecule&joueur='.$_SESSION['login'].'&niveau='.$niveaubrome.'&nombre="+document.getElementById(\'brome\').value+"&nombre2="+document.getElementById(\'carbone\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         document.getElementById(\'vie\').innerHTML = contenu.valeur;
                     }});
-                    
-                    $.ajax({url: "api.php?id=potentielDestruction&joueur='.$_SESSION['login'].'&niveau='.$niveauhydrogene.'&nombre="+document.getElementById(\'hydrogene\').value,
+
+                    $.ajax({url: "api.php?id=potentielDestruction&joueur='.$_SESSION['login'].'&niveau='.$niveauhydrogene.'&nombre="+document.getElementById(\'hydrogene\').value+"&nombre2="+document.getElementById(\'oxygene\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         document.getElementById(\'destruction\').innerHTML = contenu.valeur;
                     }});
-                    
-                    $.ajax({url: "api.php?id=vitesse&joueur='.$_SESSION['login'].'&niveau='.$niveauchlore.'&nombre="+document.getElementById(\'chlore\').value,
+
+                    $.ajax({url: "api.php?id=vitesse&joueur='.$_SESSION['login'].'&niveau='.$niveauchlore.'&nombre="+document.getElementById(\'chlore\').value+"&nombre2="+document.getElementById(\'azote\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         document.getElementById(\'vitesse\').innerHTML = contenu.valeur+" cases/h";
                     }});
-                    
-                    $.ajax({url: "api.php?id=pillage&joueur='.$_SESSION['login'].'&niveau='.$niveausoufre.'&nombre="+document.getElementById(\'soufre\').value,
+
+                    $.ajax({url: "api.php?id=pillage&joueur='.$_SESSION['login'].'&niveau='.$niveausoufre.'&nombre="+document.getElementById(\'soufre\').value+"&nombre2="+document.getElementById(\'chlore\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         document.getElementById(\'pillage\').innerHTML = contenu.valeur;
                     }});
-                    
+
                     $.ajax({url: "api.php?id=productionEnergieMolecule&joueur='.$_SESSION['login'].'&niveau='.$niveauiode.'&nombre="+document.getElementById(\'iode\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         document.getElementById(\'productionIode\').innerHTML = "<span style=\"color:green\">+"+contenu.valeur+"/h</span>";
                     }});
-                    
-                    $.ajax({url: "api.php?id=tempsFormation&joueur='.$_SESSION['login'].'&nbTotalAtomes="+totalAtomes+"&niveau='.$niveauazote.'&nombre="+document.getElementById(\'azote\').value,
+
+                    $.ajax({url: "api.php?id=tempsFormation&joueur='.$_SESSION['login'].'&nbTotalAtomes="+totalAtomes+"&niveau='.$niveauazote.'&nombre="+document.getElementById(\'azote\').value+"&nombre2="+document.getElementById(\'iode\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         document.getElementById(\'tempsFormation\').innerHTML = contenu.valeur;

@@ -128,7 +128,7 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                             if ($moleculesAttaque['formule'] != "Vide" && $_POST['nbclasse' . $c] > 0) {
                                 $distance = pow(pow($membre['x'] - $positions['x'], 2) + pow($membre['y'] - $positions['y'], 2), 0.5);
-                                $tempsTrajet = max($tempsTrajet, round($distance / vitesse($moleculesAttaque['chlore'], $niveauchlore) * SECONDS_PER_HOUR));
+                                $tempsTrajet = max($tempsTrajet, round($distance / vitesse($moleculesAttaque['chlore'], $moleculesAttaque['azote'], $niveauchlore) * SECONDS_PER_HOUR));
                             }
                             $troupes = $troupes . $_POST['nbclasse' . $c] . ';';
 
@@ -473,7 +473,7 @@ if (isset($_GET['id'])) {
 
             $c = 1;
             while ($molecules = mysqli_fetch_array($ex)) {
-                echo 'tempsAttaque[' . ($c - 1) . '] = ' . round($distance / vitesse($molecules['chlore'], $niveauchlore) * SECONDS_PER_HOUR) . ';';
+                echo 'tempsAttaque[' . ($c - 1) . '] = ' . round($distance / vitesse($molecules['chlore'], $molecules['azote'], $niveauchlore) * SECONDS_PER_HOUR) . ';';
                 echo 'document.getElementById("nbclasse' . $molecules['numeroclasse'] . '").addEventListener("input",function(){
                         var nbUnites = document.getElementById("nbclasse' . $molecules['numeroclasse'] . '").value;
                         if(nbUnites > 0){

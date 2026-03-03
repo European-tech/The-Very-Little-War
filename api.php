@@ -47,35 +47,45 @@ include("includes/fonctions.php");
 $joueur = $_SESSION['login'];
 
 // Sanitize numeric params with intval (safe for formula calculations)
-$nombre       = isset($_GET['nombre'])       ? intval($_GET['nombre'])       : 0;
-$niveau       = isset($_GET['niveau'])       ? intval($_GET['niveau'])       : 0;
+$nombre        = isset($_GET['nombre'])       ? intval($_GET['nombre'])       : 0;
+$nombre2       = isset($_GET['nombre2'])      ? intval($_GET['nombre2'])      : 0;
+$niveau        = isset($_GET['niveau'])       ? intval($_GET['niveau'])       : 0;
 $nbTotalAtomes = isset($_GET['nbTotalAtomes']) ? intval($_GET['nbTotalAtomes']) : 0;
 
+// V4: Pre-compute medal bonuses and lieur level for covalent formulas
+$medalDataApi = dbFetchOne($base, 'SELECT pointsAttaque, pointsDefense, ressourcesPillees FROM autre WHERE login=?', 's', $joueur);
+$bonusAttaqueApi = computeMedalBonus($medalDataApi ? $medalDataApi['pointsAttaque'] : 0, $paliersAttaque, $bonusMedailles);
+$bonusDefenseApi = computeMedalBonus($medalDataApi ? $medalDataApi['pointsDefense'] : 0, $paliersDefense, $bonusMedailles);
+$bonusPillageApi = computeMedalBonus($medalDataApi ? $medalDataApi['ressourcesPillees'] : 0, $paliersPillage, $bonusMedailles);
+$lieurDataApi = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $joueur);
+$nivLieurApi = ($lieurDataApi && isset($lieurDataApi['lieur'])) ? $lieurDataApi['lieur'] : 0;
+
 // Whitelist dispatch table: 'id' value => callable returning the result
+// V4: nombre = primary atom, nombre2 = secondary atom (covalent synergy), niveau = condenseur level
 $dispatch = [
-    'attaque' => function() use ($nombre, $niveau, $joueur) {
-        return attaque($nombre, $niveau, $joueur);
+    'attaque' => function() use ($nombre, $nombre2, $niveau, $bonusAttaqueApi) {
+        return attaque($nombre, $nombre2, $niveau, $bonusAttaqueApi);
     },
-    'defense' => function() use ($nombre, $niveau, $joueur) {
-        return defense($nombre, $niveau, $joueur);
+    'defense' => function() use ($nombre, $nombre2, $niveau, $bonusDefenseApi) {
+        return defense($nombre, $nombre2, $niveau, $bonusDefenseApi);
     },
-    'pointsDeVieMolecule' => function() use ($nombre, $niveau) {
-        return pointsDeVieMolecule($nombre, $niveau);
+    'pointsDeVieMolecule' => function() use ($nombre, $nombre2, $niveau) {
+        return pointsDeVieMolecule($nombre, $nombre2, $niveau);
     },
-    'potentielDestruction' => function() use ($nombre, $niveau) {
-        return potentielDestruction($nombre, $niveau);
+    'potentielDestruction' => function() use ($nombre, $nombre2, $niveau) {
+        return potentielDestruction($nombre, $nombre2, $niveau);
     },
-    'pillage' => function() use ($nombre, $niveau, $joueur) {
-        return pillage($nombre, $niveau, $joueur);
+    'pillage' => function() use ($nombre, $nombre2, $niveau, $bonusPillageApi) {
+        return pillage($nombre, $nombre2, $niveau, $bonusPillageApi);
     },
     'productionEnergieMolecule' => function() use ($nombre, $niveau) {
         return productionEnergieMolecule($nombre, $niveau);
     },
-    'vitesse' => function() use ($nombre, $niveau) {
-        return vitesse($nombre, $niveau);
+    'vitesse' => function() use ($nombre, $nombre2, $niveau) {
+        return vitesse($nombre, $nombre2, $niveau);
     },
-    'tempsFormation' => function() use ($nombre, $niveau, $nbTotalAtomes, $joueur) {
-        return affichageTemps(tempsFormation($nombre, $niveau, $nbTotalAtomes, $joueur), true);
+    'tempsFormation' => function() use ($nombre, $nombre2, $niveau, $nbTotalAtomes, $nivLieurApi, $joueur) {
+        return affichageTemps(tempsFormation($nbTotalAtomes, $nombre, $nombre2, $niveau, $nivLieurApi, $joueur), true);
     },
     'demiVie' => function() use ($joueur, $nbTotalAtomes) {
         return affichageTemps(demiVie($joueur, $nbTotalAtomes, 1));

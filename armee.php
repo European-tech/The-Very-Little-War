@@ -106,8 +106,11 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
         $nombreMolecules = $_POST['nombremolecules'];
         $emplacementFormer = $_POST['emplacementmoleculeformer'];
         $login = $_SESSION['login'];
+        // V4: Fetch lieur level for tempsFormation covalent formula
+        $lieurDataArmee = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $login);
+        $nivLieurArmee = ($lieurDataArmee && isset($lieurDataArmee['lieur'])) ? $lieurDataArmee['lieur'] : 0;
         try {
-            $formuleAffichage = withTransaction($base, function() use ($base, $nombreMolecules, $emplacementFormer, $login, $nomsRes, $nbRes, $niveauazote) {
+            $formuleAffichage = withTransaction($base, function() use ($base, $nombreMolecules, $emplacementFormer, $login, $nomsRes, $nbRes, $niveauazote, $nivLieurArmee) {
                 $donneesFormer = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $login, $emplacementFormer);
                 $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $login);
 
@@ -131,7 +134,7 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
                     $tempsDebut = time();
                 }
 
-                $tempsForm = tempsFormation($donneesFormer['azote'], $niveauazote, $total, $login);
+                $tempsForm = tempsFormation($total, $donneesFormer['azote'], $donneesFormer['iode'], $niveauazote, $nivLieurArmee, $login);
                 $finTemps = $tempsDebut + $tempsForm * $nombreMolecules;
                 dbExecute($base, 'INSERT INTO actionsformation VALUES(default,?,?,?,?,?,?,?,?)', 'issiiisis',
                     $donneesFormer['id'], $login, $tempsDebut, $finTemps, $nombreMolecules, $nombreMolecules, $donneesFormer['formule'], $tempsForm);
