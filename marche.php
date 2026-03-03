@@ -279,15 +279,29 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                 }
                 $newResVal = $ressources[$nomsRes[$numRes]] - $_POST['nombreRessourceAVendre'];
                 $energyGained = round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'] * $sellTaxRate);
+                $actualSold = 0; // will be set inside the transaction
                 try {
-                    withTransaction($base, function() use ($base, &$newEnergie, &$newResVal, &$energyGained, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $sellTaxRate) {
+                    withTransaction($base, function() use ($base, &$newEnergie, &$newResVal, &$energyGained, &$actualSold, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $sellTaxRate) {
                         // Re-read resources with lock to prevent race condition
                         $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                         if ($locked['res'] < $_POST['nombreRessourceAVendre']) {
                             throw new Exception('NOT_ENOUGH_ATOMS');
                         }
-                        $newResVal = $locked['res'] - $_POST['nombreRessourceAVendre'];
-                        $energyGained = round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'] * $sellTaxRate);
+
+                        // V4: Overflow fix — only sell atoms that fit in remaining energy space
+                        $energySpace = $placeDepot - $locked['energie'];
+                        if ($energySpace <= 0) {
+                            throw new Exception('ENERGY_FULL');
+                        }
+                        $pricePerAtom = $tabCours[$numRes] * $sellTaxRate;
+                        $maxSellable = floor($energySpace / $pricePerAtom);
+                        $actualSold = min($_POST['nombreRessourceAVendre'], $maxSellable, $locked['res']);
+                        if ($actualSold <= 0) {
+                            throw new Exception('ENERGY_FULL');
+                        }
+
+                        $newResVal = $locked['res'] - $actualSold;
+                        $energyGained = round($tabCours[$numRes] * $actualSold * $sellTaxRate);
                         $newEnergie = $locked['energie'] + $energyGained;
                         if ($newEnergie > $placeDepot) {
                             $newEnergie = $placeDepot;
@@ -310,7 +324,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                             }
 
                             if ($numRes == $num) {
-                                $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $_POST['nombreRessourceAVendre'] / $placeDepot);
+                                $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $actualSold / $placeDepot);
                                 // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
                                 $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
                                 $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
@@ -340,15 +354,17 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                             dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
                         }
                     });
-                    logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $_POST['nombreRessourceAVendre'], 'energy_gained' => $energyGained]);
+                    logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $actualSold, 'energy_gained' => $energyGained]);
                     $safeResName = $nomsRes[$numRes]; // server-side validated resource name
-                    $information = "Vous avez vendu " . number_format($_POST['nombreRessourceAVendre'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . ".png\" alt=\"" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . "\"/> pour " . number_format($energyGained, 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/> (5% de frais)";
+                    $information = "Vous avez vendu " . number_format($actualSold, 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . ".png\" alt=\"" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . "\"/> pour " . number_format($energyGained, 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/> (5% de frais)";
 
                     $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                     $tabCours = explode(",", $val['tableauCours']);
                 } catch (Exception $e) {
                     if ($e->getMessage() === 'NOT_ENOUGH_ATOMS') {
                         $erreur = "Vous n'avez pas assez d'atomes.";
+                    } elseif ($e->getMessage() === 'ENERGY_FULL') {
+                        $erreur = "Votre stockage d'énergie est plein.";
                     } else {
                         $erreur = "Une erreur est survenue lors de la vente. Veuillez réessayer.";
                         error_log('Market sell transaction failed: ' . $e->getMessage());
