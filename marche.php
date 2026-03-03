@@ -59,16 +59,18 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                     if ($ressources['energie'] >= $_POST['energieEnvoyee'] and $bool == 1) {
                         $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $_POST['destinataire']);
 
-                        if ($revenuEnergie >= revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire'])) {
-                            $rapportEnergie = revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire']) / $revenuEnergie;
+                        // V4: Invert ratio — penalize alt→main feeding, allow big→small charity
+                        $receiverEnergyRev = revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire']);
+                        if ($receiverEnergyRev > $revenuEnergie) {
+                            $rapportEnergie = min(1.0, $revenuEnergie / max(1, $receiverEnergyRev));
                         } else {
                             $rapportEnergie = 1;
                         }
 
-                        // FIX FINDING-GAME-029: revenuAtome expects atom index (0-7), not level value
                         foreach ($nomsRes as $num => $ressource) {
-                            if ($revenu[$ressource] >= revenuAtome($num, $_POST['destinataire'])) {
-                                ${'rapport' . $ressource} = revenuAtome($num, $_POST['destinataire']) / $revenu[$ressource];
+                            $receiverAtomRev = revenuAtome($num, $_POST['destinataire']);
+                            if ($receiverAtomRev > $revenu[$ressource]) {
+                                ${'rapport' . $ressource} = min(1.0, $revenu[$ressource] / max(1, $receiverAtomRev));
                             } else {
                                 ${'rapport' . $ressource} = 1;
                             }
