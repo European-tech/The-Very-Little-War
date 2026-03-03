@@ -471,27 +471,34 @@ function updateActions($joueur)
                 logError("Return trip: malformed troupes string for action " . $actions['id'] . ": " . $actions['troupes']);
                 dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
             } else {
-                $ex3 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $joueur);
+                $actionId = $actions['id'];
+                withTransaction($base, function() use ($base, $actionId, $joueur, $nbsecondes, $molecules, $nbClasses) {
+                    // CAS guard: lock action row, verify it still exists
+                    $actionRow = dbFetchOne($base, 'SELECT id FROM actionsattaques WHERE id=? FOR UPDATE', 'i', $actionId);
+                    if (!$actionRow) return; // Already processed by concurrent request
 
-                $compteur = 1;
-                $totalMoleculesPerdues = 0;
+                    $ex3 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $joueur);
 
-                while ($moleculesProp = mysqli_fetch_array($ex3)) {
-                    if (!isset($molecules[$compteur - 1])) break;
-                    $moleculesRestantes = (pow(coefDisparition($joueur, $compteur), $nbsecondes) * $molecules[$compteur - 1]);
+                    $compteur = 1;
+                    $totalMoleculesPerdues = 0;
 
-                    dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($moleculesProp['nombre'] + $moleculesRestantes), $moleculesProp['id']);
+                    while ($moleculesProp = mysqli_fetch_array($ex3)) {
+                        if (!isset($molecules[$compteur - 1])) break;
+                        $moleculesRestantes = (pow(coefDisparition($joueur, $compteur), $nbsecondes) * $molecules[$compteur - 1]);
 
-                    $totalMoleculesPerdues += ($molecules[$compteur - 1] - $moleculesRestantes);
-                    $compteur++;
-                }
+                        dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($moleculesProp['nombre'] + $moleculesRestantes), $moleculesProp['id']);
 
-                // Batch update moleculesPerdues atomically
-                if ($totalMoleculesPerdues > 0) {
-                    dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $totalMoleculesPerdues, $joueur);
-                }
+                        $totalMoleculesPerdues += ($molecules[$compteur - 1] - $moleculesRestantes);
+                        $compteur++;
+                    }
 
-                dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                    // Batch update moleculesPerdues atomically
+                    if ($totalMoleculesPerdues > 0) {
+                        dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $totalMoleculesPerdues, $joueur);
+                    }
+
+                    dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actionId);
+                });
             }
         }
     }
