@@ -636,8 +636,8 @@ define('MARKET_HISTORY_LIMIT', 1000);
 // =============================================================================
 // LIEUR BONUS FORMULA
 // =============================================================================
-// bonusLieur = floor(100 * pow(LIEUR_GROWTH_BASE, level)) / 100
-define('LIEUR_GROWTH_BASE', 1.07);
+// V4: bonusLieur = 1 + level * LIEUR_LINEAR_BONUS_PER_LEVEL (see formulas.php)
+// LIEUR_LINEAR_BONUS_PER_LEVEL is defined in the V4 economy constants section above.
 
 // =============================================================================
 // ACTIVE PLAYER THRESHOLD
