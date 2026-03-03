@@ -155,6 +155,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 	<html lang="fr">
 
 	<head>
+		<meta charset="UTF-8">
 		<title>The Very Little War - Modération</title>
 		<style type="text/css">
 			label {
