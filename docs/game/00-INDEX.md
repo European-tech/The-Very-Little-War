@@ -33,6 +33,8 @@ Each round (approximately one month) ends when a player or alliance accumulates 
 | 06 | [06-POINTS.md](06-POINTS.md) | Points, rankings, medals, and victory conditions |
 | 07 | [07-ALLIANCES.md](07-ALLIANCES.md) | Alliance system and player lifecycle (registration through round reset) |
 | 08 | [08-TECHNICAL.md](08-TECHNICAL.md) | API endpoints, AJAX calls, and technical reference |
+| 09 | [09-BALANCE.md](09-BALANCE.md) | Game balance constants, formulas, and tuning reference |
+| 10 | [10-PLAYER-GUIDE.md](10-PLAYER-GUIDE.md) | **Complete player guide** -- all systems, strategies, optimization tips (FR) |
 
 ---
 
@@ -344,7 +346,7 @@ Test runner config: `phpunit.xml` at project root; runner: `phpunit.phar`.
 | `docs/SECURITY.md` | Security overview |
 | `docs/SECURITY-AUDIT-2.md` | Second security audit findings |
 | `docs/SECURITY-AUDIT-FINAL.md` | Final security audit report |
-| `docs/game/` | This game documentation series (files 00 through 08) |
+| `docs/game/` | This game documentation series (files 00 through 10) |
 | `docs/plans/` | Planning documents for future work |
 
 ---
