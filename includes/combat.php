@@ -47,21 +47,29 @@ foreach ($nomsRes as $num => $ressource) {
 
 
 $ionisateur = dbFetchOne($base, 'SELECT ionisateur FROM constructions WHERE login=?', 's', $actions['attaquant']);
+if (!$ionisateur) {
+	logError("Combat: missing attacker constructions (ionisateur) for " . $actions['attaquant']);
+	throw new Exception('Missing attacker constructions');
+}
 
 $champdeforce = dbFetchOne($base, 'SELECT champdeforce FROM constructions WHERE login=?', 's', $actions['defenseur']);
+if (!$champdeforce) {
+	logError("Combat: missing defender constructions (champdeforce) for " . $actions['defenseur']);
+	throw new Exception('Missing defender constructions');
+}
 
 $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
 $bonusDuplicateurAttaque = 1;
-if ($idalliance['idalliance'] > 0) {
+if ($idalliance && $idalliance['idalliance'] > 0) {
 	$duplicateurAttaque = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-	$bonusDuplicateurAttaque = 1 + ($duplicateurAttaque['duplicateur'] / 100);
+	$bonusDuplicateurAttaque = $duplicateurAttaque ? 1 + ($duplicateurAttaque['duplicateur'] / 100) : 1;
 }
 
 $idallianceDef = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['defenseur']);
 $bonusDuplicateurDefense = 1;
-if ($idallianceDef['idalliance'] > 0) {
+if ($idallianceDef && $idallianceDef['idalliance'] > 0) {
 	$duplicateurDefense = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idallianceDef['idalliance']);
-	$bonusDuplicateurDefense = 1 + ($duplicateurDefense['duplicateur'] / 100);
+	$bonusDuplicateurDefense = $duplicateurDefense ? 1 + ($duplicateurDefense['duplicateur'] / 100) : 1;
 }
 
 
@@ -366,8 +374,16 @@ dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefen
 
 // Gestion du pillage
 $ressourcesDefenseur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['defenseur']);
+if (!$ressourcesDefenseur) {
+	logError("Combat: missing defender resources for " . $actions['defenseur']);
+	throw new Exception('Missing defender resources');
+}
 
 $ressourcesJoueur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['attaquant']);
+if (!$ressourcesJoueur) {
+	logError("Combat: missing attacker resources for " . $actions['attaquant']);
+	throw new Exception('Missing attacker resources');
+}
 
 // Vault protection — defender's coffrefort protects resources from pillage
 $vaultLevel = 0;
@@ -433,6 +449,10 @@ $destructionchampdeforce = "Non endommagé";
 $destructionDepot = "Non endommagé";
 
 $constructions = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $actions['defenseur']);
+if (!$constructions) {
+	logError("Combat: missing defender constructions for building damage, " . $actions['defenseur']);
+	throw new Exception('Missing defender constructions for damage phase');
+}
 
 if ($gagnant == 2 && $hydrogeneTotal > 0) { // Only damage buildings when attacker WINS
 	// Recalculate hydrogeneTotal from SURVIVING attackers (FIX: was using pre-combat count)
@@ -541,6 +561,10 @@ $pointsDefenseur = 0;
 
 $pointsBDAttaquant = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=?', 's', $actions['attaquant']);
 $pointsBDDefenseur = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=?', 's', $actions['defenseur']);
+if (!$pointsBDAttaquant || !$pointsBDDefenseur) {
+	logError("Combat: missing player stats for points update, att=" . $actions['attaquant'] . " def=" . $actions['defenseur']);
+	throw new Exception('Missing player stats');
+}
 
 // Scale combat points with battle size (total casualties)
 $totalCasualties = $pertesAttaquant + $pertesDefenseur;
@@ -563,8 +587,10 @@ foreach ($nomsRes as $num => $ressource) {
 // update des stats de combat
 
 $perduesAttaquant = dbFetchOne($base, 'SELECT moleculesPerdues,ressourcesPillees FROM autre WHERE login=?', 's', $actions['attaquant']);
+if (!$perduesAttaquant) { $perduesAttaquant = ['moleculesPerdues' => 0, 'ressourcesPillees' => 0]; }
 
 $perduesDefenseur = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $actions['defenseur']);
+if (!$perduesDefenseur) { $perduesDefenseur = ['moleculesPerdues' => 0]; }
 
 ajouterPoints($pointsAttaquant, $actions['attaquant'], 1);
 ajouterPoints($totalPille, $actions['attaquant'], 3);
@@ -583,7 +609,7 @@ dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pe
 // Build the SET clause and parameters dynamically for attacker
 // FIX FINDING-GAME-008: Cap pillaged resources at attacker's storage limit
 $depotAtt = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['attaquant']);
-$maxStorageAtt = placeDepot($depotAtt['depot']);
+$maxStorageAtt = placeDepot($depotAtt ? $depotAtt['depot'] : 1);
 $setClauses = [];
 $setTypes = '';
 $setParams = [];
@@ -611,7 +637,7 @@ if ($defenseRewardEnergy > 0) {
 	$setClauses[] = "energie=?";
 	$setTypes .= 'd';
 	$depotDef = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['defenseur']);
-	$maxEnergy = placeDepot($depotDef['depot']);
+	$maxEnergy = placeDepot($depotDef ? $depotDef['depot'] : 1);
 	$setParams[] = min($maxEnergy, $ressourcesDefenseur['energie'] + $defenseRewardEnergy);
 }
 $setParams[] = $actions['defenseur'];
@@ -619,21 +645,21 @@ $setTypes .= 's';
 $sql1 = 'UPDATE ressources SET ' . implode(',', $setClauses) . ' WHERE login=?';
 dbExecute($base, $sql1, $setTypes, ...$setParams);
 
-$nbattaques = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $actions['attaquant']);
-
-dbExecute($base, 'UPDATE autre SET nbattaques=? WHERE login=?', 'is', ($nbattaques['nbattaques'] + 1), $actions['attaquant']);
+// Atomic increment nbattaques
+dbExecute($base, 'UPDATE autre SET nbattaques = nbattaques + 1 WHERE login=?', 's', $actions['attaquant']);
 
 // Si les alliances sont en guerre on inscrit les pertes
-
 $joueur = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
-
 $idallianceAutre = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['defenseur']);
 
-$exGuerre = dbQuery($base, 'SELECT * FROM declarations WHERE type=0 AND fin=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?))', 'iiii', $joueur['idalliance'], $idallianceAutre['idalliance'], $joueur['idalliance'], $idallianceAutre['idalliance']);
+$joueurAlliance = ($joueur && isset($joueur['idalliance'])) ? $joueur['idalliance'] : 0;
+$autreAlliance = ($idallianceAutre && isset($idallianceAutre['idalliance'])) ? $idallianceAutre['idalliance'] : 0;
+
+$exGuerre = dbQuery($base, 'SELECT * FROM declarations WHERE type=0 AND fin=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?))', 'iiii', $joueurAlliance, $autreAlliance, $joueurAlliance, $autreAlliance);
 $guerre = mysqli_fetch_array($exGuerre);
 $nbGuerres = mysqli_num_rows($exGuerre);
 if ($nbGuerres >=  1) {
-	if ($guerre['alliance1'] == $joueur['idalliance']) {
+	if ($guerre['alliance1'] == $joueurAlliance) {
 		dbExecute($base, 'UPDATE declarations SET pertes1=?, pertes2=? WHERE id=?', 'ddi', ($guerre['pertes1'] + $pertesAttaquant), ($guerre['pertes2'] + $pertesDefenseur), $guerre['id']);
 	} else {
 		dbExecute($base, 'UPDATE declarations SET pertes1=?, pertes2=? WHERE id=?', 'ddi', ($guerre['pertes1'] + $pertesDefenseur), ($guerre['pertes2'] + $pertesAttaquant), $guerre['id']);

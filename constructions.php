@@ -236,60 +236,73 @@ function traitementConstructions($liste)
             }
 
             if ($ressources['energie'] >= $liste['coutEnergie'] and $bool == 1) {
-                // Build dynamic UPDATE for ressources - these are computed values, not user input
-                $chaine = "";
-                foreach ($nomsRes as $num => $ressource) {
-                    $plus = "";
-                    if ($num < $nbRes) {
-                        $plus = ",";
-                    }
-                    $chaine = $chaine . $ressource . '=' . ($ressources[$ressource] - $liste['cout' . ucfirst($ressource)]) . $plus;
-                }
+                withTransaction($base, function() use ($base, $liste, $nomsRes, $nbRes, $constructions, $autre, &$information, &$erreur) {
+                    // Lock resources with FOR UPDATE
+                    $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                    if (!$ressources) { $erreur = "Une erreur est survenue."; return; }
 
-                $newEnergie = $ressources['energie'] - $liste['coutEnergie'];
-                // Note: $chaine contains computed numeric values from server-side data, not user input
-                $sql2 = 'UPDATE ressources SET energie=?,' . $chaine . ' WHERE login=?';
-                $stmt = mysqli_prepare($base, $sql2);
-                if (!$stmt) {
-                    error_log("SQL Prepare Error: " . mysqli_error($base));
-                    $erreur = "Une erreur est survenue.";
-                } else {
+                    // Re-validate with locked values
+                    foreach ($nomsRes as $num => $ressource) {
+                        if ($ressources[$ressource] < $liste['cout' . ucfirst($ressource)]) {
+                            $erreur = "Vous n'avez pas assez de ressources."; return;
+                        }
+                    }
+                    if ($ressources['energie'] < $liste['coutEnergie']) {
+                        $erreur = "Vous n'avez pas assez de ressources."; return;
+                    }
+
+                    // Build dynamic UPDATE for ressources - these are computed values, not user input
+                    $chaine = "";
+                    foreach ($nomsRes as $num => $ressource) {
+                        $plus = "";
+                        if ($num < $nbRes) {
+                            $plus = ",";
+                        }
+                        $chaine = $chaine . $ressource . '=' . ($ressources[$ressource] - $liste['cout' . ucfirst($ressource)]) . $plus;
+                    }
+
+                    $newEnergie = $ressources['energie'] - $liste['coutEnergie'];
+                    // Note: $chaine contains computed numeric values from server-side data, not user input
+                    $sql2 = 'UPDATE ressources SET energie=?,' . $chaine . ' WHERE login=?';
+                    $stmt = mysqli_prepare($base, $sql2);
+                    if (!$stmt) {
+                        error_log("SQL Prepare Error: " . mysqli_error($base));
+                        $erreur = "Une erreur est survenue."; return;
+                    }
                     mysqli_stmt_bind_param($stmt, 'ds', $newEnergie, $_SESSION['login']);
                     if (!mysqli_stmt_execute($stmt)) {
                         error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
-                        $erreur = "Une erreur est survenue.";
+                        $erreur = "Une erreur est survenue."; return;
                     }
                     mysqli_stmt_close($stmt);
-                }
 
-                $ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
-                $nb = mysqli_num_rows($ex);
-                if ($nb > 0) { // s'il y a deja quelque chose en cours, on le met derriere
-                    $actionsconstruction = mysqli_fetch_array($ex);
-                    $tempsDebut = $actionsconstruction['fin'];
-                } else {
-                    $tempsDebut = time();
-                }
+                    $ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
+                    $nb = mysqli_num_rows($ex);
+                    if ($nb > 0) {
+                        $actionsconstruction = mysqli_fetch_array($ex);
+                        $tempsDebut = $actionsconstruction['fin'];
+                    } else {
+                        $tempsDebut = time();
+                    }
 
-                // on doit calculer le niveau actuel (et dans le futur avec les constructions le précédant)
-                $exNiveauActuel = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
-                $niveauActuel = mysqli_fetch_array($exNiveauActuel);
-                $nb = mysqli_num_rows($exNiveauActuel);
+                    $exNiveauActuel = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
+                    $niveauActuel = mysqli_fetch_array($exNiveauActuel);
+                    $nb = mysqli_num_rows($exNiveauActuel);
 
-                if ($nb == 0) {
-                    $niveauActuel['niveau'] = $constructions[$liste['bdd']];
-                }
+                    if ($nb == 0) {
+                        $niveauActuel['niveau'] = $constructions[$liste['bdd']];
+                    }
 
-                $newNiveau = $niveauActuel['niveau'] + 1;
-                $adjustedConstructionTime = round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')));
-                $finTemps = $tempsDebut + $adjustedConstructionTime;
-                dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siissii',
-                    $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
+                    $newNiveau = $niveauActuel['niveau'] + 1;
+                    $adjustedConstructionTime = round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')));
+                    $finTemps = $tempsDebut + $adjustedConstructionTime;
+                    dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siissii',
+                        $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
 
-                $newEnergieDepensee = $autre['energieDepensee'] + $liste['coutEnergie'];
-                dbExecute($base, 'UPDATE autre SET energieDepensee=? WHERE login=?', 'ds', $newEnergieDepensee, $_SESSION['login']);
+                    dbExecute($base, 'UPDATE autre SET energieDepensee = energieDepensee + ? WHERE login=?', 'ds', $liste['coutEnergie'], $_SESSION['login']);
 
-                $information = "La construction a bien été lancée.";
+                    $information = "La construction a bien été lancée.";
+                });
             } else {
                 $erreur = "Vous n'avez pas assez de ressources.";
             }

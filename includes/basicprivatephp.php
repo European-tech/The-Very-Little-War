@@ -74,7 +74,7 @@ if (isset($_GET['erreur'])) {
 //Vérification si l'adresse IP est dans la table
 $donnees = dbFetchOne($base, 'SELECT COUNT(*) AS nbre_entrees FROM connectes WHERE ip = ?', 's', $_SERVER['REMOTE_ADDR']);
 
-if ($donnees['nbre_entrees'] == 0) //L'IP ne se trouve pas dans la table, on va l'ajouter.
+if (!$donnees || $donnees['nbre_entrees'] == 0) //L'IP ne se trouve pas dans la table, on va l'ajouter.
 {
     $now = time();
     dbExecute($base, 'INSERT INTO connectes VALUES(?, ?)', 'si', $_SERVER['REMOTE_ADDR'], $now);
@@ -142,6 +142,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
 
     //archivage de la partie (20 meilleurs)
     $chaine = '';
+    $vainqueurManche = null;
     $classement = dbQuery($base, 'SELECT * FROM autre ORDER BY totalPoints DESC LIMIT 0, 20');
     $compteur = 0;
     while ($data = mysqli_fetch_array($classement)) {
@@ -223,14 +224,16 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
     $now = time();
     dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
 
+    if ($vainqueurManche !== null) {
     $titre = "Vainqueur de la dernière manche";
     $contenu = 'Le vainqueur de la dernière manche est <a href="joueur.php?id=' . htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') . '</a><br/><br/>Reprise <strong>le ' . date('d/m/Y à H\hi', time()) . '</strong>';
 
     //mise à jour du nombre de victoires et des news
     $now = time();
     dbExecute($base, 'INSERT INTO news VALUES(default, ?, ?, ?)', 'ssi', $titre, $contenu, $now);
+    } // end vainqueurManche null check
 
-    //envoi des mails
+    //envoi des mails (always send — even without winner, notify of reset)
     $exMails = dbQuery($base, 'SELECT email, login FROM membre');
     while ($donnees = mysqli_fetch_array($exMails)) {
         $mail = $donnees['email']; // Déclaration de l'adresse de destination.
@@ -241,11 +244,12 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
             $passage_ligne = "\n";
         }
         //=====Déclaration des messages au format texte et au format HTML.
-        $message_txt = "Bonjour " . $donnees['login'] . " ! " . $vainqueurManche . " vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
+        $winnerName = $vainqueurManche ?? 'Personne';
+        $message_txt = "Bonjour " . $donnees['login'] . " ! " . $winnerName . " vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
             vous pourrez commencer à rejouer la nouvelle partie à partir du " . date('d/m/Y à H\hi', time()) . " ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite
             et à bientôt sur The Very Little War !
             Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur www.theverylittlewar.com dans la partie \"Mon compte\".";
-        $message_html = "<html><head></head><body>Bonjour " . $donnees['login'] . " ! <b>" . $vainqueurManche . "</b> vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
+        $message_html = "<html><head></head><body>Bonjour " . $donnees['login'] . " ! <b>" . $winnerName . "</b> vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
             vous pourrez commencer à rejouer la nouvelle partie à partir du <b>" . date('d/m/Y à H\hi', time()) . "</b> ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite
             et à bientôt sur <a href=\"www.theverylittlewar.com\">The Very Little War</a> !<br/><br/><br/><br/>
             <i>Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur <a href=\"www.theverylittlewar.com\">www.theverylittlewar.com</a> dans la partie \"Mon compte\".</i></body></html>";
@@ -302,7 +306,19 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
     dbExecute($base, 'UPDATE statistiques SET maintenance = 1');
     $now = time();
     dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
+    // Block POST actions during maintenance
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Le jeu est en maintenance']);
+        exit;
+    }
 } elseif ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) < 86400) {
     // Still in maintenance period, 24h have not yet passed
     $erreur = "Une nouvelle partie recommencera dans 24 heures.";
+    // Block POST actions during maintenance
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Le jeu est en maintenance']);
+        exit;
+    }
 }

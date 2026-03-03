@@ -143,18 +143,23 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                         if ($cout <= $ressources['energie']) {
                             if ($bool) {
-                                $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $_SESSION['login']);
-                                $c = 1;
-                                while ($moleculesAttaque = mysqli_fetch_array($ex)) {
-                                    $newNombre = $moleculesAttaque['nombre'] - $_POST['nbclasse' . $c];
-                                    dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $newNombre, $moleculesAttaque['id']);
-                                    $c++;
-                                }
-                                $now = time();
-                                dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,0,default)', 'ssiiiss',
-                                    $_SESSION['login'], $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes);
-                                ajouter('energie', 'ressources', -$cout, $_SESSION['login']);
-                                ajouter('energieDepensee', 'autre', $cout, $_SESSION['login']);
+                                withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet) {
+                                    $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $_SESSION['login']);
+                                    $c = 1;
+                                    while ($moleculesAttaque = mysqli_fetch_array($ex)) {
+                                        $newNombre = $moleculesAttaque['nombre'] - $_POST['nbclasse' . $c];
+                                        if ($newNombre < 0) {
+                                            throw new Exception('Pas assez de molécules');
+                                        }
+                                        dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $newNombre, $moleculesAttaque['id']);
+                                        $c++;
+                                    }
+                                    $now = time();
+                                    dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,0,default)', 'ssiiiss',
+                                        $_SESSION['login'], $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes);
+                                    ajouter('energie', 'ressources', -$cout, $_SESSION['login']);
+                                    ajouter('energieDepensee', 'autre', $cout, $_SESSION['login']);
+                                });
                                 logInfo('ATTACK', 'Attack launched', ['attacker' => $_SESSION['login'], 'defender' => $_POST['joueurAAttaquer'], 'troops' => $troupes, 'energy_cost' => $cout]);
                                 $information = "L'attaque a été lancée.";
                             } else {
