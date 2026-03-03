@@ -64,19 +64,27 @@ if (isset($_POST['nombreneutrinos']) and !empty($_POST['nombreneutrinos'])) {
     $_POST['nombreneutrinos'] = transformInt($_POST['nombreneutrinos']);
     if (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1) {
         $_POST['nombreneutrinos'] = intval($_POST['nombreneutrinos']);
-        if ($_POST['nombreneutrinos'] * $coutNeutrino <= $ressources['energie']) {
+        $nombreNeutrinos = $_POST['nombreneutrinos'];
+        $login = $_SESSION['login'];
+        try {
+            withTransaction($base, function() use ($base, $nombreNeutrinos, $coutNeutrino, $login, &$autre) {
+                $res = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login = ? FOR UPDATE', 's', $login);
+                if (!$res || $res['energie'] < $nombreNeutrinos * $coutNeutrino) {
+                    throw new \RuntimeException('Insufficient energy');
+                }
+                $autreRow = dbFetchOne($base, 'SELECT neutrinos, energieDepensee FROM autre WHERE login = ? FOR UPDATE', 's', $login);
 
-            $newNeutrinos = $autre['neutrinos'] + $_POST['nombreneutrinos'];
-            dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $_SESSION['login']);
-            $autre['neutrinos'] += $_POST['nombreneutrinos'];
+                $newNeutrinos = $autreRow['neutrinos'] + $nombreNeutrinos;
+                dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $login);
+                $autre['neutrinos'] = $newNeutrinos;
 
-            $newEnergie = max(0, $ressources['energie'] - $_POST['nombreneutrinos'] * $coutNeutrino);
-            dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $newEnergie, $_SESSION['login']);
-            $newEnergieDepensee = $autre['energieDepensee'] + $_POST['nombreneutrinos'] * $coutNeutrino;
-            dbExecute($base, 'UPDATE autre SET energieDepensee=? WHERE login=?', 'ds', $newEnergieDepensee, $_SESSION['login']);
-
-            $information = 'Vous avez formé ' . $_POST['nombreneutrinos'] . ' neutrinos.';
-        } else {
+                $newEnergie = max(0, $res['energie'] - $nombreNeutrinos * $coutNeutrino);
+                dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $newEnergie, $login);
+                $newEnergieDepensee = $autreRow['energieDepensee'] + $nombreNeutrinos * $coutNeutrino;
+                dbExecute($base, 'UPDATE autre SET energieDepensee=? WHERE login=?', 'ds', $newEnergieDepensee, $login);
+            });
+            $information = 'Vous avez formé ' . $nombreNeutrinos . ' neutrinos.';
+        } catch (\RuntimeException $e) {
             $erreur = "Vous n'avez pas assez d'énergie.";
         }
     } else {
