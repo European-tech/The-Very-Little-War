@@ -1,6 +1,6 @@
 <?php
 function validateLogin($login) {
-    return preg_match('/^[a-zA-Z0-9_]{3,20}$/', $login);
+    return preg_match('/^[a-zA-Z0-9_]{' . LOGIN_MIN_LENGTH . ',' . LOGIN_MAX_LENGTH . '}$/', $login);
 }
 
 function validateEmail($email) {

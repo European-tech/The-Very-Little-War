@@ -14,7 +14,7 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
     list($jour, $mois, $annee) = explode('/', $_POST['dateFin']);
     $dateT = new DateTime();
     $dateT->setDate($annee, $mois, $jour);
-    if ($dateT->getTimestamp() >= time() + (3600 * 24 * 3)) {
+    if ($dateT->getTimestamp() >= time() + VACATION_MIN_ADVANCE_SECONDS) {
         dbExecute($base, 'DELETE FROM actionsformation WHERE login = ?', 's', $_SESSION['login']);
         $date = $annee . '-' . $mois . '-' . $jour;
         $membreRow = dbFetchOne($base, 'SELECT id FROM membre WHERE login = ?', 's', $_SESSION['login']);
@@ -97,7 +97,7 @@ if (isset($_POST['changerdescription'])) {
 
 if (isset($_FILES['photo']['name']) and !empty($_FILES['photo']['name'])) {
     $dossier = 'images/profil/';
-    $taille_maxi = 2000000; // 2MB max
+    $taille_maxi = PROFILE_IMAGE_MAX_SIZE_BYTES;
     $taille = filesize($_FILES['photo']['tmp_name']);
 
     // Validate extension whitelist
@@ -121,8 +121,8 @@ if (isset($_FILES['photo']['name']) and !empty($_FILES['photo']['name'])) {
         $erreur = 'Le type MIME du fichier n\'est pas autorisé.';
     } elseif ($img_size === false) {
         $erreur = 'Le fichier n\'est pas une image valide.';
-    } elseif ($img_size[0] > 150 or $img_size[1] > 150) {
-        $erreur = "Erreur : image trop grande ! (les dimensions requises sont au maximum 150*150)";
+    } elseif ($img_size[0] > PROFILE_IMAGE_MAX_DIMENSION_PX or $img_size[1] > PROFILE_IMAGE_MAX_DIMENSION_PX) {
+        $erreur = "Erreur : image trop grande ! (les dimensions requises sont au maximum " . PROFILE_IMAGE_MAX_DIMENSION_PX . "*" . PROFILE_IMAGE_MAX_DIMENSION_PX . ")";
     } elseif ($taille > $taille_maxi) {
         $erreur = 'L\'image est trop grosse ! (maximum 2 Mo)';
     } else //S'il n'y a pas d'erreur, on upload
@@ -200,7 +200,7 @@ if (!isset($_POST['supprimercompte'])) {
     echo important("Supprimer le compte");
     debutListe();
     $donnees = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $_SESSION['login']);
-    if ((time() - $donnees['timestamp']) > 604800) {
+    if ((time() - $donnees['timestamp']) > SECONDS_PER_WEEK) {
         item(['form' => ["compte.php", "formSupprimer"], 'input' => '<input type="hidden" name="supprimercompte"/>' . csrfField() . submit(['titre' => 'Supprimer le compte', 'style' => 'background-color:red', 'form' => 'formSupprimer'])]);
     } else {
         debutContent();

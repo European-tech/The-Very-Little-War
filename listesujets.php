@@ -59,7 +59,7 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 
 	debutCarte(htmlspecialchars($idforum['titre'], ENT_QUOTES, 'UTF-8'));
 	$nb_resultats = dbCount($base, 'SELECT count(*) FROM sujets WHERE idforum = ?', 'i', $getId);
-	$nombreDeSujetsParPage = 10;
+	$nombreDeSujetsParPage = FORUM_POSTS_PER_PAGE;
 	$nombreDePages  = ceil($nb_resultats / $nombreDeSujetsParPage);
 	$page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 	if ($page < 1 || $page > $nombreDePages) {

@@ -125,7 +125,7 @@ while($data = mysqli_fetch_array($exMol)){
             $nombreAtomes+=$data[$ressource];
         }
 
-        $aAjouter = round(1000/$nombreAtomes);
+        $aAjouter = round(TUTORIAL_STARTER_MOLECULE_TOTAL_ATOMS/$nombreAtomes);
 	}
 }
 if($autre['niveaututo'] == 6 and $numClasse!= -1){
@@ -324,7 +324,7 @@ else { // si cela n'a pas été initialisé à la première connexion
 	$bonusDuplicateur = 1;
 	if($idalliance['idalliance'] > 0) {
 		$duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id = ?', 'i', $idalliance['idalliance']);
-		$bonusDuplicateur = 1+((0.1*$duplicateur['duplicateur'])/100);
+		$bonusDuplicateur = 1 + ($duplicateur['duplicateur'] * DUPLICATEUR_BONUS_PER_LEVEL);
 
         $prodDuplicateur = '<tr><td>Duplicateur <strong>niveau '.$duplicateur['duplicateur'].' (+'.(bonusDuplicateur($duplicateur['duplicateur'])*100).'%)</strong></td><td style="color:green">'.revenuEnergie($constructions['generateur'],$_SESSION['login'],1).'/h</td></tr>';
 	}
@@ -430,7 +430,7 @@ else { // si cela n'a pas été initialisé à la première connexion
 // molecules aussi
 
 
-var revenuJSEnergie=<?php echo revenuEnergie($constructions['generateur'],$_SESSION['login'])/3600;?> //incrementer tous ces nombres de secondes
+var revenuJSEnergie=<?php echo revenuEnergie($constructions['generateur'],$_SESSION['login'])/SECONDS_PER_HOUR;?> //incrementer tous ces nombres de secondes
 var valeur = <?php echo $ressources['energie']; ?>;
 function energieDynamique(){
 	document.getElementById("affichageenergie").innerHTML = nFormatter(Math.floor(valeur))+'/<?php echo $ressourcesMax; ?>';
@@ -445,7 +445,7 @@ function energieDynamique(){
 <?php
 foreach($nomsRes as $num => $ressource) {
 	echo'
-	var revenuJS'.$ressource.'='.(revenuAtome($num,$_SESSION['login'])/3600).'
+	var revenuJS'.$ressource.'='.(revenuAtome($num,$_SESSION['login'])/SECONDS_PER_HOUR).'
 	var valeur'.$ressource.' = '.$ressources[$ressource].'
 	function '.$ressource.'Dynamique(){
 		document.getElementById("affichage'.$ressource.'").innerHTML = nFormatter(Math.floor(valeur'.$ressource.'))+\'/'.$ressourcesMax.'\'

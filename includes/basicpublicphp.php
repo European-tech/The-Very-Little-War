@@ -22,7 +22,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 	csrfCheck();
 	if (!empty($_POST['loginConnexion']) && !empty($_POST['passConnexion'])) {
 		// 10 attempts per 5 minutes per IP
-		if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'login', 10, 300)) {
+		if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'login', RATE_LIMIT_LOGIN_MAX, RATE_LIMIT_LOGIN_WINDOW)) {
 			die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
 		}
 
@@ -32,7 +32,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 		// Use prepared statement to fetch user
 		$row = dbFetchOne($base, 'SELECT login, pass_md5 FROM membre WHERE login = ?', 's', $loginInput);
 
-		$a = dbQuery($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - 3600 * 3);
+		$a = dbQuery($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - VISITOR_SESSION_CLEANUP_SECONDS);
 		while ($supp = mysqli_fetch_array($a)) {
 			supprimerJoueur($supp['login']);
 		}
@@ -83,5 +83,5 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 }
 
 // Toutes les entrees vieilles de plus de 5 minutes sont supprimees (nombres de connectes)
-$timestamp_5min = time() - (60 * 5); // 60 * 5 = nombre de secondes ecoulees en 5 minutes
+$timestamp_5min = time() - ONLINE_TIMEOUT_SECONDS;
 dbExecute($base, 'DELETE FROM connectes WHERE timestamp < ?', 'i', $timestamp_5min);

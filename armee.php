@@ -159,7 +159,7 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
     if ($bool == 1) { // on vérifie que c'est un chiffre positif
         $bool = 1;
         foreach ($nomsRes as $num => $ressource) { // si on est en dessous de 200 atomes de chaque
-            if ($_POST[$ressource] > 200) {
+            if ($_POST[$ressource] > MAX_ATOMS_PER_ELEMENT) {
                 $bool = 0;
             }
         }
@@ -227,7 +227,7 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
                 $erreur = "Votre molécule doit au moins être composée d'un atome.";
             }
         } else {
-            $erreur = "Les molécules ne doivent pas excéder 200 atomes de chaque.";
+            $erreur = "Les molécules ne doivent pas excéder " . MAX_ATOMS_PER_ELEMENT . " atomes de chaque.";
         }
     } else {
         $erreur = "Seul des nombres positifs et entiers doivent être entrés.";

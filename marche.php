@@ -3,8 +3,8 @@ include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 //tableau d'échange de ressources
 
-$actifs = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=?', 'i', (time() - 2678400));
-$volatilite = 0.3 / max(1, $actifs['nbActifs']);
+$actifs = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=?', 'i', (time() - ACTIVE_PLAYER_THRESHOLD));
+$volatilite = MARKET_VOLATILITY_FACTOR / max(1, $actifs['nbActifs']);
 
 
 $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
@@ -91,7 +91,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                         $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST['energieEnvoyee'];
                         $ressourcesRecues = $ressourcesRecues . $rapportEnergie * $_POST['energieEnvoyee'];
 
-                        $tempsArrivee = time() + round(3600 * $distance / $vitesseMarchands);
+                        $tempsArrivee = time() + round(SECONDS_PER_HOUR * $distance / $vitesseMarchands);
                         dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
                             $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
 
@@ -269,7 +269,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
             // Advisory pre-check (may use stale data); authoritative check is inside the transaction with FOR UPDATE
             if ($ressources[$nomsRes[$numRes]] >= $_POST['nombreRessourceAVendre']) {
                 // FIX FINDING-GAME-005: 5% sell tax to prevent buy-sell arbitrage for trade points
-                $sellTaxRate = 0.95; // 95% of value returned (5% fee)
+                $sellTaxRate = MARKET_SELL_TAX_RATE;
                 $newEnergie = $ressources['energie'] + round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'] * $sellTaxRate);
                 if ($newEnergie > $placeDepot) {
                     $newEnergie = $placeDepot; // Cap energy at storage limit
@@ -525,7 +525,7 @@ if ($_GET['sub'] == 0) {
                 var typeRessourceAVendre = document.getElementById('typeRessourceAVendre').value;
                 var nombreRessourceAVendre = symboleEnNombre(document.getElementById('nombreRessourceAVendre').value);
                 var apportEnergie = symboleEnNombre(document.getElementById('apportEnergieVente').value);
-                var sellTaxRate = 0.95; // 5% sell tax
+                var sellTaxRate = <?php echo MARKET_SELL_TAX_RATE; ?>;
                 var echange = <?php echo json_encode($tabCours);
 
                                 foreach ($nomsRes as $num => $ressource) { // on récupére le numéro dans le tableau de ressources des ressources que l'on échange
@@ -575,7 +575,7 @@ if ($_GET['sub'] == 0) {
                 ],
                 <?php
                 $tot = '';
-                $ex = dbQuery($base, "SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1000");
+                $ex = dbQuery($base, "SELECT * FROM cours ORDER BY timestamp DESC LIMIT " . MARKET_HISTORY_LIMIT);
                 $c = 1;
                 $nb = mysqli_num_rows($ex);
                 while ($cours = mysqli_fetch_array($ex)) {

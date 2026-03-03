@@ -62,14 +62,14 @@ $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's
 $bonusDuplicateurAttaque = 1;
 if ($idalliance && $idalliance['idalliance'] > 0) {
 	$duplicateurAttaque = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-	$bonusDuplicateurAttaque = $duplicateurAttaque ? 1 + ($duplicateurAttaque['duplicateur'] / 100) : 1;
+	$bonusDuplicateurAttaque = $duplicateurAttaque ? 1 + ($duplicateurAttaque['duplicateur'] * DUPLICATEUR_BONUS_PER_LEVEL) : 1;
 }
 
 $idallianceDef = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['defenseur']);
 $bonusDuplicateurDefense = 1;
 if ($idallianceDef && $idallianceDef['idalliance'] > 0) {
 	$duplicateurDefense = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idallianceDef['idalliance']);
-	$bonusDuplicateurDefense = $duplicateurDefense ? 1 + ($duplicateurDefense['duplicateur'] / 100) : 1;
+	$bonusDuplicateurDefense = $duplicateurDefense ? 1 + ($duplicateurDefense['duplicateur'] * DUPLICATEUR_BONUS_PER_LEVEL) : 1;
 }
 
 
@@ -219,13 +219,13 @@ $catalystAttackBonus = 1 + catalystEffect('attack_bonus');
 $degatsAttaquant = 0;
 $degatsDefenseur = 0;
 for ($c = 1; $c <= 4; $c++) {
-	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * 2) / 100)) * $bonusDuplicateurAttaque * $catalystAttackBonus * ${'classeAttaquant' . $c}['nombre'];
+	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], $niveauxAtt['oxygene'], $actions['attaquant']) * $attReactionAttackBonus * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * IONISATEUR_COMBAT_BONUS_PER_LEVEL) / 100)) * $bonusDuplicateurAttaque * $catalystAttackBonus * ${'classeAttaquant' . $c}['nombre'];
 	$defBonusForClass = $defReactionDefenseBonus * $defIsotopeAttackMod[$c]; // Apply defender isotope modifier to defense output
 	// Phalange: class 1 gets extra defense bonus
 	if ($defenderFormation == FORMATION_PHALANGE && $c == 1) {
 		$defBonusForClass *= (1.0 + FORMATION_PHALANX_DEFENSE_BONUS);
 	}
-	$degatsDefenseur += defense(${'classeDefenseur' . $c}['carbone'], $niveauxDef['carbone'], $actions['defenseur']) * $defBonusForClass * (1 + (($champdeforce['champdeforce'] * 2) / 100)) * $bonusDuplicateurDefense * ${'classeDefenseur' . $c}['nombre'];
+	$degatsDefenseur += defense(${'classeDefenseur' . $c}['carbone'], $niveauxDef['carbone'], $actions['defenseur']) * $defBonusForClass * (1 + (($champdeforce['champdeforce'] * CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL) / 100)) * $bonusDuplicateurDefense * ${'classeDefenseur' . $c}['nombre'];
 }
 
 // Apply prestige combat bonuses (FIX FINDING-GAME-002: these were defined but never called)

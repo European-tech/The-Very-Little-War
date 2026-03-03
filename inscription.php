@@ -6,7 +6,7 @@ require_once("includes/validation.php");
 //Si le bouton inscription a ete clique
 if (isset($_POST['login'])) {
 	// Rate limit: 3 registrations per hour per IP
-	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'register', 3, 3600)) {
+	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'register', RATE_LIMIT_REGISTER_MAX, RATE_LIMIT_REGISTER_WINDOW)) {
 		die('<p>Trop d\'inscriptions depuis cette adresse. Réessayez plus tard.</p>');
 	}
 
@@ -21,8 +21,8 @@ if (isset($_POST['login'])) {
 		$passConfirm = $_POST['pass_confirm'];
 		$emailInput = trim($_POST['email']);
 
-		if (mb_strlen($passInput) < 8) {
-			$erreur = 'Le mot de passe doit contenir au moins 8 caract&egrave;res.';
+		if (mb_strlen($passInput) < PASSWORD_MIN_LENGTH) {
+			$erreur = 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caract&egrave;res.';
 		} elseif ($passInput != $passConfirm) {
 			$erreur = 'Les deux mots de passe sont diff&eacute;rents.';
 		} else {
@@ -59,7 +59,7 @@ debutCarte("Inscription");
 echo '<form action="inscription.php" method="post" name="inscription">';
 echo csrfField();
 debutListe();
-item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/player.png" class="w32"/>', 'titre' => 'Login', 'input' => '<input type="text" name="login" id="login" maxlength="13" value="Login">', 'after' => submit(['link' => 'javascript:generate()', 'titre' => 'G&eacute;n&eacute;rer'])]);
+item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/player.png" class="w32"/>', 'titre' => 'Login', 'input' => '<input type="text" name="login" id="login" maxlength="<?php echo LOGIN_MAX_LENGTH; ?>" value="Login">', 'after' => submit(['link' => 'javascript:generate()', 'titre' => 'G&eacute;n&eacute;rer'])]);
 item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'titre' => 'E-mail', 'input' => '<input type="text" name="email" id="email" maxlength="100" class="form-control">', 'after' => popover('popover-mail', 'images/question.png')]);
 item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Mot de passe', 'input' => '<input type="password" name="pass" id="pass" class="form-control">']);
 item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Confirmation', 'input' => '<input type="password" name="pass_confirm" id="pass_confirm" class="form-control">']);

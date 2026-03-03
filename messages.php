@@ -37,7 +37,7 @@ if(isset($_GET['message'])) {
 	}
 }
 else {
-	$nombreDeMessagesParPage = 15;
+	$nombreDeMessagesParPage = MESSAGES_PER_PAGE;
 	$totalDesMessages = dbCount($base, 'SELECT COUNT(*) AS nb_messages FROM messages WHERE destinataire = ?', 's', $_SESSION['login']);
 	$nombreDePages  = ceil($totalDesMessages / $nombreDeMessagesParPage); // Calcul du nombre de pages créées
 	// Puis on fait une boucle pour écrire les liens vers chacune des pages

@@ -10,7 +10,7 @@ require_once(__DIR__ . '/../includes/rate_limiter.php');
 
 if (isset($_POST['motdepasseadmin'])) {
 	csrfCheck();
-	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'admin_login', 5, 300)) {
+	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'admin_login', RATE_LIMIT_ADMIN_MAX, RATE_LIMIT_ADMIN_WINDOW)) {
 		logWarn('ADMIN', 'Admin login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
 		die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
 	}

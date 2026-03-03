@@ -51,7 +51,7 @@ if(isset($_GET['id'])) {
 
 		if($guerre['fin'] > $guerre['timestamp']) {
 			echo '<span class="subimportant">Date de fin de la guerre : </span>'.date('d/m/Y à H\hi', $guerre['fin']).'<br/>
-			Cette guerre a donc duré '.round(($guerre['fin'] - $guerre['timestamp'])/86400).' jours.';
+			Cette guerre a donc duré '.round(($guerre['fin'] - $guerre['timestamp'])/SECONDS_PER_DAY).' jours.';
 		}
 		else {
 			echo '<span class="subimportant">Date de fin de la guerre : </span>Non finie<br/>';

@@ -5,7 +5,7 @@ use PHPUnit\Framework\TestCase;
  * Tests for market (marche) price formulas and mechanics.
  *
  * Formula references (from marche.php and includes/config.php):
- *   Volatility:        0.5 / activePlayerCount (MARKET_VOLATILITY_FACTOR = 0.5)
+ *   Volatility:        0.3 / activePlayerCount (MARKET_VOLATILITY_FACTOR = 0.3)
  *   Price on buy:      price + volatility * amount / depot
  *   Price on sell:     1 / (1/price + volatility * amount / depot)
  *   Buy cost:          round(price * amount)
@@ -16,30 +16,30 @@ class MarketFormulasTest extends TestCase
 {
     // =========================================================================
     // VOLATILITY FORMULA
-    // Formula: 0.5 / nbActifs (MARKET_VOLATILITY_FACTOR / activePlayerCount)
+    // Formula: 0.3 / nbActifs (MARKET_VOLATILITY_FACTOR / activePlayerCount)
     // =========================================================================
 
     public function testVolatilityFactorConstant(): void
     {
-        $this->assertEquals(0.5, MARKET_VOLATILITY_FACTOR);
+        $this->assertEquals(0.3, MARKET_VOLATILITY_FACTOR);
     }
 
     public function testVolatilityWithOnePlayer(): void
     {
         $volatility = MARKET_VOLATILITY_FACTOR / 1;
-        $this->assertEquals(0.5, $volatility);
+        $this->assertEquals(0.3, $volatility);
     }
 
     public function testVolatilityWithTenPlayers(): void
     {
         $volatility = MARKET_VOLATILITY_FACTOR / 10;
-        $this->assertEquals(0.05, $volatility);
+        $this->assertEquals(0.03, $volatility);
     }
 
     public function testVolatilityWithHundredPlayers(): void
     {
         $volatility = MARKET_VOLATILITY_FACTOR / 100;
-        $this->assertEquals(0.005, $volatility);
+        $this->assertEquals(0.003, $volatility);
     }
 
     public function testVolatilityDecreasesWithMorePlayers(): void
@@ -340,28 +340,28 @@ class MarketFormulasTest extends TestCase
 
     public function testHighVolatilityMarket(): void
     {
-        // With only 1 active player, volatility = 0.5
-        $volatility = MARKET_VOLATILITY_FACTOR / 1; // 0.5
+        // With only 1 active player, volatility = 0.3
+        $volatility = MARKET_VOLATILITY_FACTOR / 1; // 0.3
         $price = 10.0;
         $amount = 1000;
         $depot = 500;
 
-        // Buy: 10 + 0.5 * 1000 / 500 = 10 + 1.0 = 11.0
+        // Buy: 10 + 0.3 * 1000 / 500 = 10 + 0.6 = 10.6
         $newPrice = $this->priceAfterBuy($price, $volatility, $amount, $depot);
-        $this->assertEqualsWithDelta(11.0, $newPrice, 0.0001);
+        $this->assertEqualsWithDelta(10.6, $newPrice, 0.0001);
     }
 
     public function testLowVolatilityMarket(): void
     {
-        // With 100 active players, volatility = 0.005
-        $volatility = MARKET_VOLATILITY_FACTOR / 100; // 0.005
+        // With 100 active players, volatility = 0.003
+        $volatility = MARKET_VOLATILITY_FACTOR / 100; // 0.003
         $price = 10.0;
         $amount = 1000;
         $depot = 5000;
 
-        // Buy: 10 + 0.005 * 1000 / 5000 = 10 + 0.001 = 10.001
+        // Buy: 10 + 0.003 * 1000 / 5000 = 10 + 0.0006 = 10.0006
         $newPrice = $this->priceAfterBuy($price, $volatility, $amount, $depot);
-        $this->assertEqualsWithDelta(10.001, $newPrice, 0.0001);
+        $this->assertEqualsWithDelta(10.0006, $newPrice, 0.0001);
     }
 
     public function testPriceImpactScalesWithDepot(): void

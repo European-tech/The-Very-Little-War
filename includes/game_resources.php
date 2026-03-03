@@ -140,7 +140,7 @@ function updateRessources($joueur)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////ENERGIE
 
     $revenuenergie = revenuEnergie($depot['generateur'], $joueur);
-    $energie = $donnees['energie'] + $revenuenergie * ($nbsecondes / 3600); // On calcule l'energie que l'on doit avoir
+    $energie = $donnees['energie'] + $revenuenergie * ($nbsecondes / SECONDS_PER_HOUR); // On calcule l'energie que l'on doit avoir
     if ($energie >= placeDepot($depot['depot'])) {
         $energie = placeDepot($depot['depot']); // on limite l'energie pouvant être reçu (depots de ressources)
     }
@@ -157,7 +157,7 @@ function updateRessources($joueur)
     $sqlParams = [];
     foreach ($nomsRes as $num => $ressource) {
         ${'revenu' . $ressource} = revenuAtome($num, $joueur);
-        $$ressource = $donnees[$ressource] + ${'revenu' . $ressource} * ($nbsecondes / 3600);
+        $$ressource = $donnees[$ressource] + ${'revenu' . $ressource} * ($nbsecondes / SECONDS_PER_HOUR);
         if ($$ressource >= $placeMax) {
             $$ressource = $placeMax;
         }
@@ -174,7 +174,7 @@ function updateRessources($joueur)
 
     $stabilisateur = dbFetchOne($base, 'SELECT stabilisateur FROM constructions WHERE login=?', 's', $joueur);
 
-    $nbheuresDebut = ($nbsecondes / 3600); // nombre d'heures depuis la derniere connexion
+    $nbheuresDebut = ($nbsecondes / SECONDS_PER_HOUR); // nombre d'heures depuis la derniere connexion
 
     $donneesMedaille = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $joueur);
 
@@ -198,7 +198,7 @@ function updateRessources($joueur)
         dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login = ?', 'ds', $totalMoleculesPerdues, $joueur);
     }
 
-    if ($nbheuresDebut > 6) {
+    if ($nbheuresDebut > ABSENCE_REPORT_THRESHOLD_HOURS) {
         $donnees5 = dbFetchOne($base, 'SELECT nombre, formule FROM molecules WHERE proprietaire=? AND numeroclasse=1', 's', $joueur);
         $donnees6 = dbFetchOne($base, 'SELECT nombre, formule FROM molecules WHERE proprietaire=? AND numeroclasse=2', 's', $joueur);
         $donnees7 = dbFetchOne($base, 'SELECT nombre, formule FROM molecules WHERE proprietaire=? AND numeroclasse=3', 's', $joueur);

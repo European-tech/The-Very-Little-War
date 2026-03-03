@@ -215,7 +215,7 @@ $BUILDING_CONFIG = [
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 3,
         'points_level_factor' => 0.1,
-        'stability_per_level' => 0.5, // 0.5% decay reduction per level
+        'stability_per_level' => 1.5, // 1.5% decay reduction per level (matches STABILISATEUR_BONUS_PER_LEVEL)
         'description'       => 'Reduces molecule decay rate',
     ],
     'coffrefort' => [
@@ -238,7 +238,7 @@ define('VAULT_PROTECTION_PER_LEVEL', 100); // resources protected per vault leve
 // =============================================================================
 // COMBAT FORMULAS
 // =============================================================================
-// Attack energy cost: 0.15 * (1 + terreur_medal_bonus / 100) * nbAtomes per molecule
+// Attack energy cost: 0.15 * (1 - terreur_medal_bonus / 100) * nbAtomes per molecule
 define('ATTACK_ENERGY_COST_FACTOR', 0.15);
 
 // Ionisateur/Champdeforce combat bonus: level * 2 / 100
@@ -267,9 +267,9 @@ define('DEFENSE_POINTS_MULTIPLIER', 5.0);
 // Defensive rewards — incentivize defense as a viable playstyle
 define('DEFENSE_REWARD_RATIO', 0.20);         // 20% resource bonus on successful defense
 define('DEFENSE_POINTS_MULTIPLIER_BONUS', 1.5); // 1.5x combat points for defensive victories
-define('ATTACK_COOLDOWN_SECONDS', 4 * 3600);  // 4 hours on loss/draw
+define('ATTACK_COOLDOWN_SECONDS', 4 * SECONDS_PER_HOUR);  // 4 hours on loss/draw
 // BAL-CROSS C4: Prevents chain-attack bullying — winners wait 1h before same target
-define('ATTACK_COOLDOWN_WIN_SECONDS', 1 * 3600);
+define('ATTACK_COOLDOWN_WIN_SECONDS', 1 * SECONDS_PER_HOUR);
 
 // Defensive formations — pre-battle defensive stance choices
 // 0 = Dispersée (default): damage split equally across all classes (25% each)
@@ -284,8 +284,8 @@ define('FORMATION_PHALANX_DEFENSE_BONUS', 0.20);  // +20% defense for phalanx cl
 define('FORMATION_AMBUSH_ATTACK_BONUS', 0.15);    // +15% attack when outnumbering attacker
 $FORMATIONS = [
     FORMATION_DISPERSEE => ['name' => 'Dispersée', 'desc' => 'Les dégâts sont répartis également entre vos 4 classes (25% chacune). Efficace contre les attaques concentrées.'],
-    FORMATION_PHALANGE => ['name' => 'Phalange', 'desc' => 'Votre classe 1 absorbe 70% des dégâts et gagne +30% de défense. Idéal si votre classe 1 est très résistante.'],
-    FORMATION_EMBUSCADE => ['name' => 'Embuscade', 'desc' => 'Si vous avez plus de molécules que l\'attaquant, vous gagnez +25% d\'attaque. Idéal pour les armées nombreuses.'],
+    FORMATION_PHALANGE => ['name' => 'Phalange', 'desc' => 'Votre classe 1 absorbe 60% des dégâts et gagne +20% de défense. Idéal si votre classe 1 est très résistante.'],
+    FORMATION_EMBUSCADE => ['name' => 'Embuscade', 'desc' => 'Si vous avez plus de molécules que l\'attaquant, vous gagnez +15% d\'attaque. Idéal pour les armées nombreuses.'],
 ];
 
 // =============================================================================
@@ -310,7 +310,7 @@ define('ISOTOPE_CATALYTIQUE_ALLY_BONUS', 0.15);  // +15% to all stats of other c
 $ISOTOPES = [
     ISOTOPE_NORMAL => ['name' => 'Normal', 'desc' => 'Pas de modification.'],
     ISOTOPE_STABLE => ['name' => 'Stable', 'desc' => '-10% attaque, +20% points de vie, -30% vitesse de disparition. Rôle : tank/défenseur.'],
-    ISOTOPE_REACTIF => ['name' => 'Réactif', 'desc' => '+20% attaque, -10% points de vie, +50% vitesse de disparition. Rôle : canon de verre.'],
+    ISOTOPE_REACTIF => ['name' => 'Réactif', 'desc' => '+20% attaque, -10% points de vie, +20% vitesse de disparition. Rôle : canon de verre.'],
     ISOTOPE_CATALYTIQUE => ['name' => 'Catalytique', 'desc' => '-10% attaque et PV, mais +15% à toutes les stats des AUTRES classes. Rôle : support.'],
 ];
 
@@ -364,9 +364,10 @@ define('NEUTRINO_COST', 50);     // energy per neutrino ($coutNeutrino)
 // =============================================================================
 // MARKET
 // =============================================================================
-define('MARKET_VOLATILITY_FACTOR', 0.5); // $volatilite = 0.3 / nbActifs
+define('MARKET_VOLATILITY_FACTOR', 0.3); // $volatilite = 0.3 / nbActifs
 define('MARKET_PRICE_FLOOR', 0.1);       // minimum price any resource can reach
 define('MARKET_PRICE_CEILING', 10.0);    // maximum price any resource can reach
+define('MARKET_SELL_TAX_RATE', 0.95);    // 95% value returned on sell (5% fee)
 define('MARKET_MEAN_REVERSION', 0.01);   // 1% pull toward baseline price per trade
 define('MERCHANT_SPEED', 20);    // cases per hour ($vitesseMarchands)
 
@@ -567,6 +568,87 @@ $MEDAL_THRESHOLDS_TROLL = [0, 1, 2, 3, 4, 5, 6, 7];
 // 4: 188-193 (3%), 5: 194-197 (2%), 6: 198-199 (1%), 7: 200 (0.5%)
 define('REGISTRATION_RANDOM_MAX', 200);
 $REGISTRATION_ELEMENT_THRESHOLDS = [100, 150, 175, 187, 193, 197, 199, 200];
+
+// =============================================================================
+// PRESTIGE SYSTEM
+// =============================================================================
+define('PRESTIGE_PRODUCTION_BONUS', 1.05);    // +5% resource production
+define('PRESTIGE_COMBAT_BONUS', 1.05);        // +5% combat stats
+define('PRESTIGE_PP_ACTIVE_FINAL_WEEK', 5);   // PP for logging in during final week
+define('PRESTIGE_PP_ATTACK_THRESHOLD', 10);   // Min attacks for attack activity bonus
+define('PRESTIGE_PP_ATTACK_BONUS', 5);        // PP for reaching attack threshold
+define('PRESTIGE_PP_TRADE_THRESHOLD', 20);    // Min trade volume for trade activity bonus
+define('PRESTIGE_PP_TRADE_BONUS', 3);         // PP for reaching trade threshold
+define('PRESTIGE_PP_DONATION_BONUS', 2);      // PP for donating energy
+// Rank bonuses (awarded by final leaderboard position)
+$PRESTIGE_RANK_BONUSES = [
+    5  => 50,  // Top 5
+    10 => 30,  // Top 10
+    25 => 20,  // Top 25
+    50 => 10,  // Top 50
+];
+
+// =============================================================================
+// SESSION & SECURITY
+// =============================================================================
+define('SESSION_IDLE_TIMEOUT', SECONDS_PER_HOUR);        // 3600s = 1 hour
+define('SESSION_REGEN_INTERVAL', 1800);                   // 30 minutes
+define('ONLINE_UPDATE_THROTTLE_SECONDS', 60);             // Throttle online status updates
+define('SEASON_MAINTENANCE_PAUSE_SECONDS', SECONDS_PER_DAY); // 24h between season phases
+define('VISITOR_SESSION_CLEANUP_SECONDS', 3 * SECONDS_PER_HOUR); // 3 hours
+
+// =============================================================================
+// RATE LIMITING
+// =============================================================================
+define('RATE_LIMIT_LOGIN_MAX', 10);           // Max login attempts per window
+define('RATE_LIMIT_LOGIN_WINDOW', 300);       // 5 minutes
+define('RATE_LIMIT_REGISTER_MAX', 3);         // Max registrations per window
+define('RATE_LIMIT_REGISTER_WINDOW', SECONDS_PER_HOUR); // 1 hour
+
+// =============================================================================
+// USER INPUT VALIDATION
+// =============================================================================
+define('PASSWORD_MIN_LENGTH', 8);
+define('LOGIN_MIN_LENGTH', 3);
+define('LOGIN_MAX_LENGTH', 20);
+
+// =============================================================================
+// ACCOUNT / VACATION / PROFILE
+// =============================================================================
+define('VACATION_MIN_ADVANCE_SECONDS', 3 * SECONDS_PER_DAY); // 3 days notice
+define('PROFILE_IMAGE_MAX_SIZE_BYTES', 2000000);  // 2MB
+define('PROFILE_IMAGE_MAX_DIMENSION_PX', 150);
+
+// =============================================================================
+// MAP DISPLAY
+// =============================================================================
+define('MAP_TILE_SIZE_PX', 80);
+$MAP_ICON_DIVISORS = [16, 8, 4, 2]; // Fractions of VICTORY_POINTS_TOTAL for icon sizes
+
+// =============================================================================
+// TUTORIAL
+// =============================================================================
+define('TUTORIAL_STARTER_MOLECULE_TOTAL_ATOMS', 1000);
+
+// =============================================================================
+// LEADERBOARD / ARCHIVES / PAGINATION
+// =============================================================================
+define('LEADERBOARD_PAGE_SIZE', 20);
+define('SEASON_ARCHIVE_TOP_N', 20);
+define('MESSAGES_PER_PAGE', 15);
+define('REPORTS_PER_PAGE', 15);
+define('FORUM_POSTS_PER_PAGE', 10);
+
+// =============================================================================
+// ADMIN RATE LIMITS
+// =============================================================================
+define('RATE_LIMIT_ADMIN_MAX', 5);
+define('RATE_LIMIT_ADMIN_WINDOW', 300);
+
+// =============================================================================
+// MARKET DISPLAY
+// =============================================================================
+define('MARKET_HISTORY_LIMIT', 1000);
 
 // =============================================================================
 // LIEUR BONUS FORMULA

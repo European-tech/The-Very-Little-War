@@ -159,9 +159,9 @@ function mepConstructions($liste)
             }
 
             if ($placeDepot >= $liste['coutEnergie'] and $bool1 == 1) {
-                $max = 3600 * ($liste['coutEnergie'] - $ressources['energie']) / $revenu['energie'];
+                $max = SECONDS_PER_HOUR * ($liste['coutEnergie'] - $ressources['energie']) / $revenu['energie'];
                 foreach ($nomsRes as $num => $ressource) {
-                    $max = max(3600 * ($liste['cout' . ucfirst($ressource)] - $ressources[$ressource]) / $revenu[$ressource], $max);
+                    $max = max(SECONDS_PER_HOUR * ($liste['cout' . ucfirst($ressource)] - $ressources[$ressource]) / $revenu[$ressource], $max);
                 }
                 $augmenter =  'Assez de ressources le ' . date('d/m/Y', time() + $max) . ' à ' . date('H\hi', time() + $max);
             } else {

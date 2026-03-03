@@ -7,7 +7,7 @@
 function statut($joueur)
 {
     global $base;
-    $actifs = dbFetchOne($base, 'SELECT count(*) AS nb FROM membre WHERE derniereConnexion >= ? AND x!=-1000 AND login=?', 'is', (time() - 2678400), $joueur);
+    $actifs = dbFetchOne($base, 'SELECT count(*) AS nb FROM membre WHERE derniereConnexion >= ? AND x!=-1000 AND login=?', 'is', (time() - ACTIVE_PLAYER_THRESHOLD), $joueur);
 
     if ($actifs['nb'] == 1) {
         return 1;
@@ -19,7 +19,7 @@ function statut($joueur)
 function compterActifs()
 {
     global $base;
-    $nb = dbFetchOne($base, 'SELECT count(*) AS nb FROM membre WHERE derniereConnexion >= ? AND x!=-1000', 'i', (time() - 2678400));
+    $nb = dbFetchOne($base, 'SELECT count(*) AS nb FROM membre WHERE derniereConnexion >= ? AND x!=-1000', 'i', (time() - ACTIVE_PLAYER_THRESHOLD));
 
     return $nb['nb'];
 }
@@ -27,26 +27,16 @@ function compterActifs()
 function inscrire($pseudo, $mdp, $mail)
 {
     global $base;
+    global $REGISTRATION_ELEMENT_THRESHOLDS;
     $data1 = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
     $nbinscrits = $data1['inscrits'] + 1;
 
-    $alea = mt_rand(1, 200);
-    if ($alea <= 100) {
-        $alea = 0;
-    } elseif ($alea > 100 && $alea <= 150) {
-        $alea = 1;
-    } elseif ($alea > 150 && $alea <= 175) {
-        $alea = 2;
-    } elseif ($alea > 175 && $alea <= 187) {
-        $alea = 3;
-    } elseif ($alea > 187 && $alea <= 193) {
-        $alea = 4;
-    } elseif ($alea > 193 && $alea <= 197) {
-        $alea = 5;
-    } elseif ($alea > 197 && $alea <= 199) {
-        $alea = 6;
-    } else {
-        $alea = 7;
+    $alea = mt_rand(1, REGISTRATION_RANDOM_MAX);
+    foreach ($REGISTRATION_ELEMENT_THRESHOLDS as $index => $threshold) {
+        if ($alea <= $threshold) {
+            $alea = $index;
+            break;
+        }
     }
 
     $safePseudo = antihtml(trim($pseudo));
@@ -192,7 +182,7 @@ function initPlayer($joueur)
 
     $max = 0;
     foreach ($nomsRes as $num => $ressource) {
-        $max = max($max, 3600 * ($placeDepot - $ressources[$ressource]) / max(1, $revenu[$ressource]));
+        $max = max($max, SECONDS_PER_HOUR * ($placeDepot - $ressources[$ressource]) / max(1, $revenu[$ressource]));
     }
 
     $production = '<strong><span id="nbPointsRestants">' . $constructions['pointsProducteurRestants'] . '</span> points</strong> à placer<br/><form method="post" action="constructions.php" name="formPointsProducteur">';
@@ -217,7 +207,7 @@ function initPlayer($joueur)
     $bonusDuplicateur = 1;
     if ($autre['idalliance'] > 0) {
         $duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $autre['idalliance']);
-        $bonusDuplicateur = 1 + ($duplicateur['duplicateur'] / 100);
+        $bonusDuplicateur = 1 + ($duplicateur['duplicateur'] * DUPLICATEUR_BONUS_PER_LEVEL);
     }
 
     $productionCondenseur = '<strong><span id="nbPointsCondenseurRestants">' . $constructions['pointsCondenseurRestants'] . '</span> points</strong> à placer<br/><form method="post" action="constructions.php" name="formPointsCondenseur">';
@@ -256,9 +246,9 @@ function initPlayer($joueur)
     }
 
     if ($niveauActuel['niveau'] == 1) {
-        $tempsGenerateur = 10;
+        $tempsGenerateur = $BUILDING_CONFIG['generateur']['time_level1'];
     } else {
-        $tempsGenerateur = round(60 * pow($niveauActuel['niveau'], 1.5));
+        $tempsGenerateur = round($BUILDING_CONFIG['generateur']['time_base'] * pow($niveauActuel['niveau'], $BUILDING_CONFIG['generateur']['time_exp']));
     }
 
     // producteur
@@ -269,9 +259,9 @@ function initPlayer($joueur)
     }
 
     if ($niveauActuel1['niveau'] == 1) {
-        $tempsProducteur = 10;
+        $tempsProducteur = $BUILDING_CONFIG['producteur']['time_level1'];
     } else {
-        $tempsProducteur = round(40 * pow($niveauActuel1['niveau'], 1.5));
+        $tempsProducteur = round($BUILDING_CONFIG['producteur']['time_base'] * pow($niveauActuel1['niveau'], $BUILDING_CONFIG['producteur']['time_exp']));
     }
 
     // depot
@@ -332,7 +322,7 @@ function initPlayer($joueur)
             'niveau' => $constructions['generateur'],
             'revenu' => nombreEnergie('<span style="color:green" >+' . chiffrePetit(revenuEnergie($constructions['generateur'], $joueur, 4)) . '/h</span>'),
             'revenu1' => nombreEnergie('<span style="color:green" >+' . chiffrePetit(revenuEnergie($niveauActuel['niveau'] + 1, $joueur, 4)) . '/h</span>'),
-            'effetSup' => '<br/><br/><strong>Stockage plein : </strong>' . date('d/m/Y', time() + 3600 * ($placeDepot - $ressources['energie']) / $revenu['energie']) . ' à ' . date('H\hi', time() + 3600 * ($placeDepot - $ressources['energie']) / $revenuEnergie),
+            'effetSup' => '<br/><br/><strong>Stockage plein : </strong>' . date('d/m/Y', time() + SECONDS_PER_HOUR * ($placeDepot - $ressources['energie']) / $revenu['energie']) . ' à ' . date('H\hi', time() + SECONDS_PER_HOUR * ($placeDepot - $ressources['energie']) / $revenuEnergie),
             'description' => 'Le générateur <strong>produit de l\'énergie</strong>.',
             'coutEnergie' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['generateur']['cost_energy_base'] * pow($niveauActuel['niveau'], $BUILDING_CONFIG['generateur']['cost_energy_exp'])),
             'coutAtomes' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['generateur']['cost_atoms_base'] * pow($niveauActuel['niveau'], $BUILDING_CONFIG['generateur']['cost_atoms_exp'])),
@@ -375,7 +365,7 @@ function initPlayer($joueur)
             'description' => 'Le stockage est l\'endroit où sont stockés les ressources. Il détermine donc <strong>la quantité maximale de ressources</strong> que l\'on peut avoir.',
             'coutEnergie' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['depot']['cost_energy_base'] * pow($niveauActuelDepot['niveau'], $BUILDING_CONFIG['depot']['cost_energy_exp'])),
             'points' => $BUILDING_CONFIG['depot']['points_base'] + floor($niveauActuelDepot['niveau'] * $BUILDING_CONFIG['depot']['points_level_factor']),
-            'tempsConstruction' => round(80 * pow($niveauActuelDepot['niveau'], 1.5)),
+            'tempsConstruction' => round($BUILDING_CONFIG['depot']['time_base'] * pow($niveauActuelDepot['niveau'], $BUILDING_CONFIG['depot']['time_exp'])),
             'vie' => $constructions['vieDepot'],
             'vieMax' => pointsDeVie($constructions['depot'])
         ],
@@ -387,13 +377,13 @@ function initPlayer($joueur)
             'image' => 'images/batiments/champdeforce.png',
             'progressBar' => true,
             'niveau' => $constructions['champdeforce'],
-            'revenu' => chip('+' . floor($bonusDuplicateur * $constructions['champdeforce'] * 2) . '%', '<img src="images/batiments/shield.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
-            'revenu1' => chip('+' . floor($bonusDuplicateur * ($niveauActuelChampDeForce['niveau'] + 1) * 2) . '%', '<img src="images/batiments/shield.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
+            'revenu' => chip('+' . floor($bonusDuplicateur * $constructions['champdeforce'] * CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL) . '%', '<img src="images/batiments/shield.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
+            'revenu1' => chip('+' . floor($bonusDuplicateur * ($niveauActuelChampDeForce['niveau'] + 1) * CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL) . '%', '<img src="images/batiments/shield.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
             'effetSup' => '',
             'description' => 'Le champ de force vous protège des attaques adverses en donnant un <strong>bonus de défense</strong> lorsque vous êtes attaqué. Il prend aussi <strong>les dégâts des attaques adverses</strong> en premier si son niveau est superieur aux autres bâtiments.',
             'coutCarbone' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['champdeforce']['cost_carbone_base'] * pow($niveauActuelChampDeForce['niveau'], $BUILDING_CONFIG['champdeforce']['cost_carbone_exp'])),
             'points' => $BUILDING_CONFIG['champdeforce']['points_base'] + floor($niveauActuelChampDeForce['niveau'] * $BUILDING_CONFIG['champdeforce']['points_level_factor']),
-            'tempsConstruction' => round(20 * pow($niveauActuelChampDeForce['niveau'] + 2, 1.7)),
+            'tempsConstruction' => round($BUILDING_CONFIG['champdeforce']['time_base'] * pow($niveauActuelChampDeForce['niveau'] + $BUILDING_CONFIG['champdeforce']['time_level_offset'], $BUILDING_CONFIG['champdeforce']['time_exp'])),
             'vie' => $constructions['vieChampdeforce'],
             'vieMax' => vieChampDeForce($constructions['champdeforce'])
         ],
@@ -404,13 +394,13 @@ function initPlayer($joueur)
             'image' => 'images/batiments/ionisateur.png',
             'progressBar' => false,
             'niveau' => $constructions['ionisateur'],
-            'revenu' => chip('+' . floor($bonusDuplicateur * $constructions['ionisateur'] * 2) . '%', '<img src="images/batiments/sword.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
-            'revenu1' => chip('+' . floor($bonusDuplicateur * ($niveauActuelIonisateur['niveau'] + 1) * 2) . '%', '<img src="images/batiments/sword.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
+            'revenu' => chip('+' . floor($bonusDuplicateur * $constructions['ionisateur'] * IONISATEUR_COMBAT_BONUS_PER_LEVEL) . '%', '<img src="images/batiments/sword.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
+            'revenu1' => chip('+' . floor($bonusDuplicateur * ($niveauActuelIonisateur['niveau'] + 1) * IONISATEUR_COMBAT_BONUS_PER_LEVEL) . '%', '<img src="images/batiments/sword.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
             'effetSup' => '',
             'description' => 'L\'ionisateur améliore votre capacité offensive en donnant un <strong>bonus d\'attaque</strong> à vos molécules.',
             'coutOxygene' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['ionisateur']['cost_oxygene_base'] * pow($niveauActuelIonisateur['niveau'], $BUILDING_CONFIG['ionisateur']['cost_oxygene_exp'])),
             'points' => $BUILDING_CONFIG['ionisateur']['points_base'] + floor($niveauActuelIonisateur['niveau'] * $BUILDING_CONFIG['ionisateur']['points_level_factor']),
-            'tempsConstruction' => round(20 * pow($niveauActuelIonisateur['niveau'] + 2, 1.7))
+            'tempsConstruction' => round($BUILDING_CONFIG['ionisateur']['time_base'] * pow($niveauActuelIonisateur['niveau'] + $BUILDING_CONFIG['ionisateur']['time_level_offset'], $BUILDING_CONFIG['ionisateur']['time_exp']))
         ],
 
         'condenseur' => [
@@ -428,7 +418,7 @@ function initPlayer($joueur)
             'coutEnergie' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['condenseur']['cost_energy_base'] * pow($niveauActuelCondenseur['niveau'], $BUILDING_CONFIG['condenseur']['cost_energy_exp'])),
             'coutAtomes' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['condenseur']['cost_atoms_base'] * pow($niveauActuelCondenseur['niveau'], $BUILDING_CONFIG['condenseur']['cost_atoms_exp'])),
             'points' => $BUILDING_CONFIG['condenseur']['points_base'] + floor($niveauActuelCondenseur['niveau'] * $BUILDING_CONFIG['condenseur']['points_level_factor']),
-            'tempsConstruction' => round(120 * pow($niveauActuelCondenseur['niveau'] + 1, 1.6))
+            'tempsConstruction' => round($BUILDING_CONFIG['condenseur']['time_base'] * pow($niveauActuelCondenseur['niveau'] + $BUILDING_CONFIG['condenseur']['time_level_offset'], $BUILDING_CONFIG['condenseur']['time_exp']))
         ],
 
         'lieur' => [
@@ -443,7 +433,7 @@ function initPlayer($joueur)
             'description' => 'Le lieur forme des liaisons entre atomes afin de créer des molécules. Il permet ainsi de <strong>réduire le temps de formation des molécules</strong> de votre armée.',
             'coutAzote' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['lieur']['cost_azote_base'] * pow($niveauActuelLieur['niveau'], $BUILDING_CONFIG['lieur']['cost_azote_exp'])),
             'points' => $BUILDING_CONFIG['lieur']['points_base'] + floor($niveauActuelLieur['niveau'] * $BUILDING_CONFIG['lieur']['points_level_factor']),
-            'tempsConstruction' => round(100 * pow($niveauActuelLieur['niveau'] + 1, 1.5))
+            'tempsConstruction' => round($BUILDING_CONFIG['lieur']['time_base'] * pow($niveauActuelLieur['niveau'] + $BUILDING_CONFIG['lieur']['time_level_offset'], $BUILDING_CONFIG['lieur']['time_exp']))
         ],
 
 
@@ -453,13 +443,13 @@ function initPlayer($joueur)
             'image' => 'images/batiments/stabilisateur.png',
             'progressBar' => false,
             'niveau' => $constructions['stabilisateur'],
-            'revenu' => ($constructions['stabilisateur'] * 0.5) . '% de réduction des chances de disparition des molécules',
-            'revenu1' => (($niveauActuelStabilisateur['niveau'] + 1) * 0.5) . '% de réduction des chances de disparition des molécules',
+            'revenu' => ($constructions['stabilisateur'] * $BUILDING_CONFIG['stabilisateur']['stability_per_level']) . '% de réduction des chances de disparition des molécules',
+            'revenu1' => (($niveauActuelStabilisateur['niveau'] + 1) * $BUILDING_CONFIG['stabilisateur']['stability_per_level']) . '% de réduction des chances de disparition des molécules',
             'effetSup' => '',
             'description' => 'Le stabilisateur permet à vos <strong>molécules d\'être plus stables</strong>, c\'est à dire qu\'elles disparaitront au bout d\'un temps plus long',
             'coutAtomes' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['stabilisateur']['cost_atoms_base'] * pow($niveauActuelStabilisateur['niveau'], $BUILDING_CONFIG['stabilisateur']['cost_atoms_exp'])),
             'points' => $BUILDING_CONFIG['stabilisateur']['points_base'] + floor($niveauActuelStabilisateur['niveau'] * $BUILDING_CONFIG['stabilisateur']['points_level_factor']),
-            'tempsConstruction' => round(120 * pow($niveauActuelStabilisateur['niveau'] + 1, 1.5))
+            'tempsConstruction' => round($BUILDING_CONFIG['stabilisateur']['time_base'] * pow($niveauActuelStabilisateur['niveau'] + $BUILDING_CONFIG['stabilisateur']['time_level_offset'], $BUILDING_CONFIG['stabilisateur']['time_exp']))
         ],
 
         'coffrefort' => [

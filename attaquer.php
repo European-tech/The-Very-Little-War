@@ -15,7 +15,7 @@ foreach ($paliersTerreur as $num => $palier) {
     }
 }
 
-$coutPourUnAtome = 0.15 * (1 - $bonus / 100);
+$coutPourUnAtome = ATTACK_ENERGY_COST_FACTOR * (1 - $bonus / 100);
 
 if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
     csrfCheck();
@@ -30,7 +30,7 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
 
 
                 $distance = pow(pow($membre['x'] - $membreJoueur['x'], 2) + pow($membre['y'] - $membreJoueur['y'], 2), 0.5);
-                $tempsTrajet = round($distance / $vitesseEspionnage * 3600);
+                $tempsTrajet = round($distance / $vitesseEspionnage * SECONDS_PER_HOUR);
 
                 $now = time();
                 dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,?,?)', 'ssiiiisi',
@@ -128,7 +128,7 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                             if ($moleculesAttaque['formule'] != "Vide" && $_POST['nbclasse' . $c] > 0) {
                                 $distance = pow(pow($membre['x'] - $positions['x'], 2) + pow($membre['y'] - $positions['y'], 2), 0.5);
-                                $tempsTrajet = max($tempsTrajet, round($distance / vitesse($moleculesAttaque['chlore'], $niveauchlore) * 3600));
+                                $tempsTrajet = max($tempsTrajet, round($distance / vitesse($moleculesAttaque['chlore'], $niveauchlore) * SECONDS_PER_HOUR));
                             }
                             $troupes = $troupes . $_POST['nbclasse' . $c] . ';';
 
@@ -265,7 +265,7 @@ if (!isset($_GET['type'])) {
 
 if ($_GET['type'] == 0) {
     debutCarte("Carte" . aide("carte"), "", false, 'conteneurCarte');
-    $tailleTile = 80;
+    $tailleTile = MAP_TILE_SIZE_PX;
     $centre = ['x' => $membre['x'], 'y' => $membre['y']];
 
     $tailleCarte = dbFetchOne($base, 'SELECT tailleCarte FROM statistiques');
@@ -336,16 +336,13 @@ if ($_GET['type'] == 0) {
         for ($i = 0; $i < $tailleCarte['tailleCarte']; $i++) {
             for ($j = 0; $j < $tailleCarte['tailleCarte']; $j++) {
                 if ($carte[$i][$j] != 0) {
-                    if ($carte[$i][$j][2] <= floor($nbPointsVictoire / 16)) {
-                        $image = "petit.png";
-                    } elseif ($carte[$i][$j][2] <= floor($nbPointsVictoire / 8)) {
-                        $image = "moyen.png";
-                    } elseif ($carte[$i][$j][2] <= floor($nbPointsVictoire / 4)) {
-                        $image = "grand.png";
-                    } elseif ($carte[$i][$j][2] <= floor($nbPointsVictoire / 2)) {
-                        $image = "tgrand.png";
-                    } else {
-                        $image = "geant.png";
+                    $mapImages = ["petit.png", "moyen.png", "grand.png", "tgrand.png", "geant.png"];
+                    $image = $mapImages[count($MAP_ICON_DIVISORS)]; // default to largest
+                    foreach ($MAP_ICON_DIVISORS as $idx => $divisor) {
+                        if ($carte[$i][$j][2] <= floor($nbPointsVictoire / $divisor)) {
+                            $image = $mapImages[$idx];
+                            break;
+                        }
                     }
 
                     if ($carte[$i][$j][3] == 'soi') {
@@ -476,7 +473,7 @@ if (isset($_GET['id'])) {
 
             $c = 1;
             while ($molecules = mysqli_fetch_array($ex)) {
-                echo 'tempsAttaque[' . ($c - 1) . '] = ' . round($distance / vitesse($molecules['chlore'], $niveauchlore) * 3600) . ';';
+                echo 'tempsAttaque[' . ($c - 1) . '] = ' . round($distance / vitesse($molecules['chlore'], $niveauchlore) * SECONDS_PER_HOUR) . ';';
                 echo 'document.getElementById("nbclasse' . $molecules['numeroclasse'] . '").addEventListener("input",function(){
                         var nbUnites = document.getElementById("nbclasse' . $molecules['numeroclasse'] . '").value;
                         if(nbUnites > 0){
@@ -515,7 +512,7 @@ if (isset($_GET['id'])) {
             echo '<br/><br/>';
 
             echo important("Coût");
-            echo nombreTemps(affichageTemps(3600 * pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5) / $vitesseEspionnage));
+            echo nombreTemps(affichageTemps(SECONDS_PER_HOUR * pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5) / $vitesseEspionnage));
 
             echo '<input type="hidden" name="joueurAEspionner" value="' . htmlspecialchars($joueur['login'], ENT_QUOTES, 'UTF-8') . '"/><br/><br/>';
             echo submit(['titre' => 'Espionner', 'image' => 'images/attaquer/espionner.png', 'form' => 'formEspionner']);

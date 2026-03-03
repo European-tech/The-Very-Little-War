@@ -52,7 +52,7 @@ function calculatePrestigePoints($login) {
     // Check if player was active in the final week (logged in within last 7 days)
     $lastActive = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login=?', 's', $login);
     if ($lastActive && (time() - $lastActive['timestamp']) < SECONDS_PER_WEEK) {
-        $pp += 5; // Active during final week
+        $pp += PRESTIGE_PP_ACTIVE_FINAL_WEEK;
     }
 
     // Medal tiers: count tiers reached dynamically from raw stats in `autre` table
@@ -76,9 +76,9 @@ function calculatePrestigePoints($login) {
         }
 
         // Activity-based PP
-        if ($autre['nbattaques'] >= 10) $pp += 5;
-        if ($autre['tradeVolume'] >= 20) $pp += 3;
-        if ($autre['energieDonnee'] > 0) $pp += 2;
+        if ($autre['nbattaques'] >= PRESTIGE_PP_ATTACK_THRESHOLD) $pp += PRESTIGE_PP_ATTACK_BONUS;
+        if ($autre['tradeVolume'] >= PRESTIGE_PP_TRADE_THRESHOLD) $pp += PRESTIGE_PP_TRADE_BONUS;
+        if ($autre['energieDonnee'] > 0) $pp += PRESTIGE_PP_DONATION_BONUS;
     }
 
     return $pp;
@@ -88,7 +88,7 @@ function calculatePrestigePoints($login) {
  * Award prestige points to all active players. Call before remiseAZero().
  */
 function awardPrestigePoints() {
-    global $base;
+    global $base, $PRESTIGE_RANK_BONUSES;
 
     // Get all players ranked by totalPoints (for rank bonus)
     $players = dbQuery($base, 'SELECT login, totalPoints FROM autre ORDER BY totalPoints DESC');
@@ -96,15 +96,12 @@ function awardPrestigePoints() {
     while ($player = mysqli_fetch_array($players)) {
         $pp = calculatePrestigePoints($player['login']);
 
-        // Rank bonus: top 50 get extra PP
-        if ($rank <= 5) {
-            $pp += 50;
-        } elseif ($rank <= 10) {
-            $pp += 30;
-        } elseif ($rank <= 25) {
-            $pp += 20;
-        } elseif ($rank <= 50) {
-            $pp += 10;
+        // Rank bonus: top players get extra PP
+        foreach ($PRESTIGE_RANK_BONUSES as $cutoff => $bonus) {
+            if ($rank <= $cutoff) {
+                $pp += $bonus;
+                break;
+            }
         }
 
         if ($pp > 0) {
@@ -187,7 +184,7 @@ function purchasePrestigeUnlock($login, $unlockKey) {
  */
 function prestigeProductionBonus($login) {
     if (hasPrestigeUnlock($login, 'experimente')) {
-        return 1.05; // +5%
+        return PRESTIGE_PRODUCTION_BONUS;
     }
     return 1.0;
 }
@@ -197,7 +194,7 @@ function prestigeProductionBonus($login) {
  */
 function prestigeCombatBonus($login) {
     if (hasPrestigeUnlock($login, 'maitre_chimiste')) {
-        return 1.05; // +5%
+        return PRESTIGE_COMBAT_BONUS;
     }
     return 1.0;
 }

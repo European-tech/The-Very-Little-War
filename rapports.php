@@ -38,7 +38,7 @@ if(isset($_GET['rapport'])) {
 	}
 }
 else {
-	$nombreDeRapportsParPage = 15;
+	$nombreDeRapportsParPage = REPORTS_PER_PAGE;
 	$totalDesRapports = dbCount($base, 'SELECT COUNT(*) AS nb_rapports FROM rapports WHERE destinataire = ?', 's', $_SESSION['login']);
 	$nombreDePages  = ceil($totalDesRapports / $nombreDeRapportsParPage); // Calcul du nombre de pages créées
 	// Puis on fait une boucle pour écrire les liens vers chacune des pages

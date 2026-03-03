@@ -9,7 +9,7 @@ require_once(__DIR__ . '/../includes/logger.php');
 
 if (isset($_POST['motdepasseadmin'])) {
 	csrfCheck();
-	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'moderation_login', 5, 300)) {
+	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'moderation_login', RATE_LIMIT_ADMIN_MAX, RATE_LIMIT_ADMIN_WINDOW)) {
 		logWarn('MODERATION', 'Moderation login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
 		die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
 	}

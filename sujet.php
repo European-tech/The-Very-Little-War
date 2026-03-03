@@ -40,7 +40,7 @@ if (isset($_GET['id'])) {
 	$getId = (int)$_GET['id'];
 	$ex = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ?', 'i', $getId);
 	$nb_resultats = mysqli_num_rows($ex);
-	$nombreDeSujetsParPage = 10;
+	$nombreDeSujetsParPage = FORUM_POSTS_PER_PAGE;
 	$nombreDePages  = ceil($nb_resultats / $nombreDeSujetsParPage);
 	$page = isset($_GET['page']) ? intval($_GET['page']) : 0;
 	if ($page < 1 || $page > $nombreDePages) {

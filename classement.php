@@ -72,7 +72,7 @@ debutCarte("Classement"); ?>
 <?php
 if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 
-	$nombreDeJoueursParPage = 20;
+	$nombreDeJoueursParPage = LEADERBOARD_PAGE_SIZE;
 
 		if(isset($_SESSION['login'])) {
 			if(isset($pasTrouve) AND $pasTrouve==1) {
@@ -260,7 +260,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 		$allianceJoueur['id'] = -1; // pour ne pas avoir d'erreurs et ne pas mettre de if partout
 	}
 
-	$nombreDeAlliancesParPage = 20;
+	$nombreDeAlliancesParPage = LEADERBOARD_PAGE_SIZE;
 	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_alliances FROM alliances');
 	$totalDesAlliances = $retour['nb_alliances'];
 	$nombreDePages  = ceil($totalDesAlliances / $nombreDeAlliancesParPage);
@@ -415,7 +415,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
         $pages = $premier.' '.$pointsD.' '.$precedent.' <strong>'.$page.'</strong> '.$suivant.' '.$pointsF.' '.$dernier;
 }
 elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
-	$nombreDeGuerresParPage = 20;
+	$nombreDeGuerresParPage = LEADERBOARD_PAGE_SIZE;
 	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_guerres FROM declarations WHERE (pertes1 + pertes2) != 0 AND type=0 AND fin!= 0');
 	$totalDesGuerres = $retour['nb_guerres'];
 	$nombreDePages  = ceil($totalDesGuerres / $nombreDeGuerresParPage);
@@ -456,7 +456,7 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 		<td><?php echo imageClassement($compteur) ; ?></td>
 		<td><?php echo alliance($alliance1['tag']); ?> contre <?php echo alliance($alliance2['tag']); ?></td>
 		<td><?php echo number_format($donnees['pertes1'] + $donnees['pertes2'], 0 , ' ', ' '); ?></td>
-		<td><?php echo round(($donnees['fin'] - $donnees['timestamp'])/86400);?></td>
+		<td><?php echo round(($donnees['fin'] - $donnees['timestamp'])/SECONDS_PER_DAY);?></td>
 		<td><a href="guerre.php?id=<?php echo $donnees['id']; ?>" class="lienVisible"><img src="images/classement/details.png" alt="details" title="Détails"/></a></td>
 		</tr>
 		<?php
@@ -494,7 +494,7 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 
 }
 else {
-	$nombreDeForumParPage = 20;
+	$nombreDeForumParPage = LEADERBOARD_PAGE_SIZE;
 	$nbMembres = dbFetchOne($base, 'SELECT count(*) AS nbMembres FROM membre');
 	$totalDesMembres = $nbMembres['nbMembres'];
 	$nombreDePages  = ceil($totalDesMembres / $nombreDeForumParPage);

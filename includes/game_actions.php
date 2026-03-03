@@ -337,7 +337,7 @@ function updateActions($joueur)
                 $nDef = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $actions['defenseur']);
                 // Radar research reduces the neutrino threshold for successful espionage
                 $radarDiscount = 1 - allianceResearchBonus($actions['attaquant'], 'espionage_cost');
-                $espionageThreshold = ($nDef['neutrinos'] / 2) * $radarDiscount;
+                $espionageThreshold = ($nDef['neutrinos'] * ESPIONAGE_SUCCESS_RATIO) * $radarDiscount;
 
                 if ($espionageThreshold < $actions['nombreneutrinos']) {
                     $exEspionnage = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);

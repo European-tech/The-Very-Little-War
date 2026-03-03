@@ -127,16 +127,16 @@ function affichageTemps($secondes, $petitTemps = false)
         return $secondes . 's';
     }
 
-    if ($secondes >= 24 * 2 * 3600) {
-        return (floor($secondes / 3600 / 24 * 100) / 100) . ' jours';
+    if ($secondes >= 2 * SECONDS_PER_DAY) {
+        return (floor($secondes / SECONDS_PER_HOUR / 24 * 100) / 100) . ' jours';
     }
 
-    $heures = intval($secondes / 3600) . ':';
-    $minutes = intval(($secondes % 3600) / 60) . ':';
+    $heures = intval($secondes / SECONDS_PER_HOUR) . ':';
+    $minutes = intval(($secondes % SECONDS_PER_HOUR) / 60) . ':';
     if ($minutes < 10) {
         $minutes = '0' . $minutes;
     }
-    $secondes = intval((($secondes % 3600) % 60));
+    $secondes = intval((($secondes % SECONDS_PER_HOUR) % 60));
     if ($secondes < 10) {
         $secondes = '0' . $secondes;
     }

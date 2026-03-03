@@ -16,7 +16,7 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
     }
 
     // Regenerate session ID periodically (every 30 min) to limit session fixation window
-    if (!isset($_SESSION['_last_regeneration']) || (time() - $_SESSION['_last_regeneration']) > 1800) {
+    if (!isset($_SESSION['_last_regeneration']) || (time() - $_SESSION['_last_regeneration']) > SESSION_REGEN_INTERVAL) {
         session_regenerate_id(true);
         $_SESSION['_last_regeneration'] = time();
     }
@@ -44,7 +44,7 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
 }
 
 // Idle timeout: 1 hour of inactivity
-if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > 3600) {
+if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > SESSION_IDLE_TIMEOUT) {
     session_destroy();
     header('Location: index.php?erreur=' . urlencode('Session expirée. Veuillez vous reconnecter.'));
     exit();
@@ -71,7 +71,7 @@ if (isset($_GET['erreur'])) {
 }
 //////////////////////////////////////////////////////////// Gestion des connectés
 // Throttle: only update once per 60 seconds to reduce DB writes
-if (!isset($_SESSION['last_online_update']) || time() - $_SESSION['last_online_update'] > 60) {
+if (!isset($_SESSION['last_online_update']) || time() - $_SESSION['last_online_update'] > ONLINE_UPDATE_THROTTLE_SECONDS) {
     //Vérification si l'adresse IP est dans la table
     $donnees = dbFetchOne($base, 'SELECT COUNT(*) AS nbre_entrees FROM connectes WHERE ip = ?', 's', $_SERVER['REMOTE_ADDR']);
 
@@ -86,7 +86,7 @@ if (!isset($_SESSION['last_online_update']) || time() - $_SESSION['last_online_u
     }
 
     // Toutes les entrées vieilles de plus de 5 minutes sont supprimées
-    $timestamp_5min = time() - (60 * 5); // 60 * 5 = nombre de secondes écoulées en 5 minutes
+    $timestamp_5min = time() - ONLINE_TIMEOUT_SECONDS;
     dbExecute($base, 'DELETE FROM connectes WHERE timestamp < ?', 'i', $timestamp_5min);
 
     $_SESSION['last_online_update'] = time();
@@ -137,7 +137,7 @@ $debut = $debutRow;
 $maintenanceRow = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
 $maintenance = $maintenanceRow;
 
-if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
+if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAINTENANCE_PAUSE_SECONDS) {
     // Phase 2: 24h have passed since maintenance was set, proceed with full reset
     // Advisory lock prevents concurrent resets when multiple players connect simultaneously
     $lockResult = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_reset', 0) as locked", '');
@@ -149,7 +149,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
     //archivage de la partie (20 meilleurs)
     $chaine = '';
     $vainqueurManche = null;
-    $classement = dbQuery($base, 'SELECT * FROM autre ORDER BY totalPoints DESC LIMIT 0, 20');
+    $classement = dbQuery($base, 'SELECT * FROM autre ORDER BY totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
     $compteur = 0;
     while ($data = mysqli_fetch_array($classement)) {
         $sql4Result = dbQuery($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $data['login']);
@@ -172,7 +172,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
     }
 
     //archivage des alliances
-    $classement = dbQuery($base, 'SELECT * FROM alliances ORDER BY pointstotaux DESC LIMIT 0, 20');
+    $classement = dbQuery($base, 'SELECT * FROM alliances ORDER BY pointstotaux DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
     $chaine1 = '';
     while ($data = mysqli_fetch_array($classement)) {
         $req1 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
@@ -183,7 +183,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
     }
 
     //archivage guerres
-    $classement = dbQuery($base, 'SELECT * FROM declarations WHERE pertesTotales != 0 AND type = 0 AND fin != 0 ORDER BY pertesTotales DESC LIMIT 0, 20');
+    $classement = dbQuery($base, 'SELECT * FROM declarations WHERE pertesTotales != 0 AND type = 0 AND fin != 0 ORDER BY pertesTotales DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
     $chaine2 = '';
     while ($data = mysqli_fetch_array($classement)) {
         $alliance1 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id = ?', 'i', $data['alliance1']);
@@ -191,7 +191,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
         $req1 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
         $nbjoueurs = mysqli_num_rows($req1);
         if ($nbjoueurs != 0) {
-            $chaine2 = $chaine2 . '[' . $alliance1['tag'] . ' contre ' . $alliance2['tag'] . ',' . $data['pertesTotales'] . ',' . (($data['fin'] - $data['timestamp']) / 86400) . ',' . $data['id'] . '';
+            $chaine2 = $chaine2 . '[' . $alliance1['tag'] . ' contre ' . $alliance2['tag'] . ',' . $data['pertesTotales'] . ',' . (($data['fin'] - $data['timestamp']) / SECONDS_PER_DAY) . ',' . $data['id'] . '';
         }
     }
 
@@ -318,7 +318,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= 86400) {
         echo json_encode(['error' => 'Le jeu est en maintenance']);
         exit;
     }
-} elseif ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) < 86400) {
+} elseif ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) < SEASON_MAINTENANCE_PAUSE_SECONDS) {
     // Still in maintenance period, 24h have not yet passed
     $erreur = "Une nouvelle partie recommencera dans 24 heures.";
     // Block POST actions during maintenance

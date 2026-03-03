@@ -17,8 +17,8 @@ $aidesAtomes = ['Le carbone augmente la défense de votre molécule. Ce sont les
                'Le brome augmente les points de vie de vos molécules. Lors d\'une attaque, les dégâts infligés par les molécules adverses seront comparés à la vie de vos molécules pour déterminer le nombre de morts.',
                'L\'iode est particulier, cela permet de produire de l\'énergie. Ces molécules seront plutôt destinées à rester chez vous mais devront être défendues par des molécules carbonées pour éviter que vous perdiez toute votre production sur une attaque surprise.'];
 $nbRes = sizeof($nomsRes)-1;
-$nbClasses = 4;
-$nbPointsVictoire = 1000;
+$nbClasses = MAX_MOLECULE_CLASSES;
+$nbPointsVictoire = VICTORY_POINTS_TOTAL;
 
 $paliersMedailles = ['Bronze','Argent','Or','Emeraude','Saphir','Rubis','Diamant','Diamant Rouge'];
 $imagesMedailles = ['medaillebronze.png','medailleargent.png','medailleor.png','emeraude.png','saphir.png','rubis.png','diamant.png','diamantrouge.png'];
@@ -39,15 +39,15 @@ $paliersBombe = [1,2,3,4,5,6,8,12];
 $paliersTroll = [0,1,2,3,4,5,6,7];
 
 //EQUIPES
-$joueursEquipe = 20;
+$joueursEquipe = MAX_ALLIANCE_MEMBERS;
 
 //MARCHE
 
-$vitesseMarchands = 20;
+$vitesseMarchands = MERCHANT_SPEED;
 
 //ESPIONNAGE
-$vitesseEspionnage = 20;
-$coutNeutrino = 50;
+$vitesseEspionnage = ESPIONAGE_SPEED;
+$coutNeutrino = NEUTRINO_COST;
 
 // Pre-computed hash. To change: php -r "echo password_hash('new-password', PASSWORD_DEFAULT);"
 if (!defined('ADMIN_PASSWORD_HASH')) {

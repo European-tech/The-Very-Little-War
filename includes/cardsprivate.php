@@ -107,7 +107,7 @@ if($tuto['niveaututo'] < 10) {
             <form action="comptetest.php" method="post" name="inscription">'.
                 csrfField().
                 debutListe(true).
-                    item(['retour' => true, 'floating' => true, 'media' => '<img alt="login" src="images/accueil/player.png" class="w32"/>', 'titre' => 'Login', 'input' => '<input type="text" name="login" id="login" maxlength="13" value="Login">', 'after' => submit(['link' => 'javascript:generate()', 'titre' => 'Générer'])]).
+                    item(['retour' => true, 'floating' => true, 'media' => '<img alt="login" src="images/accueil/player.png" class="w32"/>', 'titre' => 'Login', 'input' => '<input type="text" name="login" id="login" maxlength="'.LOGIN_MAX_LENGTH.'" value="Login">', 'after' => submit(['link' => 'javascript:generate()', 'titre' => 'Générer'])]).
                     item(['retour' => true,'floating' => true, 'media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'titre' => 'E-mail', 'input' => '<input type="text" name="email" id="email" maxlength="25" class="form-control">']).
                     item(['retour' => true,'floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Mot de passe', 'input' => '<input type="password" name="pass" id="pass" class="form-control">']).
                     item(['retour' => true,'floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Confirmation', 'input' => '<input type="password" name="pass_confirm" id="pass_confirm" class="form-control">']).

@@ -79,7 +79,7 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
 
     $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
     $duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-    $cout = round(10 * pow(2.5, ($duplicateur['duplicateur'] + 1)) * (1 - catalystEffect('duplicateur_discount')));
+    $cout = round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, ($duplicateur['duplicateur'] + 1)) * (1 - catalystEffect('duplicateur_discount')));
 
     if (isset($_POST['augmenterDuplicateur'])) {
         csrfCheck();
@@ -424,7 +424,7 @@ if ($_GET['id'] != -1) {
         <?php
         debutListe();
         item(['floating' => true, 'titre' => 'Nom de l\'équipe', 'input' => '<input type="text" name="nomalliance" id="nomalliance"/>']);
-        item(['floating' => true, 'titre' => 'TAG de l\'équipe', 'input' => '<input type="text" name="tagalliance" id="tagalliance" maxlength=10/>']);
+        item(['floating' => true, 'titre' => 'TAG de l\'équipe', 'input' => '<input type="text" name="tagalliance" id="tagalliance" maxlength="<?php echo ALLIANCE_TAG_MAX_LENGTH; ?>"/>']);
         item(['input' => submit(['form' => 'creerallianceForm', 'titre' => 'Créer'])]);
         finListe(); ?>
 
