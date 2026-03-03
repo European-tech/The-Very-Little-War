@@ -25,9 +25,11 @@ function updateActions($joueur)
     // Constructions
     $ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=? AND fin<?', 'si', $joueur, time());
     while ($actions = mysqli_fetch_array($ex)) {
-        augmenterBatiment($actions['batiment'], $joueur);
+        // CAS guard: DELETE first, only process if we claimed it (prevents double-processing)
+        $affected = dbExecute($base, 'DELETE FROM actionsconstruction WHERE id=?', 'i', $actions['id']);
+        if ($affected === 0 || $affected === false) continue; // Already processed by concurrent request
 
-        dbExecute($base, 'DELETE FROM actionsconstruction WHERE id=?', 'i', $actions['id']);
+        augmenterBatiment($actions['batiment'], $joueur);
     }
 
     // Formation
@@ -38,32 +40,39 @@ function updateActions($joueur)
     $neutrinos = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $joueur);
 
     while ($actions = mysqli_fetch_array($ex)) {
-        $molecule = dbFetchOne($base, 'SELECT * FROM molecules WHERE id=?', 's', $actions['idclasse']);
+        $actionId = $actions['id'];
+        $idClasse = $actions['idclasse'];
+        withTransaction($base, function() use ($base, $actionId, $idClasse, $joueur, &$neutrinos) {
+            // CAS guard: lock and re-read action to prevent double-processing
+            $actions = dbFetchOne($base, 'SELECT * FROM actionsformation WHERE id=? FOR UPDATE', 'i', $actionId);
+            if (!$actions) return; // Already processed by concurrent request
 
-        if ($actions['tempsPourUn'] <= 0) {
-            logError("Formation tempsPourUn <= 0 for action " . $actions['id']);
-            dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
-            continue;
-        }
+            $molecule = dbFetchOne($base, 'SELECT * FROM molecules WHERE id=?', 's', $actions['idclasse']);
 
-        if ($actions['fin'] >= time()) {
-            $derniereFormation = ($actions['nombreDebut'] - $actions['nombreRestant']) * $actions['tempsPourUn'] + $actions['debut'];
-            $formed = floor((time() - $derniereFormation) / $actions['tempsPourUn']);
-            if ($actions['idclasse'] != 'neutrino') {
-                dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ds', ($molecule['nombre'] + $formed), $actions['idclasse']);
-            } else {
-                dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'ds', ($neutrinos['neutrinos'] + $formed), $joueur);
+            if ($actions['tempsPourUn'] <= 0) {
+                logError("Formation tempsPourUn <= 0 for action " . $actions['id']);
+                dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
+                return;
             }
-            dbExecute($base, 'UPDATE actionsformation SET nombreRestant=? WHERE id=?', 'di', ($actions['nombreRestant'] - $formed), $actions['id']);
-        } else {
-            dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
-            if ($actions['idclasse'] != 'neutrino') {
-                dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ds', ($molecule['nombre'] + $actions['nombreRestant']), $actions['idclasse']);
+
+            if ($actions['fin'] >= time()) {
+                $derniereFormation = ($actions['nombreDebut'] - $actions['nombreRestant']) * $actions['tempsPourUn'] + $actions['debut'];
+                $formed = floor((time() - $derniereFormation) / $actions['tempsPourUn']);
+                if ($actions['idclasse'] != 'neutrino') {
+                    dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ds', ($molecule['nombre'] + $formed), $actions['idclasse']);
+                } else {
+                    dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'ds', ($neutrinos['neutrinos'] + $formed), $joueur);
+                }
+                dbExecute($base, 'UPDATE actionsformation SET nombreRestant=? WHERE id=?', 'di', ($actions['nombreRestant'] - $formed), $actions['id']);
             } else {
-                dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'ds', ($neutrinos['neutrinos'] + $actions['nombreRestant']), $joueur);
-                //$autre['neutrinos'] = ($neutrinos['neutrinos'] + $actions['nombreRestant']);
+                dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
+                if ($actions['idclasse'] != 'neutrino') {
+                    dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ds', ($molecule['nombre'] + $actions['nombreRestant']), $actions['idclasse']);
+                } else {
+                    dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'ds', ($neutrinos['neutrinos'] + $actions['nombreRestant']), $joueur);
+                }
             }
-        }
+        });
     }
 
     // Attaques
