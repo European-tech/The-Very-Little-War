@@ -73,29 +73,31 @@ function inscrire($pseudo, $mdp, $mail)
 function ajouterPoints($nb, $joueur, $type = 0)
 {
     global $base;
-    $points = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $joueur);
 
     if ($type == 0) {
-        // points de constructions
-        if ($points['points'] + $nb >= 0) {
-            dbExecute($base, 'UPDATE autre SET points=?, totalPoints=? WHERE login=?', 'dds', ($points['points'] + $nb), ($points['totalPoints'] + $nb), $joueur);
+        $result = dbExecute($base, 'UPDATE autre SET points = points + ?, totalPoints = totalPoints + ? WHERE login = ? AND points + ? >= 0', 'ddsd', $nb, $nb, $joueur, $nb);
+        if (mysqli_affected_rows($base) > 0) {
             return $nb;
         }
+        return 0;
     }
+
+    $points = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $joueur);
+
+    // TODO: needs FOR UPDATE lock in calling context
     if ($type == 1) {
-        // points d'attaque — FIX FINDING-GAME-010: clamp at 0 minimum
         $newPoints = max(0, $points['pointsAttaque'] + $nb);
         dbExecute($base, 'UPDATE autre SET pointsAttaque=?, totalPoints=? WHERE login=?', 'dds', $newPoints, ($points['totalPoints'] - pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints)), $joueur);
         return -pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints);
     }
+    // TODO: needs FOR UPDATE lock in calling context
     if ($type == 2) {
-        // points de defense — FIX FINDING-GAME-010: clamp at 0 minimum
         $newPoints = max(0, $points['pointsDefense'] + $nb);
         dbExecute($base, 'UPDATE autre SET pointsDefense=?, totalPoints=? WHERE login=?', 'dds', $newPoints, ($points['totalPoints'] - pointsDefense($points['pointsDefense']) + pointsDefense($newPoints)), $joueur);
         return -pointsDefense($points['pointsDefense']) + pointsDefense($newPoints);
     }
+    // TODO: needs FOR UPDATE lock in calling context
     if ($type == 3) {
-        // points de pillage - now contributes to totalPoints via pointsPillage()
         $newPillage = $points['ressourcesPillees'] + $nb;
         $oldPillageContrib = pointsPillage($points['ressourcesPillees']);
         $newPillageContrib = pointsPillage(max(0, $newPillage));
@@ -796,43 +798,48 @@ function remiseAZero()
     global $nomsRes;
     global $nbRes;
 
-    dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, missions=\'\'');
-    dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?', 'dddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1));
-    dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0');
-    dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0');
-    dbExecute($base, 'UPDATE membre SET timestamp=?', 'i', time());
+    withTransaction($base, function() use ($nomsRes, $nbRes) {
+        global $base;
 
-    $chaine = "";
-    foreach ($nomsRes as $num => $ressource) {
-        $plus = "";
-        if ($num < $nbRes) {
-            $plus = ",";
+        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, missions=\'\'');
+        dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?', 'dddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1));
+        dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0');
+        dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0');
+        dbExecute($base, 'UPDATE membre SET timestamp=?', 'i', time());
+
+        $chaine = "";
+        foreach ($nomsRes as $num => $ressource) {
+            $plus = "";
+            if ($num < $nbRes) {
+                $plus = ",";
+            }
+            $chaine = $chaine . '' . $ressource . '=default' . $plus;
         }
-        $chaine = $chaine . '' . $ressource . '=default' . $plus;
-    }
-    $sql = 'UPDATE ressources SET energie=default, terrain=default, revenuenergie=default, niveauclasse=1, ' . $chaine . '';
-    dbExecute($base, $sql);
-    dbExecute($base, 'DELETE FROM declarations');
-    dbExecute($base, 'DELETE FROM invitations');
-    dbExecute($base, 'DELETE FROM messages');
-    dbExecute($base, 'DELETE FROM rapports');
-    dbExecute($base, 'DELETE FROM actionsconstruction');
-    dbExecute($base, 'DELETE FROM actionsformation');
-    dbExecute($base, 'DELETE FROM actionsenvoi');
-    dbExecute($base, 'DELETE FROM actionsattaques');
+        $sql = 'UPDATE ressources SET energie=default, terrain=default, revenuenergie=default, niveauclasse=1, ' . $chaine . '';
+        dbExecute($base, $sql);
+        dbExecute($base, 'DELETE FROM declarations');
+        dbExecute($base, 'DELETE FROM invitations');
+        dbExecute($base, 'DELETE FROM messages');
+        dbExecute($base, 'DELETE FROM rapports');
+        dbExecute($base, 'DELETE FROM actionsconstruction');
+        dbExecute($base, 'DELETE FROM actionsformation');
+        dbExecute($base, 'DELETE FROM actionsenvoi');
+        dbExecute($base, 'DELETE FROM actionsattaques');
+        dbExecute($base, 'DELETE FROM cours');
+        dbExecute($base, 'DELETE FROM connectes');
+        dbExecute($base, 'DELETE FROM vacances');
+        dbExecute($base, 'DELETE FROM grades');
 
-    dbExecute($base, 'UPDATE statistiques SET nbDerniere=0, tailleCarte=1');
-    dbExecute($base, 'UPDATE membre SET x=-1000, y=-1000'); // on les enleve de la carte, ils sont replacés quand ils se reconnectent
+        dbExecute($base, 'UPDATE statistiques SET nbDerniere=0, tailleCarte=1');
+        dbExecute($base, 'UPDATE membre SET x=-1000, y=-1000');
 
-    // Apply prestige unlocks after reset
-    // Débutant Rapide: players with this unlock start with generateur level 2
-    $prestigePlayers = dbQuery($base, 'SELECT login, unlocks FROM prestige WHERE unlocks LIKE ?', 's', '%debutant_rapide%');
-    if ($prestigePlayers) {
-        while ($pp = mysqli_fetch_array($prestigePlayers)) {
-            dbExecute($base, 'UPDATE constructions SET generateur=2, vieGenerateur=? WHERE login=?', 'ds', pointsDeVie(2), $pp['login']);
+        $prestigePlayers = dbQuery($base, 'SELECT login, unlocks FROM prestige WHERE unlocks LIKE ?', 's', '%debutant_rapide%');
+        if ($prestigePlayers) {
+            while ($pp = mysqli_fetch_array($prestigePlayers)) {
+                dbExecute($base, 'UPDATE constructions SET generateur=2, vieGenerateur=? WHERE login=?', 'ds', pointsDeVie(2), $pp['login']);
+            }
         }
-    }
 
-    // Clean up expired attack cooldowns
-    dbExecute($base, 'DELETE FROM attack_cooldowns');
+        dbExecute($base, 'DELETE FROM attack_cooldowns');
+    });
 }

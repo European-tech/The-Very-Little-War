@@ -26,12 +26,20 @@ while ($classeAttaquant = mysqli_fetch_array($exClasse1)) {
 // recupération des niveaux des atomes
 
 $niveauxAttaquant = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $actions['attaquant']);
+if (!$niveauxAttaquant) {
+	logError("Combat: missing attacker constructions for " . $actions['attaquant'] . " at line " . __LINE__);
+	throw new Exception('Missing attacker constructions');
+}
 $niveauxAttaquant = explode(";", $niveauxAttaquant['pointsProducteur']);
 foreach ($nomsRes as $num => $ressource) {
 	$niveauxAtt[$ressource] = $niveauxAttaquant[$num];
 }
 
 $niveauxDefenseur = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $actions['defenseur']);
+if (!$niveauxDefenseur) {
+	logError("Combat: missing defender constructions for " . $actions['defenseur'] . " at line " . __LINE__);
+	throw new Exception('Missing defender constructions');
+}
 $niveauxDefenseur = explode(";", $niveauxDefenseur['pointsProducteur']);
 foreach ($nomsRes as $num => $ressource) {
 	$niveauxDef[$ressource] = $niveauxDefenseur[$num];
