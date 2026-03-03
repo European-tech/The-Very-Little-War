@@ -239,7 +239,15 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     dbExecute($base, 'INSERT INTO news VALUES(default, ?, ?, ?)', 'ssi', $titre, $contenu, $now);
     } // end vainqueurManche null check
 
+    // Reset complete, disable maintenance mode BEFORE emails
+    // so game stays accessible even if email loop hangs or times out
+    dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
+
+    // Release the advisory lock now that the reset is fully committed
+    dbExecute($base, "SELECT RELEASE_LOCK('tvlw_season_reset')", '');
+
     //envoi des mails (always send — even without winner, notify of reset)
+    // Runs AFTER maintenance cleared — email failures won't lock the game
     $exMails = dbQuery($base, 'SELECT email, login FROM membre');
     while ($donnees = mysqli_fetch_array($exMails)) {
         $mail = $donnees['email']; // Déclaration de l'adresse de destination.
@@ -297,12 +305,6 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         mail($mail, $sujet, $message, $header);
         //==========
     }
-
-    // Reset complete, disable maintenance mode
-    dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
-
-    // Release the advisory lock now that the reset is fully committed
-    dbExecute($base, "SELECT RELEASE_LOCK('tvlw_season_reset')", '');
 
     } // end advisory lock else block
 
