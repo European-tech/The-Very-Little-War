@@ -26,23 +26,27 @@ function updateActions($joueur)
     $ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=? AND fin<?', 'si', $joueur, time());
     while ($actions = mysqli_fetch_array($ex)) {
         // CAS guard: DELETE first, only process if we claimed it (prevents double-processing)
-        $affected = dbExecute($base, 'DELETE FROM actionsconstruction WHERE id=?', 'i', $actions['id']);
-        if ($affected === 0 || $affected === false) continue; // Already processed by concurrent request
-
-        augmenterBatiment($actions['batiment'], $joueur);
+        try {
+            withTransaction($base, function() use ($base, $actions, $joueur) {
+                $affected = dbExecute($base, 'DELETE FROM actionsconstruction WHERE id=?', 'i', $actions['id']);
+                if ($affected === 0 || $affected === false) {
+                    throw new \RuntimeException('already_processed');
+                }
+                augmenterBatiment($actions['batiment'], $joueur);
+            });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'already_processed') continue;
+            throw $e;
+        }
     }
 
     // Formation
 
     $ex = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=? AND debut<?', 'si', $joueur, time()); // toutes les formations qui sont en cours
 
-    //neutrinos
-    $neutrinos = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $joueur);
-
     while ($actions = mysqli_fetch_array($ex)) {
         $actionId = $actions['id'];
-        $idClasse = $actions['idclasse'];
-        withTransaction($base, function() use ($base, $actionId, $idClasse, $joueur, &$neutrinos) {
+        withTransaction($base, function() use ($base, $actionId, $joueur) {
             // CAS guard: lock and re-read action to prevent double-processing
             $actions = dbFetchOne($base, 'SELECT * FROM actionsformation WHERE id=? FOR UPDATE', 'i', $actionId);
             if (!$actions) return; // Already processed by concurrent request
@@ -61,7 +65,7 @@ function updateActions($joueur)
                 if ($actions['idclasse'] != 'neutrino') {
                     dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ds', ($molecule['nombre'] + $formed), $actions['idclasse']);
                 } else {
-                    dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'ds', ($neutrinos['neutrinos'] + $formed), $joueur);
+                    dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'ds', $formed, $joueur);
                 }
                 dbExecute($base, 'UPDATE actionsformation SET nombreRestant=? WHERE id=?', 'di', ($actions['nombreRestant'] - $formed), $actions['id']);
             } else {
@@ -69,7 +73,7 @@ function updateActions($joueur)
                 if ($actions['idclasse'] != 'neutrino') {
                     dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ds', ($molecule['nombre'] + $actions['nombreRestant']), $actions['idclasse']);
                 } else {
-                    dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'ds', ($neutrinos['neutrinos'] + $actions['nombreRestant']), $joueur);
+                    dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'ds', $actions['nombreRestant'], $joueur);
                 }
             }
         });
@@ -481,7 +485,7 @@ function updateActions($joueur)
                 dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
             } else {
                 $actionId = $actions['id'];
-                withTransaction($base, function() use ($base, $actionId, $joueur, $nbsecondes, $molecules, $nbClasses) {
+                withTransaction($base, function() use ($base, $actionId, $joueur, $nbsecondes, $molecules) {
                     // CAS guard: lock action row, verify it still exists
                     $actionRow = dbFetchOne($base, 'SELECT id FROM actionsattaques WHERE id=? FOR UPDATE', 'i', $actionId);
                     if (!$actionRow) return; // Already processed by concurrent request
