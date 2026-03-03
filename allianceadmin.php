@@ -432,11 +432,13 @@ if ($gradeChef) {
 				<tbody>
 					<?php
 					while ($listeGrades = mysqli_fetch_array($ex)) {
+						$safeLogin = htmlspecialchars($listeGrades['login'], ENT_QUOTES, 'UTF-8');
+						$safeNom = htmlspecialchars($listeGrades['nom'], ENT_QUOTES, 'UTF-8');
 						echo '<tr>
-                            <td><a href="joueur.php?id=' . $listeGrades['login'] . '">' . $listeGrades['login'] . '</a></td>
-                            <td>' . $listeGrades['nom'] . '</td>
+                            <td><a href="joueur.php?id=' . $safeLogin . '">' . $safeLogin . '</a></td>
+                            <td>' . $safeNom . '</td>
                             <td>
-                            <input type="hidden" name="joueurGrade" value="' . $listeGrades['login'] . '"/>
+                            <input type="hidden" name="joueurGrade" value="' . $safeLogin . '"/>
                             <input src="images/croix.png" alt="suppr" type="image" name="Supprimer"></td>
                             </tr>';
 					}
