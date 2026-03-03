@@ -70,23 +70,27 @@ if (isset($_GET['erreur'])) {
     $erreur = antiXSS($_GET['erreur']);
 }
 //////////////////////////////////////////////////////////// Gestion des connectés
+// Throttle: only update once per 60 seconds to reduce DB writes
+if (!isset($_SESSION['last_online_update']) || time() - $_SESSION['last_online_update'] > 60) {
+    //Vérification si l'adresse IP est dans la table
+    $donnees = dbFetchOne($base, 'SELECT COUNT(*) AS nbre_entrees FROM connectes WHERE ip = ?', 's', $_SERVER['REMOTE_ADDR']);
 
-//Vérification si l'adresse IP est dans la table
-$donnees = dbFetchOne($base, 'SELECT COUNT(*) AS nbre_entrees FROM connectes WHERE ip = ?', 's', $_SERVER['REMOTE_ADDR']);
+    if (!$donnees || $donnees['nbre_entrees'] == 0) //L'IP ne se trouve pas dans la table, on va l'ajouter.
+    {
+        $now = time();
+        dbExecute($base, 'INSERT INTO connectes VALUES(?, ?)', 'si', $_SERVER['REMOTE_ADDR'], $now);
+    } else //L'IP se trouve déjà dans la table, on met juste à jour le timestamp.
+    {
+        $now = time();
+        dbExecute($base, 'UPDATE connectes SET timestamp = ? WHERE ip = ?', 'is', $now, $_SERVER['REMOTE_ADDR']);
+    }
 
-if (!$donnees || $donnees['nbre_entrees'] == 0) //L'IP ne se trouve pas dans la table, on va l'ajouter.
-{
-    $now = time();
-    dbExecute($base, 'INSERT INTO connectes VALUES(?, ?)', 'si', $_SERVER['REMOTE_ADDR'], $now);
-} else //L'IP se trouve déjà dans la table, on met juste à jour le timestamp.
-{
-    $now = time();
-    dbExecute($base, 'UPDATE connectes SET timestamp = ? WHERE ip = ?', 'is', $now, $_SERVER['REMOTE_ADDR']);
+    // Toutes les entrées vieilles de plus de 5 minutes sont supprimées
+    $timestamp_5min = time() - (60 * 5); // 60 * 5 = nombre de secondes écoulées en 5 minutes
+    dbExecute($base, 'DELETE FROM connectes WHERE timestamp < ?', 'i', $timestamp_5min);
+
+    $_SESSION['last_online_update'] = time();
 }
-
-// Toutes les entrées vieilles de plus de 5 minutes sont supprimées
-$timestamp_5min = time() - (60 * 5); // 60 * 5 = nombre de secondes écoulées en 5 minutes
-dbExecute($base, 'DELETE FROM connectes WHERE timestamp < ?', 'i', $timestamp_5min);
 
 // Ajout de Yojim
 // On vérifie si le joueur connecté est en vacance
@@ -101,7 +105,9 @@ if (!$joueurEnVac['vacance']) {
 
     $donnees = dbFetchOne($base, 'SELECT tempsPrecedent FROM autre WHERE login = ?', 's', $_SESSION['login']);
     updateActions($_SESSION['login']);
-    include("includes/constantes.php");
+    // Refresh player data after resource/action updates (invalidate cache first)
+    unset($GLOBALS['_initPlayerCache'][$_SESSION['login']]);
+    initPlayer($_SESSION['login']);
 }
 // Ajout par Yojim
 // Si le joueur est encore en mode vacances

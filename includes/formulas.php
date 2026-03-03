@@ -174,6 +174,10 @@ function tempsFormation($azote, $niveau, $ntotal, $joueur)
 
 function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
 {
+    static $cache = [];
+    $cacheKey = $joueur . '-' . $classeOuNbTotal . '-' . $type;
+    if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+
     global $base;
     global $nomsRes;
     global $paliersPertes;
@@ -222,6 +226,7 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
         }
     }
 
+    $cache[$cacheKey] = $baseDecay;
     return $baseDecay;
 }
 

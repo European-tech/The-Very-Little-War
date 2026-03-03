@@ -5,7 +5,11 @@
  */
 
 function revenuEnergie($niveau, $joueur, $detail = 0)
-{ // BUG ICI
+{
+    static $cache = [];
+    $cacheKey = $joueur . '-' . $niveau . '-' . $detail;
+    if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+
     global $base;
     global $paliersEnergievore;
     global $bonusMedailles;
@@ -51,21 +55,27 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     $prodPrestige = $prodDuplicateur * prestigeProductionBonus($joueur);
     $prodProducteur = $prodPrestige - drainageProducteur($producteur['producteur']);
     if ($detail == 0) {
-        return round($prodProducteur);
+        $result = round($prodProducteur);
     } elseif ($detail == 1) {
-        return round($prodDuplicateur);
+        $result = round($prodDuplicateur);
     } elseif ($detail == 2) {
-        return round($prodMedaille);
+        $result = round($prodMedaille);
     } elseif ($detail == 3) {
-        return round($prodIode);
+        $result = round($prodIode);
     } else {
-        return round($prodBase);
+        $result = round($prodBase);
     }
+    $cache[$cacheKey] = $result;
+    return $result;
 }
 
 
 function revenuAtome($num, $joueur)
 {
+    static $cache = [];
+    $cacheKey = $joueur . '-' . $num;
+    if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+
     global $base;
 
     $pointsProducteur = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $joueur);
@@ -79,7 +89,9 @@ function revenuAtome($num, $joueur)
         $bonusDuplicateur = 1 + bonusDuplicateur($duplicateur['duplicateur']);
     }
 
-    return round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur));
+    $result = round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur));
+    $cache[$cacheKey] = $result;
+    return $result;
 }
 
 function revenuAtomeJavascript($joueur)
@@ -169,18 +181,21 @@ function updateRessources($joueur)
     $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $joueur);
 
     $compteur = 0;
+    $totalMoleculesPerdues = 0;
     while ($molecules = mysqli_fetch_array($ex)) {
 
         $moleculesRestantes = (pow(coefDisparition($joueur, $compteur + 1), $nbsecondes) * $molecules['nombre']);
         ${'nombre' . ($compteur + 1)} = $molecules['nombre'];
 
-
         dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $moleculesRestantes, $molecules['id']);
 
-        $moleculesPerdues = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $joueur);
-        dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($molecules['nombre'] - $moleculesRestantes + $moleculesPerdues['moleculesPerdues']), $joueur);
+        $totalMoleculesPerdues += ($molecules['nombre'] - $moleculesRestantes);
 
         $compteur++;
+    }
+    // Batch: single atomic UPDATE instead of N SELECT+UPDATE pairs
+    if ($totalMoleculesPerdues > 0) {
+        dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login = ?', 'ds', $totalMoleculesPerdues, $joueur);
     }
 
     if ($nbheuresDebut > 6) {
