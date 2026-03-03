@@ -1,6 +1,5 @@
 <?php 
 require_once("includes/session_init.php");
-$_SESSION['start'] = "start"; 
 if (isset($_SESSION['login']))
 {
 	include("includes/basicprivatephp.php");

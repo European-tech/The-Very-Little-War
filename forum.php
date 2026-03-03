@@ -1,7 +1,6 @@
 <?php
 require_once("includes/session_init.php");
 include("includes/bbcode.php"); // Ajout de Yojim
-$_SESSION['start'] = "start"; // Sert a savoir si il faut de nouveau ouvrir une nouvelle session ou non
 if (isset($_SESSION['login']))
 {
 	include("includes/basicprivatephp.php");

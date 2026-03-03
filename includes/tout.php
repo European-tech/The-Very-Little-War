@@ -183,6 +183,6 @@
             }
             else
             {
-                include("includes/cardspublic.php"); 
+                // cardspublic.php removed (was empty dead file)
             }
             ?>
