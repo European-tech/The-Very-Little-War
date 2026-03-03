@@ -90,10 +90,10 @@ function calculatePrestigePoints($login) {
 function awardPrestigePoints() {
     global $base, $PRESTIGE_RANK_BONUSES;
 
-    // Get all players ranked by totalPoints (for rank bonus)
-    $players = dbQuery($base, 'SELECT login, totalPoints FROM autre ORDER BY totalPoints DESC');
+    // Freeze rankings into array to prevent concurrent changes mid-award
+    $players = dbFetchAll($base, 'SELECT login, totalPoints FROM autre ORDER BY totalPoints DESC');
     $rank = 1;
-    while ($player = mysqli_fetch_array($players)) {
+    foreach ($players as $player) {
         $pp = calculatePrestigePoints($player['login']);
 
         // Rank bonus: top players get extra PP

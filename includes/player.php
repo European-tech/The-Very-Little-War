@@ -852,21 +852,23 @@ function performSeasonEnd()
     }
 
     // Award VP to players by individual ranking
-    $classement = dbQuery($base, 'SELECT * FROM autre ORDER BY totalPoints DESC');
+    // Freeze rankings into array to prevent concurrent changes mid-award
+    $playerRankings = dbFetchAll($base, 'SELECT login, totalPoints FROM autre ORDER BY totalPoints DESC');
     $c = 1;
-    while ($pointsVictoire = mysqli_fetch_array($classement)) {
+    foreach ($playerRankings as $pointsVictoire) {
         ajouter('victoires', 'autre', pointsVictoireJoueur($c), $pointsVictoire['login']);
         $c++;
     }
 
     // Award VP to alliances and their members
-    $classement = dbQuery($base, 'SELECT * FROM alliances ORDER BY pointstotaux DESC');
+    // Freeze alliance rankings into array to prevent concurrent changes mid-award
+    $allianceRankings = dbFetchAll($base, 'SELECT id, pointsVictoire, pointstotaux FROM alliances ORDER BY pointstotaux DESC');
     $c = 1;
-    while ($pointsVictoire = mysqli_fetch_array($classement)) {
-        $newPtsVictoire = $pointsVictoire['pointsVictoire'] + pointsVictoireAlliance($c);
-        dbExecute($base, 'UPDATE alliances SET pointsVictoire = ? WHERE id = ?', 'ii', $newPtsVictoire, $pointsVictoire['id']);
-        $victoiresJoueurs = dbQuery($base, 'SELECT * FROM autre WHERE idalliance = ?', 'i', $pointsVictoire['id']);
-        while ($pointsVictoireJoueurs = mysqli_fetch_array($victoiresJoueurs)) {
+    foreach ($allianceRankings as $allianceData) {
+        $newPtsVictoire = $allianceData['pointsVictoire'] + pointsVictoireAlliance($c);
+        dbExecute($base, 'UPDATE alliances SET pointsVictoire = ? WHERE id = ?', 'ii', $newPtsVictoire, $allianceData['id']);
+        $allianceMembers = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $allianceData['id']);
+        foreach ($allianceMembers as $pointsVictoireJoueurs) {
             ajouter('victoires', 'autre', pointsVictoireAlliance($c), $pointsVictoireJoueurs['login']);
         }
         $c++;
