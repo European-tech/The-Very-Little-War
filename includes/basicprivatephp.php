@@ -212,7 +212,10 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         //==========
 
         //=====Envoi de l'e-mail.
-        mail($mail, $sujet, $message, $header);
+        $mailResult = mail($mail, $sujet, $message, $header);
+        if (!$mailResult) {
+            logWarn('SEASON', 'Season reset email failed', ['player' => $donnees['login']]);
+        }
         //==========
     }
 
