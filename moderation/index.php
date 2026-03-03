@@ -8,11 +8,13 @@ require_once(__DIR__ . '/../includes/rate_limiter.php');
 require_once(__DIR__ . '/../includes/logger.php');
 
 if (isset($_POST['motdepasseadmin'])) {
+	csrfCheck();
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'moderation_login', 5, 300)) {
 		logWarn('MODERATION', 'Moderation login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
 		die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
 	}
 	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
+		session_regenerate_id(true);
 		$_SESSION['motdepasseadmin'] = true;
 		logInfo('MODERATION', 'Moderation login successful');
 	} else {
@@ -22,6 +24,7 @@ if (isset($_POST['motdepasseadmin'])) {
 if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== true) {
 ?>
 	<form action="index.php" method="post">
+		<?php echo csrfField(); ?>
 		<label for="motdepasseadmin">Mot de passe : </label>
 		<input type="password" name="motdepasseadmin" id="motdepasseadmin" />
 		<input type="submit" name="valider" value="Valider" />

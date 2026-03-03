@@ -21,7 +21,9 @@ if (isset($_POST['login'])) {
 		$passConfirm = $_POST['pass_confirm'];
 		$emailInput = trim($_POST['email']);
 
-		if ($passInput != $passConfirm) {
+		if (mb_strlen($passInput) < 8) {
+			$erreur = 'Le mot de passe doit contenir au moins 8 caract&egrave;res.';
+		} elseif ($passInput != $passConfirm) {
 			$erreur = 'Les deux mots de passe sont diff&eacute;rents.';
 		} else {
 			if (!validateLogin($loginInput)) {

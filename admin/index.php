@@ -9,11 +9,13 @@ require_once(__DIR__ . '/../includes/csrf.php');
 require_once(__DIR__ . '/../includes/rate_limiter.php');
 
 if (isset($_POST['motdepasseadmin'])) {
+	csrfCheck();
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'admin_login', 5, 300)) {
 		logWarn('ADMIN', 'Admin login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
 		die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
 	}
 	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
+		session_regenerate_id(true);
 		$_SESSION['motdepasseadmin'] = true;
 		logInfo('ADMIN', 'Admin login successful');
 	} else {
@@ -178,6 +180,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 <?php
 } else { ?>
 	<form action="index.php" method="post">
+		<?php echo csrfField(); ?>
 		<label for="motdepasseadmin">Mot de passe : </label>
 		<input type="password" name="motdepasseadmin" id="motdepasseadmin" />
 		<input type="submit" name="valider" value="Valider" />

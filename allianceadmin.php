@@ -4,8 +4,16 @@ include("includes/bbcode.php");
 
 
 $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+if (!$idalliance || $idalliance['idalliance'] <= 0) {
+    header('Location: alliance.php?id=-1');
+    exit();
+}
 
 $chef = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
+if (!$chef) {
+    header('Location: alliance.php?id=-1');
+    exit();
+}
 
 $ex = dbQuery($base, 'SELECT * FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $chef['id']);
 $grade = mysqli_fetch_array($ex);

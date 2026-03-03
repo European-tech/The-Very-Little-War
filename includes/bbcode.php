@@ -328,8 +328,9 @@ $text = preg_replace('!\[center\](.+)\[/center\]!isU', '<div style="text-align: 
 $text = preg_replace('!\[title\](.+)\[/title\]!isU', '<span style="font-size: 130%;">$1</span>', $text);
 $text = preg_replace('!\[joueur=([a-z0-9_-]{3,16})/\]!isU', '<a href="joueur.php?id=$1">$1</a>', $text);
 $text = preg_replace('!\[alliance=([a-z0-9_-]{3,16})/\]!isU', '<a href="alliance.php?id=$1">$1</a>', $text);
-$text = preg_replace('!\[url=(https?:\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?)\](.+)\[/url\]!isU', '<a href="$1">$5</a>', $text);
-$text = preg_replace('!\[img=(https?:\/\/[^\s\'"<>]+\.(gif|png|jpg|jpeg))\]!isU', '<img alt="undefined" src="$1">', $text);
+$text = preg_replace('!\[url=(https?://[^\]]+)\](.+?)\[/url\]!isU', '<a href="$1" rel="noopener noreferrer" target="_blank">$2</a>', $text);
+$text = preg_replace('!\[img=(https?://(?:www\.)?theverylittlewar\.com/[^\]]+\.(?:gif|png|jpg|jpeg))\]!isU', '<img alt="image" src="$1">', $text);
+$text = preg_replace('!\[img=([^\]]+)\]!isU', '[Image externe bloquée]', $text);
 $text = preg_replace('!\[color=(blue|red|green|white|black|beige|brown|cyan|yellow|orange|gray|purple|maroon)\](.+)\[/color\]!isU', '<span style="color:$1;">$2</span>', $text);
 
 $text = preg_replace('!\[latex\](.+)\[/latex\]!isU', '\$\$$1\$\$', $text);

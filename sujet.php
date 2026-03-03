@@ -14,8 +14,7 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 	$_GET['id'] = trim($_GET['id']);
 	if (preg_match("#^[0-9]*$#", $_GET['id'])) {
 		if (isset($_SESSION['login'])) {
-			if (!empty($_POST['contenu'])) {
-				// Modifié par Yojim
+			if (!empty($_POST['contenu']) && mb_strlen($_POST['contenu']) <= 10000) {
 				$getId = (int)$_GET['id'];
 				$timestamp = time();
 				dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, "1", ?, ?, ?)', 'issi', $getId, $_POST['contenu'], $_SESSION['login'], $timestamp);

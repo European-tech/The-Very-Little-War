@@ -68,7 +68,14 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
 if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
     if (isset($_POST['quitter'])) {
         csrfCheck();
-        dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_SESSION['login']);
+        // Check player is not the chef (would orphan the alliance)
+        $allianceCheck = dbFetchOne($base, 'SELECT a.chef, au.idalliance FROM alliances a JOIN autre au ON au.idalliance = a.id WHERE au.login=?', 's', $_SESSION['login']);
+        if ($allianceCheck && $allianceCheck['chef'] == $_SESSION['login']) {
+            $erreur = "Le chef ne peut pas quitter l'alliance. Transférez d'abord le leadership.";
+        } else {
+            dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_SESSION['login']);
+            dbExecute($base, 'DELETE FROM grades WHERE login=?', 's', $_SESSION['login']);
+        }
     }
 
     $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
@@ -117,7 +124,10 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
     if (isset($_POST['actioninvitation']) and isset($_POST['idinvitation'])) {
         csrfCheck();
         $_POST['idinvitation'] = (int)$_POST['idinvitation'];
-        $idalliance = dbFetchOne($base, 'SELECT idalliance FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
+        $idalliance = dbFetchOne($base, 'SELECT idalliance FROM invitations WHERE id=? AND invite=?', 'is', $_POST['idinvitation'], $_SESSION['login']);
+        if (!$idalliance) {
+            $erreur = "Cette invitation n'existe pas.";
+        } else {
 
         $ex = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
         $nombreJoueurs = mysqli_num_rows($ex);
@@ -131,6 +141,7 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
         } else {
             $erreur = "Le nombre maximal de joueurs dans l'équipe est atteint.";
         }
+        } // end invitation ownership check
     }
 }
 include("includes/tout.php");

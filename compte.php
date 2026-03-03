@@ -53,6 +53,8 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
 
             if (!$verified) {
                 $erreur = "Le mot de passe actuel est incorrect.";
+            } elseif (mb_strlen($newPassword) < 8) {
+                $erreur = "Le mot de passe doit contenir au moins 8 caract&egrave;res.";
             } elseif ($newPassword != $newPasswordConfirm) {
                 $erreur = "Les deux mots de passe ne sont pas les m&ecirc;mes.";
             } else {
