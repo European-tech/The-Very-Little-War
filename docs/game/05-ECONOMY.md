@@ -36,9 +36,11 @@ $actifs = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre
 $volatilite = 0.3 / $actifs['nbActifs'];
 ```
 
-Note: The config constant `MARKET_VOLATILITY_FACTOR` is defined as `0.5`
-(`includes/config.php:265`), but `marche.php:7` hardcodes `0.3` in the
-divisor. This is a known inconsistency; the live value is `0.3 / nbActifs`.
+The config constant `MARKET_VOLATILITY_FACTOR` is `0.3` (`includes/config.php:350`),
+and `marche.php:7` uses this constant:
+```
+$volatilite = MARKET_VOLATILITY_FACTOR / max(1, $actifs['nbActifs']);
+```
 
 | Active players | Volatility |
 |----------------|------------|
@@ -72,14 +74,18 @@ storage (`placeDepot`).
        if ($newResVal > $placeDepot) { ... error ... }
    ```
 
-3. **Price impact** -- Buying pushes the price up linearly:
+3. **Price impact** -- Buying pushes the price up linearly, scaled by a
+   global economy divisor (not the player's storage):
    ```
-   newPrice = oldPrice + (volatility * quantity / placeDepot)
+   newPrice = oldPrice + volatility * quantity / MARKET_GLOBAL_ECONOMY_DIVISOR
    ```
    ```
-   -- marche.php:183
-   $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / $placeDepot;
+   -- marche.php:202
+   $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / MARKET_GLOBAL_ECONOMY_DIVISOR;
    ```
+   With `MARKET_GLOBAL_ECONOMY_DIVISOR = 10000` (`includes/config.php:140`),
+   the price impact is independent of any individual player's storage capacity.
+   This ensures uniform market behavior regardless of depot level.
 
 4. **Mean reversion** -- After the raw price change, the price is pulled 1%
    toward the baseline of 1.0:
@@ -111,40 +117,51 @@ storage (`placeDepot`).
    dbExecute($base, 'INSERT INTO cours VALUES (default,?,?)', 'si', $chaine, $now);
    ```
 
-7. **Trade points** -- Only buying awards trade points (see Section 1.5).
+7. **Trade points** -- Both buying and selling award trade points (see Section 1.5).
 
 ### 1.4 Selling Atoms
 
-A player sells atoms to receive energy. Energy gained is capped at storage.
+A player sells atoms to receive energy. The quantity actually sold is limited
+to what fits in the player's remaining energy storage, so excess atoms are not
+consumed.
 
-**File:** `marche.php:227-292`
+**File:** `marche.php:260-383`
 
 **Steps:**
 
-1. **Gain calculation** -- The energy gained is `round(currentPrice * quantity)`.
+1. **Overflow protection** -- Before executing the trade, the system calculates
+   the maximum number of atoms that can be sold without exceeding storage:
    ```
-   -- marche.php:242
-   $newEnergie = $ressources['energie'] + round($tabCours[$numRes] * $_POST['nombreRessourceAVendre']);
+   -- marche.php:294-303
+   $energySpace = $placeDepot - $locked['energie'];
+   $pricePerAtom = $tabCours[$numRes] * $sellTaxRate;
+   $maxSellable = floor($energySpace / $pricePerAtom);
+   $actualSold = min($_POST['nombreRessourceAVendre'], $maxSellable, $locked['res']);
    ```
+   If storage is already full (`$energySpace <= 0`), the sell is rejected. Only
+   `$actualSold` atoms are consumed -- the remainder stays in the player's
+   inventory.
 
-2. **Energy cap** -- If the resulting energy exceeds storage, it is capped:
+2. **Gain calculation** -- The energy gained is based on the actual quantity sold:
    ```
-   -- marche.php:243-244
-   if ($newEnergie > $placeDepot) {
-       $newEnergie = $placeDepot;
-   }
+   -- marche.php:306
+   $energyGained = round($tabCours[$numRes] * $actualSold * $sellTaxRate);
    ```
+   The sell tax rate is `MARKET_SELL_TAX_RATE = 0.95` (5% fee).
 
-3. **Price impact** -- Selling pushes the price down using a harmonic formula:
+3. **Price impact** -- Selling pushes the price down using a harmonic formula,
+   scaled by the same global economy divisor as buying:
    ```
-   newPrice = 1 / (1/oldPrice + volatility * quantity / placeDepot)
+   newPrice = 1 / (1/oldPrice + volatility * actualSold / MARKET_GLOBAL_ECONOMY_DIVISOR)
    ```
    ```
-   -- marche.php:264
-   $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $_POST['nombreRessourceAVendre'] / $placeDepot);
+   -- marche.php:329
+   $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $actualSold / MARKET_GLOBAL_ECONOMY_DIVISOR);
    ```
    This harmonic form ensures the price can never go negative regardless of
    sell volume, which is an important asymmetry with the linear buy formula.
+   Note: the quantity used is `$actualSold` (the amount actually sold after
+   overflow protection), not the raw requested quantity.
 
 4. **Mean reversion** -- Same 1% pull toward 1.0 as buying:
    ```
@@ -158,23 +175,26 @@ A player sells atoms to receive energy. Energy gained is capped at storage.
    $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
    ```
 
-6. **No trade points** -- Selling does NOT award trade points. This is an
-   intentional anti-exploit measure to prevent players from cycling buy/sell
-   to farm points.
+6. **Trade points** -- Selling now awards trade points, mirroring the buy
+   logic (see Section 1.5). The 5% sell tax is sufficient to prevent
+   buy-sell cycling for point farming.
 
 ### 1.5 Trade Points
 
 Trade points reward active market participation and contribute to a player's
-`totalPoints` ranking score.
+`totalPoints` ranking score. Both buying and selling award trade points.
 
-**File:** `marche.php:198-210`
+**File:** `marche.php:217-230` (buy), `marche.php:344-357` (sell)
 
-**Tracking:** Each buy accumulates the energy spent (`$coutAchat`) into
-`autre.tradeVolume` for the player.
+**Tracking:** Each trade accumulates energy volume into `autre.tradeVolume`.
+For buys, volume = energy spent (`$coutAchat`). For sells, volume = energy
+gained (`$energyGained`). Alliance Reseau research boosts volume by
+`+5% * reseauLevel`.
 
 ```
--- marche.php:199-202
-$tradeVolume = $coutAchat;
+-- marche.php:218-222
+$reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
+$tradeVolume = round($coutAchat * $reseauBonus);
 $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', ...);
 $oldVolume = $autreData['tradeVolume'] ?? 0;
 $newVolume = $oldVolume + $tradeVolume;
@@ -185,41 +205,44 @@ $newVolume = $oldVolume + $tradeVolume;
 tradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt(tradeVolume)))
 ```
 ```
--- marche.php:203-204
+-- marche.php:223-224
 $oldTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($oldVolume)));
 $newTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($newVolume)));
 ```
 
-**Constants** (`includes/config.php:273-274`):
-- `MARKET_POINTS_SCALE = 0.05` -- sqrt scaling factor
-- `MARKET_POINTS_MAX = 40` -- hard cap on trade points
+**Constants** (`includes/config.php:360-361`):
+- `MARKET_POINTS_SCALE = 0.08` -- sqrt scaling factor
+- `MARKET_POINTS_MAX = 80` -- hard cap on trade points
 
 The delta (`newTradePoints - oldTradePoints`) is added to `autre.totalPoints`.
 
 **Example progression:**
 
-| Cumulative energy spent | Trade points |
-|-------------------------|--------------|
-| 100                     | 0            |
-| 1,000                   | 1            |
-| 10,000                  | 5            |
-| 100,000                 | 15           |
-| 250,000                 | 25           |
-| 640,000                 | 40 (cap)     |
+| Cumulative energy traded | Trade points |
+|--------------------------|--------------|
+| 100                      | 0            |
+| 1,000                    | 2            |
+| 10,000                   | 8            |
+| 100,000                  | 25           |
+| 500,000                  | 56           |
+| 1,000,000                | 80 (cap)     |
 
 ---
 
 ## 2. Price Dynamics Summary
 
-| Property        | Value / Formula                                         |
-|-----------------|---------------------------------------------------------|
-| Baseline price  | ~1.0 energy per atom                                    |
-| Price floor     | 0.1 (`MARKET_PRICE_FLOOR`)                              |
-| Price ceiling   | 10.0 (`MARKET_PRICE_CEILING`)                           |
-| Mean reversion  | 1% pull toward 1.0 per trade (`MARKET_MEAN_REVERSION`)  |
-| Volatility      | `0.3 / nbActivePlayers` (hardcoded in `marche.php:7`)   |
-| Buy impact      | `+volatility * quantity / placeDepot` (linear, additive) |
-| Sell impact     | `1 / (1/price + volatility * qty / depot)` (harmonic)    |
+| Property        | Value / Formula                                                          |
+|-----------------|--------------------------------------------------------------------------|
+| Baseline price  | ~1.0 energy per atom                                                     |
+| Price floor     | 0.1 (`MARKET_PRICE_FLOOR`)                                              |
+| Price ceiling   | 10.0 (`MARKET_PRICE_CEILING`)                                           |
+| Mean reversion  | 1% pull toward 1.0 per trade (`MARKET_MEAN_REVERSION`)                  |
+| Volatility      | `MARKET_VOLATILITY_FACTOR / nbActivePlayers` = `0.3 / nbActivePlayers`  |
+| Buy impact      | `+volatility * quantity / MARKET_GLOBAL_ECONOMY_DIVISOR` (linear)        |
+| Sell impact     | `1 / (1/price + volatility * qty / MARKET_GLOBAL_ECONOMY_DIVISOR)` (harmonic) |
+| Economy divisor | `MARKET_GLOBAL_ECONOMY_DIVISOR = 10000` (global scale, not per-player)   |
+| Sell tax        | 5% (`MARKET_SELL_TAX_RATE = 0.95`)                                       |
+| Sell overflow   | Quantity auto-limited to fit remaining energy storage; excess atoms kept  |
 
 ### Price Chart
 
@@ -252,18 +275,22 @@ if ($ipmm['ip'] != $ipdd['ip']) { ... proceed ... }
 else { $erreur = "Impossible d'envoyer des ressources a ce joueur. Meme adresse IP."; }
 ```
 
-### 3.2 Receiving Rate (Production Ratio)
+### 3.2 Receiving Rate (Production Ratio) -- V4 Inverted
 
-The amount actually received is reduced based on the ratio of the receiver's
-production to the sender's production. If the receiver produces less than the
-sender, they receive proportionally less. If the receiver produces the same or
-more, they receive 100%.
+The transfer ratio has been **inverted** in V4 to prevent alt-account feeding
+(small alt sending resources to a larger main account). The new rule:
+
+- Sending to a **smaller** player (lower production): **full rate** (charity is OK)
+- Sending to a **bigger** player (higher production): **penalized** (prevents alt feeding)
+
+If the receiver produces MORE than the sender, the ratio is reduced:
 
 **For energy:**
 ```
--- marche.php:62-66
-if ($revenuEnergie >= revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire'])) {
-    $rapportEnergie = revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire']) / $revenuEnergie;
+-- marche.php:63-68
+$receiverEnergyRev = revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire']);
+if ($receiverEnergyRev > $revenuEnergie) {
+    $rapportEnergie = min(1.0, $revenuEnergie / max(1, $receiverEnergyRev));
 } else {
     $rapportEnergie = 1;
 }
@@ -271,9 +298,10 @@ if ($revenuEnergie >= revenuEnergie($constructionsJoueur['generateur'], $_POST['
 
 **For each atom type:**
 ```
--- marche.php:69-75
-if ($revenu[$ressource] >= revenuAtome($revenusJoueur[$num], $_POST['destinataire'])) {
-    ${'rapport' . $ressource} = revenuAtome($revenusJoueur[$num], $_POST['destinataire']) / $revenu[$ressource];
+-- marche.php:70-77
+$receiverAtomRev = revenuAtome($num, $_POST['destinataire']);
+if ($receiverAtomRev > $revenu[$ressource]) {
+    ${'rapport' . $ressource} = min(1.0, $revenu[$ressource] / max(1, $receiverAtomRev));
 } else {
     ${'rapport' . $ressource} = 1;
 }
@@ -281,14 +309,18 @@ if ($revenu[$ressource] >= revenuAtome($revenusJoueur[$num], $_POST['destinatair
 
 **General formula:**
 ```
-ratio = min(1.0, receiver_production / sender_production)
+if receiver_production > sender_production:
+    ratio = min(1.0, sender_production / receiver_production)
+else:
+    ratio = 1.0 (full transfer)
 received = sent * ratio
 ```
 
-This means a weaker player sending to a stronger player transfers at full
-rate, but a stronger player sending to a weaker player loses some resources
-in transit. The mechanic prevents powerful players from directly boosting
-weaker alt accounts.
+This means a weaker alt-account sending to a stronger main account has its
+transfer heavily penalized, while a stronger player helping a weaker player
+transfers at full rate. The mechanic specifically targets the alt-feeding
+exploit where players create disposable accounts to funnel resources to
+their main.
 
 ### 3.3 Travel Time
 
@@ -385,7 +417,7 @@ The duplicateur is a shared alliance upgrade that boosts all members'
 resource production and combat stats.
 
 **File:** `alliance.php:74-90` (upgrade logic), `includes/formulas.php:70-73`
-(bonus formula), `includes/config.php:279-284` (constants)
+(bonus formula), `includes/config.php:367-371` (constants)
 
 ### 5.1 Upgrade Cost
 
@@ -397,27 +429,30 @@ cost = round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, level + 1))
 ```
 ```
 -- alliance.php:76
-$cout = round(10 * pow(2.5, ($duplicateur['duplicateur'] + 1)));
+$cout = round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, ($duplicateur['duplicateur'] + 1)));
 ```
 
-**Constants** (`includes/config.php:280-281`):
-- `DUPLICATEUR_BASE_COST = 10`
-- `DUPLICATEUR_COST_FACTOR = 2.5`
+**Constants** (`includes/config.php:367-368`):
+- `DUPLICATEUR_BASE_COST = 100`
+- `DUPLICATEUR_COST_FACTOR = 1.5`
 
 **Cost table:**
 
 | Level | Cost (alliance energy)                               |
 |-------|------------------------------------------------------|
-| 0->1  | `round(10 * 2.5^1)` = 25                            |
-| 1->2  | `round(10 * 2.5^2)` = 63                             |
-| 2->3  | `round(10 * 2.5^3)` = 156                            |
-| 3->4  | `round(10 * 2.5^4)` = 391                            |
-| 4->5  | `round(10 * 2.5^5)` = 977                            |
-| 5->6  | `round(10 * 2.5^6)` = 2,441                          |
-| 6->7  | `round(10 * 2.5^7)` = 6,104                          |
-| 7->8  | `round(10 * 2.5^8)` = 15,259                         |
-| 8->9  | `round(10 * 2.5^9)` = 38,147                         |
-| 9->10 | `round(10 * 2.5^10)` = 95,367                        |
+| 0->1  | `round(100 * 1.5^1)` = 150                          |
+| 1->2  | `round(100 * 1.5^2)` = 225                           |
+| 2->3  | `round(100 * 1.5^3)` = 338                           |
+| 3->4  | `round(100 * 1.5^4)` = 506                           |
+| 4->5  | `round(100 * 1.5^5)` = 759                           |
+| 5->6  | `round(100 * 1.5^6)` = 1,139                         |
+| 6->7  | `round(100 * 1.5^7)` = 1,709                         |
+| 7->8  | `round(100 * 1.5^8)` = 2,563                         |
+| 8->9  | `round(100 * 1.5^9)` = 3,844                         |
+| 9->10 | `round(100 * 1.5^10)` = 5,767                        |
+
+The reduced cost factor (1.5 instead of 2.5) makes levels 10-12 achievable
+within a 31-day season.
 
 ### 5.2 Upgrade Process
 
@@ -553,43 +588,49 @@ Energy ------> Buy Atoms -------> Molecules -------> Combat -------> Pillage
 
 All constants are defined in `includes/config.php` unless otherwise noted.
 
-| Constant                   | Value  | Line | Description                           |
-|----------------------------|--------|------|---------------------------------------|
-| `MARKET_VOLATILITY_FACTOR` | 0.5    | 265  | Config value (live uses 0.3)          |
-| `MARKET_PRICE_FLOOR`       | 0.1    | 266  | Minimum atom price                    |
-| `MARKET_PRICE_CEILING`     | 10.0   | 267  | Maximum atom price                    |
-| `MARKET_MEAN_REVERSION`    | 0.01   | 268  | 1% pull toward baseline per trade     |
-| `MERCHANT_SPEED`           | 20     | 269  | Transfer speed (tiles/hour)           |
-| `MARKET_POINTS_SCALE`      | 0.05   | 273  | Trade points sqrt scale factor        |
-| `MARKET_POINTS_MAX`        | 40     | 274  | Trade points hard cap                 |
-| `DUPLICATEUR_BASE_COST`    | 10     | 280  | Base cost for duplicateur formula     |
-| `DUPLICATEUR_COST_FACTOR`  | 2.5    | 281  | Exponential growth factor             |
-| `DUPLICATEUR_BONUS_PER_LEVEL` | 0.01 | 284 | 1% per level (resource production)   |
-| `DUPLICATEUR_COMBAT_COEFFICIENT` | 1.0 | 234 | Combat bonus coefficient           |
+| Constant                         | Value  | Description                                   |
+|----------------------------------|--------|-----------------------------------------------|
+| `MARKET_VOLATILITY_FACTOR`       | 0.3    | Divided by active players for volatility       |
+| `MARKET_PRICE_FLOOR`             | 0.1    | Minimum atom price                             |
+| `MARKET_PRICE_CEILING`           | 10.0   | Maximum atom price                             |
+| `MARKET_MEAN_REVERSION`          | 0.01   | 1% pull toward baseline per trade              |
+| `MARKET_GLOBAL_ECONOMY_DIVISOR`  | 10000  | Global scale for price impact (V4)             |
+| `MARKET_SELL_TAX_RATE`           | 0.95   | 5% fee on sell revenue                         |
+| `MERCHANT_SPEED`                 | 20     | Transfer speed (tiles/hour)                    |
+| `MARKET_POINTS_SCALE`            | 0.08   | Trade points sqrt scale factor                 |
+| `MARKET_POINTS_MAX`              | 80     | Trade points hard cap                          |
+| `DUPLICATEUR_BASE_COST`          | 100    | Base cost for duplicateur formula              |
+| `DUPLICATEUR_COST_FACTOR`        | 1.5    | Exponential growth factor                      |
+| `DUPLICATEUR_BONUS_PER_LEVEL`    | 0.01   | 1% per level (resource production)             |
+| `DUPLICATEUR_COMBAT_COEFFICIENT` | 1.0    | Combat bonus coefficient                       |
 
 ---
 
 ## 8. Known Issues and Notes
 
-1. **Volatility mismatch** -- `marche.php:7` hardcodes `0.3 / nbActifs` while
-   `MARKET_VOLATILITY_FACTOR` is defined as `0.5`. The config constant is not
-   actually used in the market code.
-
-2. **Buy/sell asymmetry** -- The buy formula is linear (additive) while the
+1. **Buy/sell asymmetry** -- The buy formula is linear (additive) while the
    sell formula is harmonic. This means buying has proportionally more price
    impact than selling for the same quantity, and a buy-then-sell cycle does
    not return the price to its starting point.
 
-3. **Sell energy overflow** -- When selling atoms, energy gained is silently
-   capped at `placeDepot` (`marche.php:243-244`). The atoms are still consumed,
-   meaning the player can lose value if their storage is nearly full.
+2. **V4 sell overflow fix** -- Selling now properly caps the quantity sold to
+   what fits in remaining energy storage. Excess atoms are NOT consumed. This
+   replaces the old behavior where atoms were consumed even when energy was
+   silently capped at storage.
 
-4. **No trade points for selling** -- This is documented as intentional
-   (`marche.php:198` comment) to prevent buy-sell cycling for point farming.
+3. **Both buy and sell award trade points** -- The 5% sell tax prevents
+   buy-sell cycling exploits while allowing active traders to earn points
+   through either operation.
 
-5. **Transfer ratio per-resource** -- Each of the 8 atom types and energy has
+4. **Transfer ratio per-resource** -- Each of the 8 atom types and energy has
    its own production ratio calculated independently. A player could have a
    favorable ratio for one atom type and unfavorable for another.
 
+5. **V4 transfer ratio inversion** -- The direction of the penalty was
+   reversed. Old: stronger-to-weaker penalized (prevent alt boosting). New:
+   weaker-to-stronger penalized (prevent alt feeding to main). Big players
+   helping small players now transfer at full rate.
+
 6. **Duplicateur has no level cap** -- The exponential cost curve is the only
-   practical limit. At level 10 the cost is ~95,000 alliance energy.
+   practical limit. With `DUPLICATEUR_BASE_COST = 100` and
+   `DUPLICATEUR_COST_FACTOR = 1.5`, level 10 costs ~5,767 alliance energy.

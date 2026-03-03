@@ -21,7 +21,7 @@ Nothing is omitted. Sections are organized by game system.
 8. [Combat](#8-combat)
 9. [Defensive Formations](#9-defensive-formations)
 10. [Isotope Variants](#10-isotope-variants)
-11. [Chemical Reactions](#11-chemical-reactions)
+11. [Chemical Reactions (REMOVED)](#11-chemical-reactions--removed-in-v4)
 12. [Espionage & Neutrinos](#12-espionage--neutrinos)
 13. [Market](#13-market)
 14. [Alliance & Duplicateur](#14-alliance--duplicateur)
@@ -65,7 +65,7 @@ Nothing is omitted. Sections are organized by game system.
 | `MAX_MOLECULE_CLASSES` | 4 | Classes per player |
 | `MAX_ATOMS_PER_ELEMENT` | 200 | Max atoms of one type in a molecule |
 | `MAX_ALLIANCE_MEMBERS` | 20 | Max players per alliance |
-| `BEGINNER_PROTECTION_SECONDS` | 432000 | 5 days |
+| `BEGINNER_PROTECTION_SECONDS` | 259200 | 3 days (V4: reduced from 5) |
 | `ABSENCE_REPORT_THRESHOLD_HOURS` | 6 | Hours offline before loss report generated |
 | `ONLINE_TIMEOUT_SECONDS` | 300 | 5 min — used for "online" status |
 | `VICTORY_POINTS_TOTAL` | 1000 | Season VP pool reference |
@@ -95,24 +95,30 @@ Nothing is omitted. Sections are organized by game system.
 ### 4.1 Energy Production
 
 ```
-revenuEnergie = round(
-    (BASE_ENERGY_PER_LEVEL × generateur_level
-     + totalIodeEnergy)
-    × (1 + energievoreMedalBonus / 100)
-    × bonusDuplicateur
-    × prestigeProductionBonus
-    - drainageProducteur(producteur_level)
-)
+prodBase         = BASE_ENERGY_PER_LEVEL × generateur_level
+prodIode         = prodBase × iodeCatalystBonus
+prodMedaille     = prodIode × (1 + energievoreMedalBonus / 100)
+prodDuplicateur  = prodMedaille × bonusDuplicateur
+prodPrestige     = prodDuplicateur × prestigeProductionBonus
+revenuEnergie    = max(0, round(prodPrestige - drainageProducteur(producteur_level)))
 ```
 
 | Constant | Value |
 |----------|-------|
 | `BASE_ENERGY_PER_LEVEL` | 75 |
 | `PRODUCTEUR_DRAIN_PER_LEVEL` | 8 |
+| `IODE_CATALYST_DIVISOR` | 50000 |
+| `IODE_CATALYST_MAX_BONUS` | 1.0 (max +100%) |
 
-**drainageProducteur(level)** = `round(PRODUCTEUR_DRAIN_PER_LEVEL × level)` = `8 × level`
+**drainageProducteur(level)** = `round(PRODUCTEUR_DRAIN_PER_LEVEL × pow(ECO_GROWTH_BASE, level))` = `round(8 × pow(1.15, level))`
 
-**totalIodeEnergy** = sum over 4 classes of `productionEnergieMolecule(iode, niveauIode) × nombre`
+This is **exponential** (V4), not linear. Examples: level 5 = 16, level 10 = 32, level 20 = 131.
+
+**iodeCatalystBonus** = `1.0 + min(IODE_CATALYST_MAX_BONUS, totalIodeAtoms / IODE_CATALYST_DIVISOR)`
+
+Where `totalIodeAtoms` = sum over 4 classes of `iode_atoms × nombre`. This is a **multiplicative**
+bonus on base energy production, not an additive term. At 50,000 total iode atoms the bonus
+reaches the +100% cap (doubling energy output).
 
 ### 4.2 Atom Production
 
@@ -134,115 +140,114 @@ Atom production per hour = the above result. Resources accumulate proportionally
 ### 4.3 Storage
 
 ```
-placeDepot(level) = BASE_STORAGE_PER_LEVEL × level
+placeDepot(level) = round(BASE_STORAGE_INITIAL × pow(ECO_GROWTH_BASE, level))
 ```
 
 | Constant | Value |
 |----------|-------|
-| `BASE_STORAGE_PER_LEVEL` | 500 |
+| `BASE_STORAGE_INITIAL` | 1000 |
+| `ECO_GROWTH_BASE` | 1.15 |
 
-Examples: Level 1 = 500, Level 10 = 5000, Level 100 = 50000.
+This is **exponential** (V4), not linear. Examples: Level 1 = 1150, Level 5 = 2011,
+Level 10 = 4046, Level 20 = 16367, Level 50 = 1083657.
 
 ---
 
 ## 5. Molecule Stat Formulas
 
-All molecule stats follow a common pattern:
+All molecule stats use the **V4 covalent synergy** pattern:
 ```
-stat = round(rawStat × levelMultiplier × medalBonus)
-```
-
-Where `levelMultiplier = (1 + level / LEVEL_DIVISOR)`.
-
-### 5.1 Attack (Oxygène)
-
-```
-attaque(O, level, joueur) = round(
-    (1 + (ATTACK_ATOM_COEFFICIENT × O)² + O)
-    × (1 + level / ATTACK_LEVEL_DIVISOR)
-    × (1 + attackMedalBonus / 100)
+stat = round(
+    (pow(primary, COVALENT_BASE_EXPONENT) + primary)
+    × (1 + secondary / COVALENT_SYNERGY_DIVISOR)
+    × modCond(condenseurLevel)
+    × medalBonus
 )
 ```
 
+Where:
+- `COVALENT_BASE_EXPONENT` = 1.2
+- `COVALENT_SYNERGY_DIVISOR` = 100
+- `modCond(level)` = `1 + level / COVALENT_CONDENSEUR_DIVISOR` = `1 + level / 50`
+
+Each stat has a **primary atom** (superlinear scaling) and a **secondary atom** (synergy bonus).
+
+### 5.1 Attack: attaque(O, H, nivCondO, medalBonus)
+
+```
+attaque = round(
+    (pow(O, 1.2) + O) × (1 + H / 100) × modCond(nivCondO) × (1 + medalBonus / 100)
+)
+```
+
+Primary: Oxygene (O). Secondary: Hydrogene (H). Condenseur: Oxygene level.
+
 | Constant | Value |
 |----------|-------|
-| `ATTACK_ATOM_COEFFICIENT` | 0.1 |
-| `ATTACK_LEVEL_DIVISOR` | 50 |
+| `COVALENT_BASE_EXPONENT` | 1.2 |
+| `COVALENT_SYNERGY_DIVISOR` | 100 |
+| `COVALENT_CONDENSEUR_DIVISOR` | 50 |
 
 Medal bonus is capped at `MAX_CROSS_SEASON_MEDAL_BONUS` (10%).
 
-### 5.2 Defense (Carbone)
+### 5.2 Defense: defense(C, Br, nivCondC, medalBonus)
 
 ```
-defense(C, level, joueur) = round(
-    (1 + (DEFENSE_ATOM_COEFFICIENT × C)² + C)
-    × (1 + level / DEFENSE_LEVEL_DIVISOR)
-    × (1 + defenseMedalBonus / 100)
+defense = round(
+    (pow(C, 1.2) + C) × (1 + Br / 100) × modCond(nivCondC) × (1 + medalBonus / 100)
 )
 ```
 
-| Constant | Value |
-|----------|-------|
-| `DEFENSE_ATOM_COEFFICIENT` | 0.1 |
-| `DEFENSE_LEVEL_DIVISOR` | 50 |
+Primary: Carbone (C). Secondary: Brome (Br). Condenseur: Carbone level.
 
-Same structure as attack — symmetrical by design.
+Same structure as attack -- symmetrical by design.
 
-### 5.3 Hit Points (Brome)
+### 5.3 Hit Points: pointsDeVieMolecule(Br, C, nivCondBr)
 
 ```
-pointsDeVieMolecule(Br, level) = round(
-    (1 + (HP_ATOM_COEFFICIENT × Br)² + Br)
-    × (1 + level / HP_LEVEL_DIVISOR)
+HP = round(
+    (MOLECULE_MIN_HP + (pow(Br, 1.2) + Br) × (1 + C / 100)) × modCond(nivCondBr)
 )
 ```
 
+Primary: Brome (Br). Secondary: Carbone (C). Condenseur: Brome level.
+
 | Constant | Value |
 |----------|-------|
-| `HP_ATOM_COEFFICIENT` | 0.1 |
-| `HP_LEVEL_DIVISOR` | 50 |
+| `MOLECULE_MIN_HP` | 10 |
 
-No medal bonus on HP.
+The minimum HP of 10 prevents 0-brome molecules from being instantly wiped. No medal bonus on HP.
 
-### 5.4 Destruction (Hydrogène)
+### 5.4 Destruction: potentielDestruction(H, O, nivCondH)
 
 ```
-potentielDestruction(H, level) = round(
-    ((DESTRUCTION_ATOM_COEFFICIENT × H)² + H)
-    × (1 + level / DESTRUCTION_LEVEL_DIVISOR)
+destruction = round(
+    (pow(H, 1.2) + H) × (1 + O / 100) × modCond(nivCondH)
 )
 ```
 
-| Constant | Value |
-|----------|-------|
-| `DESTRUCTION_ATOM_COEFFICIENT` | 0.075 |
-| `DESTRUCTION_LEVEL_DIVISOR` | 50 |
+Primary: Hydrogene (H). Secondary: Oxygene (O). Condenseur: Hydrogene level.
 
-Note: no `+1` in the base — starts at 0 for H=0.
+No medal bonus on destruction.
 
-### 5.5 Pillage (Soufre)
+### 5.5 Pillage: pillage(S, Cl, nivCondS, medalBonus)
 
 ```
-pillage(S, level, joueur) = round(
-    ((PILLAGE_ATOM_COEFFICIENT × S)² + S / PILLAGE_SOUFRE_DIVISOR)
-    × (1 + level / PILLAGE_LEVEL_DIVISOR)
-    × (1 + pillageMedalBonus / 100)
-    × catalystPillageBonus
+pillage = round(
+    (pow(S, 1.2) + S) × (1 + Cl / 100) × modCond(nivCondS) × (1 + medalBonus / 100)
 )
 ```
 
-| Constant | Value |
-|----------|-------|
-| `PILLAGE_ATOM_COEFFICIENT` | 0.1 |
-| `PILLAGE_SOUFRE_DIVISOR` | 2 |
-| `PILLAGE_LEVEL_DIVISOR` | 50 |
+Primary: Soufre (S). Secondary: Chlore (Cl). Condenseur: Soufre level.
 
-### 5.6 Energy from Iode
+Note: the catalyst pillage bonus is now applied in combat.php (not in the pure formula).
+
+### 5.6 Energy from Iode: productionEnergieMolecule(I, niveau)
 
 ```
-productionEnergieMolecule(I, level) = round(
+iodeEnergy = round(
     (IODE_QUADRATIC_COEFFICIENT × I² + IODE_ENERGY_COEFFICIENT × I)
-    × (1 + level / IODE_LEVEL_DIVISOR)
+    × (1 + niveau / IODE_LEVEL_DIVISOR)
 )
 ```
 
@@ -252,58 +257,57 @@ productionEnergieMolecule(I, level) = round(
 | `IODE_ENERGY_COEFFICIENT` | 0.04 |
 | `IODE_LEVEL_DIVISOR` | 50 |
 
-Examples: I=100 level 0 → 34 energy/mol. I=100 level 50 → 68 energy/mol.
+Examples: I=100 level 0 = 34 energy/mol. I=100 level 50 = 68 energy/mol.
 
-### 5.7 Speed (Chlore)
+Note: Iode energy is NOT used as an additive term in revenuEnergie. Instead,
+total iode atoms across all classes provide a multiplicative `iodeCatalystBonus`
+on base energy production (see Section 4.1).
+
+### 5.7 Speed: vitesse(Cl, N, nivCondCl)
 
 ```
-vitesse(Cl, level) = floor(
-    (1 + SPEED_ATOM_COEFFICIENT × Cl)
-    × (1 + level / SPEED_LEVEL_DIVISOR)
-    × 100
-) / 100
+vitesse = max(1.0, floor(
+    (1 + Cl × 0.5 + (Cl × N) / 200) × modCond(nivCondCl) × 100
+) / 100)
 ```
+
+Primary: Chlore (Cl). Synergy: Azote (N) via `(Cl × N) / 200`. Condenseur: Chlore level.
+
+Result is a multiplier (1.0 = base speed). Cl=0 gives 1.0. The `Cl × N` interaction
+term means Chlore and Azote synergize for speed.
+
+### 5.8 Formation Time: tempsFormation(nTotal, N, I, nivCondN, nivLieur, joueur)
+
+```
+vitesse_form = (1 + pow(N, 1.1) × (1 + I / 200))
+               × modCond(nivCondN)
+               × bonusLieur(nivLieur)
+               × catalystSpeedBonus
+               × allianceCatalyseurBonus
+
+tempsFormation = ceil(nTotal / vitesse_form × 100) / 100
+```
+
+Primary speed scaling: Azote (N) with exponent 1.1. Synergy: Iode (I) via `(1 + I / 200)`.
 
 | Constant | Value |
 |----------|-------|
-| `SPEED_ATOM_COEFFICIENT` | 0.5 |
-| `SPEED_LEVEL_DIVISOR` | 50 |
-
-Result is a multiplier (1.0 = base speed). Cl=0 → 1.0.
-
-### 5.8 Formation Time (Azote)
-
-```
-tempsFormation(N, level, nTotal, joueur) = ceil(
-    nTotal
-    / (1 + pow(FORMATION_AZOTE_COEFFICIENT × N, FORMATION_AZOTE_EXPONENT))
-    / (1 + level / FORMATION_LEVEL_DIVISOR)
-    / bonusLieur(lieurLevel)
-    / catalystSpeedBonus
-    / allianceCatalyseurBonus
-    × 100
-) / 100
-```
-
-| Constant | Value |
-|----------|-------|
-| `FORMATION_AZOTE_COEFFICIENT` | 0.09 |
-| `FORMATION_AZOTE_EXPONENT` | 1.09 |
-| `FORMATION_LEVEL_DIVISOR` | 20 |
+| `COVALENT_CONDENSEUR_DIVISOR` | 50 (modCond) |
 
 Result is in hours. `nTotal` = total atoms in the molecule.
 
 ### 5.9 Lieur Bonus
 
 ```
-bonusLieur(level) = floor(100 × pow(LIEUR_GROWTH_BASE, level)) / 100
+bonusLieur(level) = 1 + level × LIEUR_LINEAR_BONUS_PER_LEVEL
 ```
 
 | Constant | Value |
 |----------|-------|
-| `LIEUR_GROWTH_BASE` | 1.07 |
+| `LIEUR_LINEAR_BONUS_PER_LEVEL` | 0.15 |
 
-Level 0 = 1.0 (no bonus), Level 5 = 1.40, Level 10 = 1.96, Level 25 = 5.42.
+V4: now **linear** (not exponential `pow(1.07, level)`). Level 0 = 1.0, Level 5 = 1.75,
+Level 10 = 2.50, Level 20 = 4.00.
 
 ---
 
@@ -312,23 +316,27 @@ Level 0 = 1.0 (no bonus), Level 5 = 1.40, Level 10 = 1.96, Level 25 = 5.42.
 ### 6.1 Disappearance Coefficient
 
 ```
-baseDecay = pow(
-    pow(
-        DECAY_BASE,
-        pow(1 + nbAtoms / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR
-    ),
-    (1 - medalBonus/100) × (1 - stabilisateur × STABILISATEUR_BONUS_PER_LEVEL)
-)
+rawDecay = pow(DECAY_BASE, pow(1 + nbAtoms / DECAY_ATOM_DIVISOR, DECAY_MASS_EXPONENT) / DECAY_POWER_DIVISOR)
+modStab  = pow(STABILISATEUR_ASYMPTOTE, stabilisateur_level)
+modMedal = 1 - (medalBonus / 100)
+baseDecay = pow(rawDecay, modStab × modMedal)
 ```
 
 | Constant | Value |
 |----------|-------|
 | `DECAY_BASE` | 0.99 |
 | `DECAY_ATOM_DIVISOR` | 150 |
+| `DECAY_MASS_EXPONENT` | 1.5 (V4: was 2) |
 | `DECAY_POWER_DIVISOR` | 25000 |
-| `STABILISATEUR_BONUS_PER_LEVEL` | 0.015 (1.5% per level) |
+| `STABILISATEUR_ASYMPTOTE` | 0.98 (V4: asymptotic `pow(0.98, level)`) |
+| `STABILISATEUR_BONUS_PER_LEVEL` | 0.015 (1.5% per level -- legacy constant) |
 
-The decay coefficient is <1.0 — each second the molecule count is multiplied by `pow(coef, elapsedSeconds)`.
+The decay coefficient is <1.0 -- each second the molecule count is multiplied by `pow(coef, elapsedSeconds)`.
+
+V4 changes:
+- `DECAY_MASS_EXPONENT` reduced from 2 to 1.5, making large molecules slightly more viable.
+- Stabilisateur modifier is now **asymptotic**: `pow(0.98, level)` instead of `1 - stab × 0.01`.
+  This means the stabilisateur can never fully eliminate decay, and high levels give diminishing returns.
 
 ### 6.2 Decay Modifiers
 
@@ -362,20 +370,27 @@ If player was absent >6 hours, a loss report is generated.
 
 ## 7. Buildings
 
-### 7.1 Building Cost Formula
+### 7.1 Building Cost Formula (V4: Exponential)
 
 ```
-costEnergy = round((1 - constructeurMedalBonus/100) × cost_energy_base × pow(level, cost_energy_exp))
-costAtoms  = round((1 - constructeurMedalBonus/100) × cost_atoms_base  × pow(level, cost_atoms_exp))
+costEnergy = round((1 - constructeurMedalBonus/100) × cost_energy_base × pow(cost_growth_base, level))
+costAtoms  = round((1 - constructeurMedalBonus/100) × cost_atoms_base  × pow(cost_growth_base, level))
 ```
 
-### 7.2 Building Construction Time
+V4 uses exponential costs (`base × pow(growth_base, level)`) instead of polynomial (`base × pow(level, exp)`).
+
+Growth base tiers:
+- `ECO_GROWTH_BASE` = 1.15 -- standard buildings (generateur, producteur, depot, coffrefort)
+- `ECO_GROWTH_ADV` = 1.20 -- strategic buildings (champdeforce, ionisateur, condenseur, lieur)
+- `ECO_GROWTH_ULT` = 1.25 -- stabilisateur (strong exponential)
+
+### 7.2 Building Construction Time (V4: Exponential)
 
 ```
-time = round(time_base × pow(level + time_level_offset, time_exp))
+time = round(time_base × pow(time_growth_base, level + time_level_offset))
 ```
 
-Level 1 for Générateur/Producteur has special case: 10 seconds.
+All buildings use `time_growth_base = 1.10`. Level 1 for Generateur/Producteur has special case: 10 seconds.
 
 ### 7.3 Building Points (added to totalPoints on upgrade)
 
@@ -383,52 +398,56 @@ Level 1 for Générateur/Producteur has special case: 10 seconds.
 points = points_base + floor(level × points_level_factor)
 ```
 
-### 7.4 Building Configuration Table
+### 7.4 Building Configuration Table (V4)
 
-| Building | Energy Base | Energy Exp | Atom Base | Atom Exp | Time Base | Time Exp | Offset | Pts Base | Pts Factor |
-|----------|-------------|------------|-----------|----------|-----------|----------|--------|----------|------------|
-| Générateur | 50 | 0.7 | 75 | 0.7 | 60 | 1.5 | 0 | 1 | 0.1 |
-| Producteur | 75 | 0.7 | 50 | 0.7 | 40 | 1.5 | 0 | 1 | 0.1 |
-| Dépôt | 100 | 0.7 | 0 | 0 | 80 | 1.5 | 0 | 1 | 0.1 |
-| Champ de Force | 100C | 0.7 | — | — | 20 | 1.7 | +2 | 1 | 0.075 |
-| Ionisateur | 100O | 0.7 | — | — | 20 | 1.7 | +2 | 1 | 0.075 |
-| Condenseur | 25 | 0.8 | 100 | 0.8 | 120 | 1.6 | +1 | 2 | 0.1 |
-| Lieur | 100N | 0.8 | — | — | 100 | 1.5 | +1 | 2 | 0.1 |
-| Stabilisateur | — | — | 75 | 0.9 | 120 | 1.5 | +1 | 3 | 0.1 |
-| Coffre-fort | 150 | 0.7 | 0 | 0 | 90 | 1.2 | +1 | 1 | 0.1 |
+| Building | Energy Base | Atom Base | Cost Growth | Time Base | Time Growth | Offset | Pts Base | Pts Factor |
+|----------|-------------|-----------|-------------|-----------|-------------|--------|----------|------------|
+| Generateur | 50 | 75 (all) | 1.15 | 60 | 1.10 | 0 | 1 | 0.1 |
+| Producteur | 75 | 50 (all) | 1.15 | 40 | 1.10 | 0 | 1 | 0.1 |
+| Depot | 100 | 0 | 1.15 | 80 | 1.10 | 0 | 1 | 0.1 |
+| Champ de Force | 0 | 100 (C) | 1.20 | 20 | 1.10 | +2 | 1 | 0.075 |
+| Ionisateur | 0 | 100 (O) | 1.20 | 20 | 1.10 | +2 | 1 | 0.075 |
+| Condenseur | 25 | 100 (all) | 1.20 | 120 | 1.10 | +1 | 2 | 0.1 |
+| Lieur | 0 | 100 (N) | 1.20 | 100 | 1.10 | +1 | 2 | 0.1 |
+| Stabilisateur | 0 | 75 (all) | 1.25 | 120 | 1.10 | +1 | 3 | 0.1 |
+| Coffre-fort | 150 | 0 | 1.15 | 90 | 1.10 | +1 | 1 | 0.1 |
 
 Notes:
-- "100C" means cost is in carbone, "100O" in oxygène, "100N" in azote.
-- Offset means `pow(level + offset, time_exp)` for construction time.
-- Level 1 special case for Générateur/Producteur: 10 seconds.
+- "100 (C)" means cost is in carbone, "(O)" in oxygene, "(N)" in azote, "(all)" in all atom types.
+- Offset means `pow(time_growth_base, level + offset)` for construction time.
+- Level 1 special case for Generateur/Producteur: 10 seconds.
+- Cost Growth is the exponential base applied to both energy and atom costs.
 
-### 7.5 Building HP
+### 7.5 Building HP (V4: Polynomial)
 
 ```
-pointsDeVie(level) = round(BUILDING_HP_BASE × (pow(BUILDING_HP_GROWTH_BASE, level) + pow(level, BUILDING_HP_LEVEL_EXP)))
+pointsDeVie(level) = round(BUILDING_HP_BASE × pow(max(1, level), BUILDING_HP_POLY_EXP))
 ```
 
 | Constant | Value |
 |----------|-------|
-| `BUILDING_HP_BASE` | 20 |
-| `BUILDING_HP_GROWTH_BASE` | 1.2 |
-| `BUILDING_HP_LEVEL_EXP` | 1.2 |
+| `BUILDING_HP_BASE` | 50 |
+| `BUILDING_HP_POLY_EXP` | 2.5 |
+
+V4: pure polynomial `50 × level^2.5` (not the old `base × (pow(1.2, level) + pow(level, 1.2))`).
+
+Examples: Level 1 = 50, Level 5 = 2795, Level 10 = 15811, Level 20 = 89443.
 
 With alliance Fortification research: `HP × (1 + fortificationLevel × 0.01)`
 
-### 7.6 Forcefield HP
+### 7.6 Forcefield HP (V4: Polynomial)
 
 ```
-vieChampDeForce(level) = round(FORCEFIELD_HP_BASE × (pow(FORCEFIELD_HP_GROWTH_BASE, level) + pow(level, FORCEFIELD_HP_LEVEL_EXP)))
+vieChampDeForce(level) = round(FORCEFIELD_HP_BASE × pow(max(1, level), BUILDING_HP_POLY_EXP))
 ```
 
 | Constant | Value |
 |----------|-------|
-| `FORCEFIELD_HP_BASE` | 50 |
-| `FORCEFIELD_HP_GROWTH_BASE` | 1.2 |
-| `FORCEFIELD_HP_LEVEL_EXP` | 1.2 |
+| `FORCEFIELD_HP_BASE` | 125 |
+| `BUILDING_HP_POLY_EXP` | 2.5 |
 
-Same structure as building HP but 2.5x base.
+Same polynomial structure as building HP but 2.5x base. Examples: Level 1 = 125,
+Level 5 = 6988, Level 10 = 39528.
 
 ### 7.7 Building Combat Bonuses
 
@@ -451,13 +470,12 @@ Each Condenseur upgrade grants 5 distributable points.
 
 ## 8. Combat
 
-### 8.1 Total Damage Calculation
+### 8.1 Total Damage Calculation (V4 Covalent)
 
 **Attacker total damage:**
 ```
 for each class c (1-4):
-    attaque(O, levelO, attacker)
-    × attReactionAttackBonus         (chemical reactions)
+    attaque(O[c], H[c], nivCondO, attackMedalBonus)
     × attIsotopeAttackMod[c]         (isotope modifier)
     × (1 + ionisateurLevel × 2/100)  (building bonus)
     × bonusDuplicateurAttaque        (alliance bonus)
@@ -470,16 +488,18 @@ Total × prestigeCombatBonus(attacker)
 **Defender total damage:**
 ```
 for each class c (1-4):
-    defense(C, levelC, defender)
-    × defReactionDefenseBonus        (chemical reactions)
+    defense(C[c], Br[c], nivCondC, defenseMedalBonus)
     × defIsotopeAttackMod[c]         (isotope modifier on defense output)
-    × phalanxDefenseBonus            (if Phalange + class 1: ×1.20)
+    × phalanxDefenseBonus            (if Phalange + class 1: x1.20)
     × (1 + champdeforceLevel × 2/100)(building bonus)
     × bonusDuplicateurDefense        (alliance bonus)
     × nombre[c]                      (molecule count)
 
 Total × prestigeCombatBonus(defender) × embuscadeDefBoost
 ```
+
+Note: Chemical reactions have been **removed** in V4. All bonuses now come from
+covalent synergy (secondary atom), condenseur levels, and isotopes.
 
 ### 8.2 Attack Energy Cost
 
@@ -491,24 +511,26 @@ energyCost = ATTACK_ENERGY_COST_FACTOR × (1 + terreurMedalBonus / 100) × total
 |----------|-------|
 | `ATTACK_ENERGY_COST_FACTOR` | 0.15 |
 
-### 8.3 Damage Distribution (Attacker Casualties)
+### 8.3 Damage Distribution -- V4 Overkill Cascade (Attacker Casualties)
 
-Proportional to HP pool:
+Sequential cascade through classes 1-4. Overkill damage carries to the next class:
 ```
-for each class:
-    hpPerMol = pointsDeVieMolecule(Br, levelBr) × duplicateur × reactionHpBonus × isotopeHpMod
-    classHPpool = hpPerMol × count
-    damageShare = totalDefenderDamage × (classHPpool / totalAttackerHP)
-    killed = min(count, floor(damageShare / hpPerMol))
+remainingDamage = totalDefenderDamage
+for each class c (1-4):
+    hpPerMol = pointsDeVieMolecule(Br[c], C[c], nivCondBr) × duplicateur × isotopeHpMod[c]
+    kills = min(count[c], floor(remainingDamage / hpPerMol))
+    remainingDamage -= kills × hpPerMol
 ```
 
-### 8.4 Damage Distribution (Defender Casualties)
+### 8.4 Damage Distribution -- V4 Overkill Cascade (Defender Casualties)
 
-Depends on **formation**:
+Depends on **formation**, all using overkill cascade:
 
-- **Dispersée (0):** Equal split among classes with molecules. `damageShare = totalDamage / activeClasses`
-- **Phalange (1):** Class 1 absorbs 60%, remainder split among classes 2–4
-- **Embuscade (2) / Default:** Proportional to HP pool (same as attacker)
+- **Dispersee (0):** Equal split among active classes, overkill cascades within.
+  `damagePerClass = totalDamage / activeClassCount`, overflow carries to next class.
+- **Phalange (1):** Class 1 absorbs 60% of damage, classes 2-4 share the remaining 40%.
+  Phalanx overkill on class 1 carries to classes 2-4. All use sequential cascade.
+- **Embuscade (2) / Default:** Straight cascade through all classes 1-4 (same as attacker).
 
 ### 8.5 Winner Determination
 
@@ -523,8 +545,9 @@ Depends on **formation**:
 
 ```
 ressourcesAPiller = sum over surviving attacker classes:
-    (count - killed) × pillage(S, levelS, attacker) × reactionPillageBonus
+    (count - killed) × pillage(S[c], Cl[c], nivCondS, pillageMedalBonus)
 
+After catalyst: ressourcesAPiller × catalystPillageBonus
 After alliance Bouclier: ressourcesAPiller × (1 - bouclierReduction)
 ```
 
@@ -549,12 +572,13 @@ hydrogeneTotal = sum(surviving × potentielDestruction(H, levelH))
 
 If building HP reaches 0 and level > 1, building loses 1 level. Level 1 buildings cannot be destroyed.
 
-### 8.8 Combat Points
+### 8.8 Combat Points (V4: Mass-Based)
 
 ```
-totalCasualties = attackerLosses + defenderLosses
+massDestroyed[side] = sum over classes: killed[c] × totalAtoms[c]
+totalMassDestroyed = massDestroyedAttacker + massDestroyedDefender
 battlePoints = min(COMBAT_POINTS_MAX_PER_BATTLE,
-    floor(COMBAT_POINTS_BASE + COMBAT_POINTS_CASUALTY_SCALE × sqrt(totalCasualties)))
+    floor(COMBAT_POINTS_BASE + COMBAT_POINTS_CASUALTY_SCALE × sqrt(totalMassDestroyed / COMBAT_MASS_DIVISOR)))
 ```
 
 | Constant | Value |
@@ -562,6 +586,10 @@ battlePoints = min(COMBAT_POINTS_MAX_PER_BATTLE,
 | `COMBAT_POINTS_BASE` | 1 |
 | `COMBAT_POINTS_CASUALTY_SCALE` | 0.5 |
 | `COMBAT_POINTS_MAX_PER_BATTLE` | 20 |
+| `COMBAT_MASS_DIVISOR` | 100 |
+
+V4: Points are now based on total atom mass destroyed (not molecule count). This makes
+battles with heavier molecules worth more points.
 
 **Distribution:**
 - Defender wins: defender gets `floor(battlePoints × DEFENSE_POINTS_MULTIPLIER_BONUS)`, attacker gets `-battlePoints`
@@ -651,23 +679,11 @@ Catalytique ally bonus applies to all non-Catalytique classes on the same side (
 
 ---
 
-## 11. Chemical Reactions
+## 11. Chemical Reactions -- REMOVED in V4
 
-Reactions trigger when two classes (across 4 molecule slots) meet atom thresholds simultaneously.
-
-| Reaction | Class A Needs | Class B Needs | Bonus |
-|----------|--------------|---------------|-------|
-| Combustion | O ≥ 100 | C ≥ 100 | +15% attack |
-| Hydrogénation | H ≥ 100 | Br ≥ 100 | +15% HP |
-| Halogénation | Cl ≥ 80 | I ≥ 80 | +20% speed |
-| Sulfuration | S ≥ 100 | N ≥ 50 | +20% pillage |
-| Neutralisation | O ≥ 80 | H ≥ 80 + C ≥ 80 | +15% defense |
-
-Notes:
-- Each reaction can only activate once per combat (even if multiple class pairs meet conditions).
-- Attacker reactions apply: attack bonus, HP bonus, pillage bonus.
-- Defender reactions apply: defense bonus, HP bonus.
-- Speed bonus (Halogénation) affects travel, not combat directly.
+Chemical reactions have been **removed** in V4. The bonuses they provided are now handled
+by the V4 covalent synergy system (secondary atom scaling in each stat formula) and
+isotope variants. See Section 5 for the replacement formulas.
 
 ---
 
@@ -690,12 +706,22 @@ Alliance Radar research: reduces neutrino cost by `2% × radarLevel`.
 | Constant | Value |
 |----------|-------|
 | `MARKET_VOLATILITY_FACTOR` | 0.3 (divided by active players) |
+| `MARKET_GLOBAL_ECONOMY_DIVISOR` | 10000 (V4: global price impact scale) |
 | `MARKET_PRICE_FLOOR` | 0.1 |
 | `MARKET_PRICE_CEILING` | 10.0 |
 | `MARKET_MEAN_REVERSION` | 0.01 (1% pull toward 1.0 per trade) |
 | `MARKET_SELL_TAX_RATE` | 0.95 (5% tax on sell revenue) |
 | `MARKET_HISTORY_LIMIT` | 1000 (chart data points) |
 | `MERCHANT_SPEED` | 20 cases/hour |
+
+**V4 Price Impact Formulas:**
+```
+Buy:  newPrice = oldPrice + volatility × quantity / MARKET_GLOBAL_ECONOMY_DIVISOR
+Sell: newPrice = 1 / (1/oldPrice + volatility × actualSold / MARKET_GLOBAL_ECONOMY_DIVISOR)
+```
+
+The divisor is a global constant (10000), not the player's `placeDepot`. This ensures
+uniform market behavior regardless of individual depot levels.
 
 ### 13.2 Market Trading Points
 
@@ -722,10 +748,11 @@ coutDuplicateur(level) = round(DUPLICATEUR_BASE_COST × pow(DUPLICATEUR_COST_FAC
 
 | Constant | Value |
 |----------|-------|
-| `DUPLICATEUR_BASE_COST` | 10 |
-| `DUPLICATEUR_COST_FACTOR` | 2.0 |
+| `DUPLICATEUR_BASE_COST` | 100 |
+| `DUPLICATEUR_COST_FACTOR` | 1.5 |
 
-Examples: Level 1 = 40, Level 5 = 640, Level 10 = 20480.
+Cost to upgrade TO level N (from N-1): Level 1 = 225, Level 5 = 1139, Level 10 = 8650.
+The reduced cost factor (1.5 vs old 2.0) makes levels 10-12 achievable in a 31-day season.
 
 ### 14.2 Duplicateur Resource Bonus
 
@@ -763,7 +790,7 @@ cost = round(cost_base × pow(cost_factor, level + 1))
 
 | Tech | Name | Effect/Level | Effect Type | Cost Base | Cost Factor |
 |------|------|-------------|-------------|-----------|-------------|
-| Duplicateur | Duplicateur | +1% resource/combat | (see §14) | 10 | 2.0 |
+| Duplicateur | Duplicateur | +1% resource/combat | (see §14) | 100 | 1.5 |
 | catalyseur | Catalyseur | -2% formation time | formation_speed | 15 | 2.0 |
 | fortification | Fortification | +1% building HP | building_hp | 15 | 2.0 |
 | reseau | Réseau | +5% trade points | trade_points | 12 | 1.8 |
@@ -1116,14 +1143,25 @@ All atoms start at 0. Energy starts at 0. One random element receives starting b
 ## 25. Vault (Coffre-fort)
 
 ```
-protection = VAULT_PROTECTION_PER_LEVEL × level
+capaciteCoffreFort(nivCoffre, nivDepot) =
+    round(placeDepot(nivDepot) × min(VAULT_MAX_PROTECTION_PCT, nivCoffre × VAULT_PCT_PER_LEVEL))
 ```
 
 | Constant | Value |
 |----------|-------|
-| `VAULT_PROTECTION_PER_LEVEL` | 100 |
+| `VAULT_PCT_PER_LEVEL` | 0.02 (2% per level) |
+| `VAULT_MAX_PROTECTION_PCT` | 0.50 (50% cap) |
 
-Protects `100 × level` of EACH resource from pillage. Resources below this threshold cannot be taken.
+V4: Vault protection is now **percentage-based** relative to storage capacity. At level 25
+(cap), it protects 50% of `placeDepot` of EACH resource from pillage.
+
+Examples (depot level 10, placeDepot = 4046):
+- Coffre level 5: `min(50%, 10%) × 4046` = 405 protected per resource
+- Coffre level 15: `min(50%, 30%) × 4046` = 1214 protected per resource
+- Coffre level 25: `min(50%, 50%) × 4046` = 2023 protected per resource
+
+The legacy constant `VAULT_PROTECTION_PER_LEVEL = 100` still exists in config.php but
+the actual vault formula uses the percentage-based `capaciteCoffreFort()` from formulas.php.
 
 ---
 
@@ -1199,42 +1237,51 @@ A player with points <= VP_TOTAL/16 shows "petit", up to VP_TOTAL/2 shows "tgran
 
 ---
 
-## 32. Formula Quick Reference
+## 32. Formula Quick Reference (V4)
 
-All formulas in one place, using constants by name.
+All formulas in one place, matching the actual V4 code in `formulas.php`.
 
 ```
 # PRODUCTION
-revenuEnergie         = BASE_ENERGY_PER_LEVEL(75) × genLevel
-revenuAtome           = BASE_ATOMS_PER_POINT(60) × allocatedPoints × duplicateur × prestige
-drainageProducteur    = PRODUCTEUR_DRAIN_PER_LEVEL(8) × prodLevel
-placeDepot            = BASE_STORAGE_PER_LEVEL(500) × depotLevel
+prodBase              = BASE_ENERGY_PER_LEVEL(75) × genLevel
+iodeCatalystBonus     = 1.0 + min(1.0, totalIodeAtoms / 50000)
+revenuEnergie         = max(0, round(prodBase × iodeCatalystBonus × medalBonus × duplicateur × prestige - drainageProducteur))
+revenuAtome           = round(BASE_ATOMS_PER_POINT(60) × allocatedPoints × duplicateur × prestige)
+drainageProducteur    = round(8 × pow(1.15, prodLevel))                     # EXPONENTIAL
+placeDepot            = round(1000 × pow(1.15, depotLevel))                 # EXPONENTIAL
 
-# MOLECULE STATS
-attaque(O, lvl)       = round((1 + (0.1×O)² + O) × (1 + lvl/50) × medalBonus)
-defense(C, lvl)       = round((1 + (0.1×C)² + C) × (1 + lvl/50) × medalBonus)
-HP(Br, lvl)           = round((1 + (0.1×Br)² + Br) × (1 + lvl/50))
-destruction(H, lvl)   = round(((0.075×H)² + H) × (1 + lvl/50))
-pillage(S, lvl)       = round(((0.1×S)² + S/2) × (1 + lvl/50) × medalBonus × catalyst)
-iodeEnergy(I, lvl)    = round((0.003×I² + 0.04×I) × (1 + lvl/50))
-vitesse(Cl, lvl)      = floor((1 + 0.5×Cl) × (1 + lvl/50) × 100) / 100
-tempsFormation(N, lvl) = ceil(nTotal / (1 + (0.09×N)^1.09) / (1 + lvl/20) / lieur / catalyst / alliance × 100) / 100
+# MOLECULE STATS (V4 COVALENT SYNERGY: primary^1.2 + primary, secondary/100 synergy, modCond)
+modCond(niv)          = 1 + niv / 50
+attaque(O, H, niv)    = round((pow(O, 1.2) + O) × (1 + H/100) × modCond(niv) × medalBonus)
+defense(C, Br, niv)   = round((pow(C, 1.2) + C) × (1 + Br/100) × modCond(niv) × medalBonus)
+HP(Br, C, niv)        = round((10 + (pow(Br, 1.2) + Br) × (1 + C/100)) × modCond(niv))
+destruction(H, O, niv)= round((pow(H, 1.2) + H) × (1 + O/100) × modCond(niv))
+pillage(S, Cl, niv)   = round((pow(S, 1.2) + S) × (1 + Cl/100) × modCond(niv) × medalBonus)
+iodeEnergy(I, niv)    = round((0.003×I² + 0.04×I) × (1 + niv/50))         # QUADRATIC
+vitesse(Cl, N, niv)   = max(1.0, floor((1 + Cl×0.5 + Cl×N/200) × modCond(niv) × 100) / 100)
+tempsFormation(nTot, N, I, niv, lieur) = ceil(nTot / ((1 + pow(N, 1.1) × (1 + I/200)) × modCond(niv) × bonusLieur) × 100) / 100
+bonusLieur(level)     = 1 + level × 0.15                                   # LINEAR
 
-# BUILDINGS
-buildCost             = round((1 - medalBonus%) × costBase × pow(level, costExp))
-buildTime             = round(timeBase × pow(level + offset, timeExp))
-buildingHP            = round(20 × (pow(1.2, level) + pow(level, 1.2)))
-forcefieldHP          = round(50 × (pow(1.2, level) + pow(level, 1.2)))
+# BUILDINGS (V4: EXPONENTIAL cost + time, POLYNOMIAL HP)
+buildCost             = round((1 - medalBonus%) × costBase × pow(growthBase, level))
+buildTime             = round(timeBase × pow(1.10, level + offset))
+buildingHP            = round(50 × pow(max(1, level), 2.5))                # POLYNOMIAL
+forcefieldHP          = round(125 × pow(max(1, level), 2.5))               # POLYNOMIAL
 buildPoints           = pointsBase + floor(level × pointsFactor)
 
-# DECAY
-coefDisparition       = pow(pow(0.99, (1+atoms/150)²/25000), (1-medal%)(1-stab×0.015))
-demiVie               = round(log(0.5)/log(coef))  // in seconds
+# DECAY (V4: mass exponent 1.5, asymptotic stabilisateur)
+rawDecay              = pow(0.99, pow(1 + atoms/150, 1.5) / 25000)
+modStab               = pow(0.98, stabLevel)                                # ASYMPTOTIC
+baseDecay             = pow(rawDecay, modStab × (1 - medal%/100))
+demiVie               = round(log(0.5) / log(coef))                        # in seconds
+
+# VAULT (V4: percentage-based)
+vaultProtection       = round(placeDepot(depot) × min(0.50, coffreLevel × 0.02))
 
 # ALLIANCE
 bonusDuplicateur      = level × 0.01
-coutDuplicateur       = round(10 × pow(2.0, level + 1))
-bonusLieur            = floor(100 × pow(1.07, level)) / 100
+coutDuplicateur       = round(100 × pow(1.5, level + 1))                   # V4: 100/1.5
+bonusLieur            = 1 + level × 0.15                                    # V4: LINEAR
 allianceBonus         = level × effect_per_level
 
 # POINTS
@@ -1245,8 +1292,12 @@ tradePoints           = min(80, floor(0.08 × sqrt(volume)))
 coutClasse(n)         = pow(n + 1, 4)
 
 # COMBAT
-battlePoints          = min(20, floor(1 + 0.5 × sqrt(casualties)))
+battlePoints          = min(20, floor(1 + 0.5 × sqrt(massDestroyed / 100)))
 attackEnergyCost      = 0.15 × (1 + terreurBonus%) × totalAtoms
+
+# MARKET (V4: global economy divisor)
+buyImpact             = oldPrice + volatility × qty / 10000
+sellImpact            = 1 / (1/oldPrice + volatility × qty / 10000)
 
 # PRESTIGE
 prestigeProd          = 1.05 if 'experimente', else 1.0

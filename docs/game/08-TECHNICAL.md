@@ -36,34 +36,38 @@ Missing parameters default to `0`.
 
 | Endpoint | Query Parameter (`?id=`) | Additional Parameters | Return Type | Description |
 |---|---|---|---|---|
-| Attack | `attaque` | `nombre` (atom count), `niveau` (level), `joueur` (player) | `int` | Calculates the attack power of a molecule based on oxygen atoms, level, and player bonuses. Formula: `round((1 + (0.1 * oxygene)^2 + oxygene) * (1 + niveau / 50))` |
-| Defense | `defense` | `nombre` (atom count), `niveau` (level), `joueur` (player) | `int` | Calculates the defense power of a molecule based on carbon atoms, level, and player bonuses. Formula: `round((1 + (0.1 * carbone)^2 + carbone) * (1 + niveau / 50))` |
-| HP | `pointsDeVieMolecule` | `nombre` (atom count), `niveau` (level) | `int` | Calculates molecule hit points based on bromine atoms and level. Formula: `round((1 + (0.1 * brome)^2 + brome) * (1 + niveau / 50))` |
-| Destruction | `potentielDestruction` | `nombre` (atom count), `niveau` (level) | `int` | Calculates destruction potential based on hydrogen atoms and level. Formula: `round(((0.075 * hydrogene)^2 + hydrogene) * (1 + niveau / 50))` |
-| Pillage | `pillage` | `nombre` (atom count), `niveau` (level), `joueur` (player) | `int` | Calculates pillage capacity based on sulfur atoms, level, and player bonuses. Formula: `round(((0.1 * soufre)^2 + soufre / 3) * (1 + niveau / 50))` |
-| Energy Production | `productionEnergieMolecule` | `nombre` (atom count), `niveau` (level) | `int` | Calculates energy production from iodine atoms. Formula: `round(0.05 * iode * (1 + niveau / 50))` |
-| Speed | `vitesse` | `nombre` (atom count), `niveau` (level) | `float` | Calculates molecule speed from chlorine atoms. Formula: `floor((1 + 0.5 * chlore) * (1 + niveau / 50) * 100) / 100` |
-| Formation Time | `tempsFormation` | `nombre` (atom count), `niveau` (level), `nbTotalAtomes` (total atoms), `joueur` (player) | `string` | Calculates and formats the time to form a molecule based on nitrogen atoms, level, total atoms, and lieur bonus. Returns human-readable time string. Formula: `ceil(ntotal / (1 + pow(0.09 * azote, 1.09)) / (1 + niveau / 20) / bonusLieur * 100) / 100` |
-| Half-Life | `demiVie` | `joueur` (player class or identifier), `nbTotalAtomes` (total atoms) | `string` | Calculates and formats the decay half-life of a molecule or class. Returns human-readable time string. |
+| Attack | `attaque` | `nombre` (O, primary), `nombre2` (H, synergy), `niveau` (condenseur level) | `int` | V4 covalent synergy attack. Medal bonus computed server-side. Formula: `(pow(O, 1.2) + O) * (1 + H / 100) * (1 + niveau / 50) * (1 + bonusMedaille/100)` |
+| Defense | `defense` | `nombre` (C, primary), `nombre2` (Br, synergy), `niveau` (condenseur level) | `int` | V4 covalent synergy defense. Medal bonus computed server-side. Formula: `(pow(C, 1.2) + C) * (1 + Br / 100) * (1 + niveau / 50) * (1 + bonusMedaille/100)` |
+| HP | `pointsDeVieMolecule` | `nombre` (Br, primary), `nombre2` (C, synergy), `niveau` (condenseur level) | `int` | V4 covalent synergy hit points. Formula: `max(10, (pow(Br, 1.2) + Br) * (1 + C / 100) * (1 + niveau / 50))` |
+| Destruction | `potentielDestruction` | `nombre` (H, primary), `nombre2` (O, synergy), `niveau` (condenseur level) | `int` | V4 covalent synergy destruction. Formula: `(pow(H, 1.2) + H) * (1 + O / 100) * (1 + niveau / 50)` |
+| Pillage | `pillage` | `nombre` (S, primary), `nombre2` (Cl, synergy), `niveau` (condenseur level) | `int` | V4 covalent synergy pillage. Medal bonus computed server-side. Formula: `(pow(S, 1.2) + S) * (1 + Cl / 100) * (1 + niveau / 50) * (1 + bonusMedaille/100)` |
+| Energy Production | `productionEnergieMolecule` | `nombre` (I, atom count), `niveau` (condenseur level) | `int` | V4 quadratic iodine energy (no synergy atom). Formula: `round((0.003 * I^2 + 0.04 * I) * (1 + niveau / 50))` |
+| Speed | `vitesse` | `nombre` (Cl, primary), `nombre2` (N, synergy), `niveau` (condenseur level) | `float` | V4 covalent synergy speed. Formula: `(pow(Cl, 1.2) + Cl) * (1 + N / 100) * (1 + niveau / 50)` |
+| Formation Time | `tempsFormation` | `nombre` (N, primary), `nombre2` (I, synergy), `niveau` (condenseur level), `nbTotalAtomes` (total atoms) | `string` | V4 formation time. `joueur` forced from session (lieur level queried server-side). Returns human-readable time string. |
+| Half-Life | `demiVie` | `nbTotalAtomes` (total atoms) | `string` | Decay half-life. `joueur` forced from `$_SESSION['login']` (not a client parameter). Returns human-readable time string. |
 
 ### Example Request
 
 ```
-GET /api.php?id=attaque&nombre=50&niveau=10&joueur=Player1
+GET /api.php?id=attaque&nombre=50&nombre2=30&niveau=10
 ```
+
+Note: `joueur` is no longer a client parameter -- it is forced server-side to `$_SESSION['login']`.
 
 ### Example Response
 
 ```json
-{"valeur": 365}
+{"valeur": 498}
 ```
 
 ### Parameter Handling
 
-All parameters go through a sanitization loop at `api.php:14-23`:
+All parameters go through a sanitization loop at `api.php:14-23`. In V4, `joueur` is
+no longer a client parameter -- it is forced to `$_SESSION['login']` server-side.
+The new `nombre2` parameter carries the synergy (secondary) atom count.
 
 ```php
-$param = ['nombre', 'niveau', 'joueur', 'nbTotalAtomes'];
+$param = ['nombre', 'nombre2', 'niveau', 'nbTotalAtomes'];
 foreach ($param as $num => $val) {
     if (isset($_GET[$val])) {
         $_GET[$val] = antiXSS($_GET[$val]);
@@ -72,6 +76,12 @@ foreach ($param as $num => $val) {
     }
 }
 ```
+
+- `nombre` = primary atom count (e.g. O for attack, C for defense)
+- `nombre2` = secondary (synergy) atom count (e.g. H for attack, Br for defense)
+- `niveau` = condenseur level
+- `nbTotalAtomes` = total atoms in molecule (used by formation time and half-life)
+- `joueur` = forced to `$_SESSION['login']` (medal bonuses computed server-side)
 
 ---
 
@@ -1231,9 +1241,9 @@ All `define()` constants and global configuration arrays, grouped by category.
 | `MAX_MOLECULE_CLASSES` | `4` | Maximum molecule classes per player | `config.php:23` | Molecule creation |
 | `MAX_ATOMS_PER_ELEMENT` | `200` | Maximum atoms of one type in a molecule | `config.php:24` | Molecule design |
 | `MAX_ALLIANCE_MEMBERS` | `20` | Maximum players per alliance (was `$joueursEquipe`) | `config.php:25` | `alliance.php` |
-| `BEGINNER_PROTECTION_SECONDS` | `432000` | 5 days of attack immunity for new players | `config.php:26` | `attaquer.php` |
-| `NEW_PLAYER_BOOST_DURATION` | `259200` | 3 days of production boost for new players | `config.php:27` | Resource production |
-| `NEW_PLAYER_BOOST_MULTIPLIER` | `2` | 2x production multiplier during boost period | `config.php:28` | Resource production |
+| `BEGINNER_PROTECTION_SECONDS` | `259200` | 3 days of attack immunity for new players (V4: reduced from 5 days) | `config.php:26` | `attaquer.php` |
+| ~~`NEW_PLAYER_BOOST_DURATION`~~ | -- | **Deprecated in V4.** Removed; no longer applies. | -- | -- |
+| ~~`NEW_PLAYER_BOOST_MULTIPLIER`~~ | -- | **Deprecated in V4.** Removed; no longer applies. | -- | -- |
 | `ABSENCE_REPORT_THRESHOLD_HOURS` | `6` | Hours offline before loss report is generated | `config.php:29` | Combat reports |
 | `ONLINE_TIMEOUT_SECONDS` | `300` | 5 minutes; threshold for "online" status | `config.php:30` | `basicprivatephp.php` |
 | `VICTORY_POINTS_TOTAL` | `1000` | Total victory points pool (was `$nbPointsVictoire`) | `config.php:31` | Round end |
@@ -1244,60 +1254,81 @@ All `define()` constants and global configuration arrays, grouped by category.
 |---|---|---|---|---|
 | `BASE_ENERGY_PER_LEVEL` | `75` | Energy per generateur level (`revenuEnergie = 75 * level`) | `config.php:48` | Resource update |
 | `BASE_ATOMS_PER_POINT` | `60` | Atoms per producteur point per level | `config.php:51` | Resource update |
-| `BASE_STORAGE_PER_LEVEL` | `500` | Storage capacity per depot level | `config.php:54` | Resource caps |
+| `BASE_STORAGE_PER_LEVEL` | `500` | Storage capacity per depot level (legacy linear reference) | `config.php:54` | Resource caps |
+| `BASE_STORAGE_INITIAL` | `1000` | V4 exponential storage base: `round(1000 * pow(1.15, level))` | `config.php:55` | Resource caps |
 | `PRODUCTEUR_DRAIN_PER_LEVEL` | `8` | Energy drained per producteur level | `config.php:57` | Resource update |
+
+> **V4 Note:** Storage is now exponential (`round(1000 * pow(1.15, level))`) rather than linear.
+
+### V4 Covalent Synergy Constants
+
+All molecule stat formulas in V4 use a unified covalent synergy pattern:
+`(pow(primary, EXPONENT) + primary) * (1 + secondary / SYNERGY_DIVISOR) * modCond(nivCond)`
+where `modCond(nivCond) = 1 + (nivCond / CONDENSEUR_DIVISOR)`.
+
+| Constant | Value | Description | Defined At | Used In |
+|---|---|---|---|---|
+| `COVALENT_BASE_EXPONENT` | `1.2` | Primary atom exponent in all covalent formulas | `config.php:60` | All molecule stats |
+| `COVALENT_SYNERGY_DIVISOR` | `100` | Synergy divisor: `(1 + secondary / 100)` | `config.php:61` | All molecule stats |
+| `COVALENT_CONDENSEUR_DIVISOR` | `50` | Condenseur modifier: `(1 + nivCond / 50)` | `config.php:62` | All molecule stats |
+| `MOLECULE_MIN_HP` | `10` | Minimum HP floor for any molecule | `config.php:63` | `fonctions.php` (pointsDeVieMolecule) |
 
 ### Molecule Stat Formulas -- Attack
 
-| Constant | Value | Description | Defined At | Used In |
-|---|---|---|---|---|
-| `ATTACK_ATOM_COEFFICIENT` | `0.1` | Oxygen atom coefficient in attack formula | `config.php:65` | `fonctions.php` (attaque) |
-| `ATTACK_LEVEL_DIVISOR` | `50` | Level divisor in attack formula | `config.php:66` | `fonctions.php` (attaque) |
+V4 formula: `(pow(O, 1.2) + O) * (1 + H / 100) * modCond(nivCond) * (1 + bonusMedaille/100)`
+
+Primary atom: Oxygen (O). Synergy atom: Hydrogen (H). Medal bonus computed server-side.
 
 ### Molecule Stat Formulas -- Defense
 
-| Constant | Value | Description | Defined At | Used In |
-|---|---|---|---|---|
-| `DEFENSE_ATOM_COEFFICIENT` | `0.1` | Carbon atom coefficient in defense formula | `config.php:69` | `fonctions.php` (defense) |
-| `DEFENSE_LEVEL_DIVISOR` | `50` | Level divisor in defense formula | `config.php:70` | `fonctions.php` (defense) |
+V4 formula: `(pow(C, 1.2) + C) * (1 + Br / 100) * modCond(nivCond) * (1 + bonusMedaille/100)`
+
+Primary atom: Carbon (C). Synergy atom: Bromine (Br). Medal bonus computed server-side.
 
 ### Molecule Stat Formulas -- HP
 
-| Constant | Value | Description | Defined At | Used In |
-|---|---|---|---|---|
-| `HP_ATOM_COEFFICIENT` | `0.1` | Bromine atom coefficient in HP formula | `config.php:73` | `fonctions.php` (pointsDeVieMolecule) |
-| `HP_LEVEL_DIVISOR` | `50` | Level divisor in HP formula | `config.php:74` | `fonctions.php` (pointsDeVieMolecule) |
+V4 formula: `max(10, (pow(Br, 1.2) + Br) * (1 + C / 100) * modCond(nivCond))`
+
+Primary atom: Bromine (Br). Synergy atom: Carbon (C). Floor of `MOLECULE_MIN_HP` (10).
 
 ### Molecule Stat Formulas -- Destruction
 
-| Constant | Value | Description | Defined At | Used In |
-|---|---|---|---|---|
-| `DESTRUCTION_ATOM_COEFFICIENT` | `0.075` | Hydrogen atom coefficient in destruction formula | `config.php:77` | `fonctions.php` (potentielDestruction) |
-| `DESTRUCTION_LEVEL_DIVISOR` | `50` | Level divisor in destruction formula | `config.php:78` | `fonctions.php` (potentielDestruction) |
+V4 formula: `(pow(H, 1.2) + H) * (1 + O / 100) * modCond(nivCond)`
+
+Primary atom: Hydrogen (H). Synergy atom: Oxygen (O). No medal bonus.
 
 ### Molecule Stat Formulas -- Pillage
 
+V4 formula: `(pow(S, 1.2) + S) * (1 + Cl / 100) * modCond(nivCond) * (1 + bonusMedaille/100)`
+
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
-| `PILLAGE_ATOM_COEFFICIENT` | `0.1` | Sulfur atom coefficient in pillage formula | `config.php:81` | `fonctions.php` (pillage) |
-| `PILLAGE_SOUFRE_DIVISOR` | `3` | Sulfur divisor in pillage formula (soufre/3) | `config.php:82` | `fonctions.php` (pillage) |
-| `PILLAGE_LEVEL_DIVISOR` | `50` | Level divisor in pillage formula | `config.php:83` | `fonctions.php` (pillage) |
+| `PILLAGE_SOUFRE_DIVISOR` | `2` | Sulfur divisor in pillage formula (V4: changed from 3 to 2, BAL-CROSS C1) | `config.php:82` | `fonctions.php` (pillage) |
+
+Primary atom: Sulfur (S). Synergy atom: Chlorine (Cl). Medal bonus computed server-side.
 
 ### Molecule Stat Formulas -- Iode Energy Production
 
+V4 quadratic formula: `round((0.003 * I^2 + 0.04 * I) * (1 + niveau / 50))`
+
+No synergy atom (energy uses only `nombre` and `niveau`).
+
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
-| `IODE_ENERGY_COEFFICIENT` | `0.05` | Iodine energy coefficient (buffed 5x from 0.01) | `config.php:87` | `fonctions.php` (productionEnergieMolecule) |
-| `IODE_LEVEL_DIVISOR` | `50` | Level divisor in iodine energy formula | `config.php:88` | `fonctions.php` (productionEnergieMolecule) |
+| `IODE_ENERGY_COEFFICIENT` | `0.04` | Linear iodine coefficient in V4 energy formula | `config.php:87` | `fonctions.php` (productionEnergieMolecule) |
+| `IODE_QUADRATIC_COEFFICIENT` | `0.003` | Quadratic iodine coefficient in V4 energy formula | `config.php:88` | `fonctions.php` (productionEnergieMolecule) |
+| `IODE_CATALYST_DIVISOR` | `50000` | Divisor for iodine catalyst bonus | `config.php:89` | Catalyst calculation |
+| `IODE_CATALYST_MAX_BONUS` | `1.0` | Maximum catalyst bonus (100%) | `config.php:90` | Catalyst calculation |
 
 ### Molecule Stat Formulas -- Speed
 
-| Constant | Value | Description | Defined At | Used In |
-|---|---|---|---|---|
-| `SPEED_ATOM_COEFFICIENT` | `0.5` | Chlorine atom coefficient in speed formula | `config.php:91` | `fonctions.php` (vitesse) |
-| `SPEED_LEVEL_DIVISOR` | `50` | Level divisor in speed formula | `config.php:92` | `fonctions.php` (vitesse) |
+V4 formula: `(pow(Cl, 1.2) + Cl) * (1 + N / 100) * modCond(nivCond)`
+
+Primary atom: Chlorine (Cl). Synergy atom: Nitrogen (N).
 
 ### Molecule Stat Formulas -- Formation Time
+
+V4 formula uses `nombre` (N), `nombre2` (I), `niveau` (condenseur), `nbTotalAtomes`. Lieur level queried server-side.
 
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
@@ -1310,18 +1341,21 @@ All `define()` constants and global configuration arrays, grouped by category.
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
 | `DECAY_BASE` | `0.99` | Base decay coefficient | `config.php:103` | Decay calculation |
-| `DECAY_ATOM_DIVISOR` | `100` | Atom count divisor in decay formula | `config.php:104` | Decay calculation |
+| `DECAY_ATOM_DIVISOR` | `150` | Atom count divisor in decay formula (V4: changed from 100) | `config.php:104` | Decay calculation |
 | `DECAY_POWER_DIVISOR` | `25000` | Power divisor in decay exponent | `config.php:105` | Decay calculation |
-| `STABILISATEUR_BONUS_PER_LEVEL` | `0.01` | 1% decay reduction per stabilisateur level | `config.php:106` | Decay calculation |
+| `STABILISATEUR_BONUS_PER_LEVEL` | `0.015` | 1.5% decay reduction per stabilisateur level (V4: changed from 0.01) | `config.php:106` | Decay calculation |
+| `STABILISATEUR_ASYMPTOTE` | `0.98` | Asymptotic decay floor: `pow(0.98, level)` | `config.php:107` | Decay calculation |
+| `DECAY_MASS_EXPONENT` | `1.5` | Mass exponent in V4 decay formula | `config.php:108` | Decay calculation |
 
 ### Building HP Formulas
 
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
-| `BUILDING_HP_BASE` | `20` | Base HP multiplier for standard buildings | `config.php:112` | Building HP calculation |
+| `BUILDING_HP_BASE` | `50` | Base HP multiplier for standard buildings (V4: changed from 20) | `config.php:112` | Building HP calculation |
 | `BUILDING_HP_GROWTH_BASE` | `1.2` | Exponential growth base for building HP | `config.php:113` | Building HP calculation |
 | `BUILDING_HP_LEVEL_EXP` | `1.2` | Level exponent for building HP | `config.php:114` | Building HP calculation |
-| `FORCEFIELD_HP_BASE` | `50` | Base HP multiplier for champ de force | `config.php:117` | Force field HP calculation |
+| `BUILDING_HP_POLY_EXP` | `2.5` | V4 polynomial exponent: `50 * pow(level, 2.5)` | `config.php:115` | Building HP calculation |
+| `FORCEFIELD_HP_BASE` | `125` | Base HP multiplier for champ de force (V4: changed from 50) | `config.php:117` | Force field HP calculation |
 | `FORCEFIELD_HP_GROWTH_BASE` | `1.2` | Exponential growth base for force field HP | `config.php:118` | Force field HP calculation |
 | `FORCEFIELD_HP_LEVEL_EXP` | `1.2` | Level exponent for force field HP | `config.php:119` | Force field HP calculation |
 
@@ -1337,8 +1371,13 @@ All `define()` constants and global configuration arrays, grouped by category.
 | `COMBAT_POINTS_BASE` | `1` | Minimum combat points per battle | `config.php:241` | `includes/combat.php` |
 | `COMBAT_POINTS_CASUALTY_SCALE` | `0.5` | Casualty-based scaling factor for combat points | `config.php:242` | `includes/combat.php` |
 | `COMBAT_POINTS_MAX_PER_BATTLE` | `20` | Maximum combat points per single battle | `config.php:243` | `includes/combat.php` |
-| `ATTACK_POINTS_MULTIPLIER` | `3.0` | Multiplier for attack points -> total points | `config.php:248` | Rankings |
-| `DEFENSE_POINTS_MULTIPLIER` | `3.0` | Multiplier for defense points -> total points | `config.php:249` | Rankings |
+| `ATTACK_POINTS_MULTIPLIER` | `5.0` | Multiplier for attack points -> total points (V4: changed from 3.0) | `config.php:248` | Rankings |
+| `DEFENSE_POINTS_MULTIPLIER` | `5.0` | Multiplier for defense points -> total points (V4: changed from 3.0) | `config.php:249` | Rankings |
+| `DEFENSE_REWARD_RATIO` | `0.20` | Defensive reward ratio (V4: new) | `config.php:250` | `includes/combat.php` |
+| `DEFENSE_POINTS_MULTIPLIER_BONUS` | `1.5` | Bonus multiplier for defense points (V4: new) | `config.php:251` | `includes/combat.php` |
+| `ATTACK_COOLDOWN_SECONDS` | `14400` | 4h cooldown after attack loss (V4: new) | `config.php:252` | `attaquer.php` |
+| `ATTACK_COOLDOWN_WIN_SECONDS` | `3600` | 1h cooldown after attack win (V4: new) | `config.php:253` | `attaquer.php` |
+| `COMBAT_MASS_DIVISOR` | `100` | Mass divisor in combat calculations (V4: new) | `config.php:254` | `includes/combat.php` |
 
 ### Espionage
 
@@ -1357,20 +1396,22 @@ All `define()` constants and global configuration arrays, grouped by category.
 
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
-| `MARKET_VOLATILITY_FACTOR` | `0.5` | Base volatility factor (divided by active players) | `config.php:265` | `marche.php` |
+| `MARKET_VOLATILITY_FACTOR` | `0.3` | Base volatility factor (V4: changed from 0.5) | `config.php:265` | `marche.php` |
 | `MARKET_PRICE_FLOOR` | `0.1` | Minimum resource price | `config.php:266` | `marche.php` |
 | `MARKET_PRICE_CEILING` | `10.0` | Maximum resource price | `config.php:267` | `marche.php` |
 | `MARKET_MEAN_REVERSION` | `0.01` | 1% pull toward baseline price per trade | `config.php:268` | `marche.php` |
 | `MERCHANT_SPEED` | `20` | Merchant travel speed (cases per hour) | `config.php:269` | `marche.php` |
-| `MARKET_POINTS_SCALE` | `0.05` | Sqrt scaling for trade volume points | `config.php:273` | Rankings |
-| `MARKET_POINTS_MAX` | `40` | Cap on market points contribution | `config.php:274` | Rankings |
+| `MARKET_SELL_TAX_RATE` | `0.95` | 5% tax on market sells (V4: new) | `config.php:271` | `marche.php` |
+| `MARKET_POINTS_SCALE` | `0.08` | Sqrt scaling for trade volume points (V4: changed from 0.05) | `config.php:273` | Rankings |
+| `MARKET_POINTS_MAX` | `80` | Cap on market points contribution (V4: changed from 40) | `config.php:274` | Rankings |
+| `MARKET_GLOBAL_ECONOMY_DIVISOR` | `10000` | Divisor for global economy calculation (V4: new) | `config.php:275` | `marche.php` |
 
 ### Alliance / Duplicateur
 
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
-| `DUPLICATEUR_BASE_COST` | `10` | Base cost for duplicateur upgrade | `config.php:280` | `alliance.php` |
-| `DUPLICATEUR_COST_FACTOR` | `2.5` | Cost growth factor per level | `config.php:281` | `alliance.php` |
+| `DUPLICATEUR_BASE_COST` | `100` | Base cost for duplicateur upgrade (V4: changed from 10) | `config.php:280` | `alliance.php` |
+| `DUPLICATEUR_COST_FACTOR` | `1.5` | Cost growth factor per level (V4: changed from 2.5) | `config.php:281` | `alliance.php` |
 | `DUPLICATEUR_BONUS_PER_LEVEL` | `0.01` | 1% resource production bonus per level | `config.php:284` | Resource production |
 | `ALLIANCE_TAG_MIN_LENGTH` | `3` | Minimum alliance tag length | `config.php:287` | `alliance.php` |
 | `ALLIANCE_TAG_MAX_LENGTH` | `16` | Maximum alliance tag length | `config.php:288` | `alliance.php` |
@@ -1386,8 +1427,8 @@ All `define()` constants and global configuration arrays, grouped by category.
 
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
-| `PILLAGE_POINTS_DIVISOR` | `100000` | Divisor in tanh pillage points formula | `config.php:339` | Rankings |
-| `PILLAGE_POINTS_MULTIPLIER` | `50` | Multiplier in tanh pillage points formula | `config.php:340` | Rankings |
+| `PILLAGE_POINTS_DIVISOR` | `50000` | Divisor in tanh pillage points formula (V4: changed from 100000) | `config.php:339` | Rankings |
+| `PILLAGE_POINTS_MULTIPLIER` | `80` | Multiplier in tanh pillage points formula (V4: changed from 50) | `config.php:340` | Rankings |
 
 ### Victory Points -- Player Rankings
 
@@ -1400,8 +1441,10 @@ All `define()` constants and global configuration arrays, grouped by category.
 | `VP_PLAYER_RANK4_10_STEP` | `5` | Step decrease per rank for 4-10 | `config.php:315` | Round end |
 | `VP_PLAYER_RANK11_20_BASE` | `35` | Base for ranks 11-20: `35 - (rank - 10) * 2` | `config.php:316` | Round end |
 | `VP_PLAYER_RANK11_20_STEP` | `2` | Step decrease per rank for 11-20 | `config.php:317` | Round end |
-| `VP_PLAYER_RANK21_50_BASE` | `15` | Base for ranks 21-50: `15 - (rank - 20) * 0.5` | `config.php:318` | Round end |
-| `VP_PLAYER_RANK21_50_STEP` | `0.5` | Step decrease per rank for 21-50 | `config.php:319` | Round end |
+| `VP_PLAYER_RANK21_50_BASE` | `12` | Base for ranks 21-50: `12 - (rank - 20) * 0.23` (V4: changed from 15) | `config.php:318` | Round end |
+| `VP_PLAYER_RANK21_50_STEP` | `0.23` | Step decrease per rank for 21-50 (V4: changed from 0.5) | `config.php:319` | Round end |
+| `VP_PLAYER_RANK51_100_BASE` | `6` | Base for ranks 51-100: `6 - (rank - 50) * 0.08` (V4: new tier) | `config.php:320` | Round end |
+| `VP_PLAYER_RANK51_100_STEP` | `0.08` | Step decrease per rank for 51-100 (V4: new) | `config.php:321` | Round end |
 
 ### Victory Points -- Alliance Rankings
 
@@ -1415,7 +1458,7 @@ All `define()` constants and global configuration arrays, grouped by category.
 
 | Constant | Value | Description | Defined At | Used In |
 |---|---|---|---|---|
-| `LIEUR_GROWTH_BASE` | `1.07` | Lieur formation speed bonus: `floor(100 * pow(1.07, level)) / 100` | `config.php:407` | `fonctions.php` |
+| `LIEUR_LINEAR_BONUS_PER_LEVEL` | `0.15` | V4 linear lieur bonus: `1 + level * 0.15` (was exponential `pow(1.07, level)`) | `config.php:407` | `fonctions.php` |
 
 ### Active Player
 
@@ -1435,6 +1478,68 @@ All `define()` constants and global configuration arrays, grouped by category.
 |---|---|---|---|---|
 | `RATE_LIMIT_DIR` | `/tmp/tvlw_rates` | Directory for rate limit data files | `rate_limiter.php:7` | `rate_limiter.php` |
 
+### V4 Storage / Vault / Economy
+
+| Constant | Value | Description | Defined At | Used In |
+|---|---|---|---|---|
+| `BASE_STORAGE_INITIAL` | `1000` | Exponential storage base: `round(1000 * pow(1.15, level))` | `config.php:55` | Resource caps |
+| `VAULT_PCT_PER_LEVEL` | `0.02` | 2% vault protection per coffrefort level | `config.php:130` | Pillage protection |
+| `VAULT_MAX_PROTECTION_PCT` | `0.50` | Maximum 50% vault protection | `config.php:131` | Pillage protection |
+| `MARKET_GLOBAL_ECONOMY_DIVISOR` | `10000` | Divisor for global economy calculation | `config.php:275` | `marche.php` |
+| `COMBAT_MASS_DIVISOR` | `100` | Mass divisor in combat calculations | `config.php:254` | `includes/combat.php` |
+| `IODE_CATALYST_DIVISOR` | `50000` | Divisor for iodine catalyst bonus | `config.php:89` | Catalyst calculation |
+| `IODE_CATALYST_MAX_BONUS` | `1.0` | Maximum catalyst bonus (100%) | `config.php:90` | Catalyst calculation |
+| `LIEUR_LINEAR_BONUS_PER_LEVEL` | `0.15` | V4 linear lieur: `1 + level * 0.15` | `config.php:407` | `fonctions.php` |
+
+### Isotope Variants
+
+V4 introduces isotope variants that modify molecule stats. Each molecule is assigned an isotope type
+at creation. The four types and their stat modifiers:
+
+| Isotope Type | Constant Prefix | Attack | Defense | HP | Speed | Pillage | Energy | Decay |
+|---|---|---|---|---|---|---|---|---|
+| Normal | `ISOTOPE_NORMAL_*` | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
+| Stable | `ISOTOPE_STABLE_*` | 0.85 | 1.15 | 1.20 | 0.90 | 0.90 | 1.10 | 0.70 |
+| Reactif | `ISOTOPE_REACTIF_*` | 1.20 | 0.85 | 0.85 | 1.15 | 1.10 | 0.90 | 1.30 |
+| Catalytique | `ISOTOPE_CATALYTIQUE_*` | 1.0 | 1.0 | 0.90 | 1.0 | 1.20 | 1.25 | 1.10 |
+
+All modifiers are defined as constants in `config.php` (e.g. `ISOTOPE_STABLE_ATTACK = 0.85`).
+
+### Defensive Formations
+
+V4 adds defensive formation stances that modify combat behavior:
+
+| Formation | Constant Prefix | Defense Mod | HP Mod | Counter-Attack | Special |
+|---|---|---|---|---|---|
+| Dispersee | `FORMATION_DISPERSEE_*` | 0.80 | 1.0 | 0% | Reduces AoE damage taken by 50% |
+| Phalange | `FORMATION_PHALANGE_*` | 1.30 | 1.20 | 0% | Standard defensive stance |
+| Embuscade | `FORMATION_EMBUSCADE_*` | 0.90 | 0.90 | 30% | Counter-attacks deal 30% of attacker damage |
+
+Formations are set per-molecule-class and apply during defense only.
+
+### Alliance Research Tree
+
+V4 adds an alliance research system configured via the `$ALLIANCE_RESEARCH` array in `config.php`.
+Each research node has a cost, max level, and per-level bonus. Research is funded collectively by
+alliance members.
+
+| Research Key | Max Level | Cost Base | Cost Factor | Bonus per Level | Description |
+|---|---|---|---|---|---|
+| `production_boost` | 10 | 500 | 1.5 | +2% atom production | Alliance-wide production bonus |
+| `defense_boost` | 10 | 750 | 1.5 | +3% defense | Alliance-wide defense bonus |
+| `trade_efficiency` | 5 | 1000 | 2.0 | -5% market tax | Reduced market fees |
+| `shared_storage` | 5 | 800 | 1.8 | +5% storage | Alliance-wide storage bonus |
+
+### Cross-Season Medal Limits
+
+V4 introduces limits on how medal bonuses carry across seasons:
+
+| Constant | Value | Description | Defined At |
+|---|---|---|---|
+| `MAX_CROSS_SEASON_MEDAL_BONUS` | `25` | Maximum total medal bonus % that carries to next season | `config.php:360` |
+| `MEDAL_GRACE_PERIOD_DAYS` | `7` | Days after season start where old medals still apply at full strength | `config.php:361` |
+| `MEDAL_GRACE_CAP_TIER` | `5` | Medal tier cap during grace period (tiers above this are capped) | `config.php:362` |
+
 ### Global Configuration Arrays
 
 These are PHP arrays (not `define()` constants) declared in `includes/config.php`:
@@ -1446,7 +1551,7 @@ These are PHP arrays (not `define()` constants) declared in `includes/config.php
 | `$RESOURCE_COLORS` | `array(8)` | Hex/named colors for each atom type | `config.php:40` |
 | `$RESOURCE_COLORS_SIMPLE` | `array(8)` | Simple color names for each atom type | `config.php:41` |
 | `$RESOURCE_LETTERS` | `array(8)` | Chemical symbols: C, N, H, O, Cl, S, Br, I | `config.php:42` |
-| `$BUILDING_CONFIG` | `array` | Complete building configuration (costs, times, bonuses) for all 8 building types | `config.php:126-220` |
+| `$BUILDING_CONFIG` | `array` | Complete building configuration (costs, times, bonuses) for all 9 building types (V4: +coffrefort) | `config.php:126-220` |
 | `$VICTORY_POINTS_PLAYER` | `array` | Victory point awards by player rank | `config.php:301-309` |
 | `$VICTORY_POINTS_ALLIANCE` | `array` | Victory point awards by alliance rank | `config.php:324-330` |
 | `$MEDAL_TIER_NAMES` | `array(8)` | Medal tier names: Bronze through Diamant Rouge | `config.php:346` |
@@ -1464,20 +1569,28 @@ These are PHP arrays (not `define()` constants) declared in `includes/config.php
 | `$MEDAL_THRESHOLDS_BOMBE` | `array(8)` | Buildings destroyed: 1 to 12 | `config.php:389` |
 | `$MEDAL_THRESHOLDS_TROLL` | `array(8)` | Troll score: 0 to 7 | `config.php:392` |
 | `$REGISTRATION_ELEMENT_THRESHOLDS` | `array(8)` | Random element distribution cutoffs (out of 200) | `config.php:401` |
+| `$ALLIANCE_RESEARCH` | `array` | V4 alliance research tree configuration (4 research nodes) | `config.php:420+` |
 
 ### Building Configuration Detail ($BUILDING_CONFIG)
 
-Each building type in `$BUILDING_CONFIG` has the following structure (keys vary per building):
+Each building type in `$BUILDING_CONFIG` has the following structure (keys vary per building).
 
-| Building | Energy Cost Base | Energy Cost Exp | Atom Cost Base | Atom Cost Exp | Time Base (s) | Time Exp | Special |
-|---|---|---|---|---|---|---|---|
-| `generateur` | 50 | 0.7 | 75 (all atoms) | 0.7 | 60 (L1: 10s) | 1.5 | Generates energy |
-| `producteur` | 75 | 0.7 | 50 (all atoms) | 0.7 | 40 (L1: 10s) | 1.5 | Produces atoms, drains energy |
-| `depot` | 100 | 0.7 | 0 | 0 | 80 | 1.5 | Storage only, no atom cost |
-| `champdeforce` | -- | -- | 100 (carbone) | 0.7 | 20 | 1.7 | +2% defense/level, offset +2 |
-| `ionisateur` | -- | -- | 100 (oxygene) | 0.7 | 20 | 1.7 | +2% attack/level, offset +2 |
-| `condenseur` | 25 | 0.8 | 100 (all atoms) | 0.8 | 120 | 1.6 | 5 points/level, offset +1 |
-| `lieur` | -- | -- | 100 (azote) | 0.8 | 100 | 1.5 | Growth base 1.07, offset +1 |
-| `stabilisateur` | -- | -- | 75 (all atoms) | 0.9 | 120 | 1.5 | 0.5% decay reduction/level, offset +1 |
+V4 uses exponential cost growth bases instead of separate energy/atom exponents:
+- `ECO_GROWTH_BASE` = 1.15 (generateur, producteur, depot)
+- `ECO_GROWTH_ADV` = 1.20 (champdeforce, ionisateur, condenseur, lieur)
+- `ECO_GROWTH_ULT` = 1.25 (stabilisateur)
+- All time growth uses a universal base of 1.10.
+
+| Building | Cost Growth Base | Atom Cost Base | Time Base (s) | Time Growth | Special |
+|---|---|---|---|---|---|
+| `generateur` | 1.15 | 75 (all atoms) | 60 (L1: 10s) | 1.10 | Generates energy |
+| `producteur` | 1.15 | 50 (all atoms) | 40 (L1: 10s) | 1.10 | Produces atoms, drains energy |
+| `depot` | 1.15 | 0 | 80 | 1.10 | Exponential storage: `round(1000 * pow(1.15, level))` |
+| `coffrefort` | 1.15 | 100 (all atoms) | 100 | 1.10 | Vault: 2%/level protection (max 50%) |
+| `champdeforce` | 1.20 | 100 (carbone) | 20 | 1.10 | +2% defense/level, offset +2 |
+| `ionisateur` | 1.20 | 100 (oxygene) | 20 | 1.10 | +2% attack/level, offset +2 |
+| `condenseur` | 1.20 | 100 (all atoms) | 120 | 1.10 | 5 points/level, offset +1 |
+| `lieur` | 1.20 | 100 (azote) | 100 | 1.10 | Linear 0.15/level (V4: was exponential 1.07), offset +1 |
+| `stabilisateur` | 1.25 | 75 (all atoms) | 120 | 1.10 | 1.5%/level decay reduction, asymptotic `pow(0.98, level)`, offset +1 |
 
 **Defined at:** `includes/config.php:126-220`
