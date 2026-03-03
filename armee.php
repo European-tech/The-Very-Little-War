@@ -7,50 +7,56 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
     $molecules = dbFetchOne($base, 'SELECT formule,id FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $_SESSION['login'], $_POST['emplacementmoleculesupprimer']);
 
     if ($molecules['formule'] != "Vide") {
-        $niveauclasse = dbFetchOne($base, 'SELECT niveauclasse FROM ressources WHERE login=?', 's', $_SESSION['login']);
-        $newNiveauClasse = $niveauclasse['niveauclasse'] - 1;
-        dbExecute($base, 'UPDATE ressources SET niveauclasse=? WHERE login=?', 'is', $newNiveauClasse, $_SESSION['login']);
+        $login = $_SESSION['login'];
+        $emplacement = $_POST['emplacementmoleculesupprimer'];
+        $moleculeId = $molecules['id'];
 
-        $chaine = ""; // on passe toutes les chaines sauf conditions pour les ressources en dynamique
-        foreach ($nomsRes as $num => $ressource) {
-            $plus = "";
-            if ($num < $nbRes) {
-                $plus = ",";
+        withTransaction($base, function() use ($base, $login, $emplacement, $moleculeId, $nomsRes, $nbRes, $nbClasses) {
+            $niveauclasse = dbFetchOne($base, 'SELECT niveauclasse FROM ressources WHERE login=? FOR UPDATE', 's', $login);
+            $newNiveauClasse = $niveauclasse['niveauclasse'] - 1;
+            dbExecute($base, 'UPDATE ressources SET niveauclasse=? WHERE login=?', 'is', $newNiveauClasse, $login);
+
+            $chaine = ""; // on passe toutes les chaines sauf conditions pour les ressources en dynamique
+            foreach ($nomsRes as $num => $ressource) {
+                $plus = "";
+                if ($num < $nbRes) {
+                    $plus = ",";
+                }
+                $chaine = $chaine . '' . $ressource . '=default' . $plus;
             }
-            $chaine = $chaine . '' . $ressource . '=default' . $plus;
-        }
 
-        // $chaine contains only server-side column names with 'default' keyword, not user input
-        dbExecute($base, 'UPDATE molecules SET formule = default, ' . $chaine . ', nombre = default WHERE proprietaire=? AND numeroclasse=?', 'si', $_SESSION['login'], $_POST['emplacementmoleculesupprimer']);
+            // $chaine contains only server-side column names with 'default' keyword, not user input
+            dbExecute($base, 'UPDATE molecules SET formule = default, ' . $chaine . ', nombre = default WHERE proprietaire=? AND numeroclasse=?', 'si', $login, $emplacement);
 
-        dbExecute($base, 'DELETE FROM actionsformation WHERE login=? AND idclasse=?', 'si', $_SESSION['login'], $molecules['id']);
-        $nvxDebut = time();
-        $exActuActions = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=?', 's', $_SESSION['login']);
-        while ($actionsformation = mysqli_fetch_array($exActuActions)) {
-            if (time() < $actionsformation['debut']) {
-                $newFin = $nvxDebut + $actionsformation['nombreRestant'] * $actionsformation['tempsPourUn'];
-                dbExecute($base, 'UPDATE actionsformation SET debut=?, fin=? WHERE id=?', 'iii', $nvxDebut, $newFin, $actionsformation['id']);
-                $nvxDebut = $nvxDebut + $actionsformation['nombreRestant'] * $actionsformation['tempsPourUn'];
-            } else {
-                $nvxDebut = $actionsformation['fin'];
-            }
-        }
-
-        // on enleve ces types de molécules dans les attaques lancées
-        $ex = dbQuery($base, 'SELECT * FROM actionsattaques WHERE attaquant=?', 's', $_SESSION['login']);
-        while ($actionsattaques = mysqli_fetch_array($ex)) {
-            $explosion = explode(";", $actionsattaques['troupes']);
-            $chaine = "";
-            for ($i = 1; $i <= $nbClasses; $i++) {
-                if ($i == $_POST['emplacementmoleculesupprimer']) {
-                    $chaine .= "0;";
+            dbExecute($base, 'DELETE FROM actionsformation WHERE login=? AND idclasse=?', 'si', $login, $moleculeId);
+            $nvxDebut = time();
+            $exActuActions = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=?', 's', $login);
+            while ($actionsformation = mysqli_fetch_array($exActuActions)) {
+                if (time() < $actionsformation['debut']) {
+                    $newFin = $nvxDebut + $actionsformation['nombreRestant'] * $actionsformation['tempsPourUn'];
+                    dbExecute($base, 'UPDATE actionsformation SET debut=?, fin=? WHERE id=?', 'iii', $nvxDebut, $newFin, $actionsformation['id']);
+                    $nvxDebut = $nvxDebut + $actionsformation['nombreRestant'] * $actionsformation['tempsPourUn'];
                 } else {
-                    $chaine .= $explosion[$i - 1] . ";";
+                    $nvxDebut = $actionsformation['fin'];
                 }
             }
 
-            dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chaine, $actionsattaques['id']);
-        }
+            // on enleve ces types de molécules dans les attaques lancées
+            $ex = dbQuery($base, 'SELECT * FROM actionsattaques WHERE attaquant=?', 's', $login);
+            while ($actionsattaques = mysqli_fetch_array($ex)) {
+                $explosion = explode(";", $actionsattaques['troupes']);
+                $chaine = "";
+                for ($i = 1; $i <= $nbClasses; $i++) {
+                    if ($i == $emplacement) {
+                        $chaine .= "0;";
+                    } else {
+                        $chaine .= $explosion[$i - 1] . ";";
+                    }
+                }
+
+                dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chaine, $actionsattaques['id']);
+            }
+        });
 
         $information = "Vous avez supprimé la classe de molécules.";
     } else {
