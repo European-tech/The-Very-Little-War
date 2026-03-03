@@ -3,15 +3,16 @@ include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
 
 
-$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
-if (!$idalliance || $idalliance['idalliance'] <= 0) {
-    header('Location: alliance.php?id=-1');
+// H-027: Verify alliance membership before allowing admin access
+$currentAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
+if (!$currentAlliance || $currentAlliance['idalliance'] == 0) {
+    header('Location: alliance.php');
     exit();
 }
 
-$chef = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
+$chef = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $currentAlliance['idalliance']);
 if (!$chef) {
-    header('Location: alliance.php?id=-1');
+    header('Location: alliance.php');
     exit();
 }
 
@@ -19,7 +20,7 @@ $ex = dbQuery($base, 'SELECT * FROM grades WHERE login=? AND idalliance=?', 'si'
 $grade = mysqli_fetch_array($ex);
 $existeGrade = mysqli_num_rows($ex);
 
-$ex = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
+$ex = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
 $nombreJoueurs = mysqli_num_rows($ex);
 
 if ($chef['chef'] != $_SESSION['login'] and $existeGrade < 1) {
@@ -51,8 +52,8 @@ if ($_SESSION['login'] != $chef['chef']) {
 if ($gradeChef) {
 	if (isset($_POST['supprimeralliance1'])) {
 		csrfCheck();
-		logInfo('ALLIANCE', 'Alliance deleted', ['alliance_id' => $idalliance['idalliance'], 'deleted_by' => $_SESSION['login']]);
-		supprimerAlliance($idalliance['idalliance']);
+		logInfo('ALLIANCE', 'Alliance deleted', ['alliance_id' => $currentAlliance['idalliance'], 'deleted_by' => $_SESSION['login']]);
+		supprimerAlliance($currentAlliance['idalliance']);
 	?>
 		<script LANGUAGE="JavaScript">
 			window.location = "allianceprive.php";
@@ -68,7 +69,7 @@ if ($gradeChef) {
 			$nballiance = dbCount($base, 'SELECT count(*) as nb FROM alliances WHERE nom=?', 's', $_POST['changernom']);
 
 			if ($nballiance == 0) {
-				dbExecute($base, 'UPDATE alliances SET nom=? WHERE id=?', 'si', $_POST['changernom'], $idalliance['idalliance']);
+				dbExecute($base, 'UPDATE alliances SET nom=? WHERE id=?', 'si', $_POST['changernom'], $currentAlliance['idalliance']);
 
 				$information = 'Le nom de l\'équipe a bien été changé et est devenu ' . htmlspecialchars($_POST['changernom'], ENT_QUOTES, 'UTF-8') . '.';
 			} else {
@@ -133,7 +134,7 @@ if ($gradeChef) {
 			$nballiance = dbCount($base, 'SELECT count(*) as nb FROM alliances WHERE tag=?', 's', $_POST['changertag']);
 
 			if ($nballiance == 0) {
-				dbExecute($base, 'UPDATE alliances SET tag=? WHERE id=?', 'si', $_POST['changertag'], $idalliance['idalliance']);
+				dbExecute($base, 'UPDATE alliances SET tag=? WHERE id=?', 'si', $_POST['changertag'], $currentAlliance['idalliance']);
 
 				$information = 'Le tag de l\'équipe a bien été changé et est devenu ' . htmlspecialchars($_POST['changertag'], ENT_QUOTES, 'UTF-8') . '.';
 			} else {
@@ -148,9 +149,9 @@ if ($gradeChef) {
 		csrfCheck();
 		if (!empty($_POST['changerchef'])) {
 			$_POST['changerchef'] = trim($_POST['changerchef']);
-			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $idalliance['idalliance'], $_POST['changerchef']);
+			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $_POST['changerchef']);
 			if ($dansLAlliance > 0) {
-				dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $_POST['changerchef'], $idalliance['idalliance']);
+				dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $_POST['changerchef'], $currentAlliance['idalliance']);
 
 		?>
 				<script LANGUAGE="JavaScript">
@@ -173,7 +174,7 @@ if ($description) {
 		csrfCheck();
 		if (!empty($_POST['changerdescription'])) {
 			$_POST['changerdescription'] = trim($_POST['changerdescription']);
-			dbExecute($base, 'UPDATE alliances SET description=? WHERE id=?', 'si', $_POST['changerdescription'], $idalliance['idalliance']);
+			dbExecute($base, 'UPDATE alliances SET description=? WHERE id=?', 'si', $_POST['changerdescription'], $currentAlliance['idalliance']);
 			$information = 'La description de l\'équipe a bien été changée.';
 		} else {
 			$erreur = "La description de votre équipe doit au moins comporter un caractère.";
@@ -186,10 +187,10 @@ if ($bannir) {
 		csrfCheck();
 		if (!empty($_POST['bannirpersonne'])) {
 			$_POST['bannirpersonne'] = ucfirst(trim($_POST['bannirpersonne']));
-			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $idalliance['idalliance'], $_POST['bannirpersonne']);
+			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $_POST['bannirpersonne']);
 			if ($dansLAlliance > 0) {
 				dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_POST['bannirpersonne']);
-				dbExecute($base, 'DELETE FROM grades WHERE idalliance=? AND login=?', 'is', $idalliance['idalliance'], $_POST['bannirpersonne']);
+				dbExecute($base, 'DELETE FROM grades WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $_POST['bannirpersonne']);
 				$information = 'Vous avez banni ' . htmlspecialchars($_POST['bannirpersonne'], ENT_QUOTES, 'UTF-8') . '.';
 			} else {
 				$erreur = "Le joueur que vous essayez de bannir n'existe pas ou n'est pas dans votre équipe.";
@@ -204,7 +205,7 @@ if ($pacte) {
 	if (isset($_POST['pacte'])) {
 		csrfCheck();
 		$_POST['pacte'] = trim($_POST['pacte']);
-		$ex = dbQuery($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['pacte'], $idalliance['idalliance']);
+		$ex = dbQuery($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['pacte'], $currentAlliance['idalliance']);
 		$existeAlliance = mysqli_num_rows($ex);
 		if ($existeAlliance > 0) {
 			$allianceAllie = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['pacte']);
@@ -258,7 +259,7 @@ if ($guerre) {
 	if (isset($_POST['guerre'])) {
 		csrfCheck();
 		$_POST['guerre'] = trim($_POST['guerre']);
-		$ex = dbQuery($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['guerre'], $idalliance['idalliance']);
+		$ex = dbQuery($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['guerre'], $currentAlliance['idalliance']);
 		$existeAlliance = mysqli_num_rows($ex);
 		if ($existeAlliance > 0) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['guerre']);
@@ -312,10 +313,10 @@ if ($inviter) {
 				$_POST['inviterpersonne'] = ucfirst(trim($_POST['inviterpersonne']));
 				$joueurExiste = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=?', 's', $_POST['inviterpersonne']);
 
-				$invitationDejaEnvoye = dbCount($base, 'SELECT count(*) as nb FROM invitations WHERE invite=? AND idalliance=?', 'si', $_POST['inviterpersonne'], $idalliance['idalliance']);
+				$invitationDejaEnvoye = dbCount($base, 'SELECT count(*) as nb FROM invitations WHERE invite=? AND idalliance=?', 'si', $_POST['inviterpersonne'], $currentAlliance['idalliance']);
 				if ($invitationDejaEnvoye == 0) {
 					if ($joueurExiste > 0) {
-						dbExecute($base, 'INSERT INTO invitations VALUES (default, ?, ?, ?)', 'iss', $idalliance['idalliance'], $chef['tag'], $_POST['inviterpersonne']);
+						dbExecute($base, 'INSERT INTO invitations VALUES (default, ?, ?, ?)', 'iss', $currentAlliance['idalliance'], $chef['tag'], $_POST['inviterpersonne']);
 
 						$information = 'Vous avez invité ' . htmlspecialchars($_POST['inviterpersonne'], ENT_QUOTES, 'UTF-8') . '';
 					} else {
@@ -334,7 +335,7 @@ if ($inviter) {
 }
 
 // On actualise les informations qui ont pu être changées
-$chef = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
+$chef = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $currentAlliance['idalliance']);
 
 include("includes/tout.php");
 debutCarte('Paramètres de l\'équipe');
@@ -359,7 +360,7 @@ debutContent();
 debutListe();
 if ($gradeChef) {
 	$options = '';
-	$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
+	$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
 	while ($chef1 = mysqli_fetch_array($ex2)) {
 		$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 	}
@@ -370,7 +371,7 @@ if ($gradeChef) {
 
 if ($bannir) {
 	$options = '';
-	$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
+	$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
 	while ($chef1 = mysqli_fetch_array($ex2)) {
 		$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 	}
@@ -403,7 +404,7 @@ if ($gradeChef) {
 		item(['floating' => true, 'titre' => "Nom du grade", 'input' => '<input type="text" name="nomgrade" id="nomgrade" class="form-control"/>']);
 
 		$options = '';
-		$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
+		$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
 		while ($chef1 = mysqli_fetch_array($ex2)) {
 			$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 		}
