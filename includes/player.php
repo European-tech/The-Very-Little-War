@@ -789,6 +789,114 @@ function miseAJour()
     }
 }
 
+/**
+ * Perform the full season-end flow: archive rankings, award VP and prestige,
+ * insert season record, reset game state, update debut, post winner news.
+ * Returns the winner's login name (or null if no players).
+ *
+ * Both automatic season end (basicprivatephp.php) and admin reset call this.
+ */
+function performSeasonEnd()
+{
+    global $base;
+
+    require_once(__DIR__ . '/prestige.php');
+
+    // Archive top players
+    $chaine = '';
+    $vainqueurManche = null;
+    $classement = dbQuery($base, 'SELECT * FROM autre ORDER BY totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
+    $compteur = 0;
+    while ($data = mysqli_fetch_array($classement)) {
+        $sql4Result = dbQuery($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $data['login']);
+        if ($data['idalliance'] > 0) {
+            $alliance = dbFetchOne($base, 'SELECT tag, id FROM alliances WHERE id = ?', 'i', $data['idalliance']);
+        } else {
+            $alliance['tag'] = '';
+        }
+        $nb_molecules = 0;
+        while ($donnees4 = mysqli_fetch_array($sql4Result)) {
+            $nb_molecules = $nb_molecules + $donnees4['nombre'];
+        }
+        $chaine = $chaine . '[' . $data['login'] . ',' . $data['totalPoints'] . ',' . $alliance['tag'] . ',' . $data['points'] . ',' . pointsAttaque($data['pointsAttaque']) . ',' . pointsDefense($data['pointsDefense']) . ',' . $data['ressourcesPillees'] . ',' . $data['victoires'] . '';
+
+        if ($compteur == 0) {
+            $vainqueurManche = $data['login'];
+        }
+
+        $compteur++;
+    }
+
+    // Archive alliances
+    $classement = dbQuery($base, 'SELECT * FROM alliances ORDER BY pointstotaux DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
+    $chaine1 = '';
+    while ($data = mysqli_fetch_array($classement)) {
+        $req1 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
+        $nbjoueurs = mysqli_num_rows($req1);
+        if ($nbjoueurs != 0) {
+            $chaine1 = $chaine1 . '[' . $data['tag'] . ',' . $nbjoueurs . ',' . $data['pointstotaux'] . ',' . $data['pointstotaux'] / $nbjoueurs . ',' . $data['totalConstructions'] . ',' . pointsAttaque($data['totalAttaque']) . ',' . pointsDefense($data['totalDefense']) . ',' . $data['totalPillage'] . ',' . $data['pointsVictoire'] . '';
+        }
+    }
+
+    // Archive wars
+    $classement = dbQuery($base, 'SELECT * FROM declarations WHERE pertesTotales != 0 AND type = 0 AND fin != 0 ORDER BY pertesTotales DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
+    $chaine2 = '';
+    while ($data = mysqli_fetch_array($classement)) {
+        $alliance1 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id = ?', 'i', $data['alliance1']);
+        $alliance2 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id = ?', 'i', $data['alliance2']);
+        $req1 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
+        $nbjoueurs = mysqli_num_rows($req1);
+        if ($nbjoueurs != 0) {
+            $chaine2 = $chaine2 . '[' . $alliance1['tag'] . ' contre ' . $alliance2['tag'] . ',' . $data['pertesTotales'] . ',' . (($data['fin'] - $data['timestamp']) / SECONDS_PER_DAY) . ',' . $data['id'] . '';
+        }
+    }
+
+    // Award VP to players by individual ranking
+    $classement = dbQuery($base, 'SELECT * FROM autre ORDER BY totalPoints DESC');
+    $c = 1;
+    while ($pointsVictoire = mysqli_fetch_array($classement)) {
+        ajouter('victoires', 'autre', pointsVictoireJoueur($c), $pointsVictoire['login']);
+        $c++;
+    }
+
+    // Award VP to alliances and their members
+    $classement = dbQuery($base, 'SELECT * FROM alliances ORDER BY pointstotaux DESC');
+    $c = 1;
+    while ($pointsVictoire = mysqli_fetch_array($classement)) {
+        $newPtsVictoire = $pointsVictoire['pointsVictoire'] + pointsVictoireAlliance($c);
+        dbExecute($base, 'UPDATE alliances SET pointsVictoire = ? WHERE id = ?', 'ii', $newPtsVictoire, $pointsVictoire['id']);
+        $victoiresJoueurs = dbQuery($base, 'SELECT * FROM autre WHERE idalliance = ?', 'i', $pointsVictoire['id']);
+        while ($pointsVictoireJoueurs = mysqli_fetch_array($victoiresJoueurs)) {
+            ajouter('victoires', 'autre', pointsVictoireAlliance($c), $pointsVictoireJoueurs['login']);
+        }
+        $c++;
+    }
+
+    // Award prestige points BEFORE reset (cross-season progression)
+    awardPrestigePoints();
+
+    // Insert season archive record
+    $now = time();
+    dbExecute($base, 'INSERT INTO parties VALUES(default, ?, ?, ?, ?)', 'isss', $now, $chaine, $chaine1, $chaine2);
+
+    // Reset all game state
+    remiseAZero();
+
+    // Update season start time
+    $now = time();
+    dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
+
+    // Post winner news
+    if ($vainqueurManche !== null) {
+        $titre = "Vainqueur de la dernière manche";
+        $contenu = 'Le vainqueur de la dernière manche est <a href="joueur.php?id=' . htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') . '</a><br/><br/>Reprise <strong>le ' . date('d/m/Y à H\hi', time()) . '</strong>';
+        $now = time();
+        dbExecute($base, 'INSERT INTO news VALUES(default, ?, ?, ?)', 'ssi', $titre, $contenu, $now);
+    }
+
+    return $vainqueurManche;
+}
+
 function remiseAZero()
 {
     global $base;

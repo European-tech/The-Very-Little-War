@@ -45,8 +45,8 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	}
 
 	if (isset($_POST['miseazero'])) {
-		//Virage des joueurs inactifs
-		remiseAZero();
+		// Full season-end flow: archive, VP, prestige, reset, news
+		performSeasonEnd();
 	}
 ?>
 
