@@ -55,7 +55,7 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     $prodPrestige = $prodDuplicateur * prestigeProductionBonus($joueur);
     $prodProducteur = $prodPrestige - drainageProducteur($producteur['producteur']);
     if ($detail == 0) {
-        $result = round($prodProducteur);
+        $result = max(0, round($prodProducteur));
     } elseif ($detail == 1) {
         $result = round($prodDuplicateur);
     } elseif ($detail == 2) {
