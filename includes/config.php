@@ -56,7 +56,7 @@ define('BASE_ATOMS_PER_POINT', 60);
 // Storage: placeDepot = BASE_STORAGE_PER_LEVEL * depot_level
 define('BASE_STORAGE_PER_LEVEL', 500);
 
-// Producteur energy drain: drainageProducteur = PRODUCTEUR_DRAIN_PER_LEVEL * level
+// Producteur energy drain: drainageProducteur = round(PRODUCTEUR_DRAIN_PER_LEVEL * pow(ECO_GROWTH_BASE, level))
 define('PRODUCTEUR_DRAIN_PER_LEVEL', 8);
 
 // =============================================================================

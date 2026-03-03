@@ -35,7 +35,9 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     $totalIodeAtoms = 0;
     for ($i = 1; $i <= 4; $i++) {
         $molecules = dbFetchOne($base, 'SELECT iode, nombre FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $joueur, $i);
-        $totalIodeAtoms += $molecules['iode'] * $molecules['nombre'];
+        if ($molecules) {
+            $totalIodeAtoms += $molecules['iode'] * $molecules['nombre'];
+        }
     }
     $iodeCatalystBonus = 1.0 + min(IODE_CATALYST_MAX_BONUS, $totalIodeAtoms / IODE_CATALYST_DIVISOR);
 
@@ -155,8 +157,9 @@ function updateRessources($joueur)
     $sqlParts = [];
     $sqlTypes = '';
     $sqlParams = [];
+    $allowedColumns = ['carbone', 'azote', 'hydrogene', 'oxygene', 'chlore', 'soufre', 'brome', 'iode'];
     foreach ($nomsRes as $num => $ressource) {
-        if (!in_array($ressource, $nomsRes, true)) {
+        if (!in_array($ressource, $allowedColumns, true)) {
             throw new \RuntimeException("Invalid column: $ressource");
         }
         ${'revenu' . $ressource} = revenuAtome($num, $joueur);

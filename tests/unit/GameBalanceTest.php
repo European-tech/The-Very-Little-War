@@ -271,12 +271,12 @@ class GameBalanceTest extends TestCase
 
     public function testProductionEnergieMoleculeScalesWithIode(): void
     {
-        // V4: productionEnergieMolecule = round(iode)
+        // V4: round((0.003 * iode^2 + 0.04 * iode) * (1 + niveau / 50))
         $energy0 = productionEnergieMolecule(100, 0);
         $energy50 = productionEnergieMolecule(100, 50);
 
-        $this->assertEquals(100, $energy0, '100 iode = 100 energy');
-        $this->assertEquals(100, $energy50, '100 iode at any level = 100 energy');
+        $this->assertEquals(34, $energy0, '100 iode at level 0 = 34 energy (quadratic buff)');
+        $this->assertEquals(68, $energy50, '100 iode at level 50 = 68 energy (2x from level)');
     }
 
     public function testVitesseBaseIsOneWithNoChlorine(): void

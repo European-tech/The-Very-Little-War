@@ -159,7 +159,7 @@ if ($defenderFormation == FORMATION_EMBUSCADE) {
 		$totalDefenderMols += ${'classeDefenseur' . $c}['nombre'];
 	}
 	if ($totalDefenderMols > $totalAttackerMols) {
-		$embuscadeDefBoost = 1.0 + FORMATION_AMBUSH_ATTACK_BONUS; // +25% to defender's effective damage
+		$embuscadeDefBoost = 1.0 + FORMATION_AMBUSH_ATTACK_BONUS; // +15% to defender's effective damage
 	}
 }
 
@@ -167,7 +167,7 @@ if ($defenderFormation == FORMATION_EMBUSCADE) {
 $catalystAttackBonus = 1 + catalystEffect('attack_bonus');
 $degatsAttaquant = 0;
 $degatsDefenseur = 0;
-for ($c = 1; $c <= 4; $c++) {
+for ($c = 1; $c <= $nbClasses; $c++) {
 	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], ${'classeAttaquant' . $c}['hydrogene'], $niveauxAtt['oxygene'], $bonusAttaqueMedaille) * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * IONISATEUR_COMBAT_BONUS_PER_LEVEL) / 100)) * $bonusDuplicateurAttaque * $catalystAttackBonus * ${'classeAttaquant' . $c}['nombre'];
 	$defBonusForClass = $defIsotopeAttackMod[$c]; // Apply defender isotope modifier to defense output
 	// Phalange: class 1 gets extra defense bonus
@@ -225,7 +225,7 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 		$phalanxOverflow = $phalanxDamage;
 	}
 
-	// Remaining classes get equal share + phalanx overflow, cascade between them
+	// Remaining classes absorb damage sequentially + phalanx overflow, cascade between them
 	$remainingDamage = $otherDamage + $phalanxOverflow;
 	for ($i = 2; $i <= $nbClasses; $i++) {
 		${'classe' . $i . 'DefenseurMort'} = 0;

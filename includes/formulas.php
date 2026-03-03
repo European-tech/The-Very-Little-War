@@ -113,7 +113,7 @@ function pillage($S, $Cl, $nivCondS, $bonusMedaille = 0)
 
 function productionEnergieMolecule($iode, $niveau)
 {
-    return round($iode);
+    return round((IODE_QUADRATIC_COEFFICIENT * pow($iode, 2) + IODE_ENERGY_COEFFICIENT * $iode) * (1 + $niveau / IODE_LEVEL_DIVISOR));
 }
 
 function vitesse($Cl, $N, $nivCondCl)

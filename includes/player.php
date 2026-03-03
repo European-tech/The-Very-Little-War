@@ -245,7 +245,7 @@ function initPlayer($joueur)
         $niveauActuel = ['niveau' => $constructions['generateur']];
     }
 
-    if ($niveauActuel['niveau'] == 1) {
+    if ($niveauActuel['niveau'] == 0) {
         $tempsGenerateur = $BUILDING_CONFIG['generateur']['time_level1'];
     } else {
         $tempsGenerateur = round($BUILDING_CONFIG['generateur']['time_base'] * pow($BUILDING_CONFIG['generateur']['time_growth_base'], $niveauActuel['niveau']));
@@ -258,7 +258,7 @@ function initPlayer($joueur)
         $niveauActuel1 = ['niveau' => $constructions['producteur']];
     }
 
-    if ($niveauActuel1['niveau'] == 1) {
+    if ($niveauActuel1['niveau'] == 0) {
         $tempsProducteur = $BUILDING_CONFIG['producteur']['time_level1'];
     } else {
         $tempsProducteur = round($BUILDING_CONFIG['producteur']['time_base'] * pow($BUILDING_CONFIG['producteur']['time_growth_base'], $niveauActuel1['niveau']));
@@ -383,7 +383,7 @@ function initPlayer($joueur)
             'description' => 'Le champ de force vous protège des attaques adverses en donnant un <strong>bonus de défense</strong> lorsque vous êtes attaqué. Il prend aussi <strong>les dégâts des attaques adverses</strong> en premier si son niveau est superieur aux autres bâtiments.',
             'coutCarbone' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['champdeforce']['cost_carbone_base'] * pow($BUILDING_CONFIG['champdeforce']['cost_growth_base'], $niveauActuelChampDeForce['niveau'])),
             'points' => $BUILDING_CONFIG['champdeforce']['points_base'] + floor($niveauActuelChampDeForce['niveau'] * $BUILDING_CONFIG['champdeforce']['points_level_factor']),
-            'tempsConstruction' => round($BUILDING_CONFIG['champdeforce']['time_base'] * pow($BUILDING_CONFIG['champdeforce']['time_growth_base'], $niveauActuelChampDeForce['niveau'])),
+            'tempsConstruction' => round($BUILDING_CONFIG['champdeforce']['time_base'] * pow($BUILDING_CONFIG['champdeforce']['time_growth_base'], $niveauActuelChampDeForce['niveau'] + $BUILDING_CONFIG['champdeforce']['time_level_offset'])),
             'vie' => $constructions['vieChampdeforce'],
             'vieMax' => vieChampDeForce($constructions['champdeforce'])
         ],
@@ -400,7 +400,7 @@ function initPlayer($joueur)
             'description' => 'L\'ionisateur améliore votre capacité offensive en donnant un <strong>bonus d\'attaque</strong> à vos molécules.',
             'coutOxygene' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['ionisateur']['cost_oxygene_base'] * pow($BUILDING_CONFIG['ionisateur']['cost_growth_base'], $niveauActuelIonisateur['niveau'])),
             'points' => $BUILDING_CONFIG['ionisateur']['points_base'] + floor($niveauActuelIonisateur['niveau'] * $BUILDING_CONFIG['ionisateur']['points_level_factor']),
-            'tempsConstruction' => round($BUILDING_CONFIG['ionisateur']['time_base'] * pow($BUILDING_CONFIG['ionisateur']['time_growth_base'], $niveauActuelIonisateur['niveau']))
+            'tempsConstruction' => round($BUILDING_CONFIG['ionisateur']['time_base'] * pow($BUILDING_CONFIG['ionisateur']['time_growth_base'], $niveauActuelIonisateur['niveau'] + $BUILDING_CONFIG['ionisateur']['time_level_offset']))
         ],
 
         'condenseur' => [
@@ -418,7 +418,7 @@ function initPlayer($joueur)
             'coutEnergie' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['condenseur']['cost_energy_base'] * pow($BUILDING_CONFIG['condenseur']['cost_growth_base'], $niveauActuelCondenseur['niveau'])),
             'coutAtomes' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['condenseur']['cost_atoms_base'] * pow($BUILDING_CONFIG['condenseur']['cost_growth_base'], $niveauActuelCondenseur['niveau'])),
             'points' => $BUILDING_CONFIG['condenseur']['points_base'] + floor($niveauActuelCondenseur['niveau'] * $BUILDING_CONFIG['condenseur']['points_level_factor']),
-            'tempsConstruction' => round($BUILDING_CONFIG['condenseur']['time_base'] * pow($BUILDING_CONFIG['condenseur']['time_growth_base'], $niveauActuelCondenseur['niveau']))
+            'tempsConstruction' => round($BUILDING_CONFIG['condenseur']['time_base'] * pow($BUILDING_CONFIG['condenseur']['time_growth_base'], $niveauActuelCondenseur['niveau'] + $BUILDING_CONFIG['condenseur']['time_level_offset']))
         ],
 
         'lieur' => [
@@ -433,7 +433,7 @@ function initPlayer($joueur)
             'description' => 'Le lieur forme des liaisons entre atomes afin de créer des molécules. Il permet ainsi de <strong>réduire le temps de formation des molécules</strong> de votre armée.',
             'coutAzote' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['lieur']['cost_azote_base'] * pow($BUILDING_CONFIG['lieur']['cost_growth_base'], $niveauActuelLieur['niveau'])),
             'points' => $BUILDING_CONFIG['lieur']['points_base'] + floor($niveauActuelLieur['niveau'] * $BUILDING_CONFIG['lieur']['points_level_factor']),
-            'tempsConstruction' => round($BUILDING_CONFIG['lieur']['time_base'] * pow($BUILDING_CONFIG['lieur']['time_growth_base'], $niveauActuelLieur['niveau']))
+            'tempsConstruction' => round($BUILDING_CONFIG['lieur']['time_base'] * pow($BUILDING_CONFIG['lieur']['time_growth_base'], $niveauActuelLieur['niveau'] + $BUILDING_CONFIG['lieur']['time_level_offset']))
         ],
 
 
@@ -449,7 +449,7 @@ function initPlayer($joueur)
             'description' => 'Le stabilisateur permet à vos <strong>molécules d\'être plus stables</strong>, c\'est à dire qu\'elles disparaitront au bout d\'un temps plus long',
             'coutAtomes' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['stabilisateur']['cost_atoms_base'] * pow($BUILDING_CONFIG['stabilisateur']['cost_growth_base'], $niveauActuelStabilisateur['niveau'])),
             'points' => $BUILDING_CONFIG['stabilisateur']['points_base'] + floor($niveauActuelStabilisateur['niveau'] * $BUILDING_CONFIG['stabilisateur']['points_level_factor']),
-            'tempsConstruction' => round($BUILDING_CONFIG['stabilisateur']['time_base'] * pow($BUILDING_CONFIG['stabilisateur']['time_growth_base'], $niveauActuelStabilisateur['niveau']))
+            'tempsConstruction' => round($BUILDING_CONFIG['stabilisateur']['time_base'] * pow($BUILDING_CONFIG['stabilisateur']['time_growth_base'], $niveauActuelStabilisateur['niveau'] + $BUILDING_CONFIG['stabilisateur']['time_level_offset']))
         ],
 
         'coffrefort' => [
@@ -465,7 +465,7 @@ function initPlayer($joueur)
             'coutEnergie' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['coffrefort']['cost_energy_base'] * pow($BUILDING_CONFIG['coffrefort']['cost_growth_base'], $niveauActuelCoffrefort['niveau'])),
             'coutAtomes' => 0,
             'points' => $BUILDING_CONFIG['coffrefort']['points_base'] + floor($niveauActuelCoffrefort['niveau'] * $BUILDING_CONFIG['coffrefort']['points_level_factor']),
-            'tempsConstruction' => round($BUILDING_CONFIG['coffrefort']['time_base'] * pow($BUILDING_CONFIG['coffrefort']['time_growth_base'], $niveauActuelCoffrefort['niveau']))
+            'tempsConstruction' => round($BUILDING_CONFIG['coffrefort']['time_base'] * pow($BUILDING_CONFIG['coffrefort']['time_growth_base'], $niveauActuelCoffrefort['niveau'] + $BUILDING_CONFIG['coffrefort']['time_level_offset']))
         ]
     ];
 
