@@ -92,6 +92,7 @@ function attaque($oxygene, $niveau, $joueur, $medalData = null)
             $bonus = $bonusMedailles[$num];
         }
     }
+    $bonus = min($bonus, MAX_CROSS_SEASON_MEDAL_BONUS); // BAL-CROSS: cap veteran snowball
 
     return round((1 + (ATTACK_ATOM_COEFFICIENT * $oxygene) * (ATTACK_ATOM_COEFFICIENT * $oxygene) + $oxygene) * (1 + $niveau / ATTACK_LEVEL_DIVISOR) * (1 + $bonus / 100));
 }
@@ -112,6 +113,7 @@ function defense($carbone, $niveau, $joueur, $medalData = null)
             $bonus = $bonusMedailles[$num];
         }
     }
+    $bonus = min($bonus, MAX_CROSS_SEASON_MEDAL_BONUS); // BAL-CROSS: cap veteran snowball
 
     return round((1 + (DEFENSE_ATOM_COEFFICIENT * $carbone) * (DEFENSE_ATOM_COEFFICIENT * $carbone) + $carbone) * (1 + $niveau / DEFENSE_LEVEL_DIVISOR) * (1 + $bonus / 100));
 }
@@ -142,6 +144,7 @@ function pillage($soufre, $niveau, $joueur, $medalData = null)
             $bonus = $bonusMedailles[$num];
         }
     }
+    $bonus = min($bonus, MAX_CROSS_SEASON_MEDAL_BONUS); // BAL-CROSS: cap veteran snowball
 
     $catalystPillageBonus = 1 + catalystEffect('pillage_bonus');
     return round(((PILLAGE_ATOM_COEFFICIENT * $soufre) * (PILLAGE_ATOM_COEFFICIENT * $soufre) + $soufre / PILLAGE_SOUFRE_DIVISOR) * (1 + $niveau / PILLAGE_LEVEL_DIVISOR) * (1 + $bonus / 100) * $catalystPillageBonus);
@@ -149,7 +152,11 @@ function pillage($soufre, $niveau, $joueur, $medalData = null)
 
 function productionEnergieMolecule($iode, $niveau)
 {
-    return round(IODE_ENERGY_COEFFICIENT * $iode * (1 + $niveau / IODE_LEVEL_DIVISOR));
+    // BAL-CROSS C2: quadratic + linear term to match structural class of other atoms
+    return round(
+        (IODE_QUADRATIC_COEFFICIENT * $iode * $iode + IODE_ENERGY_COEFFICIENT * $iode)
+        * (1 + $niveau / IODE_LEVEL_DIVISOR)
+    );
 }
 
 function vitesse($chlore, $niveau)

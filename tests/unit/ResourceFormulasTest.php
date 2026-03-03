@@ -481,17 +481,18 @@ class ResourceFormulasTest extends TestCase
 
     public function testDuplicateurCostFormula(): void
     {
-        // Level 1: round(10 * pow(2.5, 2)) = round(10 * 6.25) = 63
+        // BAL-CROSS C8: cost factor 2.5→2.0 so level 10-12 is achievable in a season
+        // Level 1: round(10 * pow(2.0, 2)) = round(10 * 4) = 40
         $cost1 = (int) round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, 1 + 1));
-        $this->assertEquals(63, $cost1);
+        $this->assertEquals(40, $cost1);
 
-        // Level 2: round(10 * pow(2.5, 3)) = round(10 * 15.625) = 156
+        // Level 2: round(10 * pow(2.0, 3)) = round(10 * 8) = 80
         $cost2 = (int) round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, 2 + 1));
-        $this->assertEquals(156, $cost2);
+        $this->assertEquals(80, $cost2);
 
-        // Level 5: round(10 * pow(2.5, 6)) = round(10 * 244.14) = 2441
+        // Level 5: round(10 * pow(2.0, 6)) = round(10 * 64) = 640
         $cost5 = (int) round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, 5 + 1));
-        $expected = (int) round(10 * pow(2.5, 6));
+        $expected = (int) round(10 * pow(2.0, 6));
         $this->assertEquals($expected, $cost5);
     }
 

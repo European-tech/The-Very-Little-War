@@ -135,14 +135,13 @@ class GameBalanceTest extends TestCase
 
     public function testVictoryPointsTop50SumIsReasonable(): void
     {
-        // The VP formula assigns points per rank (not a fixed budget to split).
-        // Top 50 sum is 1052 — slightly over VICTORY_POINTS_TOTAL (1000).
-        // This is acceptable since only a few players fill top ranks per season.
+        // BAL-CROSS C10: reshaped VP curve with smoother rank 21-100 distribution
+        // Top 50 sum is 1079 — slightly over VICTORY_POINTS_TOTAL (1000).
         $sum = 0;
         for ($rank = 1; $rank <= 50; $rank++) {
             $sum += pointsVictoireJoueur($rank);
         }
-        $this->assertEquals(1052, (int) $sum, 'Top 50 VP sum should be 1052');
+        $this->assertEquals(1079, (int) $sum, 'Top 50 VP sum should be 1079');
         $this->assertLessThan(VICTORY_POINTS_TOTAL * 2, $sum,
             "Top 50 VP sum must stay under 2x VICTORY_POINTS_TOTAL");
     }
@@ -261,12 +260,13 @@ class GameBalanceTest extends TestCase
 
     public function testProductionEnergieMoleculeScalesWithIodeAndLevel(): void
     {
-        // round(0.10 * iode * (1 + niveau / 50))
+        // BAL-CROSS C2: quadratic iode formula
+        // round((0.003 * 100^2 + 0.04 * 100) * (1 + niveau / 50))
         $energy0 = productionEnergieMolecule(100, 0);
         $energy50 = productionEnergieMolecule(100, 50);
 
-        $this->assertEquals(10, $energy0, '100 iode at level 0 = 10 energy');
-        $this->assertEquals(20, $energy50, '100 iode at level 50 = 20 energy (2x multiplier)');
+        $this->assertEquals(34, $energy0, '100 iode at level 0 = 34 energy');
+        $this->assertEquals(68, $energy50, '100 iode at level 50 = 68 energy (2x multiplier)');
     }
 
     public function testVitesseBaseIsOneWithNoChlorine(): void

@@ -561,8 +561,9 @@ class ConfigConsistencyTest extends TestCase
         $this->assertEquals(0.1, HP_ATOM_COEFFICIENT);
         $this->assertEquals(0.075, DESTRUCTION_ATOM_COEFFICIENT);
         $this->assertEquals(0.1, PILLAGE_ATOM_COEFFICIENT);
-        // Buffed from 0.01 -> 0.05 -> 0.10 to make iodine a real energy source
-        $this->assertEquals(0.10, IODE_ENERGY_COEFFICIENT);
+        // BAL-CROSS C2: quadratic iode formula (coefficient reduced, quadratic term added)
+        $this->assertEquals(0.04, IODE_ENERGY_COEFFICIENT);
+        $this->assertEquals(0.003, IODE_QUADRATIC_COEFFICIENT);
         $this->assertEquals(0.5, SPEED_ATOM_COEFFICIENT);
         $this->assertEquals(0.09, FORMATION_AZOTE_COEFFICIENT);
     }
@@ -604,7 +605,7 @@ class ConfigConsistencyTest extends TestCase
     public function testDuplicateurConstants(): void
     {
         $this->assertEquals(10, DUPLICATEUR_BASE_COST);
-        $this->assertEquals(2.5, DUPLICATEUR_COST_FACTOR);
+        $this->assertEquals(2.0, DUPLICATEUR_COST_FACTOR);
         $this->assertEquals(0.01, DUPLICATEUR_BONUS_PER_LEVEL);
     }
 

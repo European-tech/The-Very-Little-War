@@ -348,12 +348,15 @@ if ($gagnant == 1) { // Defender wins
 	$defenseRewardEnergy = floor($totalAttackerPillage * DEFENSE_REWARD_RATIO);
 }
 
-// FIX FINDING-GAME-007: Set attack cooldown on loss AND draw (not just defender wins)
-if ($gagnant != 2) { // Attacker did not win (draw or loss)
+// BAL-CROSS C4: Cooldown on ALL outcomes (4h loss/draw, 1h win) to prevent chain-bullying
+if ($gagnant != 2) { // Attacker lost or draw
 	$cooldownExpires = time() + ATTACK_COOLDOWN_SECONDS;
-	dbExecute($base, 'INSERT INTO attack_cooldowns (attacker, defender, expires) VALUES (?, ?, ?)',
-		'ssi', $actions['attaquant'], $actions['defenseur'], $cooldownExpires);
+} else { // Attacker won
+	$cooldownExpires = time() + ATTACK_COOLDOWN_WIN_SECONDS;
 }
+dbExecute($base, 'INSERT INTO attack_cooldowns (attacker, defender, expires) VALUES (?, ?, ?)
+	ON DUPLICATE KEY UPDATE expires = ?',
+	'ssii', $actions['attaquant'], $actions['defenseur'], $cooldownExpires, $cooldownExpires);
 
 // On met à jour les troupes des deux joueurs
 

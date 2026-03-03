@@ -75,14 +75,17 @@ define('HP_LEVEL_DIVISOR', 50);
 define('DESTRUCTION_ATOM_COEFFICIENT', 0.075);
 define('DESTRUCTION_LEVEL_DIVISOR', 50);
 
-// Pillage (soufre): round(((0.1 * soufre)^2 + soufre / 3) * (1 + niveau / 50))
+// Pillage (soufre): round(((0.1 * soufre)^2 + soufre / 2) * (1 + niveau / 50))
+// BAL-CROSS C1: Divisor 3→2 bridges S/O efficiency gap from 56-67% to 67-83%
 define('PILLAGE_ATOM_COEFFICIENT', 0.1);
-define('PILLAGE_SOUFRE_DIVISOR', 3);
+define('PILLAGE_SOUFRE_DIVISOR', 2);
 define('PILLAGE_LEVEL_DIVISOR', 50);
 
-// Iode energy production: round(0.10 * iode * (1 + niveau / 50))
-// Buffed from 0.01→0.05→0.10 to make iodine a real energy source
-define('IODE_ENERGY_COEFFICIENT', 0.10);
+// Iode energy production: round((0.003 * iode^2 + 0.04 * iode) * (1 + niveau / 50))
+// BAL-CROSS C2: Added quadratic term to match structural class of other atoms
+// At I=100: 34 E/mol (was 10). Makes iode a genuine energy strategy.
+define('IODE_ENERGY_COEFFICIENT', 0.04);
+define('IODE_QUADRATIC_COEFFICIENT', 0.003);
 define('IODE_LEVEL_DIVISOR', 50);
 
 // Speed (chlore): floor((1 + 0.5 * chlore) * (1 + niveau / 50) * 100) / 100
@@ -264,7 +267,9 @@ define('DEFENSE_POINTS_MULTIPLIER', 5.0);
 // Defensive rewards — incentivize defense as a viable playstyle
 define('DEFENSE_REWARD_RATIO', 0.20);         // 20% resource bonus on successful defense
 define('DEFENSE_POINTS_MULTIPLIER_BONUS', 1.5); // 1.5x combat points for defensive victories
-define('ATTACK_COOLDOWN_SECONDS', 4 * 3600);  // 4 hours before same attacker can hit same target
+define('ATTACK_COOLDOWN_SECONDS', 4 * 3600);  // 4 hours on loss/draw
+// BAL-CROSS C4: Prevents chain-attack bullying — winners wait 1h before same target
+define('ATTACK_COOLDOWN_WIN_SECONDS', 1 * 3600);
 
 // Defensive formations — pre-battle defensive stance choices
 // 0 = Dispersée (default): damage split equally across all classes (25% each)
@@ -273,9 +278,10 @@ define('ATTACK_COOLDOWN_SECONDS', 4 * 3600);  // 4 hours before same attacker ca
 define('FORMATION_DISPERSEE', 0);
 define('FORMATION_PHALANGE', 1);
 define('FORMATION_EMBUSCADE', 2);
-define('FORMATION_PHALANX_ABSORB', 0.70);        // class 1 absorbs this % of damage
-define('FORMATION_PHALANX_DEFENSE_BONUS', 0.30);  // +30% defense for phalanx class 1
-define('FORMATION_AMBUSH_ATTACK_BONUS', 0.25);    // +25% attack when outnumbering attacker
+// BAL-CROSS C7: Reduces empty-class-1 exploit (60% free damage discard, not 70%)
+define('FORMATION_PHALANX_ABSORB', 0.60);        // class 1 absorbs this % of damage
+define('FORMATION_PHALANX_DEFENSE_BONUS', 0.20);  // +20% defense for phalanx class 1
+define('FORMATION_AMBUSH_ATTACK_BONUS', 0.15);    // +15% attack when outnumbering attacker
 $FORMATIONS = [
     FORMATION_DISPERSEE => ['name' => 'Dispersée', 'desc' => 'Les dégâts sont répartis également entre vos 4 classes (25% chacune). Efficace contre les attaques concentrées.'],
     FORMATION_PHALANGE => ['name' => 'Phalange', 'desc' => 'Votre classe 1 absorbe 70% des dégâts et gagne +30% de défense. Idéal si votre classe 1 est très résistante.'],
@@ -295,7 +301,8 @@ define('ISOTOPE_STABLE_HP_MOD', 0.20);
 define('ISOTOPE_STABLE_DECAY_MOD', -0.30);      // negative = slower decay
 define('ISOTOPE_REACTIF_ATTACK_MOD', 0.20);
 define('ISOTOPE_REACTIF_HP_MOD', -0.10);
-define('ISOTOPE_REACTIF_DECAY_MOD', 0.50);       // positive = faster decay
+// BAL-CROSS C9: Reduced from 0.50→0.20 so Réactif lifetime output matches Normal
+define('ISOTOPE_REACTIF_DECAY_MOD', 0.20);       // positive = faster decay
 define('ISOTOPE_CATALYTIQUE_ATTACK_MOD', -0.10);
 define('ISOTOPE_CATALYTIQUE_HP_MOD', -0.10);
 define('ISOTOPE_CATALYTIQUE_ALLY_BONUS', 0.15);  // +15% to all stats of other classes
@@ -374,10 +381,12 @@ define('MARKET_POINTS_MAX', 80);           // cap on market points contribution 
 // =============================================================================
 // Duplicateur cost: round(BASE * pow(FACTOR, level + 1))
 define('DUPLICATEUR_BASE_COST', 10);
-define('DUPLICATEUR_COST_FACTOR', 2.5);
+define('DUPLICATEUR_COST_FACTOR', 2.0);
 
 // Duplicateur resource bonus: bonusDuplicateur = level / 100 (i.e. 1% per level)
 define('DUPLICATEUR_BONUS_PER_LEVEL', 0.01); // 1% per level for resource production
+
+// BAL-CROSS C8: Duplicateur cost reduced so level 10-12 is achievable in a 31-day season
 
 // Alliance research level cap
 define('ALLIANCE_RESEARCH_MAX_LEVEL', 25);
@@ -464,10 +473,11 @@ define('VP_PLAYER_RANK4_10_BASE', 70);
 define('VP_PLAYER_RANK4_10_STEP', 5);
 define('VP_PLAYER_RANK11_20_BASE', 35);
 define('VP_PLAYER_RANK11_20_STEP', 2);
-define('VP_PLAYER_RANK21_50_BASE', 15);
-define('VP_PLAYER_RANK21_50_STEP', 0.5);
-define('VP_PLAYER_RANK51_100_BASE', 3);
-define('VP_PLAYER_RANK51_100_STEP', 0.04);
+// BAL-CROSS C10: Smoother VP curve — ranks 21-100 have meaningful differentiation
+define('VP_PLAYER_RANK21_50_BASE', 12);
+define('VP_PLAYER_RANK21_50_STEP', 0.23);
+define('VP_PLAYER_RANK51_100_BASE', 6);
+define('VP_PLAYER_RANK51_100_STEP', 0.08);
 
 // =============================================================================
 // VICTORY POINTS - ALLIANCE RANKINGS
@@ -503,6 +513,12 @@ $MEDAL_TIER_IMAGES = [
 
 // Medal bonus percentages per tier: Bronze(1%), Silver(3%), Gold(6%), ...
 $MEDAL_BONUSES = [1, 3, 6, 10, 15, 20, 30, 50];
+
+// BAL-CROSS C6: Cap on cross-season medal bonuses to reduce veteran snowball
+// During first 14 days of a new season, bonuses are capped at Gold tier (6%)
+define('MAX_CROSS_SEASON_MEDAL_BONUS', 10); // absolute % cap (Emeraude tier)
+define('MEDAL_GRACE_PERIOD_DAYS', 14);      // first N days: use grace cap
+define('MEDAL_GRACE_CAP_TIER', 3);          // max tier index during grace (Gold = 6%)
 
 // Forum badge names per tier
 $MEDAL_FORUM_BADGES = [

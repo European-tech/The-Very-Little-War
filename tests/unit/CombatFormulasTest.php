@@ -590,7 +590,10 @@ class CombatFormulasTest extends TestCase
 
     private function computeIodeEnergy(int $iode, int $niveau): int
     {
-        return (int) round(IODE_ENERGY_COEFFICIENT * $iode * (1 + $niveau / IODE_LEVEL_DIVISOR));
+        return (int) round(
+            (IODE_QUADRATIC_COEFFICIENT * $iode * $iode + IODE_ENERGY_COEFFICIENT * $iode)
+            * (1 + $niveau / IODE_LEVEL_DIVISOR)
+        );
     }
 
     public function testIodeEnergyZero(): void
@@ -600,14 +603,14 @@ class CombatFormulasTest extends TestCase
 
     public function testIodeEnergyBasic(): void
     {
-        // round(0.10 * 100 * 1) = round(10) = 10
-        $this->assertEquals(10, $this->computeIodeEnergy(100, 0));
+        // round((0.003 * 100^2 + 0.04 * 100) * 1) = round(30 + 4) = 34
+        $this->assertEquals(34, $this->computeIodeEnergy(100, 0));
     }
 
     public function testIodeEnergyWithLevel(): void
     {
-        // round(0.10 * 100 * (1 + 50/50)) = round(0.10 * 100 * 2) = 20
-        $this->assertEquals(20, $this->computeIodeEnergy(100, 50));
+        // round((0.003 * 100^2 + 0.04 * 100) * (1 + 50/50)) = round(34 * 2) = 68
+        $this->assertEquals(68, $this->computeIodeEnergy(100, 50));
     }
 
     // =========================================================================
