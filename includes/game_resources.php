@@ -31,13 +31,13 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
         $bonusDuplicateur = 1 + bonusDuplicateur($duplicateur['duplicateur']);
     }
 
-    //Prise en compte des revenus par l'iode des molecules
-    $totalIode = 0;
+    // V4: Iode is now a generator catalyst — multiplicative bonus instead of additive energy
+    $totalIodeAtoms = 0;
     for ($i = 1; $i <= 4; $i++) {
-        $molecules = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $joueur, $i);
-        $totalIode += productionEnergieMolecule($molecules['iode'], $niveauiode) * $molecules['nombre'];
-        //A FAIRE COMPTER L'IODE TOTALE ET AJOUTER AUX REVENUS
+        $molecules = dbFetchOne($base, 'SELECT iode, nombre FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $joueur, $i);
+        $totalIodeAtoms += $molecules['iode'] * $molecules['nombre'];
     }
+    $iodeCatalystBonus = 1.0 + min(IODE_CATALYST_MAX_BONUS, $totalIodeAtoms / IODE_CATALYST_DIVISOR);
 
     $donneesMedaille = dbFetchOne($base, 'SELECT energieDepensee FROM autre WHERE login=?', 's', $joueur);
     $bonus = 0;
@@ -49,7 +49,7 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     }
 
     $prodBase = (BASE_ENERGY_PER_LEVEL * $niveau);
-    $prodIode = $prodBase + $totalIode;
+    $prodIode = $prodBase * $iodeCatalystBonus; // V4: multiplicative catalyst
     $prodMedaille = (1 + ($bonus / 100)) * $prodIode;
     $prodDuplicateur = $bonusDuplicateur * $prodMedaille;
     $prodPrestige = $prodDuplicateur * prestigeProductionBonus($joueur);
@@ -199,6 +199,16 @@ function updateRessources($joueur)
     // Batch: single atomic UPDATE instead of N SELECT+UPDATE pairs
     if ($totalMoleculesPerdues > 0) {
         dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login = ?', 'ds', $totalMoleculesPerdues, $joueur);
+    }
+
+    // V4: Neutrino decay — treated as mass-1 molecule
+    $neutrinoData = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $joueur);
+    if ($neutrinoData && isset($neutrinoData['neutrinos']) && $neutrinoData['neutrinos'] > 0) {
+        $coefNeutrino = coefDisparition($joueur, 1, 1); // type=1, nbAtomes=1
+        $neutrinosRestants = floor(pow($coefNeutrino, $nbsecondes) * $neutrinoData['neutrinos']);
+        if ($neutrinosRestants != $neutrinoData['neutrinos']) {
+            dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $neutrinosRestants, $joueur);
+        }
     }
 
     if ($nbheuresDebut > ABSENCE_REPORT_THRESHOLD_HOURS) {
