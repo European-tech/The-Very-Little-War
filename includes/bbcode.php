@@ -329,8 +329,17 @@ $text = preg_replace('!\[title\](.+)\[/title\]!isU', '<span style="font-size: 13
 $text = preg_replace('!\[joueur=([a-z0-9_-]{3,16})/\]!isU', '<a href="joueur.php?id=$1">$1</a>', $text);
 $text = preg_replace('!\[alliance=([a-z0-9_-]{3,16})/\]!isU', '<a href="alliance.php?id=$1">$1</a>', $text);
 $text = preg_replace('!\[url=(https?://[^\]]+)\](.+?)\[/url\]!isU', '<a href="$1" rel="noopener noreferrer" target="_blank">$2</a>', $text);
-$text = preg_replace('!\[img=(https?://(?:www\.)?theverylittlewar\.com/[^\]]+\.(?:gif|png|jpg|jpeg))\]!isU', '<img alt="image" src="$1">', $text);
-$text = preg_replace('!\[img=([^\]]+)\]!isU', '[Image externe bloquée]', $text);
+$text = preg_replace_callback('!\[img=([^\]]+)\]!isU', function($matches) {
+    $url = $matches[1];
+    // Allow self-hosted images: relative paths starting with / or images/
+    // Allow theverylittlewar.com absolute URLs
+    if (preg_match('#^(images/[^\s"<>]+\.(?:gif|png|jpg|jpeg))$#i', $url)
+        || preg_match('#^(/[^\s"<>]+\.(?:gif|png|jpg|jpeg))$#i', $url)
+        || preg_match('#^https?://(?:www\.)?theverylittlewar\.com/[^\s"<>]+\.(?:gif|png|jpg|jpeg)$#i', $url)) {
+        return '<img alt="image" src="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">';
+    }
+    return '[Image externe bloquée]';
+}, $text);
 $text = preg_replace('!\[color=(blue|red|green|white|black|beige|brown|cyan|yellow|orange|gray|purple|maroon)\](.+)\[/color\]!isU', '<span style="color:$1;">$2</span>', $text);
 
 $text = preg_replace('!\[latex\](.+)\[/latex\]!isU', '\$\$$1\$\$', $text);
