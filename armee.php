@@ -97,58 +97,64 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
     $_POST['nombremolecules'] = transformInt($_POST['nombremolecules']);
     if (isset($_POST['nombremolecules']) and !empty($_POST['nombremolecules']) and preg_match("#^[0-9]*$#", $_POST['nombremolecules'])) {
         $_POST['nombremolecules'] = intval($_POST['nombremolecules']);
-        $donneesFormer = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $_SESSION['login'], $_POST['emplacementmoleculeformer']);
-        $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $_SESSION['login']);
+        $nombreMolecules = $_POST['nombremolecules'];
+        $emplacementFormer = $_POST['emplacementmoleculeformer'];
+        $login = $_SESSION['login'];
+        try {
+            $formuleAffichage = withTransaction($base, function() use ($base, $nombreMolecules, $emplacementFormer, $login, $nomsRes, $nbRes, $niveauazote) {
+                $donneesFormer = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $login, $emplacementFormer);
+                $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $login);
 
-        $bool = 1;
-        foreach ($nomsRes as $num => $ressource) {
-            if (($donneesFormer[$ressource] * $_POST['nombremolecules']) > $ressources[$ressource]) {
-                $bool = 0;
-            }
-        }
-        if ($bool == 1) {
-            $total = 0;
-            foreach ($nomsRes as $num => $ressource) {
-                $total = $total + $donneesFormer[$ressource];
-            }
-
-            $ex = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
-            $nb = mysqli_num_rows($ex);
-            if ($nb > 0) { // s'il y a deja quelque chose en cours, on le met derriere
-                $actionsformation = mysqli_fetch_array($ex);
-                $tempsDebut = $actionsformation['fin'];
-            } else {
-                $tempsDebut = time();
-            }
-
-            $tempsForm = tempsFormation($donneesFormer['azote'], $niveauazote, $total, $_SESSION['login']);
-            $finTemps = $tempsDebut + $tempsForm * $_POST['nombremolecules'];
-            dbExecute($base, 'INSERT INTO actionsformation VALUES(default,?,?,?,?,?,?,?,?)', 'issiiisis',
-                $donneesFormer['id'], $_SESSION['login'], $tempsDebut, $finTemps, $_POST['nombremolecules'], $_POST['nombremolecules'], $donneesFormer['formule'], $tempsForm);
-
-            // Build dynamic UPDATE for ressources - computed from server data
-            $chaine = "";
-            foreach ($nomsRes as $num => $ressource) {
-                $plus = "";
-                if ($num < $nbRes) {
-                    $plus = ",";
+                foreach ($nomsRes as $num => $ressource) {
+                    if (($donneesFormer[$ressource] * $nombreMolecules) > $ressources[$ressource]) {
+                        throw new \RuntimeException('Insufficient atoms');
+                    }
                 }
-                $chaine = $chaine . '' . $ressource . '=' . ($ressources[$ressource] - ($_POST['nombremolecules'] * $donneesFormer[$ressource])) . '' . $plus;
-            }
-            // $chaine is built from server-side computed numeric values
-            $stmt = mysqli_prepare($base, 'UPDATE ressources SET ' . $chaine . ' WHERE login=?');
-            if (!$stmt) {
-                error_log("SQL Prepare Error: " . mysqli_error($base));
-            } else {
-                mysqli_stmt_bind_param($stmt, 's', $_SESSION['login']);
-                if (!mysqli_stmt_execute($stmt)) {
-                    error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
-                }
-                mysqli_stmt_close($stmt);
-            }
 
-            $information = 'Vous avez lancé la formation de ' . $_POST['nombremolecules'] . ' molécules de ' . couleurFormule($donneesFormer['formule']) . '';
-        } else {
+                $total = 0;
+                foreach ($nomsRes as $num => $ressource) {
+                    $total = $total + $donneesFormer[$ressource];
+                }
+
+                $ex = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY fin DESC', 's', $login);
+                $nb = mysqli_num_rows($ex);
+                if ($nb > 0) {
+                    $actionsformation = mysqli_fetch_array($ex);
+                    $tempsDebut = $actionsformation['fin'];
+                } else {
+                    $tempsDebut = time();
+                }
+
+                $tempsForm = tempsFormation($donneesFormer['azote'], $niveauazote, $total, $login);
+                $finTemps = $tempsDebut + $tempsForm * $nombreMolecules;
+                dbExecute($base, 'INSERT INTO actionsformation VALUES(default,?,?,?,?,?,?,?,?)', 'issiiisis',
+                    $donneesFormer['id'], $login, $tempsDebut, $finTemps, $nombreMolecules, $nombreMolecules, $donneesFormer['formule'], $tempsForm);
+
+                // Build dynamic UPDATE for ressources - computed from server data
+                $chaine = "";
+                foreach ($nomsRes as $num => $ressource) {
+                    $plus = "";
+                    if ($num < $nbRes) {
+                        $plus = ",";
+                    }
+                    $chaine = $chaine . '' . $ressource . '=' . ($ressources[$ressource] - ($nombreMolecules * $donneesFormer[$ressource])) . '' . $plus;
+                }
+                // $chaine is built from server-side computed numeric values
+                $stmt = mysqli_prepare($base, 'UPDATE ressources SET ' . $chaine . ' WHERE login=?');
+                if (!$stmt) {
+                    error_log("SQL Prepare Error: " . mysqli_error($base));
+                } else {
+                    mysqli_stmt_bind_param($stmt, 's', $login);
+                    if (!mysqli_stmt_execute($stmt)) {
+                        error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
+                    }
+                    mysqli_stmt_close($stmt);
+                }
+
+                return $donneesFormer['formule'];
+            });
+            $information = 'Vous avez lancé la formation de ' . $nombreMolecules . ' molécules de ' . couleurFormule($formuleAffichage) . '';
+        } catch (\RuntimeException $e) {
             $erreur = "Vous n'avez pas assez d'atomes.";
         }
     } else {
