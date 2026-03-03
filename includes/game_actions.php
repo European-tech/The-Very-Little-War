@@ -120,6 +120,12 @@ function updateActions($joueur)
                 $actions['troupes'] = $chaine;
                 include("includes/combat.php"); // Les pertes sont calculées, le gagnant est désigné et les troupes sont mises à jour dans la BD, les ressources sont pillées
 
+                // Map combat.php output variables to report template variables
+                $attaquePts = number_format($pointsAttaquant, 0, ' ', ' ');
+                $defensePts = number_format($pointsDefenseur, 0, ' ', ' ');
+                $pillagePts = number_format($totalPille, 0, ' ', ' ');
+                $pillagePts1 = $pillagePts;
+
                 if ($gagnant == 2) {
                     $titreRapportJoueur = "Vous gagnez contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
                     $titreRapportDefenseur = "Vous perdez contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
