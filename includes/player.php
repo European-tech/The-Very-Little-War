@@ -537,8 +537,9 @@ function augmenterBatiment($nom, $joueur)
     }
     ajouterPoints($listeConstructions[$nom]['points'], $joueur);
 
-    invalidatePlayerCache($_SESSION['login']);
-    initPlayer($_SESSION['login']);
+    // FIX H-007: invalidate target player's cache, not necessarily current session
+    invalidatePlayerCache($joueur);
+    initPlayer($joueur);
 }
 
 function diminuerBatiment($nom, $joueur)
@@ -618,8 +619,9 @@ function diminuerBatiment($nom, $joueur)
         ajouterPoints(-$listeConstructions[$nom]['points'], $joueur);
     }
 
-    invalidatePlayerCache($_SESSION['login']);
-    initPlayer($_SESSION['login']);
+    // FIX H-007: invalidate target player's cache, not necessarily current session
+    invalidatePlayerCache($joueur);
+    initPlayer($joueur);
 }
 
 function coordonneesAleatoires()
