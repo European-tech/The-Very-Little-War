@@ -17,6 +17,6 @@ if (!$base) {
     die('Erreur de connexion à la base de données.');
 }
 
-mysqli_set_charset($base, 'utf8');
+mysqli_set_charset($base, 'utf8mb4');
 
 require_once(__DIR__ . '/database.php');

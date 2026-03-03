@@ -79,6 +79,14 @@ if (isset($_GET['inscription'])) {
 							dbExecute($base, 'UPDATE sanctions SET joueur = ? WHERE joueur = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE statutforum SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE sujets SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE prestige SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE attack_cooldowns SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE actionsattaques SET attaquant = ? WHERE attaquant = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE actionsattaques SET defenseur = ? WHERE defenseur = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE actionsformation SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE actionsconstruction SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE actionsenvoi SET envoyeur = ? WHERE envoyeur = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE actionsenvoi SET receveur = ? WHERE receveur = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $newLogin);
 						});
 

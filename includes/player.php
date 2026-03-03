@@ -772,6 +772,11 @@ function supprimerJoueur($joueur)
         dbExecute($base, 'DELETE FROM actionsformation WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM actionsenvoi WHERE envoyeur=? OR receveur=?', 'ss', $joueur, $joueur);
         dbExecute($base, 'DELETE FROM statutforum WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM prestige WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM attack_cooldowns WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM sanctions WHERE joueur=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM actionsconstruction WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM connectes WHERE ip IN (SELECT ip FROM membre WHERE login=?)', 's', $joueur);
 
         $donnees = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
         $nbinscrits = $donnees['inscrits'] - 1;
