@@ -156,6 +156,9 @@ function updateRessources($joueur)
     $sqlTypes = '';
     $sqlParams = [];
     foreach ($nomsRes as $num => $ressource) {
+        if (!in_array($ressource, $nomsRes, true)) {
+            throw new \RuntimeException("Invalid column: $ressource");
+        }
         ${'revenu' . $ressource} = revenuAtome($num, $joueur);
         $$ressource = $donnees[$ressource] + ${'revenu' . $ressource} * ($nbsecondes / SECONDS_PER_HOUR);
         if ($$ressource >= $placeMax) {

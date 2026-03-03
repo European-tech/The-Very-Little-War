@@ -254,6 +254,9 @@ function traitementConstructions($liste)
                     // Build dynamic UPDATE for ressources - these are computed values, not user input
                     $chaine = "";
                     foreach ($nomsRes as $num => $ressource) {
+                        if (!in_array($ressource, $nomsRes, true)) {
+                            throw new \RuntimeException("Invalid column: $ressource");
+                        }
                         $plus = "";
                         if ($num < $nbRes) {
                             $plus = ",";

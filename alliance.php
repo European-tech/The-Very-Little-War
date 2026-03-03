@@ -103,14 +103,22 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
 
     // Alliance research upgrades
     global $ALLIANCE_RESEARCH;
+    // Whitelist: only allow column names that exist as keys in $ALLIANCE_RESEARCH
+    $allowedResearchColumns = array_keys($ALLIANCE_RESEARCH);
     if (isset($_POST['upgradeResearch']) && isset($ALLIANCE_RESEARCH[$_POST['upgradeResearch']])) {
         csrfCheck();
         $techName = $_POST['upgradeResearch'];
+        if (!in_array($techName, $allowedResearchColumns, true)) {
+            throw new \RuntimeException("Invalid research column: $techName");
+        }
         $tech = $ALLIANCE_RESEARCH[$techName];
         $allianceId = $idalliance['idalliance'];
 
         try {
-            $resultLevel = withTransaction($base, function() use ($base, $techName, $tech, $allianceId) {
+            $resultLevel = withTransaction($base, function() use ($base, $techName, $tech, $allianceId, $allowedResearchColumns) {
+                if (!in_array($techName, $allowedResearchColumns, true)) {
+                    throw new \RuntimeException("Invalid research column: $techName");
+                }
                 $allianceData = dbFetchOne($base, 'SELECT ' . $techName . ', energieAlliance FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceId);
                 $currentLevel = intval($allianceData[$techName]);
                 $researchCost = round($tech['cost_base'] * pow($tech['cost_factor'], $currentLevel + 1));

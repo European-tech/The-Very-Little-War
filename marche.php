@@ -99,6 +99,9 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                         // Build dynamic UPDATE for ressources
                         $chaine = "";
                         foreach ($nomsRes as $num => $ressource) {
+                            if (!in_array($ressource, $nomsRes, true)) {
+                                throw new \RuntimeException("Invalid column: $ressource");
+                            }
                             $plus = "";
                             if ($num < $nbRes) {
                                 $plus = ",";

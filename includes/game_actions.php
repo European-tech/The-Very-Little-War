@@ -563,6 +563,9 @@ function updateActions($joueur)
         $maxStorageRecv = placeDepot($depotReceveur['depot']);
         $chaine = "";
         foreach ($nomsRes as $num => $ressource) {
+            if (!in_array($ressource, $nomsRes, true)) {
+                throw new \RuntimeException("Invalid column: $ressource");
+            }
             $plus = "";
             $recues[$num] = max(0, $recues[$num]);
             if ($num < $nbRes) {
@@ -577,6 +580,9 @@ function updateActions($joueur)
         $envoiTypes = 'd';
         $envoiParams = [min($maxStorageRecv, round($ressourcesDestinataire['energie'] + $recues[sizeof($nomsRes)]))];
         foreach ($nomsRes as $num => $ressource) {
+            if (!in_array($ressource, $nomsRes, true)) {
+                throw new \RuntimeException("Invalid column: $ressource");
+            }
             $envoiSetClauses[] = "$ressource=?";
             $envoiTypes .= 'd';
             $envoiParams[] = min($maxStorageRecv, round($ressourcesDestinataire[$ressource] + $recues[$num]));

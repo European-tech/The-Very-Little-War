@@ -617,6 +617,9 @@ $setClauses = [];
 $setTypes = '';
 $setParams = [];
 foreach ($nomsRes as $num => $ressource) {
+	if (!in_array($ressource, $nomsRes, true)) {
+		throw new \RuntimeException("Invalid column: $ressource");
+	}
 	$setClauses[] = "$ressource=?";
 	$setTypes .= 'd';
 	$setParams[] = min($maxStorageAtt, ($ressourcesJoueur[$ressource] + ${$ressource . 'Pille'}));
@@ -631,6 +634,9 @@ $setClauses = [];
 $setTypes = '';
 $setParams = [];
 foreach ($nomsRes as $num => $ressource) {
+	if (!in_array($ressource, $nomsRes, true)) {
+		throw new \RuntimeException("Invalid column: $ressource");
+	}
 	$setClauses[] = "$ressource=?";
 	$setTypes .= 'd';
 	$setParams[] = max(0, ($ressourcesDefenseur[$ressource] - ${$ressource . 'Pille'})); // FIX FINDING-GAME-026: clamp at 0
