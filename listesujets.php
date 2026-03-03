@@ -28,10 +28,8 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 		if (!empty($_POST['titre']) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= 10000 and mb_strlen($_POST['titre']) <= 200) {
 			$timestamp = time();
 			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $timestamp);
-
-			$sujet = dbFetchOne($base, 'SELECT id FROM sujets WHERE contenu = ?', 's', $_POST['contenu']);
-
-			dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sii', $_SESSION['login'], $sujet['id'], $getId);
+			$sujetId = mysqli_insert_id($base);
+			dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sii', $_SESSION['login'], $sujetId, $getId);
 			$information = "Votre sujet a été créé.";
 		} else {
 			$erreur = "Tous les champs ne sont pas remplis.";
