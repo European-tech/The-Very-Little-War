@@ -197,7 +197,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                                 }
 
                                 if ($numRes == $num) {
-                                    $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / $placeDepot;
+                                    $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / MARKET_GLOBAL_ECONOMY_DIVISOR;
                                     // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
                                     $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
                                     $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
@@ -324,7 +324,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                             }
 
                             if ($numRes == $num) {
-                                $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $actualSold / $placeDepot);
+                                $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $actualSold / MARKET_GLOBAL_ECONOMY_DIVISOR);
                                 // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
                                 $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
                                 $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
