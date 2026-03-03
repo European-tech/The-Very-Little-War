@@ -430,30 +430,30 @@ else { // si cela n'a pas été initialisé à la première connexion
 // molecules aussi
 
 
-var revenuJSEnergie=<?php echo revenuEnergie($constructions['generateur'],$_SESSION['login'])/SECONDS_PER_HOUR;?> //incrementer tous ces nombres de secondes
-var valeur = <?php echo $ressources['energie']; ?>;
+var revenuJSEnergie=<?php echo json_encode(revenuEnergie($constructions['generateur'],$_SESSION['login'])/SECONDS_PER_HOUR);?> //incrementer tous ces nombres de secondes
+var valeur = <?php echo json_encode($ressources['energie']); ?>;
 function energieDynamique(){
-	document.getElementById("affichageenergie").innerHTML = nFormatter(Math.floor(valeur))+'/<?php echo $ressourcesMax; ?>';
-	if(valeur+revenuJSEnergie < <?php echo (int)placeDepot($constructions['depot']); ?>){
+	document.getElementById("affichageenergie").innerHTML = nFormatter(Math.floor(valeur))+'/'+<?php echo json_encode($ressourcesMax); ?>;
+	if(valeur+revenuJSEnergie < <?php echo json_encode((int)placeDepot($constructions['depot'])); ?>){
 		valeur = valeur+revenuJSEnergie;
 	}
 	else {
-		valeur = <?php echo (int)placeDepot($constructions['depot']); ?>;
+		valeur = <?php echo json_encode((int)placeDepot($constructions['depot'])); ?>;
 	}
 }
 
 <?php
 foreach($nomsRes as $num => $ressource) {
 	echo'
-	var revenuJS'.$ressource.'='.(revenuAtome($num,$_SESSION['login'])/SECONDS_PER_HOUR).'
-	var valeur'.$ressource.' = '.$ressources[$ressource].'
+	var revenuJS'.$ressource.'='.json_encode(revenuAtome($num,$_SESSION['login'])/SECONDS_PER_HOUR).'
+	var valeur'.$ressource.' = '.json_encode($ressources[$ressource]).'
 	function '.$ressource.'Dynamique(){
-		document.getElementById("affichage'.$ressource.'").innerHTML = nFormatter(Math.floor(valeur'.$ressource.'))+\'/'.$ressourcesMax.'\'
-		if(valeur'.$ressource.'+revenuJS'.$ressource.' < '.(int)placeDepot($depot['depot']).'){
+		document.getElementById("affichage'.$ressource.'").innerHTML = nFormatter(Math.floor(valeur'.$ressource.'))+\'/\'+'.json_encode($ressourcesMax).'
+		if(valeur'.$ressource.'+revenuJS'.$ressource.' < '.json_encode((int)placeDepot($depot['depot'])).'){
 			valeur'.$ressource.' = valeur'.$ressource.'+revenuJS'.$ressource.'
 		}
 		else {
-			valeur'.$ressource.' = '.(int)placeDepot($constructions['depot']).'
+			valeur'.$ressource.' = '.json_encode((int)placeDepot($constructions['depot'])).'
 		}
 	}
 	setInterval('.$ressource.'Dynamique, 1000);';
