@@ -71,111 +71,74 @@ function bonusDuplicateur($niveau)
     return $niveau * DUPLICATEUR_BONUS_PER_LEVEL;
 }
 
+function modCond($niveauCondenseur)
+{
+    return 1 + ($niveauCondenseur / COVALENT_CONDENSEUR_DIVISOR);
+}
+
 function drainageProducteur($niveau)
 {
-    return round(PRODUCTEUR_DRAIN_PER_LEVEL * $niveau);
+    return round(PRODUCTEUR_DRAIN_PER_LEVEL * pow(ECO_GROWTH_BASE, $niveau));
 }
 
-function attaque($oxygene, $niveau, $joueur, $medalData = null)
+function attaque($O, $H, $nivCondO, $bonusMedaille = 0)
 {
-    global $paliersAttaque;
-    global $bonusMedailles;
-
-    if ($medalData === null) {
-        global $base;
-        $medalData = dbFetchOne($base, 'SELECT pointsAttaque FROM autre WHERE login=?', 's', $joueur);
-    }
-    $bonus = 0;
-
-    foreach ($paliersAttaque as $num => $palier) {
-        if ($medalData['pointsAttaque'] >= $palier) {
-            $bonus = $bonusMedailles[$num];
-        }
-    }
-    $bonus = min($bonus, MAX_CROSS_SEASON_MEDAL_BONUS); // BAL-CROSS: cap veteran snowball
-
-    return round((1 + (ATTACK_ATOM_COEFFICIENT * $oxygene) * (ATTACK_ATOM_COEFFICIENT * $oxygene) + $oxygene) * (1 + $niveau / ATTACK_LEVEL_DIVISOR) * (1 + $bonus / 100));
+    $base = (pow($O, COVALENT_BASE_EXPONENT) + $O) * (1 + $H / COVALENT_SYNERGY_DIVISOR);
+    return round($base * modCond($nivCondO) * (1 + $bonusMedaille / 100));
 }
 
-function defense($carbone, $niveau, $joueur, $medalData = null)
+function defense($C, $Br, $nivCondC, $bonusMedaille = 0)
 {
-    global $paliersDefense;
-    global $bonusMedailles;
-
-    if ($medalData === null) {
-        global $base;
-        $medalData = dbFetchOne($base, 'SELECT pointsDefense FROM autre WHERE login=?', 's', $joueur);
-    }
-    $bonus = 0;
-
-    foreach ($paliersDefense as $num => $palier) {
-        if ($medalData['pointsDefense'] >= $palier) {
-            $bonus = $bonusMedailles[$num];
-        }
-    }
-    $bonus = min($bonus, MAX_CROSS_SEASON_MEDAL_BONUS); // BAL-CROSS: cap veteran snowball
-
-    return round((1 + (DEFENSE_ATOM_COEFFICIENT * $carbone) * (DEFENSE_ATOM_COEFFICIENT * $carbone) + $carbone) * (1 + $niveau / DEFENSE_LEVEL_DIVISOR) * (1 + $bonus / 100));
+    $base = (pow($C, COVALENT_BASE_EXPONENT) + $C) * (1 + $Br / COVALENT_SYNERGY_DIVISOR);
+    return round($base * modCond($nivCondC) * (1 + $bonusMedaille / 100));
 }
 
-function pointsDeVieMolecule($brome, $niveau)
+function pointsDeVieMolecule($Br, $C, $nivCondBr)
 {
-    return round((1 + (HP_ATOM_COEFFICIENT * $brome) * (HP_ATOM_COEFFICIENT * $brome) + $brome) * (1 + $niveau / HP_LEVEL_DIVISOR));
+    $base = MOLECULE_MIN_HP + (pow($Br, COVALENT_BASE_EXPONENT) + $Br) * (1 + $C / COVALENT_SYNERGY_DIVISOR);
+    return round($base * modCond($nivCondBr));
 }
 
-function potentielDestruction($hydrogene, $niveau)
+function potentielDestruction($H, $O, $nivCondH)
 {
-    return round(((DESTRUCTION_ATOM_COEFFICIENT * $hydrogene) * (DESTRUCTION_ATOM_COEFFICIENT * $hydrogene) + $hydrogene) * (1 + $niveau / DESTRUCTION_LEVEL_DIVISOR));
+    $base = (pow($H, COVALENT_BASE_EXPONENT) + $H) * (1 + $O / COVALENT_SYNERGY_DIVISOR);
+    return round($base * modCond($nivCondH));
 }
 
-function pillage($soufre, $niveau, $joueur, $medalData = null)
+function pillage($S, $Cl, $nivCondS, $bonusMedaille = 0)
 {
-    global $paliersPillage;
-    global $bonusMedailles;
-
-    if ($medalData === null) {
-        global $base;
-        $medalData = dbFetchOne($base, 'SELECT ressourcesPillees FROM autre WHERE login=?', 's', $joueur);
-    }
-    $bonus = 0;
-
-    foreach ($paliersPillage as $num => $palier) {
-        if ($medalData['ressourcesPillees'] >= $palier) {
-            $bonus = $bonusMedailles[$num];
-        }
-    }
-    $bonus = min($bonus, MAX_CROSS_SEASON_MEDAL_BONUS); // BAL-CROSS: cap veteran snowball
-
-    $catalystPillageBonus = 1 + catalystEffect('pillage_bonus');
-    return round(((PILLAGE_ATOM_COEFFICIENT * $soufre) * (PILLAGE_ATOM_COEFFICIENT * $soufre) + $soufre / PILLAGE_SOUFRE_DIVISOR) * (1 + $niveau / PILLAGE_LEVEL_DIVISOR) * (1 + $bonus / 100) * $catalystPillageBonus);
+    $base = (pow($S, COVALENT_BASE_EXPONENT) + $S) * (1 + $Cl / COVALENT_SYNERGY_DIVISOR);
+    return round($base * modCond($nivCondS) * (1 + $bonusMedaille / 100));
 }
 
 function productionEnergieMolecule($iode, $niveau)
 {
-    // BAL-CROSS C2: quadratic + linear term to match structural class of other atoms
-    return round(
-        (IODE_QUADRATIC_COEFFICIENT * $iode * $iode + IODE_ENERGY_COEFFICIENT * $iode)
-        * (1 + $niveau / IODE_LEVEL_DIVISOR)
-    );
+    return round($iode);
 }
 
-function vitesse($chlore, $niveau)
+function vitesse($Cl, $N, $nivCondCl)
 {
-    return floor((1 + SPEED_ATOM_COEFFICIENT * $chlore) * (1 + $niveau / SPEED_LEVEL_DIVISOR) * 100) / 100;
+    $base = 1 + ($Cl * 0.5) + (($Cl * $N) / 200);
+    return max(1.0, floor($base * modCond($nivCondCl) * 100) / 100);
 }
 
 function bonusLieur($niveau)
 {
-    return floor(100 * pow(LIEUR_GROWTH_BASE, $niveau)) / 100;
+    return 1 + $niveau * LIEUR_LINEAR_BONUS_PER_LEVEL;
 }
 
-function tempsFormation($azote, $niveau, $ntotal, $joueur)
+function tempsFormation($ntotal, $azote, $iode, $nivCondN, $nivLieur, $joueur = null)
 {
-    global $base;
-    $constructions = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $joueur);
-    $catalystSpeedBonus = 1 + catalystEffect('formation_speed');
-    $allianceCatalyseurBonus = 1 + allianceResearchBonus($joueur, 'formation_speed');
-    return ceil($ntotal / (1 + pow(FORMATION_AZOTE_COEFFICIENT * $azote, FORMATION_AZOTE_EXPONENT)) / (1 + $niveau / FORMATION_LEVEL_DIVISOR) / bonusLieur($constructions['lieur']) / $catalystSpeedBonus / $allianceCatalyseurBonus * 100) / 100;
+    $bonus_lieur = bonusLieur($nivLieur);
+    $vitesse_form = (1 + pow($azote, 1.1) * (1 + $iode / 200)) * modCond($nivCondN) * $bonus_lieur;
+
+    if ($joueur !== null) {
+        $catalystSpeedBonus = 1 + catalystEffect('formation_speed');
+        $allianceCatalyseurBonus = 1 + allianceResearchBonus($joueur, 'formation_speed');
+        $vitesse_form *= $catalystSpeedBonus * $allianceCatalyseurBonus;
+    }
+
+    return ceil(($ntotal / $vitesse_form) * 100) / 100;
 }
 
 
@@ -213,7 +176,10 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
     } else {
         $nbAtomes = $classeOuNbTotal;
     }
-    $baseDecay = pow(pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, 2) / DECAY_POWER_DIVISOR), (1 - ($bonus / 100)) * (1 - ($stabilisateur['stabilisateur'] * STABILISATEUR_BONUS_PER_LEVEL)));
+    $rawDecay = pow(DECAY_BASE, pow(1 + $nbAtomes / DECAY_ATOM_DIVISOR, DECAY_MASS_EXPONENT) / DECAY_POWER_DIVISOR);
+    $modStab = pow(STABILISATEUR_ASYMPTOTE, $stabilisateur['stabilisateur']);
+    $modMedal = 1 - ($bonus / 100);
+    $baseDecay = pow($rawDecay, $modStab * $modMedal);
 
     // Catalyst decay increase (Volatilité: +30% faster decay)
     $catalystDecayIncrease = catalystEffect('decay_increase');
@@ -248,7 +214,7 @@ function demiVie($joueur, $classeOuNbTotal, $type = 0)
 
 function pointsDeVie($niveau, $joueur = null)
 {
-    $base_hp = round(BUILDING_HP_BASE * (pow(BUILDING_HP_GROWTH_BASE, $niveau) + pow($niveau, BUILDING_HP_LEVEL_EXP)));
+    $base_hp = round(BUILDING_HP_BASE * pow(max(1, $niveau), BUILDING_HP_POLY_EXP));
     if ($joueur !== null) {
         $fortBonus = 1 + allianceResearchBonus($joueur, 'building_hp');
         return round($base_hp * $fortBonus);
@@ -258,7 +224,7 @@ function pointsDeVie($niveau, $joueur = null)
 
 function vieChampDeForce($niveau, $joueur = null)
 {
-    $base_hp = round(FORCEFIELD_HP_BASE * (pow(FORCEFIELD_HP_GROWTH_BASE, $niveau) + pow($niveau, FORCEFIELD_HP_LEVEL_EXP)));
+    $base_hp = round(FORCEFIELD_HP_BASE * pow(max(1, $niveau), BUILDING_HP_POLY_EXP));
     if ($joueur !== null) {
         $fortBonus = 1 + allianceResearchBonus($joueur, 'building_hp');
         return round($base_hp * $fortBonus);
@@ -273,5 +239,19 @@ function coutClasse($numero)
 
 function placeDepot($niveau)
 {
-    return BASE_STORAGE_PER_LEVEL * $niveau;
+    return round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, $niveau));
+}
+
+function capaciteCoffreFort($nivCoffre, $nivDepot)
+{
+    $pct = min(VAULT_MAX_PROTECTION_PCT, $nivCoffre * VAULT_PCT_PER_LEVEL);
+    return round(placeDepot($nivDepot) * $pct);
+}
+
+function computeMedalBonus($points, $paliers, $bonusMedailles) {
+    $bonus = 0;
+    foreach ($paliers as $num => $palier) {
+        if ($points >= $palier) $bonus = $bonusMedailles[$num];
+    }
+    return min($bonus, MAX_CROSS_SEASON_MEDAL_BONUS);
 }
