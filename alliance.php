@@ -222,7 +222,9 @@ if ($_GET['id'] != -1) {
         if ($nb > 0) {
             echo '<br/>' . important("Grades");
             while ($grades = mysqli_fetch_array($ex)) {
-                echo '<span class="subimportant">' . $grades['nom'] . ' : </span><a href="joueur.php?id=' . $grades['login'] . '">' . $grades['login'] . '</a><br/>';
+                $safeGradeNom = htmlspecialchars($grades['nom'], ENT_QUOTES, 'UTF-8');
+                $safeGradeLogin = htmlspecialchars($grades['login'], ENT_QUOTES, 'UTF-8');
+                echo '<span class="subimportant">' . $safeGradeNom . ' : </span><a href="joueur.php?id=' . $safeGradeLogin . '">' . $safeGradeLogin . '</a><br/>';
             }
         }
         ?>
@@ -235,10 +237,10 @@ if ($_GET['id'] != -1) {
             while ($guerre = mysqli_fetch_array($ex)) {
                 if ($guerre['alliance1'] == $allianceJoueurPage['id']) {
                     $allianceJoueurAdverse = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance2']);
-                    echo '<br/>- <a href="guerre.php?id=' . $guerre['id'] . '"> contre ' . $allianceJoueurAdverse['tag'] . '</a>';
+                    echo '<br/>- <a href="guerre.php?id=' . (int)$guerre['id'] . '"> contre ' . htmlspecialchars($allianceJoueurAdverse['tag'], ENT_QUOTES, 'UTF-8') . '</a>';
                 } else {
                     $allianceJoueurAdverse = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance1']);
-                    echo '<br/>- <a href="guerre.php?id=' . $guerre['id'] . '"> contre ' . $allianceJoueurAdverse['tag'] . '</a>';
+                    echo '<br/>- <a href="guerre.php?id=' . (int)$guerre['id'] . '"> contre ' . htmlspecialchars($allianceJoueurAdverse['tag'], ENT_QUOTES, 'UTF-8') . '</a>';
                 }
             }
         }
@@ -250,10 +252,12 @@ if ($_GET['id'] != -1) {
             while ($pacte = mysqli_fetch_array($ex)) {
                 if ($pacte['alliance1'] == $allianceJoueurPage['id']) {
                     $allianceJoueurAllie = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $pacte['alliance2']);
-                    echo '<br/>- avec <a href="alliance.php?id=' . $allianceJoueurAllie['tag'] . '">' . $allianceJoueurAllie['tag'] . '</a>';
+                    $safeTag = htmlspecialchars($allianceJoueurAllie['tag'], ENT_QUOTES, 'UTF-8');
+                    echo '<br/>- avec <a href="alliance.php?id=' . $safeTag . '">' . $safeTag . '</a>';
                 } else {
                     $allianceJoueurAllie = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $pacte['alliance1']);
-                    echo '<br/>- avec <a href="alliance.php?id=' . $allianceJoueurAllie['tag'] . '">' . $allianceJoueurAllie['tag'] . '</a>';
+                    $safeTag = htmlspecialchars($allianceJoueurAllie['tag'], ENT_QUOTES, 'UTF-8');
+                    echo '<br/>- avec <a href="alliance.php?id=' . $safeTag . '">' . $safeTag . '</a>';
                 }
             }
         }
@@ -457,8 +461,9 @@ if ($_GET['id'] != -1) {
     $nbinvitations = mysqli_num_rows($ex);
     if ($nbinvitations > 0) {
         while ($invitation = mysqli_fetch_array($ex)) {
+            $safeInvTag = htmlspecialchars($invitation['tag'], ENT_QUOTES, 'UTF-8');
             echo '
-            <form action="alliance.php" method="post">' . csrfField() . 'Invitation de l\'équipe ' . $invitation['tag'] . ' : <input type="submit" class="w32" style="background-image: url(\'images/yes.png\');background-size:contain;vertical-align:middle;margin-left:15px;margin-right:15px;background-color: Transparent;color: Transparent;background-repeat:no-repeat;border: none;cursor:pointer;overflow: hidden;outline:none;" name="actioninvitation" value="Accepter"/><input class="w32" style="background-image: url(\'images/croix.png\');background-size:contain;vertical-align:middle;background-color: Transparent;color: Transparent;background-repeat:no-repeat;border: none;cursor:pointer;overflow: hidden;outline:none;" type ="submit" name="actioninvitation" value="Refuser"/><input type="hidden" name="idinvitation" value="' . $invitation['id'] . '"/></form>';
+            <form action="alliance.php" method="post">' . csrfField() . 'Invitation de l\'équipe ' . $safeInvTag . ' : <input type="submit" class="w32" style="background-image: url(\'images/yes.png\');background-size:contain;vertical-align:middle;margin-left:15px;margin-right:15px;background-color: Transparent;color: Transparent;background-repeat:no-repeat;border: none;cursor:pointer;overflow: hidden;outline:none;" name="actioninvitation" value="Accepter"/><input class="w32" style="background-image: url(\'images/croix.png\');background-size:contain;vertical-align:middle;background-color: Transparent;color: Transparent;background-repeat:no-repeat;border: none;cursor:pointer;overflow: hidden;outline:none;" type ="submit" name="actioninvitation" value="Refuser"/><input type="hidden" name="idinvitation" value="' . (int)$invitation['id'] . '"/></form>';
         }
     } else {
         echo "Vous n'avez aucune invitation d'équipe.";
