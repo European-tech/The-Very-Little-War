@@ -23,10 +23,15 @@ define('MAX_CONCURRENT_CONSTRUCTIONS', 2);
 define('MAX_MOLECULE_CLASSES', 4);       // 4 classes per player
 define('MAX_ATOMS_PER_ELEMENT', 200);    // max atoms of one type in a molecule
 define('MAX_ALLIANCE_MEMBERS', 20);      // $joueursEquipe
-define('BEGINNER_PROTECTION_SECONDS', 5 * SECONDS_PER_DAY); // 432000 = 5 days
+define('BEGINNER_PROTECTION_SECONDS', 3 * SECONDS_PER_DAY); // V4: 3 days
 define('ABSENCE_REPORT_THRESHOLD_HOURS', 6); // hours offline before loss report
 define('ONLINE_TIMEOUT_SECONDS', 300);   // 60 * 5 = 5 minutes for online status
 define('VICTORY_POINTS_TOTAL', 1000);    // $nbPointsVictoire
+
+// --- V4 ECONOMIC GROWTH BASES ---
+define('ECO_GROWTH_BASE', 1.15); // Standard building cost/storage growth
+define('ECO_GROWTH_ADV', 1.20);  // Strategic buildings (champdeforce, ionisateur, condenseur, lieur)
+define('ECO_GROWTH_ULT', 1.25);  // Stabilisateur (strong exponential)
 
 // =============================================================================
 // RESOURCE NAMES AND DISPLAY
@@ -58,6 +63,12 @@ define('PRODUCTEUR_DRAIN_PER_LEVEL', 8);
 // MOLECULE STAT FORMULAS
 // Formulas: stat = round((1 + (COEF * atoms)^2 + atoms) * (1 + level / LEVEL_DIVISOR))
 // =============================================================================
+
+// V4 Covalent synergy: universal condenseur modifier
+define('COVALENT_CONDENSEUR_DIVISOR', 50); // modCond = 1 + (nivCond / 50)
+define('COVALENT_BASE_EXPONENT', 1.2);     // pow(atom, 1.2) + atom
+define('COVALENT_SYNERGY_DIVISOR', 100);   // (1 + secondary / 100)
+define('MOLECULE_MIN_HP', 10);             // Min HP — prevents 0-brome insta-wipe
 
 // Attack: round((1 + (0.1 * oxygene)^2 + oxygene) * (1 + niveau / 50))
 define('ATTACK_ATOM_COEFFICIENT', 0.1);
@@ -105,19 +116,32 @@ define('DECAY_BASE', 0.99);
 define('DECAY_ATOM_DIVISOR', 150); // Increased from 100 — large molecules slightly more viable
 define('DECAY_POWER_DIVISOR', 25000);
 define('STABILISATEUR_BONUS_PER_LEVEL', 0.015); // 1.5% per level (buffed from 1%)
+define('STABILISATEUR_ASYMPTOTE', 0.98);  // V4: pow(0.98, level) — never negative
+define('DECAY_MASS_EXPONENT', 1.5);       // V4: power 1.5 (was 2)
 
 // =============================================================================
 // BUILDING HP FORMULAS
 // =============================================================================
 // pointsDeVie = round(BASE * (pow(1.2, level) + pow(level, 1.2)))
-define('BUILDING_HP_BASE', 20);
+define('BUILDING_HP_BASE', 50);
 define('BUILDING_HP_GROWTH_BASE', 1.2);
 define('BUILDING_HP_LEVEL_EXP', 1.2);
+define('BUILDING_HP_POLY_EXP', 2.5);      // V4: polynomial 50 * level^2.5
 
 // vieChampDeForce = round(BASE * (pow(1.2, level) + pow(level, 1.2)))
-define('FORCEFIELD_HP_BASE', 50);
+define('FORCEFIELD_HP_BASE', 125);
 define('FORCEFIELD_HP_GROWTH_BASE', 1.2);
 define('FORCEFIELD_HP_LEVEL_EXP', 1.2);
+
+// --- V4 STORAGE / VAULT / ECONOMY / COMBAT ---
+define('BASE_STORAGE_INITIAL', 1000);
+define('VAULT_PCT_PER_LEVEL', 0.02);
+define('VAULT_MAX_PROTECTION_PCT', 0.50);
+define('MARKET_GLOBAL_ECONOMY_DIVISOR', 10000);
+define('COMBAT_MASS_DIVISOR', 100);
+define('IODE_CATALYST_DIVISOR', 50000);
+define('IODE_CATALYST_MAX_BONUS', 1.0);
+define('LIEUR_LINEAR_BONUS_PER_LEVEL', 0.15);
 
 // =============================================================================
 // BUILDING COST FORMULAS
@@ -127,11 +151,10 @@ define('FORCEFIELD_HP_LEVEL_EXP', 1.2);
 $BUILDING_CONFIG = [
     'generateur' => [
         'cost_energy_base'  => 50,
-        'cost_energy_exp'   => 0.7,
         'cost_atoms_base'   => 75,   // cost per atom type
-        'cost_atoms_exp'    => 0.7,
+        'cost_growth_base'  => ECO_GROWTH_BASE, // V4: 1.15 exponential growth
         'time_base'         => 60,   // seconds (level 1 = 10s special case)
-        'time_exp'          => 1.5,
+        'time_growth_base'  => 1.10, // V4: universal time growth
         'time_level1'       => 10,   // special case: level 1 construction time
         'points_base'       => 1,
         'points_level_factor' => 0.1,
@@ -139,11 +162,10 @@ $BUILDING_CONFIG = [
     ],
     'producteur' => [
         'cost_energy_base'  => 75,
-        'cost_energy_exp'   => 0.7,
         'cost_atoms_base'   => 50,
-        'cost_atoms_exp'    => 0.7,
+        'cost_growth_base'  => ECO_GROWTH_BASE,
         'time_base'         => 40,
-        'time_exp'          => 1.5,
+        'time_growth_base'  => 1.10,
         'time_level1'       => 10,
         'points_base'       => 1,
         'points_level_factor' => 0.1,
@@ -152,20 +174,19 @@ $BUILDING_CONFIG = [
     ],
     'depot' => [
         'cost_energy_base'  => 100,
-        'cost_energy_exp'   => 0.7,
         'cost_atoms_base'   => 0,    // no atom cost
-        'cost_atoms_exp'    => 0,
+        'cost_growth_base'  => ECO_GROWTH_BASE,
         'time_base'         => 80,
-        'time_exp'          => 1.5,
+        'time_growth_base'  => 1.10,
         'points_base'       => 1,
         'points_level_factor' => 0.1,
         'description'       => 'Increases max resource storage',
     ],
     'champdeforce' => [
         'cost_carbone_base' => 100,
-        'cost_carbone_exp'  => 0.7,
+        'cost_growth_base'  => ECO_GROWTH_ADV, // V4: strategic building
         'time_base'         => 20,
-        'time_exp'          => 1.7,
+        'time_growth_base'  => 1.10,
         'time_level_offset' => 2,    // pow(level + 2, exp)
         'points_base'       => 1,
         'points_level_factor' => 0.075,
@@ -174,9 +195,9 @@ $BUILDING_CONFIG = [
     ],
     'ionisateur' => [
         'cost_oxygene_base' => 100,
-        'cost_oxygene_exp'  => 0.7,
+        'cost_growth_base'  => ECO_GROWTH_ADV,
         'time_base'         => 20,
-        'time_exp'          => 1.7,
+        'time_growth_base'  => 1.10,
         'time_level_offset' => 2,    // pow(level + 2, exp)
         'points_base'       => 1,
         'points_level_factor' => 0.075,
@@ -185,11 +206,10 @@ $BUILDING_CONFIG = [
     ],
     'condenseur' => [
         'cost_energy_base'  => 25,
-        'cost_energy_exp'   => 0.8,
         'cost_atoms_base'   => 100,
-        'cost_atoms_exp'    => 0.8,
+        'cost_growth_base'  => ECO_GROWTH_ADV,
         'time_base'         => 120,
-        'time_exp'          => 1.6,  // reduced from 1.8 for faster military progression
+        'time_growth_base'  => 1.10,
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 2,
         'points_level_factor' => 0.1,
@@ -198,9 +218,9 @@ $BUILDING_CONFIG = [
     ],
     'lieur' => [
         'cost_azote_base'   => 100,
-        'cost_azote_exp'    => 0.8,
+        'cost_growth_base'  => ECO_GROWTH_ADV,
         'time_base'         => 100,
-        'time_exp'          => 1.5,  // reduced from 1.7 for faster military progression
+        'time_growth_base'  => 1.10,
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 2,
         'points_level_factor' => 0.1,
@@ -209,9 +229,9 @@ $BUILDING_CONFIG = [
     ],
     'stabilisateur' => [
         'cost_atoms_base'   => 75,
-        'cost_atoms_exp'    => 0.9,
+        'cost_growth_base'  => ECO_GROWTH_ULT, // V4: strong exponential
         'time_base'         => 120,
-        'time_exp'          => 1.5,  // reduced from 1.7 for faster military progression
+        'time_growth_base'  => 1.10,
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 3,
         'points_level_factor' => 0.1,
@@ -220,11 +240,10 @@ $BUILDING_CONFIG = [
     ],
     'coffrefort' => [
         'cost_energy_base'  => 150,
-        'cost_energy_exp'   => 0.7,
         'cost_atoms_base'   => 0,
-        'cost_atoms_exp'    => 0,
+        'cost_growth_base'  => ECO_GROWTH_BASE,
         'time_base'         => 90,
-        'time_exp'          => 1.2,
+        'time_growth_base'  => 1.10,
         'time_level_offset' => 1,
         'points_base'       => 1,
         'points_level_factor' => 0.1,
@@ -315,42 +334,6 @@ $ISOTOPES = [
 ];
 
 // =============================================================================
-// CHEMICAL REACTIONS — bonuses when specific atom combos deployed across classes
-// =============================================================================
-$CHEMICAL_REACTIONS = [
-    'Combustion' => [
-        'condA' => ['oxygene' => 100],
-        'condB' => ['carbone' => 100],
-        'bonus' => ['attack' => 0.15],   // +15% attack for both classes
-        'description' => 'O>=100 + C>=100 : +15% attaque',
-    ],
-    'Hydrogénation' => [
-        'condA' => ['hydrogene' => 100],
-        'condB' => ['brome' => 100],
-        'bonus' => ['hp' => 0.15],       // +15% HP for both classes
-        'description' => 'H>=100 + Br>=100 : +15% points de vie',
-    ],
-    'Halogénation' => [
-        'condA' => ['chlore' => 80],
-        'condB' => ['iode' => 80],
-        'bonus' => ['speed' => 0.20],    // +20% fleet speed
-        'description' => 'Cl>=80 + I>=80 : +20% vitesse',
-    ],
-    'Sulfuration' => [
-        'condA' => ['soufre' => 100],
-        'condB' => ['azote' => 50],
-        'bonus' => ['pillage' => 0.20],  // +20% pillage capacity
-        'description' => 'S>=100 + N>=50 : +20% pillage',
-    ],
-    'Neutralisation' => [
-        'condA' => ['oxygene' => 80],
-        'condB' => ['hydrogene' => 80, 'carbone' => 80],
-        'bonus' => ['defense' => 0.15],  // +15% defense for both classes
-        'description' => 'O>=80 + H>=80+C>=80 : +15% défense',
-    ],
-];
-
-// =============================================================================
 // ESPIONAGE
 // =============================================================================
 define('ESPIONAGE_SPEED', 20);   // cases per hour ($vitesseEspionnage)
@@ -381,8 +364,8 @@ define('MARKET_POINTS_MAX', 80);           // cap on market points contribution 
 // ALLIANCE / DUPLICATEUR
 // =============================================================================
 // Duplicateur cost: round(BASE * pow(FACTOR, level + 1))
-define('DUPLICATEUR_BASE_COST', 10);
-define('DUPLICATEUR_COST_FACTOR', 2.0);
+define('DUPLICATEUR_BASE_COST', 100);
+define('DUPLICATEUR_COST_FACTOR', 1.5);
 
 // Duplicateur resource bonus: bonusDuplicateur = level / 100 (i.e. 1% per level)
 define('DUPLICATEUR_BONUS_PER_LEVEL', 0.01); // 1% per level for resource production
