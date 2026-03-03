@@ -587,7 +587,7 @@ if ($_GET['sub'] == 0) {
                     } else {
                         $fin = "";
                     }
-                    $tot =  '["",' . $cours['tableauCours'] . ']' . $fin . $tot;
+                    $tot =  '["' . date('d/m', $cours['timestamp']) . '",' . $cours['tableauCours'] . ']' . $fin . $tot;
                     $c++;
                 }
 
