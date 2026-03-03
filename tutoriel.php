@@ -25,7 +25,7 @@ $tutorielMissions[] = [
     'lien'        => 'constructions.php',
     'lien_texte'  => 'Constructions',
     'icone'       => 'images/batiments/generateur.png',
-    'recompense_energie' => 500,
+    'recompense_energie' => 200,
     'condition'   => ($constructions['generateur'] >= 2),
 ];
 
@@ -43,7 +43,7 @@ $tutorielMissions[] = [
     'lien'        => 'constructions.php',
     'lien_texte'  => 'Constructions',
     'icone'       => 'images/batiments/producteur.png',
-    'recompense_energie' => 500,
+    'recompense_energie' => 300,
     'condition'   => ($constructions['producteur'] >= 2),
 ];
 
@@ -61,7 +61,7 @@ $tutorielMissions[] = [
     'lien'        => 'constructions.php',
     'lien_texte'  => 'Constructions',
     'icone'       => 'images/batiments/depot.png',
-    'recompense_energie' => 500,
+    'recompense_energie' => 400,
     'condition'   => ($constructions['depot'] >= 2),
 ];
 
@@ -101,7 +101,7 @@ $tutorielMissions[] = [
     'lien'        => 'compte.php',
     'lien_texte'  => 'Mon compte',
     'icone'       => 'images/menu/compte.png',
-    'recompense_energie' => 500,
+    'recompense_energie' => 600,
     'condition'   => ($autre['description'] != "" && $autre['description'] != "Pas de description"),
 ];
 
@@ -127,7 +127,7 @@ $tutorielMissions[] = [
     'lien'        => 'attaquer.php',
     'lien_texte'  => 'Carte',
     'icone'       => 'images/rapports/binoculars.png',
-    'recompense_energie' => 500,
+    'recompense_energie' => 800,
     'condition'   => $aEspionne,
 ];
 
@@ -145,7 +145,7 @@ $tutorielMissions[] = [
     'lien'        => 'alliance.php',
     'lien_texte'  => 'Equipe',
     'icone'       => 'images/menu/alliance.png',
-    'recompense_energie' => 500,
+    'recompense_energie' => 1000,
     'condition'   => ($autre['idalliance'] != 0),
 ];
 
