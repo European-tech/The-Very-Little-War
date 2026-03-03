@@ -734,6 +734,11 @@ function supprimerAlliance($alliance)
 {
     global $base;
     withTransaction($base, function() use ($base, $alliance) {
+        // Clean up attack cooldowns for all alliance members before dissolution
+        $members = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $alliance);
+        foreach ($members as $member) {
+            dbExecute($base, 'DELETE FROM attack_cooldowns WHERE login = ?', 's', $member['login']);
+        }
         dbExecute($base, 'UPDATE autre SET energieDonnee=0 WHERE idalliance=?', 'i', $alliance);
         dbExecute($base, 'DELETE FROM alliances WHERE id=?', 'i', $alliance);
         dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE idalliance=?', 'i', $alliance);
