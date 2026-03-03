@@ -269,13 +269,21 @@ if ($guerre) {
 			$nbDeclarations1 = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance2=? AND alliance1=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0))', 'ii', $allianceAdverse['id'], $chef['id']);
 
 			if ($nbDeclarations['nbDeclarations'] == 0 and $nbDeclarations1['nbDeclarations'] == 0) {
-				dbExecute($base, 'DELETE FROM declarations WHERE alliance1=? AND alliance2=? AND fin=0 AND valide=0', 'ii', $allianceAdverse['id'], $chef['id']);
-				dbExecute($base, 'DELETE FROM declarations WHERE alliance2=? AND alliance1=? AND fin=0 AND valide=0', 'ii', $allianceAdverse['id'], $chef['id']);
-				$now = time();
-				dbExecute($base, 'INSERT INTO declarations VALUES(default, 0, ?, ?, ?, default, default, default, default, default)', 'iii', $chef['id'], $allianceAdverse['id'], $now);
-				$rapportTitre = 'L\'alliance ' . $chef['tag'] . ' vous déclare la guerre.';
-				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chef['tag'] . '">' . $chef['tag'] . '</a> vous déclare la guerre.';
-				dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
+				$allianceAdverseId = $allianceAdverse['id'];
+				$allianceAdverseChef = $allianceAdverse['chef'];
+				$chefId = $chef['id'];
+				$chefTag = $chef['tag'];
+
+				withTransaction($base, function() use ($base, $allianceAdverseId, $allianceAdverseChef, $chefId, $chefTag) {
+					dbExecute($base, 'DELETE FROM declarations WHERE alliance1=? AND alliance2=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
+					dbExecute($base, 'DELETE FROM declarations WHERE alliance2=? AND alliance1=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
+					$now = time();
+					dbExecute($base, 'INSERT INTO declarations VALUES(default, 0, ?, ?, ?, default, default, default, default, default)', 'iii', $chefId, $allianceAdverseId, $now);
+					$rapportTitre = 'L\'alliance ' . $chefTag . ' vous déclare la guerre.';
+					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chefTag . '">' . $chefTag . '</a> vous déclare la guerre.';
+					dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverseChef);
+				});
+
 				$information = "Vous avez déclaré la guerre à l'équipe " . htmlspecialchars($_POST['guerre'], ENT_QUOTES, 'UTF-8') . ".";
 			} else {
 				$erreur = "Soit une guerre est déjà déclarée contre cette équipe, soit vous êtes alliés avec elle.";
