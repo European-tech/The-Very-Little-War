@@ -83,14 +83,20 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
 
     if (isset($_POST['augmenterDuplicateur'])) {
         csrfCheck();
-        $energieAlliance = dbFetchOne($base, 'SELECT energieAlliance FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-
-        if ($energieAlliance['energieAlliance'] >= $cout) {
-            $newDup = $duplicateur['duplicateur'] + 1;
-            $newEnergie = $energieAlliance['energieAlliance'] - $cout;
-            dbExecute($base, 'UPDATE alliances SET duplicateur=?, energieAlliance=? WHERE id=?', 'idi', $newDup, $newEnergie, $idalliance['idalliance']);
-            $information = "Vous avez augmenté votre duplicateur au niveau " . ($duplicateur['duplicateur'] + 1) . ".";
-        } else {
+        $allianceId = $idalliance['idalliance'];
+        try {
+            $newLevel = withTransaction($base, function() use ($base, $allianceId, $cout) {
+                $row = dbFetchOne($base, 'SELECT duplicateur, energieAlliance FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceId);
+                if (!$row || $row['energieAlliance'] < $cout) {
+                    throw new \RuntimeException('Insufficient energy');
+                }
+                $newDup = $row['duplicateur'] + 1;
+                $newEnergie = $row['energieAlliance'] - $cout;
+                dbExecute($base, 'UPDATE alliances SET duplicateur=?, energieAlliance=? WHERE id=?', 'idi', $newDup, $newEnergie, $allianceId);
+                return $newDup;
+            });
+            $information = "Vous avez augmenté votre duplicateur au niveau " . $newLevel . ".";
+        } catch (\RuntimeException $e) {
             $erreur = "Vous n'avez pas assez d'énergie.";
         }
     }
@@ -101,20 +107,33 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
         csrfCheck();
         $techName = $_POST['upgradeResearch'];
         $tech = $ALLIANCE_RESEARCH[$techName];
-        $allianceData = dbFetchOne($base, 'SELECT ' . $techName . ', energieAlliance FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-        $currentLevel = intval($allianceData[$techName]);
-        $researchCost = round($tech['cost_base'] * pow($tech['cost_factor'], $currentLevel + 1));
+        $allianceId = $idalliance['idalliance'];
 
-        // FIX FINDING-GAME-013: Enforce alliance research level cap
-        if ($currentLevel >= ALLIANCE_RESEARCH_MAX_LEVEL) {
-            $erreur = "Niveau maximum atteint (" . ALLIANCE_RESEARCH_MAX_LEVEL . ").";
-        } elseif ($allianceData['energieAlliance'] >= $researchCost) {
-            $newLevel = $currentLevel + 1;
-            $newEnergie = $allianceData['energieAlliance'] - $researchCost;
-            dbExecute($base, 'UPDATE alliances SET ' . $techName . '=?, energieAlliance=? WHERE id=?', 'idi', $newLevel, $newEnergie, $idalliance['idalliance']);
-            $information = htmlspecialchars($tech['name']) . " amélioré au niveau " . $newLevel . ".";
-        } else {
-            $erreur = "Vous n'avez pas assez d'énergie d'alliance.";
+        try {
+            $resultLevel = withTransaction($base, function() use ($base, $techName, $tech, $allianceId) {
+                $allianceData = dbFetchOne($base, 'SELECT ' . $techName . ', energieAlliance FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceId);
+                $currentLevel = intval($allianceData[$techName]);
+                $researchCost = round($tech['cost_base'] * pow($tech['cost_factor'], $currentLevel + 1));
+
+                // FIX FINDING-GAME-013: Enforce alliance research level cap
+                if ($currentLevel >= ALLIANCE_RESEARCH_MAX_LEVEL) {
+                    throw new \RuntimeException('max_level');
+                }
+                if ($allianceData['energieAlliance'] < $researchCost) {
+                    throw new \RuntimeException('insufficient_energy');
+                }
+                $newLevel = $currentLevel + 1;
+                $newEnergie = $allianceData['energieAlliance'] - $researchCost;
+                dbExecute($base, 'UPDATE alliances SET ' . $techName . '=?, energieAlliance=? WHERE id=?', 'idi', $newLevel, $newEnergie, $allianceId);
+                return $newLevel;
+            });
+            $information = htmlspecialchars($tech['name']) . " amélioré au niveau " . $resultLevel . ".";
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'max_level') {
+                $erreur = "Niveau maximum atteint (" . ALLIANCE_RESEARCH_MAX_LEVEL . ").";
+            } else {
+                $erreur = "Vous n'avez pas assez d'énergie d'alliance.";
+            }
         }
     }
 }
