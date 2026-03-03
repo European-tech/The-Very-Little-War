@@ -185,56 +185,63 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
                 }
             }
             if ($bool == 0) {
-                $cout = dbFetchOne($base, 'SELECT energie, niveauclasse FROM ressources WHERE login=?', 's', $_SESSION['login']);
-                if ($cout['energie'] >= (coutClasse($cout['niveauclasse']))) {
-                    $formule = "";
-                    foreach ($nomsRes as $num => $ressource) {
-                        if (!empty($_POST[$ressource])) {
-                            $$ressource = $_POST[$ressource];
-                            if ($_POST[$ressource] > 1) {
-                                $formule = '' . $formule . '' . $lettre[$num] . '<sub>' . $_POST[$ressource] . '</sub>';
-                            } else {
-                                $formule = $formule . '' . $lettre[$num];
-                            }
+                // Collect validated POST atom values before transaction
+                $atomValues = [];
+                $formule = "";
+                foreach ($nomsRes as $num => $ressource) {
+                    if (!empty($_POST[$ressource])) {
+                        $atomValues[$ressource] = intval($_POST[$ressource]);
+                        if ($_POST[$ressource] > 1) {
+                            $formule = '' . $formule . '' . $lettre[$num] . '<sub>' . $_POST[$ressource] . '</sub>';
                         } else {
-                            $$ressource = 0;
+                            $formule = $formule . '' . $lettre[$num];
                         }
-                    }
-
-                    $newNiveauClasse = $cout['niveauclasse'] + 1;
-                    dbExecute($base, 'UPDATE ressources SET niveauclasse=? WHERE login=?', 'is', $newNiveauClasse, $_SESSION['login']);
-
-                    // Isotope selection (validated integer 0-3)
-                    $isotope = isset($_POST['isotope']) ? intval($_POST['isotope']) : 0;
-                    if ($isotope < 0 || $isotope > 3) $isotope = 0;
-
-                    // Build dynamic UPDATE for molecules - computed from validated integer POST values
-                    $chaine = "";
-                    foreach ($nomsRes as $num => $ressource) {
-                        $plus = "";
-                        if ($num < $nbRes) {
-                            $plus = ",";
-                        }
-                        $chaine = $chaine . '' . $ressource . '=' . intval($$ressource) . '' . $plus;
-                    }
-                    // $chaine has validated integers, formule and login are parameterized
-                    $stmt = mysqli_prepare($base, 'UPDATE molecules SET ' . $chaine . ', formule=?, isotope=' . $isotope . ' WHERE proprietaire=? AND numeroclasse=?');
-                    if (!$stmt) {
-                        error_log("SQL Prepare Error: " . mysqli_error($base));
                     } else {
-                        $numClasse = intval($_POST['emplacementmoleculecreer1']);
-                        mysqli_stmt_bind_param($stmt, 'ssi', $formule, $_SESSION['login'], $numClasse);
-                        if (!mysqli_stmt_execute($stmt)) {
-                            error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
-                        }
-                        mysqli_stmt_close($stmt);
+                        $atomValues[$ressource] = 0;
                     }
+                }
+                // Isotope selection (validated integer 0-3)
+                $isotope = isset($_POST['isotope']) ? intval($_POST['isotope']) : 0;
+                if ($isotope < 0 || $isotope > 3) $isotope = 0;
+                $numClasse = intval($_POST['emplacementmoleculecreer1']);
+                $login = $_SESSION['login'];
 
-                    $newEnergie = max(0, $cout['energie'] - coutClasse($cout['niveauclasse']));
-                    dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $newEnergie, $_SESSION['login']);
+                try {
+                    withTransaction($base, function() use ($base, $login, $nomsRes, $nbRes, $atomValues, $formule, $isotope, $numClasse) {
+                        $cout = dbFetchOne($base, 'SELECT energie, niveauclasse FROM ressources WHERE login=? FOR UPDATE', 's', $login);
+                        if (!$cout || $cout['energie'] < coutClasse($cout['niveauclasse'])) {
+                            throw new \RuntimeException('Insufficient energy');
+                        }
 
+                        $newNiveauClasse = $cout['niveauclasse'] + 1;
+                        dbExecute($base, 'UPDATE ressources SET niveauclasse=? WHERE login=?', 'is', $newNiveauClasse, $login);
+
+                        // Build dynamic UPDATE for molecules - computed from validated integer values
+                        $chaine = "";
+                        foreach ($nomsRes as $num => $ressource) {
+                            $plus = "";
+                            if ($num < $nbRes) {
+                                $plus = ",";
+                            }
+                            $chaine = $chaine . '' . $ressource . '=' . $atomValues[$ressource] . '' . $plus;
+                        }
+                        // $chaine has validated integers, formule and login are parameterized
+                        $stmt = mysqli_prepare($base, 'UPDATE molecules SET ' . $chaine . ', formule=?, isotope=' . $isotope . ' WHERE proprietaire=? AND numeroclasse=?');
+                        if (!$stmt) {
+                            error_log("SQL Prepare Error: " . mysqli_error($base));
+                        } else {
+                            mysqli_stmt_bind_param($stmt, 'ssi', $formule, $login, $numClasse);
+                            if (!mysqli_stmt_execute($stmt)) {
+                                error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
+                            }
+                            mysqli_stmt_close($stmt);
+                        }
+
+                        $newEnergie = max(0, $cout['energie'] - coutClasse($cout['niveauclasse']));
+                        dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $newEnergie, $login);
+                    });
                     $information = "Une nouvelle classe de molécule a été créée.";
-                } else {
+                } catch (\RuntimeException $e) {
                     $erreur = "Vous n'avez pas assez d'energie.";
                 }
             } else {
