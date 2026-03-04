@@ -513,10 +513,12 @@ function augmenterBatiment($nom, $joueur)
         dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=? WHERE login=?', 'is', ($batiments['pointsCondenseurRestants'] + $points['condenseur']), $joueur);
     }
 
-    if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot") {
+    if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
         $vieCol = 'vie' . ucfirst($nom);
         if ($nom == "champdeforce") {
             $vieVal = vieChampDeForce($batiments[$nom] + 1, $joueur);
+        } elseif ($nom == "ionisateur") {
+            $vieVal = vieIonisateur($batiments[$nom] + 1, $joueur);
         } else {
             $vieVal = pointsDeVie($batiments[$nom] + 1, $joueur);
         }
@@ -594,10 +596,12 @@ function diminuerBatiment($nom, $joueur)
             }
         }
 
-        if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot") {
+        if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
             $vieCol = 'vie' . ucfirst($nom);
             if ($nom == "champdeforce") {
                 $vieVal = vieChampDeForce($batiments[$nom] - 1);
+            } elseif ($nom == "ionisateur") {
+                $vieVal = vieIonisateur($batiments[$nom] - 1);
             } else {
                 $vieVal = pointsDeVie($batiments[$nom] - 1);
             }
@@ -926,7 +930,7 @@ function remiseAZero()
         global $base;
 
         dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, missions=\'\'');
-        dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?', 'dddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1));
+        dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'ddddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1), vieIonisateur(0));
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0');
         dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0, isotope=0');
         dbExecute($base, 'UPDATE membre SET timestamp=?', 'i', time());

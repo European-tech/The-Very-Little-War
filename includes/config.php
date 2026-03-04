@@ -95,6 +95,9 @@ define('BUILDING_HP_POLY_EXP', 2.5);      // V4: polynomial 50 * level^2.5
 // V4: vieChampDeForce = round(BASE * pow(level, 2.5))
 define('FORCEFIELD_HP_BASE', 125);
 
+// V4: vieIonisateur — same formula as standard buildings
+define('IONISATEUR_HP_BASE', 50);
+
 // --- V4 STORAGE / VAULT / ECONOMY / COMBAT ---
 define('BASE_STORAGE_INITIAL', 1000);
 define('VAULT_PCT_PER_LEVEL', 0.02);

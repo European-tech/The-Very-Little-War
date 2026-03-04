@@ -336,6 +336,7 @@ function updateActions($joueur)
                             <strong>Champ de force : </strong>" . number_format($degatschampdeforce, 0, ' ', ' ') . " (" . $destructionchampdeforce . ")<br/>
                             <strong>Producteur : </strong>" . number_format($degatsProducteur, 0, ' ', ' ') . " (" . $destructionProducteur . ")<br/>
                             <strong>Stockage: </strong>" . number_format($degatsDepot, 0, ' ', ' ') . " (" . $destructionDepot . ")<br/>
+                            <strong>Ionisateur : </strong>" . number_format($degatsIonisateur, 0, ' ', ' ') . " (" . $destructionIonisateur . ")<br/>
                             </p>
                             ";
 
@@ -432,7 +433,8 @@ function updateActions($joueur)
                     <tr>
                     <td>Ionisateur</td>
                     <td>" . $constructionsJoueur['ionisateur'] . "</td>
-                    <td>Pas de vie</td>
+                    <td>
+                    " . $constructionsJoueur['vieIonisateur'] . "/" . vieIonisateur($constructionsJoueur['ionisateur']) . "</td>
                     </tr>
                     <tr>
                     <td>Condenseur</td>

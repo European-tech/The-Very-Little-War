@@ -435,11 +435,13 @@ $degatsGenEnergie = 0;
 $degatschampdeforce = 0;
 $degatsDepot = 0;
 $degatsProducteur = 0;
+$degatsIonisateur = 0;
 $pointsDefenseur = 0;
 $destructionGenEnergie = "Non endommagé";
 $destructionProducteur = "Non endommagé";
 $destructionchampdeforce = "Non endommagé";
 $destructionDepot = "Non endommagé";
+$destructionIonisateur = "Non endommagé";
 
 $constructions = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $actions['defenseur']);
 if (!$constructions) {
@@ -456,33 +458,33 @@ if ($gagnant == 2 && $hydrogeneTotal > 0) { // Only damage buildings when attack
 	}
 
 	// gestion des degats infligés
-	if ($constructions['champdeforce'] > $constructions['generateur'] && $constructions['champdeforce'] > $constructions['producteur'] && $constructions['champdeforce'] > $constructions['depot']) {
-		for ($i = 1; $i <= $nbClasses; $i++) {
-			$surviving = ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
-			if (${'classeAttaquant' . $i}['hydrogene'] > 0 && $surviving > 0) {
-				$degatsAMettre = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], ${'classeAttaquant' . $i}['oxygene'], $niveauxAtt['hydrogene']) * $surviving;
-				$degatschampdeforce += $degatsAMettre;
-			}
-		}
-	} else {
-		for ($i = 1; $i <= $nbClasses; $i++) {
-			$surviving = ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
-			if (${'classeAttaquant' . $i}['hydrogene'] > 0 && $surviving > 0) {
-				$bat = rand(1, 4);
-				$degatsAMettre = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], ${'classeAttaquant' . $i}['oxygene'], $niveauxAtt['hydrogene']) * $surviving;
-				switch ($bat) {
-					case 1:
-						$degatsGenEnergie += $degatsAMettre;
-						break;
-					case 2:
-						$degatschampdeforce += $degatsAMettre;
-						break;
-					case 3:
-						$degatsProducteur += $degatsAMettre;
-						break;
-					default:
-						$degatsDepot += $degatsAMettre;
-						break;
+	// V4: Weighted building targeting — higher-level buildings attract more fire
+	$buildingTargets = [
+		'generateur' => max(1, $constructions['generateur']),
+		'champdeforce' => max(1, $constructions['champdeforce']),
+		'producteur' => max(1, $constructions['producteur']),
+		'depot' => max(1, $constructions['depot']),
+		'ionisateur' => max(1, $constructions['ionisateur']),
+	];
+	$totalWeight = array_sum($buildingTargets);
+
+	for ($i = 1; $i <= $nbClasses; $i++) {
+		$surviving = ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
+		if (${'classeAttaquant' . $i}['hydrogene'] > 0 && $surviving > 0) {
+			$degatsAMettre = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], ${'classeAttaquant' . $i}['oxygene'], $niveauxAtt['hydrogene']) * $surviving;
+			$roll = mt_rand(1, $totalWeight);
+			$cumul = 0;
+			foreach ($buildingTargets as $building => $weight) {
+				$cumul += $weight;
+				if ($roll <= $cumul) {
+					switch ($building) {
+						case 'generateur': $degatsGenEnergie += $degatsAMettre; break;
+						case 'champdeforce': $degatschampdeforce += $degatsAMettre; break;
+						case 'producteur': $degatsProducteur += $degatsAMettre; break;
+						case 'depot': $degatsDepot += $degatsAMettre; break;
+						case 'ionisateur': $degatsIonisateur += $degatsAMettre; break;
+					}
+					break;
 				}
 			}
 		}
@@ -540,6 +542,19 @@ if ($gagnant == 2 && $hydrogeneTotal > 0) { // Only damage buildings when attack
 			}
 		} else {
 			dbExecute($base, 'UPDATE constructions SET vieDepot=? WHERE login=?', 'ds', ($constructions['vieDepot'] - $degatsDepot), $actions['defenseur']);
+		}
+	}
+	if ($degatsIonisateur > 0) {
+		$destructionIonisateur = round($constructions['vieIonisateur'] / vieIonisateur($constructions['ionisateur']) * 100) . "% <img alt=\"fleche\" src=\"images/attaquer/arrow.png\"/ class=\"w16\" style=\"vertical-align:middle\"> " . max(round(($constructions['vieIonisateur'] - $degatsIonisateur) / vieIonisateur($constructions['ionisateur']) * 100), 0) . "%";
+		if ($degatsIonisateur >= $constructions['vieIonisateur']) {
+			if ($constructions['ionisateur'] > 1) {
+				diminuerBatiment("ionisateur", $actions['defenseur']);
+			} else {
+				$degatsIonisateur = 0;
+				$destructionIonisateur = "Niveau minimum";
+			}
+		} else {
+			dbExecute($base, 'UPDATE constructions SET vieIonisateur=? WHERE login=?', 'ds', ($constructions['vieIonisateur'] - $degatsIonisateur), $actions['defenseur']);
 		}
 	}
 }

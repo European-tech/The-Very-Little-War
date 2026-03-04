@@ -267,6 +267,16 @@ function vieChampDeForce($niveau, $joueur = null)
     return $base_hp;
 }
 
+function vieIonisateur($niveau, $joueur = null)
+{
+    $base_hp = round(IONISATEUR_HP_BASE * pow(max(1, $niveau), BUILDING_HP_POLY_EXP));
+    if ($joueur !== null) {
+        $fortBonus = 1 + allianceResearchBonus($joueur, 'building_hp');
+        return round($base_hp * $fortBonus);
+    }
+    return $base_hp;
+}
+
 function coutClasse($numero)
 {
     return (pow($numero + CLASS_COST_OFFSET, CLASS_COST_EXPONENT));

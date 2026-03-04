@@ -617,6 +617,34 @@ class CombatFormulasTest extends TestCase
     }
 
     // =========================================================================
+    // IONISATEUR HP (V4: same base as standard buildings)
+    // =========================================================================
+
+    public function testIonisateurHPConstant(): void
+    {
+        $this->assertGreaterThan(0, IONISATEUR_HP_BASE);
+        $this->assertEquals(BUILDING_HP_BASE, IONISATEUR_HP_BASE, 'Ionisateur uses same HP base as standard buildings');
+    }
+
+    public function testVieIonisateurFunction(): void
+    {
+        $hp0 = vieIonisateur(0);
+        $this->assertEquals(round(IONISATEUR_HP_BASE * pow(1, BUILDING_HP_POLY_EXP)), $hp0);
+
+        $hp5 = vieIonisateur(5);
+        $this->assertEquals(round(IONISATEUR_HP_BASE * pow(5, BUILDING_HP_POLY_EXP)), $hp5);
+        $this->assertGreaterThan($hp0, $hp5);
+    }
+
+    public function testIonisateurHPMatchesStandardBuildings(): void
+    {
+        for ($level = 1; $level <= 10; $level++) {
+            $this->assertEquals(pointsDeVie($level), vieIonisateur($level),
+                "Ionisateur HP should match standard building HP at level $level");
+        }
+    }
+
+    // =========================================================================
     // IODE ENERGY PRODUCTION FORMULA (V4)
     // V4 formula: round($iode) — simplified, iode IS the energy
     // =========================================================================
