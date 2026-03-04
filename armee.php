@@ -367,14 +367,12 @@ if (isset($_POST['emplacementmoleculecreer'])) {
     finCarte();
 }
 
-<?php
 $currentSub = isset($_GET['sub']) ? (int)$_GET['sub'] : 0;
-?>
-<div style="text-align:center; margin:10px 0;">
-    <a href="armee.php" class="button <?php echo $currentSub === 0 ? 'button-fill' : ''; ?>" style="margin:0 5px;">Formation</a>
-    <a href="armee.php?sub=1" class="button <?php echo $currentSub === 1 ? 'button-fill' : ''; ?>" style="margin:0 5px;">Vue d'ensemble</a>
-</div>
-<?php
+echo '<div style="text-align:center; margin:10px 0;">';
+echo '<a href="armee.php" class="button ' . ($currentSub === 0 ? 'button-fill' : '') . '" style="margin:0 5px;">Formation</a>';
+echo '<a href="armee.php?sub=1" class="button ' . ($currentSub === 1 ? 'button-fill' : '') . '" style="margin:0 5px;">Vue d\'ensemble</a>';
+echo '</div>';
+
 if ($currentSub == 0) {
     debutCarte('Molécule ' . aide('armee'));
     $moleculeRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse', 's', $_SESSION['login']);
@@ -498,7 +496,6 @@ if ($currentSub == 0) {
     </div>
 <?php
     }
-<?php
     } // end else
     finContent();
     finCarte();
