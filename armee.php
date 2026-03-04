@@ -367,7 +367,15 @@ if (isset($_POST['emplacementmoleculecreer'])) {
     finCarte();
 }
 
-if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
+<?php
+$currentSub = isset($_GET['sub']) ? (int)$_GET['sub'] : 0;
+?>
+<div style="text-align:center; margin:10px 0;">
+    <a href="armee.php" class="button <?php echo $currentSub === 0 ? 'button-fill' : ''; ?>" style="margin:0 5px;">Formation</a>
+    <a href="armee.php?sub=1" class="button <?php echo $currentSub === 1 ? 'button-fill' : ''; ?>" style="margin:0 5px;">Vue d'ensemble</a>
+</div>
+<?php
+if ($currentSub == 0) {
     debutCarte('Molécule ' . aide('armee'));
     $moleculeRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse', 's', $_SESSION['login']);
     if (!is_array($moleculeRows)) {
@@ -450,10 +458,12 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
                 <tr>
                     <th style="width:100px;"><?php echo imageLabel('<img alt="molecule" src="images/classement/molecule.png" title="Formule" class="imageSousMenu"/>', 'Formule'); ?></th>
                     <th style="width:100px;">Quantité</th>
+                    <th style="width:80px;">Isotope</th>
                 </tr>
             </thead>
             <tbody>
                 <?php
+                global $ISOTOPES;
                 foreach ($moleculeOverviewRows as $molecule) {
                     $mx = $molecule['oxygene'];
                     foreach ($nomsRes as $num => $ressource) {
@@ -465,9 +475,13 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
                         }
                     }
 
+                    $isoType = intval($molecule['isotope'] ?? 0);
+                    $isoName = isset($ISOTOPES[$isoType]) ? $ISOTOPES[$isoType]['name'] : 'Normal';
+
                     echo '<tr><td><img alt="' . $img . '" src="images/accueil/' . $img . '.png" class="imageAide2">
         <a href="molecule.php?id=' . $molecule['id'] . '" class="lienFormule">' . couleurFormule($molecule['formule']) . '</a></td>
         <td>' . number_format($molecule['nombre'], 0, ' ', ' ') . '</td>
+        <td>' . htmlspecialchars($isoName) . '</td>
         </tr>';
                 }
 
@@ -475,6 +489,7 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
                     echo '<tr><td><img alt="neutrinos" src="images/neutrino.png" class="imageAide2">
         <span style="margin-left:8px">Neutrinos</span></td>
         <td>' . number_format($autre['neutrinos'], 0, ' ', ' ') . '</td>
+        <td>—</td>
         </tr>';
                 }
                 ?>
