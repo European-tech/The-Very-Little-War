@@ -73,7 +73,7 @@ require_once(__DIR__ . '/../includes/csp.php');
                         $data = dbFetchOne($base, 'SELECT *, count(*) AS nb FROM tableaux WHERE id = ?', 'i', (int)$_GET['id']);
                         if($data['nb'] >= 1){
                             ?>
-                            <h1>Tableau <?php echo $data['nom'] ?></h1>
+                            <h1>Tableau <?php echo htmlspecialchars($data['nom'], ENT_QUOTES, 'UTF-8') ?></h1>
                             <br/><br/>
                             <p>
                             <textarea id="texte" rows="20" style="width:100%"></textarea><br/><br/>
@@ -282,9 +282,11 @@ require_once(__DIR__ . '/../includes/csp.php');
                                     $data1['unite'] = str_replace("COB","",$data1['unite']);
                                     $data1['unite'] = str_replace("BTA","",$data1['unite']);
                                     $data1['unite'] = trim($data1['unite']);
-                                    echo "if(/".$data1['unite']."/i.test(unite) == true) {
-                                        unite = \"".$data1['unite']."\";
-                                        compagnie = \"".$data1['compagnie']."\";
+                                    $safeUnite = json_encode($data1['unite']);
+                                    $safeCompagnie = json_encode($data1['compagnie']);
+                                    echo "if(new RegExp(".$safeUnite.",\"i\").test(unite) == true) {
+                                        unite = ".$safeUnite.";
+                                        compagnie = ".$safeCompagnie.";
                                     }
                                     ";
                                 }
@@ -293,9 +295,12 @@ require_once(__DIR__ . '/../includes/csp.php');
                                 foreach($sousUnitesRows as $data1){
                                     $data1['sousunite'] = str_replace("BP","",$data1['sousunite']);
                                     $data1['sousunite'] = trim($data1['sousunite']);
-                                    echo "if(/".$data1['sousunite']."/i.test(unite) == true){
-                                        unite =\"".$data1['unite']."\";
-                                        compagnie = \"".$data1['compagnie']."\";
+                                    $safeSousUnite = json_encode($data1['sousunite']);
+                                    $safeUnite = json_encode($data1['unite']);
+                                    $safeCompagnie = json_encode($data1['compagnie']);
+                                    echo "if(new RegExp(".$safeSousUnite.",\"i\").test(unite) == true){
+                                        unite =".$safeUnite.";
+                                        compagnie = ".$safeCompagnie.";
                                     }";
                                 }
                                 
@@ -348,8 +353,10 @@ require_once(__DIR__ . '/../includes/csp.php');
                                             $lieuxRows = dbFetchAll($base, "SELECT * FROM lieux");
                                             $correction = "";
                                             foreach($lieuxRows as $data){
-                                                $correction = $correction.'if(/'.$data['lieuCRPJ'].'/i.test(lieu) == true) {
-                                                    lieu = "'.$data['classification'].'";
+                                                $safeLieu = json_encode($data['lieuCRPJ']);
+                                                $safeClass = json_encode($data['classification']);
+                                                $correction = $correction.'if(new RegExp('.$safeLieu.',"i").test(lieu) == true) {
+                                                    lieu = '.$safeClass.';
                                                 }';
                                             }
 
@@ -632,7 +639,8 @@ require_once(__DIR__ . '/../includes/csp.php');
                                                 
                                                 $signalementRows = dbFetchAll($base, 'SELECT * FROM signalement');
                                                 foreach($signalementRows as $data){
-                                                    echo "tableauSignalements.push(/ ".$data['motCle']." /ig);
+                                                    $safeMotCle = json_encode($data['motCle']);
+                                                    echo "tableauSignalements.push(new RegExp(\" \" + ".$safeMotCle." + \" \", \"ig\"));
                                                     ";
                                                 }
                                                 
@@ -757,7 +765,7 @@ require_once(__DIR__ . '/../includes/csp.php');
 
 
                                     }
-                                    echo 'ajouterTitre("'.$colonnes[$i].'");';
+                                    echo 'ajouterTitre('.json_encode($colonnes[$i]).');';
                                 }
                                 ?>
                                 
