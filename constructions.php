@@ -101,6 +101,7 @@ function mepConstructions($liste)
     global $revenuEnergie;
     global $revenu;
     global $base;
+    global $BUILDING_CONFIG;
 
     // on doit calculer le niveau actuel (et dans le futur avec les constructions le précédant)
     $exNiveauActuel = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
@@ -114,6 +115,15 @@ function mepConstructions($liste)
         $media = '<img alt="za" src="' . $liste['image'] . '" style="width:80px;height:80px;margin-top:-54px;"/><div style="margin-left:-80px;margin-top:-10px;">' . progressBar($liste['vie'], $liste['vieMax'], "green") . '</div>';
     } else {
         $media = '<img alt="za" src="' . $liste['image'] . '" style="width:80px;height:80px;"/>';
+    }
+
+    // Build cost tooltip from building config
+    $bddKey = $liste['bdd'];
+    $costTooltip = '';
+    if (isset($BUILDING_CONFIG[$bddKey])) {
+        $bc = $BUILDING_CONFIG[$bddKey];
+        $growthBase = $bc['cost_growth_base'];
+        $costTooltip = 'Formule du coût : base × ' . htmlspecialchars($growthBase) . '^niveau (−bonus médaille)';
     }
 
     $cout = "";
@@ -136,6 +146,11 @@ function mepConstructions($liste)
         foreach ($nomsRes as $num => $ressource) {
             $liste['cout' . ucfirst($ressource)] = $liste['coutAtomes'];
         }
+    }
+
+    // Wrap cost chips in a span with formula tooltip
+    if ($costTooltip && $cout) {
+        $cout = '<span title="' . $costTooltip . '">' . $cout . '</span>';
     }
 
     $bool = 1;
@@ -175,8 +190,22 @@ function mepConstructions($liste)
     }
 
     $drainage = '';
+    $drainageTooltip = '';
     if (array_key_exists("drainage", $liste) && $liste['drainage']) {
-        $drainage = nombreEnergie('<span style="color:red">-' . $liste['drainage'] . '/h</span>');
+        $drainageTooltip = 'Drainage : ' . htmlspecialchars(PRODUCTEUR_DRAIN_PER_LEVEL) . ' × ' . htmlspecialchars(ECO_GROWTH_BASE) . '^niveau';
+        $drainage = '<span title="' . $drainageTooltip . '">' . nombreEnergie('<span style="color:red">-' . $liste['drainage'] . '/h</span>') . '</span>';
+    }
+
+    // Build time tooltip
+    $timeTooltip = '';
+    if (isset($BUILDING_CONFIG[$bddKey])) {
+        $bc = $BUILDING_CONFIG[$bddKey];
+        $offset = isset($bc['time_level_offset']) ? ' + ' . $bc['time_level_offset'] : '';
+        $timeTooltip = 'Temps : ' . htmlspecialchars($bc['time_base']) . 's × ' . htmlspecialchars($bc['time_growth_base']) . '^(niveau' . htmlspecialchars($offset) . ')';
+    }
+    $tempsDisplay = nombreTemps(affichageTemps(round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')))));
+    if ($timeTooltip) {
+        $tempsDisplay = '<span title="' . $timeTooltip . '">' . $tempsDisplay . '</span>';
     }
 
     item([
@@ -189,7 +218,7 @@ function mepConstructions($liste)
           ' . $liste['effetSup'] . '<br/><br/>' . finContent(false, true) . '
           <form action="constructions.php" method="post" name="form' . $liste['bdd'] . '">' . csrfField() .
             important('Augmenter') . '
-          ' . $cout . $drainage . nombreTemps(affichageTemps(round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed'))))) . nombrePoints('+' . $liste['points']) . '<br/><br/>
+          ' . $cout . $drainage . $tempsDisplay . nombrePoints('+' . $liste['points']) . '<br/><br/>
           ' . $augmenter . '</form><hr>'
     ]);
 }
