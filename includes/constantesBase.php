@@ -49,8 +49,18 @@ $vitesseMarchands = MERCHANT_SPEED;
 $vitesseEspionnage = ESPIONAGE_SPEED;
 $coutNeutrino = NEUTRINO_COST;
 
-// Pre-computed hash. To change: php -r "echo password_hash('new-password', PASSWORD_DEFAULT);"
+// Ensure .env is loaded (may already be loaded by connexion.php)
+require_once(__DIR__ . '/env.php');
+$envPath = __DIR__ . '/../.env';
+if (file_exists($envPath)) {
+    loadEnv($envPath);
+}
+
+// Admin password hash — loaded from .env for security, falls back to placeholder.
+// To set: add ADMIN_PASSWORD_HASH="$2y$10$..." to .env
+// To generate: php -r "echo password_hash('new-password', PASSWORD_DEFAULT);"
 if (!defined('ADMIN_PASSWORD_HASH')) {
-    define('ADMIN_PASSWORD_HASH', '$2y$10$PibWl.r/3LA3HMwuSchD0et2Mjkac0D6kzuwxvOAbSqUTBf7zhGES');
+    $envHash = getenv('ADMIN_PASSWORD_HASH');
+    define('ADMIN_PASSWORD_HASH', $envHash !== false && $envHash !== '' ? $envHash : '$2y$10$PLACEHOLDER_SET_IN_ENV');
 }
 ?>
