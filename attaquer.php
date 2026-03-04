@@ -184,7 +184,7 @@ if (isset($_POST['joueurAAttaquer'])) {
     }
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
     debutCarte();

@@ -64,7 +64,7 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 	}
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 $_GET['sub'] = isset($_GET['sub']) ? (int)$_GET['sub'] : 0;
 debutCarte("Classement"); ?>

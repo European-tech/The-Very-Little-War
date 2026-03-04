@@ -383,7 +383,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
     }
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if (!isset($_GET['sub'])) {
     $_GET['sub'] = 0;

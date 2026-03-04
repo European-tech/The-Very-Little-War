@@ -25,7 +25,7 @@ if (isset($_GET['att'])) {
     }
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if (!isset($_SESSION['login'])) {
     // --- Hero tagline card ---

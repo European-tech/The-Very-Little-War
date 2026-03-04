@@ -135,7 +135,7 @@ if (isset($_FILES['photo']['name']) and !empty($_FILES['photo']['name'])) {
     }
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if (!isset($_POST['supprimercompte'])) {
     debutCarte("Gestion du compte");

@@ -264,7 +264,7 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
     }
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 $ex = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY debut ASC', 's', $_SESSION['login']);
 $nb = mysqli_num_rows($ex);

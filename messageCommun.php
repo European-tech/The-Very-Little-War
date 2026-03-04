@@ -14,7 +14,7 @@ if (empty($_SESSION['motdepasseadmin'])) {
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['message']) || !isset($_POST['titre'])) {
 	// Show form
-	include("includes/tout.php");
+	include("includes/layout.php");
 	debutCarte("Message commun (admin)");
 	echo '<form method="post" action="messageCommun.php" name="formMessage">';
 	echo csrfField();

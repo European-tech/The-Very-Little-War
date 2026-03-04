@@ -41,7 +41,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 	}
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if (isset($_GET['id'])) {
 	$_GET['id'] = (int)$_GET['id'];

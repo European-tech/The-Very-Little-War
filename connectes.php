@@ -6,7 +6,7 @@ if (isset($_SESSION['login'])) {
     include("includes/basicpublicphp.php");
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 debutCarte('Historique des connexions'); ?>
 <div class="panel-responsive">

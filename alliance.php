@@ -170,7 +170,7 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
         } // end invitation ownership check
     }
 }
-include("includes/tout.php");
+include("includes/layout.php");
 
 // Verification que le chef de l'alliance existe, sinon on supprimmer l'alliance et les invitations et les numeros dans autre
 $ex = dbQuery($base, 'SELECT id as idalliance FROM alliances WHERE tag=?', 's', $_GET['id']);

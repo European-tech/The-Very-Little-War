@@ -1,7 +1,7 @@
 <?php
 include("includes/basicprivatephp.php");
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if(isset($_GET['id']) AND !empty($_GET['id'])) {
 	$_GET['id'] = (int)$_GET['id'];

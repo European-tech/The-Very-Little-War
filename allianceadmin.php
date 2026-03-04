@@ -345,7 +345,7 @@ if ($inviter) {
 // On actualise les informations qui ont pu être changées
 $chef = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $currentAlliance['idalliance']);
 
-include("includes/tout.php");
+include("includes/layout.php");
 debutCarte('Paramètres de l\'équipe');
 debutListe();
 if ($chef) {

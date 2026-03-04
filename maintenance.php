@@ -1,7 +1,7 @@
 <?php include("includes/connexion.php");
 include("includes/fonctions.php");
 
-include("includes/tout.php");
+include("includes/layout.php");
 debutCarte("Maintenance");
 $retour = dbQuery($base, 'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
 $donnees = mysqli_fetch_array($retour);

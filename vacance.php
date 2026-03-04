@@ -1,6 +1,6 @@
 <?php 
 include("includes/basicprivatephp.php");
-include("includes/tout.php");
+include("includes/layout.php");
 
 debutCarte("Vacances"); ?>
 <p>Vous êtes en vacances et ne pouvez pas accéder à cette page.

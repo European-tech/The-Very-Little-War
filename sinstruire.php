@@ -9,7 +9,7 @@ else
 	include("includes/basicpublicphp.php"); 
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 $cours=["Introduction","Description de l'univers","De l'atome à l'élément chimique","Les molécules","L'élément chimique","Quantité d'espèce chimique"];
 

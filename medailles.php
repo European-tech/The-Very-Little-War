@@ -1,6 +1,6 @@
 <?php 
 include("includes/basicprivatephp.php");
-include("includes/tout.php");
+include("includes/layout.php");
 
 if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login']))  {
 	if(isset($_GET['login']) AND $_GET['login'] != $_SESSION['login']) {

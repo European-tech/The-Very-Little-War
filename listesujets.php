@@ -41,7 +41,7 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 }
 
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if (isset($_SESSION['login'])) {
 	include("includes/basicprivatehtml.php");

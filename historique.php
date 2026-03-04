@@ -9,7 +9,7 @@ else
 	include("includes/basicpublicphp.php");
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if(isset($_GET['sub'])) {
 	$_GET['sub'] = htmlspecialchars(trim($_GET['sub']), ENT_QUOTES, 'UTF-8');

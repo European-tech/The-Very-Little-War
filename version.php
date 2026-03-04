@@ -9,7 +9,7 @@ else
 	include("includes/basicpublicphp.php"); 
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 debutCarte("Historique des versions");
 echo important('Version 2.0.1.0'); ?>

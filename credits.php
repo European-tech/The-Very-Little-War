@@ -9,7 +9,7 @@ else
 	include("includes/basicpublicphp.php"); 
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 debutCarte("Crédits");
 debutContent();
 echo important("Images");

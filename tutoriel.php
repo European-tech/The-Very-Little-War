@@ -244,7 +244,7 @@ foreach($tutorielMissions as $idx => &$mission) {
 }
 unset($mission); // break reference
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 // ============================================================
 // Calculate overall progress

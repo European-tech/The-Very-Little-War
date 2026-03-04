@@ -1,7 +1,7 @@
 <?php
 include("includes/basicprivatephp.php");
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 debutCarte("Messages envoyés");
 ?>

@@ -2,7 +2,7 @@
 include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if(isset($_GET['id'])){
     $_GET['id'] = (int)$_GET['id'];

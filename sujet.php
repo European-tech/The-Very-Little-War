@@ -33,7 +33,7 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 	}
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if (isset($_GET['id'])) {
 	$_GET['id'] = trim($_GET['id']);

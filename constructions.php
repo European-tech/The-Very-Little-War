@@ -348,7 +348,7 @@ foreach ($listeConstructions as $num => $b) {
     traitementConstructions($b);
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 $ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=?', 's', $_SESSION['login']);
 $nb = mysqli_num_rows($ex);

@@ -98,7 +98,7 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 	}
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 debutCarte("Editer");
 

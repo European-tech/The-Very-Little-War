@@ -54,7 +54,7 @@ if (isset($_POST['login'])) {
 		$erreur = 'Un ou plusieurs champs sont vides.';
 	}
 }
-include("includes/tout.php");
+include("includes/layout.php");
 debutCarte("Inscription");
 echo '<form action="inscription.php" method="post" name="inscription">';
 echo csrfField();

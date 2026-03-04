@@ -13,7 +13,7 @@ if(isset($_POST['supprimer']) AND preg_match("#\d#",$_POST['supprimer'])) {
 	}
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 if(isset($_GET['rapport'])) {
 	$rapportId = (int)$_GET['rapport'];

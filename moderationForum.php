@@ -6,7 +6,7 @@ require_once("includes/csrf.php");
 // Check moderator status BEFORE processing any actions
 $joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
 if (!$joueur['moderateur']) {
-	include("includes/tout.php");
+	include("includes/layout.php");
 	debutCarte();
 	debutContent();
 	echo '<span class="important">Erreur : Accès interdit</span>
@@ -48,7 +48,7 @@ if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST
 	}
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 debutCarte("Modération du forum");
 

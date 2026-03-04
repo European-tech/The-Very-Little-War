@@ -53,7 +53,7 @@ if(isset($_POST['energieEnvoyee'])) {
 	}
 }
 
-include("includes/tout.php");
+include("includes/layout.php");
 
 debutCarte("Faire un don");
     debutListe();
