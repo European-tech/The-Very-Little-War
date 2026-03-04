@@ -7,8 +7,9 @@ require_once("includes/validation.php");
 if (isset($_POST['login'])) {
 	// Rate limit: 3 registrations per hour per IP
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'register', RATE_LIMIT_REGISTER_MAX, RATE_LIMIT_REGISTER_WINDOW)) {
-		die('<p>Trop d\'inscriptions depuis cette adresse. Réessayez plus tard.</p>');
-	}
+		logWarn('REGISTER', 'Registration rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
+		$erreur = 'Trop d\'inscriptions depuis cette adresse. R&eacute;essayez plus tard.';
+	} else {
 
 	// CSRF check
 	csrfCheck();
@@ -53,6 +54,7 @@ if (isset($_POST['login'])) {
 	} else {
 		$erreur = 'Un ou plusieurs champs sont vides.';
 	}
+	} // end rate limit else
 }
 include("includes/layout.php");
 debutCarte("Inscription");

@@ -23,8 +23,9 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 	if (!empty($_POST['loginConnexion']) && !empty($_POST['passConnexion'])) {
 		// 10 attempts per 5 minutes per IP
 		if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'login', RATE_LIMIT_LOGIN_MAX, RATE_LIMIT_LOGIN_WINDOW)) {
-			die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
-		}
+			logWarn('AUTH', 'Login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
+			$erreur = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
+		} else {
 
 		$loginInput = ucfirst(mb_strtolower(trim($_POST['loginConnexion'])));
 		$passwordInput = $_POST['passConnexion'];
@@ -77,6 +78,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 			logWarn('AUTH', 'Login failed - user not found', ['login' => $loginInput]);
 			$erreur = 'Le couple login-mot de passe est erronn&eacute;';
 		}
+		} // end rate limit else
 	} else {
 		$erreur = 'Un des deux champs n\'a pas &eacute;t&eacute; rempli';
 	}

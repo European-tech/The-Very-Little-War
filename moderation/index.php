@@ -7,13 +7,13 @@ require_once("../includes/csrf.php");
 require_once(__DIR__ . '/../includes/rate_limiter.php');
 require_once(__DIR__ . '/../includes/logger.php');
 
+$rateLimitError = '';
 if (isset($_POST['motdepasseadmin'])) {
 	csrfCheck();
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'moderation_login', RATE_LIMIT_ADMIN_MAX, RATE_LIMIT_ADMIN_WINDOW)) {
 		logWarn('MODERATION', 'Moderation login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
-		die('<p>Trop de tentatives de connexion. Réessayez dans quelques minutes.</p>');
-	}
-	if (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
+		$rateLimitError = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
+	} elseif (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		session_regenerate_id(true);
 		$_SESSION['motdepasseadmin'] = true;
 		logInfo('MODERATION', 'Moderation login successful');
@@ -23,6 +23,9 @@ if (isset($_POST['motdepasseadmin'])) {
 }
 if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== true) {
 ?>
+	<?php if (!empty($rateLimitError)): ?>
+		<p style="color:red"><?php echo htmlspecialchars($rateLimitError, ENT_QUOTES, 'UTF-8'); ?></p>
+	<?php endif; ?>
 	<form action="index.php" method="post">
 		<?php echo csrfField(); ?>
 		<label for="motdepasseadmin">Mot de passe : </label>

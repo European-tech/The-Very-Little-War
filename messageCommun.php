@@ -35,7 +35,8 @@ $titre = antihtml(trim($_POST['titre']));
 $message = antihtml(trim($_POST['message']));
 
 if (empty($titre) || empty($message)) {
-	die('Titre et message requis.');
+	header('Location: messageCommun.php?erreur=' . urlencode('Titre et message requis.'));
+	exit();
 }
 
 $membres = dbFetchAll($base, 'SELECT login FROM membre');
