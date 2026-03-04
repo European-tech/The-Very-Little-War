@@ -140,8 +140,8 @@ Lors de la création d'une classe de molécules, vous choisissez un <strong>type
 </tr>
 <tr>
 <td style="padding:6px;border:1px solid #ddd;"><strong>Stable</strong></td>
-<td style="padding:6px;border:1px solid #ddd;color:#c00;">-10%</td>
-<td style="padding:6px;border:1px solid #ddd;color:green;">+20%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;">-5%</td>
+<td style="padding:6px;border:1px solid #ddd;color:green;">+30%</td>
 <td style="padding:6px;border:1px solid #ddd;color:green;">-30%</td>
 <td style="padding:6px;border:1px solid #ddd;">Tank / Défenseur</td>
 </tr>
