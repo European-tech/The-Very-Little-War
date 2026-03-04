@@ -35,6 +35,9 @@ if(isset($_GET['clas'])) {
         case 5:
             $order = 'points';
             break;
+        case 6:
+            $order = 'tradeVolume';
+            break;
         default :
             $order = 'totalPoints';
             break;
@@ -159,6 +162,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	<th><a href="classement.php?sub=0&clas=2"><img src="images/classement/sword.png" alt="att" title="Attaque" class="imageSousMenu"/><br/><span class="labelClassement">Attaque</span></a></th>
 	<th><a href="classement.php?sub=0&clas=3"><img src="images/classement/shield.png" alt="def" title="Défense" class="imageSousMenu"/><br/><span class="labelClassement">Défense</span></a></th>
 	<th><a href="classement.php?sub=0&clas=4"><img src="images/classement/bag.png" alt="bag" title="Pillage" class="imageSousMenu"/><br/><span class="labelClassement">Pillage</span></a></th>
+	<th><a href="classement.php?sub=0&clas=6"><img src="images/classement/points.png" alt="commerce" title="Commerce" class="imageSousMenu"/><br/><span class="labelClassement">Commerce</span></a></th>
 	<th><a href="classement.php?sub=0&clas=1"><img src="images/classement/victoires.png" alt="victoires" title="Points de victoire" class="imageSousMenu"/><br/><span class="labelClassement">Victoire</span></a></th>
 	<th><a href="prestige.php"><img src="images/classement/shield.png" alt="prestige" title="Prestige" class="imageSousMenu"/><br/><span class="labelClassement">PP</span></a></th>
 	</tr>
@@ -195,6 +199,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 		<td><?php echo chiffrePetit(pointsAttaque($donnees['pointsAttaque'])); ?></td>
 		<td><?php echo chiffrePetit(pointsDefense($donnees['pointsDefense'])); ?></td>
 		<td><?php echo chiffrePetit($donnees['ressourcesPillees']); ?></td>
+		<td><?php echo chiffrePetit($donnees['tradeVolume']); ?></td>
 		<td><?php echo $donnees['victoires'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireJoueur($compteur).'</span>'; ?></td>
 		<td><a href="prestige.php"><?php echo isset($prestigeCache[$donnees['login']]) ? $prestigeCache[$donnees['login']] : 0; ?></a></td>
 		</tr>
