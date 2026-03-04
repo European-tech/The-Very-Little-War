@@ -53,8 +53,7 @@ define('BASE_ENERGY_PER_LEVEL', 75);
 // Atoms: revenuAtome = bonusDuplicateur * BASE_ATOMS_PER_POINT * niveau
 define('BASE_ATOMS_PER_POINT', 60);
 
-// Storage: placeDepot = BASE_STORAGE_PER_LEVEL * depot_level
-define('BASE_STORAGE_PER_LEVEL', 500);
+// Storage: placeDepot = round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, level))
 
 // Producteur energy drain: drainageProducteur = round(PRODUCTEUR_DRAIN_PER_LEVEL * pow(ECO_GROWTH_BASE, level))
 define('PRODUCTEUR_DRAIN_PER_LEVEL', 8);
@@ -70,43 +69,10 @@ define('COVALENT_BASE_EXPONENT', 1.2);     // pow(atom, 1.2) + atom
 define('COVALENT_SYNERGY_DIVISOR', 100);   // (1 + secondary / 100)
 define('MOLECULE_MIN_HP', 10);             // Min HP — prevents 0-brome insta-wipe
 
-// Attack: round((1 + (0.1 * oxygene)^2 + oxygene) * (1 + niveau / 50))
-define('ATTACK_ATOM_COEFFICIENT', 0.1);
-define('ATTACK_LEVEL_DIVISOR', 50);
-
-// Defense: round((1 + (0.1 * carbone)^2 + carbone) * (1 + niveau / 50))
-define('DEFENSE_ATOM_COEFFICIENT', 0.1);
-define('DEFENSE_LEVEL_DIVISOR', 50);
-
-// HP (brome): round((1 + (0.1 * brome)^2 + brome) * (1 + niveau / 50))
-define('HP_ATOM_COEFFICIENT', 0.1);
-define('HP_LEVEL_DIVISOR', 50);
-
-// Destruction (hydrogene): round(((0.075 * hydrogene)^2 + hydrogene) * (1 + niveau / 50))
-define('DESTRUCTION_ATOM_COEFFICIENT', 0.075);
-define('DESTRUCTION_LEVEL_DIVISOR', 50);
-
-// Pillage (soufre): round(((0.1 * soufre)^2 + soufre / 2) * (1 + niveau / 50))
-// BAL-CROSS C1: Divisor 3→2 bridges S/O efficiency gap from 56-67% to 67-83%
-define('PILLAGE_ATOM_COEFFICIENT', 0.1);
-define('PILLAGE_SOUFRE_DIVISOR', 2);
-define('PILLAGE_LEVEL_DIVISOR', 50);
-
 // Iode energy production: round((0.003 * iode^2 + 0.04 * iode) * (1 + niveau / 50))
-// BAL-CROSS C2: Added quadratic term to match structural class of other atoms
-// At I=100: 34 E/mol (was 10). Makes iode a genuine energy strategy.
 define('IODE_ENERGY_COEFFICIENT', 0.04);
 define('IODE_QUADRATIC_COEFFICIENT', 0.003);
 define('IODE_LEVEL_DIVISOR', 50);
-
-// Speed (chlore): floor((1 + 0.5 * chlore) * (1 + niveau / 50) * 100) / 100
-define('SPEED_ATOM_COEFFICIENT', 0.5);
-define('SPEED_LEVEL_DIVISOR', 50);
-
-// Formation time (azote): ceil(ntotal / (1 + pow(0.09 * azote, 1.09)) / (1 + niveau / 20) / bonusLieur * 100) / 100
-define('FORMATION_AZOTE_COEFFICIENT', 0.09);
-define('FORMATION_AZOTE_EXPONENT', 1.09);
-define('FORMATION_LEVEL_DIVISOR', 20);
 
 // =============================================================================
 // MOLECULE DECAY / DISAPPEARANCE
@@ -122,16 +88,12 @@ define('DECAY_MASS_EXPONENT', 1.5);       // V4: power 1.5 (was 2)
 // =============================================================================
 // BUILDING HP FORMULAS
 // =============================================================================
-// pointsDeVie = round(BASE * (pow(1.2, level) + pow(level, 1.2)))
+// V4: pointsDeVie = round(BASE * pow(level, 2.5))
 define('BUILDING_HP_BASE', 50);
-define('BUILDING_HP_GROWTH_BASE', 1.2);
-define('BUILDING_HP_LEVEL_EXP', 1.2);
 define('BUILDING_HP_POLY_EXP', 2.5);      // V4: polynomial 50 * level^2.5
 
-// vieChampDeForce = round(BASE * (pow(1.2, level) + pow(level, 1.2)))
+// V4: vieChampDeForce = round(BASE * pow(level, 2.5))
 define('FORCEFIELD_HP_BASE', 125);
-define('FORCEFIELD_HP_GROWTH_BASE', 1.2);
-define('FORCEFIELD_HP_LEVEL_EXP', 1.2);
 
 // --- V4 STORAGE / VAULT / ECONOMY / COMBAT ---
 define('BASE_STORAGE_INITIAL', 1000);
@@ -224,7 +186,7 @@ $BUILDING_CONFIG = [
         'time_level_offset' => 1,    // pow(level + 1, exp)
         'points_base'       => 2,
         'points_level_factor' => 0.1,
-        'lieur_growth_base' => 1.07, // bonusLieur = floor(100 * pow(1.07, level)) / 100
+        // V4: bonusLieur = 1 + level * LIEUR_LINEAR_BONUS_PER_LEVEL (linear)
         'description'       => 'Reduces molecule formation time',
     ],
     'stabilisateur' => [
@@ -247,12 +209,12 @@ $BUILDING_CONFIG = [
         'time_level_offset' => 1,
         'points_base'       => 1,
         'points_level_factor' => 0.1,
-        'protection_per_level' => 100, // protects 100 * level of each resource from pillage
+        // Vault: percentage-based via VAULT_PCT_PER_LEVEL + VAULT_MAX_PROTECTION_PCT
         'description'       => 'Protects resources from pillage',
     ],
 ];
 
-define('VAULT_PROTECTION_PER_LEVEL', 100); // resources protected per vault level
+// Vault: percentage-based via VAULT_PCT_PER_LEVEL + VAULT_MAX_PROTECTION_PCT * placeDepot()
 
 // =============================================================================
 // COMBAT FORMULAS

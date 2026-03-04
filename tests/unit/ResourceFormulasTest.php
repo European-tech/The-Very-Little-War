@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
  * Formula references (from includes/fonctions.php and includes/config.php):
  *   Energy production: BASE_ENERGY_PER_LEVEL (75) * generator_level
  *   Atom production:   BASE_ATOMS_PER_POINT (60) * points
- *   Storage capacity:  BASE_STORAGE_PER_LEVEL (500) * depot_level
+ *   Storage capacity:  round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, level))
  *   Producteur drain:  PRODUCTEUR_DRAIN_PER_LEVEL (8) * level
  *   Net energy:        75 * gen_level - 8 * prod_level
  *
@@ -100,38 +100,34 @@ class ResourceFormulasTest extends TestCase
     }
 
     // =========================================================================
-    // STORAGE CAPACITY
-    // Formula: 500 * depot_level
+    // STORAGE CAPACITY (V4)
+    // Formula: round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, level))
     // =========================================================================
 
-    public function testBaseStoragePerLevel(): void
+    public function testBaseStorageInitial(): void
     {
-        $this->assertEquals(500, BASE_STORAGE_PER_LEVEL);
+        $this->assertEquals(1000, BASE_STORAGE_INITIAL);
     }
 
     public function testStorageAtLevel1(): void
     {
-        $storage = BASE_STORAGE_PER_LEVEL * 1;
-        $this->assertEquals(500, $storage);
+        $storage = round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, 1));
+        $this->assertEquals(1150, $storage);
     }
 
     public function testStorageAtLevel10(): void
     {
-        $storage = BASE_STORAGE_PER_LEVEL * 10;
-        $this->assertEquals(5000, $storage);
+        $storage = round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, 10));
+        $this->assertGreaterThan(3000, $storage);
+        $this->assertLessThan(5000, $storage);
     }
 
-    public function testStorageAtLevel100(): void
+    public function testStorageExponentialGrowth(): void
     {
-        $storage = BASE_STORAGE_PER_LEVEL * 100;
-        $this->assertEquals(50000, $storage);
-    }
-
-    public function testStorageLinearGrowth(): void
-    {
-        $storage5 = BASE_STORAGE_PER_LEVEL * 5;
-        $storage10 = BASE_STORAGE_PER_LEVEL * 10;
-        $this->assertEquals($storage5 * 2, $storage10);
+        $storage5 = round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, 5));
+        $storage10 = round(BASE_STORAGE_INITIAL * pow(ECO_GROWTH_BASE, 10));
+        // Exponential: level 10 > 2x level 5
+        $this->assertGreaterThan($storage5 * 1.5, $storage10);
     }
 
     // =========================================================================

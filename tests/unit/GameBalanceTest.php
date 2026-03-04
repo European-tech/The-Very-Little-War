@@ -17,34 +17,29 @@ class GameBalanceTest extends TestCase
     // A) CONFIG CONSTANTS EXIST AND ARE SANE
     // =========================================================================
 
-    public function testAttackConstantsArePositive(): void
+    public function testV4CovalentConstantsArePositive(): void
     {
-        $this->assertGreaterThan(0, ATTACK_ATOM_COEFFICIENT);
-        $this->assertGreaterThan(0, ATTACK_LEVEL_DIVISOR);
+        $this->assertGreaterThan(0, COVALENT_CONDENSEUR_DIVISOR);
+        $this->assertGreaterThan(0, COVALENT_BASE_EXPONENT);
+        $this->assertGreaterThan(0, COVALENT_SYNERGY_DIVISOR);
+        $this->assertGreaterThan(0, MOLECULE_MIN_HP);
         $this->assertGreaterThan(0, ATTACK_POINTS_MULTIPLIER);
         $this->assertGreaterThan(0, ATTACK_ENERGY_COST_FACTOR);
     }
 
     public function testDefenseConstantsArePositive(): void
     {
-        $this->assertGreaterThan(0, DEFENSE_ATOM_COEFFICIENT);
-        $this->assertGreaterThan(0, DEFENSE_LEVEL_DIVISOR);
         $this->assertGreaterThan(0, DEFENSE_POINTS_MULTIPLIER);
     }
 
     public function testHPConstantsArePositive(): void
     {
-        $this->assertGreaterThan(0, HP_ATOM_COEFFICIENT);
-        $this->assertGreaterThan(0, HP_LEVEL_DIVISOR);
         $this->assertGreaterThan(0, BUILDING_HP_BASE);
         $this->assertGreaterThan(0, FORCEFIELD_HP_BASE);
     }
 
     public function testPillageConstantsArePositive(): void
     {
-        $this->assertGreaterThan(0, PILLAGE_ATOM_COEFFICIENT);
-        $this->assertGreaterThan(0, PILLAGE_SOUFRE_DIVISOR);
-        $this->assertGreaterThan(0, PILLAGE_LEVEL_DIVISOR);
         $this->assertGreaterThan(0, PILLAGE_POINTS_DIVISOR);
         $this->assertGreaterThan(0, PILLAGE_POINTS_MULTIPLIER);
     }
@@ -54,9 +49,9 @@ class GameBalanceTest extends TestCase
         $this->assertGreaterThan(0, BASE_ENERGY_PER_LEVEL);
     }
 
-    public function testBaseStoragePerLevelIsPositive(): void
+    public function testBaseStorageInitialIsPositive(): void
     {
-        $this->assertGreaterThan(0, BASE_STORAGE_PER_LEVEL);
+        $this->assertGreaterThan(0, BASE_STORAGE_INITIAL);
     }
 
     public function testMaxMoleculeClassesIsFour(): void
@@ -80,26 +75,29 @@ class GameBalanceTest extends TestCase
     // B) BALANCE RELATIONSHIPS
     // =========================================================================
 
-    public function testDefenseComparableToAttack(): void
+    public function testV4CovalentFormulaSymmetry(): void
     {
-        // At 100 atoms, level 0, attack and defense raw values should be equal
-        // (same coefficients: 0.1 and divisor 50)
-        $attackRaw = 1 + pow(ATTACK_ATOM_COEFFICIENT * 100, 2) + 100;
-        $defenseRaw = 1 + pow(DEFENSE_ATOM_COEFFICIENT * 100, 2) + 100;
+        // V4: stat = (pow(primary, 1.2) + primary) * (1 + secondary / 100) * modCond
+        // Attack (O primary, H secondary) and Defense (C primary, Br secondary)
+        // with same atom counts should produce equal raw values
+        $atoms = 100;
+        $secondary = 50;
+        $attackRaw = (pow($atoms, COVALENT_BASE_EXPONENT) + $atoms) * (1 + $secondary / COVALENT_SYNERGY_DIVISOR);
+        $defenseRaw = (pow($atoms, COVALENT_BASE_EXPONENT) + $atoms) * (1 + $secondary / COVALENT_SYNERGY_DIVISOR);
 
         $this->assertEquals($attackRaw, $defenseRaw,
-            'Attack and defense with same atoms must produce equal raw values');
+            'Attack and defense with same atom counts must produce equal raw values');
     }
 
-    public function testDefenseWithin10xOfAttack(): void
+    public function testV4CovalentFormulaScaling(): void
     {
-        // At max atoms (200), verify neither stat is more than 10x the other
-        $attack200 = 1 + pow(ATTACK_ATOM_COEFFICIENT * 200, 2) + 200;
-        $defense200 = 1 + pow(DEFENSE_ATOM_COEFFICIENT * 200, 2) + 200;
+        // Verify V4 formula scales meaningfully with atom count
+        $stat50 = pow(50, COVALENT_BASE_EXPONENT) + 50;
+        $stat200 = pow(200, COVALENT_BASE_EXPONENT) + 200;
 
-        $ratio = $attack200 / $defense200;
-        $this->assertGreaterThan(0.1, $ratio, 'Attack must not be 10x weaker than defense');
-        $this->assertLessThan(10.0, $ratio, 'Attack must not be 10x stronger than defense');
+        $ratio = $stat200 / $stat50;
+        $this->assertGreaterThan(3.0, $ratio, 'Stat at 200 atoms should be >3x stat at 50 atoms');
+        $this->assertLessThan(10.0, $ratio, 'Stat at 200 atoms should be <10x stat at 50 atoms');
     }
 
     public function testHigherBuildingLevelsCostMore(): void

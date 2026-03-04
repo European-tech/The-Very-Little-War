@@ -506,65 +506,22 @@ class ConfigConsistencyTest extends TestCase
     }
 
     // =========================================================================
-    // FORMULA COEFFICIENT CONSTANTS
+    // V4 COVALENT SYNERGY CONSTANTS
     // =========================================================================
 
-    public function testAttackDefenseCoefficientsMatch(): void
+    public function testCovalentSynergyConstants(): void
     {
-        // Attack and defense should use same coefficients (symmetric)
-        $this->assertEquals(ATTACK_ATOM_COEFFICIENT, DEFENSE_ATOM_COEFFICIENT);
-        $this->assertEquals(ATTACK_LEVEL_DIVISOR, DEFENSE_LEVEL_DIVISOR);
+        $this->assertEquals(50, COVALENT_CONDENSEUR_DIVISOR);
+        $this->assertEquals(1.2, COVALENT_BASE_EXPONENT);
+        $this->assertEquals(100, COVALENT_SYNERGY_DIVISOR);
+        $this->assertEquals(10, MOLECULE_MIN_HP);
     }
 
-    public function testHPCoefficientsMatchAttackDefense(): void
+    public function testIodeConstants(): void
     {
-        // HP uses same coefficient as attack/defense
-        $this->assertEquals(ATTACK_ATOM_COEFFICIENT, HP_ATOM_COEFFICIENT);
-        $this->assertEquals(ATTACK_LEVEL_DIVISOR, HP_LEVEL_DIVISOR);
-    }
-
-    public function testDestructionCoefficientIsSmaller(): void
-    {
-        // Destruction uses 0.075 vs attack/defense 0.1
-        $this->assertLessThan(ATTACK_ATOM_COEFFICIENT, DESTRUCTION_ATOM_COEFFICIENT);
-    }
-
-    public function testPillageCoefficientMatchesAttack(): void
-    {
-        // Pillage uses same base coefficient as attack
-        $this->assertEquals(ATTACK_ATOM_COEFFICIENT, PILLAGE_ATOM_COEFFICIENT);
-    }
-
-    public function testAllLevelDivisorsArePositive(): void
-    {
-        $divisors = [
-            ATTACK_LEVEL_DIVISOR,
-            DEFENSE_LEVEL_DIVISOR,
-            HP_LEVEL_DIVISOR,
-            DESTRUCTION_LEVEL_DIVISOR,
-            PILLAGE_LEVEL_DIVISOR,
-            IODE_LEVEL_DIVISOR,
-            SPEED_LEVEL_DIVISOR,
-            FORMATION_LEVEL_DIVISOR,
-        ];
-
-        foreach ($divisors as $divisor) {
-            $this->assertGreaterThan(0, $divisor, 'Level divisor should be positive');
-        }
-    }
-
-    public function testAllCoefficientConstants(): void
-    {
-        $this->assertEquals(0.1, ATTACK_ATOM_COEFFICIENT);
-        $this->assertEquals(0.1, DEFENSE_ATOM_COEFFICIENT);
-        $this->assertEquals(0.1, HP_ATOM_COEFFICIENT);
-        $this->assertEquals(0.075, DESTRUCTION_ATOM_COEFFICIENT);
-        $this->assertEquals(0.1, PILLAGE_ATOM_COEFFICIENT);
-        // BAL-CROSS C2: quadratic iode formula (coefficient reduced, quadratic term added)
         $this->assertEquals(0.04, IODE_ENERGY_COEFFICIENT);
         $this->assertEquals(0.003, IODE_QUADRATIC_COEFFICIENT);
-        $this->assertEquals(0.5, SPEED_ATOM_COEFFICIENT);
-        $this->assertEquals(0.09, FORMATION_AZOTE_COEFFICIENT);
+        $this->assertGreaterThan(0, IODE_LEVEL_DIVISOR);
     }
 
     // =========================================================================
