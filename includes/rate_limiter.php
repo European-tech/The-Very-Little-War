@@ -1,11 +1,11 @@
 <?php
 /**
- * Simple file-based rate limiter
- * Stores rate limit data in /tmp/tvlw_rates/
+ * Simple file-based rate limiter.
+ * Stores rate limit data in data/rates/ (project-local, not world-readable).
  */
 
 if (!defined('RATE_LIMIT_DIR')) {
-    define('RATE_LIMIT_DIR', '/tmp/tvlw_rates');
+    define('RATE_LIMIT_DIR', __DIR__ . '/../data/rates');
 }
 
 function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {

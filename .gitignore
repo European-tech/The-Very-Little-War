@@ -16,6 +16,11 @@ Thumbs.db
 # Logs
 logs/*.log
 
+# Runtime data (rate limiter, etc.)
+data/rates/
+!data/.htaccess
+!data/rates/.gitkeep
+
 # Composer
 vendor/
 composer.lock
