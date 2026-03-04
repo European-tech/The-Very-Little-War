@@ -333,9 +333,7 @@ function antiXSS($phrase, $specialTexte = false)
 
 function creerBBcode($nomTextArea, $interieur = NULL, $reponse = 0)
 {
-    debutContent();
-    echo 'BBcode <strong>activé</strong> ' . aide('bbcode', true);
-    finContent();
+    echo '<small style="color:#666;">[b]gras[/b] [i]italique[/i] [u]souligne[/u] [url]lien[/url] [img]image[/img]</small>';
 }
 
 function transformInt($nombre)
