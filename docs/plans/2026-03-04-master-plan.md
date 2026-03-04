@@ -476,11 +476,20 @@ curl -I https://theverylittlewar.com 2>&1 | head -5
 
 ---
 
-## Sprint 2: Anti-Multiaccount Detection System (6-8h)
+## Sprint 2: Anti-Multiaccount Detection System — COMPLETED
 
 **Goal:** Build comprehensive multi-account detection with IP logging, fingerprinting, coordinated attack detection, transfer pattern analysis, automated alerts, and admin dashboard.
 
 **Source:** NEW-2 (user request), builds on existing admin/index.php IP detection
+
+**Completed:** All 8 tasks (2.1-2.8) implemented in 4 commits:
+- Migration 0020: login_history table + membre.ip widened to VARCHAR(45)
+- Migration 0021: account_flags + admin_alerts tables
+- includes/multiaccount.php: all 5 detection methods + areFlaggedAccounts + email alerts
+- Hooks in basicpublicphp.php (login), inscription.php (register), game_actions.php (combat), marche.php (transfers)
+- admin/multiaccount.php: full dashboard (alerts, flags, stats, manual flagging, account detail)
+- Transfer blocking for flagged account pairs
+- 16 unit tests (382 total, 2332 assertions)
 
 ### Current State
 
