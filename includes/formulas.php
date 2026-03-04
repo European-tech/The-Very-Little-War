@@ -5,6 +5,37 @@
  * but some require DB access for medal bonuses.
  */
 
+/**
+ * Get a specific specialization modifier value for a player.
+ *
+ * @param string $joueur  Player login
+ * @param string $modKey  Modifier key: 'attack', 'defense', 'atom_production',
+ *                        'energy_production', 'condenseur_points', 'formation_speed'
+ * @return float  Modifier value (e.g. 0.10 for +10%, -0.05 for -5%)
+ */
+function getSpecModifier($joueur, $modKey)
+{
+    global $base, $SPECIALIZATIONS;
+    static $cache = [];
+    if (isset($cache[$joueur][$modKey])) return $cache[$joueur][$modKey];
+
+    if (!isset($cache[$joueur])) {
+        $constructions = dbFetchOne($base, 'SELECT spec_combat, spec_economy, spec_research FROM constructions WHERE login=?', 's', $joueur);
+        $total = [];
+        foreach ($SPECIALIZATIONS as $spec) {
+            $choice = (int)($constructions[$spec['column']] ?? 0);
+            if ($choice > 0 && isset($spec['options'][$choice])) {
+                foreach ($spec['options'][$choice]['modifiers'] as $key => $val) {
+                    $total[$key] = ($total[$key] ?? 0.0) + $val;
+                }
+            }
+        }
+        $cache[$joueur] = $total;
+    }
+
+    return $cache[$joueur][$modKey] ?? 0.0;
+}
+
 function pointsVictoireJoueur($classement)
 {
     if ($classement == 1) {
@@ -170,7 +201,8 @@ function tempsFormation($ntotal, $azote, $iode, $nivCondN, $nivLieur, $joueur = 
     if ($joueur !== null) {
         $catalystSpeedBonus = 1 + catalystEffect('formation_speed');
         $allianceCatalyseurBonus = 1 + allianceResearchBonus($joueur, 'formation_speed');
-        $vitesse_form *= $catalystSpeedBonus * $allianceCatalyseurBonus;
+        $specFormationMod = getSpecModifier($joueur, 'formation_speed');
+        $vitesse_form *= $catalystSpeedBonus * $allianceCatalyseurBonus * (1 + $specFormationMod);
     }
 
     return ceil(($ntotal / $vitesse_form) * 100) / 100;

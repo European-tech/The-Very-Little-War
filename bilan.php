@@ -45,6 +45,30 @@ $niveauxCondenseur = explode(';', $constructions['pointsCondenseur']);
 $niveauxProducteur = explode(';', $constructions['pointsProducteur']);
 
 // =============================================================================
+// POST HANDLER: Specialization choice (irreversible)
+// =============================================================================
+if (isset($_POST['choose_specialization']) && isset($_POST['spec_type']) && isset($_POST['spec_choice'])) {
+    csrfCheck();
+    $specType = $_POST['spec_type'];
+    $specChoice = (int)$_POST['spec_choice'];
+
+    if (isset($SPECIALIZATIONS[$specType])) {
+        $spec = $SPECIALIZATIONS[$specType];
+        $col = $spec['column'];
+        $currentChoice = (int)($constructions[$col] ?? 0);
+        $buildingLevel = (int)($constructions[$spec['unlock_building']] ?? 0);
+
+        if ($currentChoice === 0 && $buildingLevel >= $spec['unlock_level'] && isset($spec['options'][$specChoice])) {
+            $allowedColumns = ['spec_combat', 'spec_economy', 'spec_research'];
+            if (in_array($col, $allowedColumns, true)) {
+                dbExecute($base, "UPDATE constructions SET $col = ? WHERE login = ?", 'is', $specChoice, $login);
+                $constructions[$col] = $specChoice;
+            }
+        }
+    }
+}
+
+// =============================================================================
 // HELPER: Format number with space separator
 // =============================================================================
 function fmtNum($n) {
@@ -817,8 +841,23 @@ debutCarte("Specialisations");
             $opt = $spec['options'][$currentChoice];
             echo '<td style="font-weight:bold">' . htmlspecialchars($opt['name'], ENT_QUOTES, 'UTF-8') . '</td>';
             echo '<td>' . htmlspecialchars($opt['desc'], ENT_QUOTES, 'UTF-8') . '</td>';
+        } elseif ($unlocked) {
+            echo '<td colspan="2">';
+            foreach ($spec['options'] as $optId => $opt) {
+                echo '<form action="bilan.php" method="post" style="display:inline-block;margin:2px 4px;">'
+                    . csrfField()
+                    . '<input type="hidden" name="spec_type" value="' . htmlspecialchars($specType, ENT_QUOTES, 'UTF-8') . '"/>'
+                    . '<input type="hidden" name="spec_choice" value="' . $optId . '"/>'
+                    . '<button type="submit" name="choose_specialization" value="1" class="button button-fill" '
+                    . 'onclick="return confirm(\'Choisir ' . htmlspecialchars($opt['name'], ENT_QUOTES, 'UTF-8') . ' ? Ce choix est irréversible !\')">'
+                    . htmlspecialchars($opt['name'], ENT_QUOTES, 'UTF-8')
+                    . '</button>'
+                    . '<br/><small>' . htmlspecialchars($opt['desc'], ENT_QUOTES, 'UTF-8') . '</small>'
+                    . '</form>';
+            }
+            echo '</td>';
         } else {
-            echo '<td style="color:#999">Non choisie</td>';
+            echo '<td style="color:#999">Verrouillée</td>';
             echo '<td>—</td>';
         }
         echo '</tr>';

@@ -188,6 +188,12 @@ $compoundDefenseBonus = getCompoundBonus($base, $actions['defenseur'], 'defense_
 if ($compoundAttackBonus > 0) $degatsAttaquant *= (1 + $compoundAttackBonus);
 if ($compoundDefenseBonus > 0) $degatsDefenseur *= (1 + $compoundDefenseBonus);
 
+// Specialization combat modifiers
+$specAttackMod = getSpecModifier($actions['attaquant'], 'attack');
+$specDefenseMod = getSpecModifier($actions['defenseur'], 'defense');
+$degatsAttaquant *= (1 + $specAttackMod);
+$degatsDefenseur *= (1 + $specDefenseMod);
+
 // Apply Embuscade bonus to defender's effective damage (FIX FINDING-GAME-018)
 $degatsDefenseur *= $embuscadeDefBoost;
 
