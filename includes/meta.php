@@ -4,8 +4,16 @@
 <meta name="theme-color" content="#2196f3">
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="Description" content="The Very Little War est un jeu de strategie en ligne, multijoueur et gratuit. Le but sera de vous former la plus grosse armée de molécules pour mettre le monde à genou." />
-<meta name="Keywords" content="atomes, jeu, molecules, war, strategie" />
+<meta name="description" content="Jeu de strategie en ligne gratuit. Composez des molecules, formez votre armee et affrontez d'autres joueurs dans The Very Little War !" />
+<meta name="keywords" content="atomes, jeu, molecules, war, strategie" />
+<!-- Open Graph meta tags for social sharing -->
+<meta property="og:title" content="The Very Little War" />
+<meta property="og:description" content="Jeu de strategie en ligne gratuit. Composez des molecules, formez votre armee et affrontez d'autres joueurs !" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://theverylittlewar.com" />
+<meta property="og:image" content="https://theverylittlewar.com/images/icone.png" />
+<meta property="og:locale" content="fr_FR" />
+<meta property="og:site_name" content="The Very Little War" />
 <link rel="icon" type="image/x-icon" href="images/icone.png"/>
 <!-- Your app title -->
 <title>The Very Little War</title>
