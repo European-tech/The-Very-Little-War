@@ -58,6 +58,23 @@ itemAccordion($donnees['titre'], '<img src="images/accueil/newspaper.png" width=
 finAccordion();
 finCarte();
 
+if (isset($_SESSION['login'])) {
+    // Season countdown: season ends at midnight on the 1st of next month
+    $finSaison = mktime(0, 0, 0, (int)date('n') + 1, 1, (int)date('Y'));
+    $secondsLeft = max(0, $finSaison - time());
+    $jours = floor($secondsLeft / 86400);
+    $heures = floor(($secondsLeft % 86400) / 3600);
+    $minutes = floor(($secondsLeft % 3600) / 60);
+    $countdownText = $jours . 'j ' . $heures . 'h ' . $minutes . 'm';
+    echo '<div style="text-align:center; padding:10px 0;">';
+    echo '<img src="images/accueil/agenda.png" alt="saison" class="w32" style="vertical-align:middle;" />';
+    echo '<span style="font-size:16px; font-weight:bold; margin-left:5px;">Fin de saison : </span>';
+    echo '<span id="season-countdown" data-end="' . (int)$finSaison . '" style="font-size:18px; font-weight:bold; color:#8A0000;">';
+    echo htmlspecialchars($countdownText, ENT_QUOTES, 'UTF-8');
+    echo '</span>';
+    echo '</div>';
+}
+
 debutCarte("The Very Little War", "", 'images/accueil/wallpaper.jpg');
 debutContent(); ?>
 <center>Depuis la nuit des temps, les atomes se livrent une guerre sans fin...</center><br /><br />
