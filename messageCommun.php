@@ -38,10 +38,10 @@ if (empty($titre) || empty($message)) {
 	die('Titre et message requis.');
 }
 
-$ex = dbQuery($base, 'SELECT login FROM membre');
+$membres = dbFetchAll($base, 'SELECT login FROM membre');
 $timestamp = time();
 $count = 0;
-while($d = mysqli_fetch_array($ex)){
+foreach($membres as $d){
 	dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $timestamp, $titre, $message, $_SESSION['login'], $d['login']);
 	$count++;
 }

@@ -190,8 +190,8 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 							<tr>
 								<th>Ip multiple</th>
 							</tr>
-							<?php $retour = dbQuery($base, 'SELECT ip FROM membre GROUP BY ip HAVING (count(*)>1)');
-							while ($donnees = mysqli_fetch_array($retour)) {
+							<?php $ipRows = dbFetchAll($base, 'SELECT ip FROM membre GROUP BY ip HAVING (count(*)>1)');
+							foreach ($ipRows as $donnees) {
 							?>
 								<tr>
 									<td><?php echo '<a href="ip.php?ip=' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '</a>'; ?></td>
@@ -223,8 +223,8 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 							<th>Date</th>
 						</tr>
 						<?php
-						$retour = dbQuery($base, 'SELECT * FROM sujets ORDER BY auteur DESC');
-						while ($donnees = mysqli_fetch_array($retour)) {
+						$sujetRows = dbFetchAll($base, 'SELECT * FROM sujets ORDER BY auteur DESC');
+						foreach ($sujetRows as $donnees) {
 						?>
 							<tr>
 								<td><form method="post" action="index.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="verouillersujet" value="<?php echo (int)$donnees['id']; ?>" /><button type="submit">Vérouiller</button></form></td>
@@ -242,8 +242,8 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 										<?php echo csrfField(); ?>
 										<select name="deplacer">
 											<?php
-											$ex = dbQuery($base, 'SELECT id,titre FROM forums');
-											while ($forum = mysqli_fetch_array($ex)) {
+											$forumRows = dbFetchAll($base, 'SELECT id,titre FROM forums');
+											foreach ($forumRows as $forum) {
 												$selected = "";
 												if ($forum['id'] == $donnees['idforum']) {
 													$selected = "selected";

@@ -17,8 +17,8 @@ include("../includes/connexion.php");
 $ip = isset($_GET['ip']) ? $_GET['ip'] : '';
 echo '<h4>Pseudos avec l\'ip '.htmlspecialchars($ip, ENT_QUOTES, 'UTF-8').'\'</h4><p>';
 
-$retour = dbQuery($base, 'SELECT * FROM membre WHERE ip = ?', 's', $ip);
-while ($donnees = mysqli_fetch_array($retour)) {
+$ipMembreRows = dbFetchAll($base, 'SELECT * FROM membre WHERE ip = ?', 's', $ip);
+foreach ($ipMembreRows as $donnees) {
 	echo '<a href="../joueur.php?id='.htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8').'</a><br/>';
 }
 echo '</p>';

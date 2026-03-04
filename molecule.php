@@ -5,15 +5,8 @@ include("includes/layout.php");
 
 if(isset($_GET['id']) AND !empty($_GET['id'])) {
 	$_GET['id'] = (int)$_GET['id'];
-	$ex = dbQuery($base, 'SELECT * FROM molecules WHERE id=? AND proprietaire=?', 'is', $_GET['id'], $_SESSION['login']);
-	if (!$ex) {
-		error_log("SQL error fetching molecule stats");
-		$molecule = null;
-		$nb_resultats = 0;
-	} else {
-		$molecule = mysqli_fetch_array($ex);
-		$nb_resultats = mysqli_num_rows($ex);
-	}
+	$molecule = dbFetchOne($base, 'SELECT * FROM molecules WHERE id=? AND proprietaire=?', 'is', $_GET['id'], $_SESSION['login']);
+	$nb_resultats = $molecule ? 1 : 0;
 
     debutCarte('Statistiques de la classe');
 

@@ -390,8 +390,8 @@ if (!isset($_GET['sub'])) {
 }
 
 
-$ex = dbQuery($base, 'SELECT * FROM actionsenvoi WHERE envoyeur=? OR receveur=? ORDER BY tempsArrivee ASC', 'ss', $_SESSION['login'], $_SESSION['login']);
-$nb = mysqli_num_rows($ex); // pour ne pas voir l'espionnage
+$actionsenvois = dbFetchAll($base, 'SELECT * FROM actionsenvoi WHERE envoyeur=? OR receveur=? ORDER BY tempsArrivee ASC', 'ss', $_SESSION['login'], $_SESSION['login']);
+$nb = count($actionsenvois); // pour ne pas voir l'espionnage
 
 if ($nb > 0) {
     debutCarte();
@@ -399,7 +399,7 @@ if ($nb > 0) {
     echo '<div class="table-responsive"><table>';
     echo '<tr><th>Type</th><th>Joueur</th><th>Temps</th></tr>';
 
-    while ($actionsenvoi = mysqli_fetch_array($ex)) {
+    foreach ($actionsenvois as $actionsenvoi) {
 
         $safeReceveur = htmlspecialchars($actionsenvoi['receveur'], ENT_QUOTES, 'UTF-8');
         $safeEnvoyeur = htmlspecialchars($actionsenvoi['envoyeur'], ENT_QUOTES, 'UTF-8');
@@ -596,10 +596,10 @@ if ($_GET['sub'] == 0) {
                 ],
                 <?php
                 $tot = '';
-                $ex = dbQuery($base, "SELECT * FROM cours ORDER BY timestamp DESC LIMIT " . MARKET_HISTORY_LIMIT);
+                $coursRows = dbFetchAll($base, "SELECT * FROM cours ORDER BY timestamp DESC LIMIT " . MARKET_HISTORY_LIMIT);
                 $c = 1;
-                $nb = mysqli_num_rows($ex);
-                while ($cours = mysqli_fetch_array($ex)) {
+                $nb = count($coursRows);
+                foreach ($coursRows as $cours) {
                     if ($c != 1) {
                         $fin = ",";
                     } else {

@@ -38,8 +38,8 @@ include("includes/layout.php");
 if (isset($_GET['id'])) {
 	$_GET['id'] = trim($_GET['id']);
 	$getId = (int)$_GET['id'];
-	$ex = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ?', 'i', $getId);
-	$nb_resultats = mysqli_num_rows($ex);
+	$allReponses = dbFetchAll($base, 'SELECT * FROM reponses WHERE idsujet = ?', 'i', $getId);
+	$nb_resultats = count($allReponses);
 	$nombreDeSujetsParPage = FORUM_POSTS_PER_PAGE;
 	$nombreDePages  = ceil($nb_resultats / $nombreDeSujetsParPage);
 	$page = isset($_GET['page']) ? intval($_GET['page']) : 0;
@@ -51,18 +51,18 @@ if (isset($_GET['id'])) {
 	$premierSujetAafficher = ($page - 1) * $nombreDeSujetsParPage;
 
 	// Modifié par Yojim
+	$isModerator = false;
 	if (isset($_SESSION['login'])) {
 		$joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
-		// Si le joueur est modérateur, il a accès aux messages masqués
-		if ($joueur['moderateur']) {
-			$ex1 = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ? ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
-		}
-		// Si le joueur n'est pas modérateur, il n'a pas accès au messages masqués
-		else {
-			$ex1 = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ? AND visibilite=1 ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
-		}
-	} else {
-		$ex1 = dbQuery($base, 'SELECT * FROM reponses WHERE idsujet = ? AND visibilite=1 ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
+		$isModerator = !empty($joueur['moderateur']);
+	}
+	// Si le joueur est modérateur, il a accès aux messages masqués
+	if ($isModerator) {
+		$reponseRows = dbFetchAll($base, 'SELECT * FROM reponses WHERE idsujet = ? ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
+	}
+	// Si le joueur n'est pas modérateur, il n'a pas accès au messages masqués
+	else {
+		$reponseRows = dbFetchAll($base, 'SELECT * FROM reponses WHERE idsujet = ? AND visibilite=1 ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
 	}
 	//
 
@@ -85,13 +85,13 @@ if (isset($_GET['id'])) {
 	// Ajout de Yojim
 	// On vérifie si l'utilisateur n'est pas banni du forum
 	if (isset($_SESSION['login'])) {
-		$ex4 = dbQuery($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+		$sanctionRow = dbFetchOne($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
 	}
 
 	// Si il est banni (skip check if not logged in)
-	$isBanned = isset($ex4) && mysqli_num_rows($ex4);
+	$isBanned = isset($sanctionRow) && $sanctionRow;
 	if ($isBanned) {
-		$sanction = mysqli_fetch_array($ex4);
+		$sanction = $sanctionRow;
 		list($annee, $mois, $jour) = explode('-', $sanction['dateFin']);
 		$sanction['dateFin'] = $jour . '/' . $mois . '/' . $annee;
 		echo "Vous ne pouvez plus accéder au forum car vous avez été banni par <a href=\"ecriremessage.php?destinataire=" . htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8') . "\" class=\"lienVisible\">" . htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8') . "</a> jusqu'au <strong>" . htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8') . "</strong>.<br/>";
@@ -146,7 +146,7 @@ if (isset($_GET['id'])) {
 
 
 		if ($nb_resultats > 0) {
-			while ($reponse = mysqli_fetch_array($ex1)) {
+			foreach ($reponseRows as $reponse) {
 
 				$couleur = rangForum($reponse['auteur']);
 

@@ -18,9 +18,8 @@ include("includes/layout.php");
 
 if(isset($_GET['message'])) {
 	$messageId = (int)$_GET['message'];
-	$ex = dbQuery($base, 'SELECT * FROM messages WHERE ( destinataire = ? OR expeditaire = ? ) AND id = ?', 'ssi', $_SESSION['login'], $_SESSION['login'], $messageId);
-	$messages = mysqli_fetch_array($ex);
-	$nb_messages = mysqli_num_rows($ex);
+	$messages = dbFetchOne($base, 'SELECT * FROM messages WHERE ( destinataire = ? OR expeditaire = ? ) AND id = ?', 'ssi', $_SESSION['login'], $_SESSION['login'], $messageId);
+	$nb_messages = $messages ? 1 : 0;
 	if($nb_messages > 0) {
 		if($_SESSION['login'] == $messages['destinataire']) {
 			dbExecute($base, 'UPDATE messages SET statut=1 WHERE id = ?', 'i', $messageId);
@@ -50,8 +49,8 @@ else {
 	// On calcule le numéro du premier message qu'on prend pour le LIMIT de MySQL
 	$premierMessageAafficher = ($page - 1) * $nombreDeMessagesParPage;
 
-	$ex = dbQuery($base, 'SELECT * FROM messages WHERE destinataire = ? ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $premierMessageAafficher, $nombreDeMessagesParPage);
-	$nb_messages = mysqli_num_rows($ex);
+	$messagesRows = dbFetchAll($base, 'SELECT * FROM messages WHERE destinataire = ? ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $premierMessageAafficher, $nombreDeMessagesParPage);
+	$nb_messages = count($messagesRows);
 	debutCarte("Messages");
 	if($nb_messages > 0) {
 		echo '<div class="table-responsive"><table class="table table-striped table-bordered">
@@ -63,7 +62,7 @@ else {
 		<th>Date</th>
 		<th>Action</th>
 		</tr></thead><tbody>';
-		while($messages = mysqli_fetch_array($ex)) {
+		foreach($messagesRows as $messages) {
 			if($messages['statut'] != 0){
 				echo '<tr><td><a href="messages.php?message='.$messages['id'].'"><img src="images/message_ouvert.png" alt="ouvert" title="Lu" class="w32"/></td></a>';
 			}

@@ -69,8 +69,7 @@ include("redirectionmotdepasse.php");
                 <div class="featured-slider">
                     <?php if(isset($_GET['id'])) {
 	                    $_GET['id'] = (int)$_GET['id'];
-                        $ex = dbQuery($base, 'SELECT *, count(*) AS nb FROM tableaux WHERE id = ?', 'i', (int)$_GET['id']);
-                        $data = mysqli_fetch_array($ex);
+                        $data = dbFetchOne($base, 'SELECT *, count(*) AS nb FROM tableaux WHERE id = ?', 'i', (int)$_GET['id']);
                         if($data['nb'] >= 1){
                             ?>
                             <h1>Tableau <?php echo $data['nom'] ?></h1>
@@ -277,8 +276,8 @@ include("redirectionmotdepasse.php");
                                 }
                                 
                                 <?php // on teste toutes les unites et sous-unites dans la base de données pour retrouver la compagnie associée
-                                $ex2 = dbQuery($base, "SELECT * FROM unites");
-                                while($data1 = mysqli_fetch_array($ex2)) {
+                                $unitesRows = dbFetchAll($base, "SELECT * FROM unites");
+                                foreach($unitesRows as $data1) {
                                     $data1['unite'] = str_replace("COB","",$data1['unite']);
                                     $data1['unite'] = str_replace("BTA","",$data1['unite']);
                                     $data1['unite'] = trim($data1['unite']);
@@ -289,8 +288,8 @@ include("redirectionmotdepasse.php");
                                     ";
                                 }
                                 
-                                $ex2 = dbQuery($base, "SELECT * FROM unites WHERE sousunite!=''");
-                                while($data1 = mysqli_fetch_array($ex2)){
+                                $sousUnitesRows = dbFetchAll($base, "SELECT * FROM unites WHERE sousunite!=''");
+                                foreach($sousUnitesRows as $data1){
                                     $data1['sousunite'] = str_replace("BP","",$data1['sousunite']);
                                     $data1['sousunite'] = trim($data1['sousunite']);
                                     echo "if(/".$data1['sousunite']."/i.test(unite) == true){
@@ -345,9 +344,9 @@ include("redirectionmotdepasse.php");
                                         break;
                                             
                                         case "Type (Residence, Commerce, Autres)": 
-                                            $req = dbQuery($base, "SELECT * FROM lieux");
+                                            $lieuxRows = dbFetchAll($base, "SELECT * FROM lieux");
                                             $correction = "";
-                                            while($data = mysqli_fetch_array($req)){
+                                            foreach($lieuxRows as $data){
                                                 $correction = $correction.'if(/'.$data['lieuCRPJ'].'/i.test(lieu) == true) {
                                                     lieu = "'.$data['classification'].'";
                                                 }';
@@ -630,8 +629,8 @@ include("redirectionmotdepasse.php");
                                                 var tableauSignalements = [];
                                                 signalementTotal = signalementTotal.replace(/( de | ou | des | d\'| que )/g," ");';
                                                 
-                                                $ex1 = dbQuery($base, 'SELECT * FROM signalement');
-                                                while($data = mysqli_fetch_array($ex1)){
+                                                $signalementRows = dbFetchAll($base, 'SELECT * FROM signalement');
+                                                foreach($signalementRows as $data){
                                                     echo "tableauSignalements.push(/ ".$data['motCle']." /ig);
                                                     ";
                                                 }

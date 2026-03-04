@@ -17,9 +17,8 @@ include("includes/layout.php");
 
 if(isset($_GET['rapport'])) {
 	$rapportId = (int)$_GET['rapport'];
-	$ex = dbQuery($base, 'SELECT * FROM rapports WHERE id = ? AND destinataire = ?', 'is', $rapportId, $_SESSION['login']);
-	$rapports = mysqli_fetch_array($ex);
-	$nb_rapports = mysqli_num_rows($ex);
+	$rapports = dbFetchOne($base, 'SELECT * FROM rapports WHERE id = ? AND destinataire = ?', 'is', $rapportId, $_SESSION['login']);
+	$nb_rapports = $rapports ? 1 : 0;
 	if($nb_rapports > 0) {
 		dbExecute($base, 'UPDATE rapports SET statut=1 WHERE id = ?', 'i', $rapportId);
 
@@ -53,8 +52,8 @@ else {
 	// On calcule le numéro du premier rapport qu'on prend pour le LIMIT de MySQL
 	$premierRapportAafficher = ($page - 1) * $nombreDeRapportsParPage;
 
-	$ex = dbQuery($base, 'SELECT * FROM rapports WHERE destinataire = ? ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $premierRapportAafficher, $nombreDeRapportsParPage);
-	$nb_rapports = mysqli_num_rows($ex);
+	$rapportsRows = dbFetchAll($base, 'SELECT * FROM rapports WHERE destinataire = ? ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $premierRapportAafficher, $nombreDeRapportsParPage);
+	$nb_rapports = count($rapportsRows);
 
     debutCarte("Rapports");
 	if($nb_rapports > 0) {
@@ -62,7 +61,7 @@ else {
         <div class="table-responsive">
 		<table class="table table-striped table-bordered">
         <tbody>';
-		while($rapports = mysqli_fetch_array($ex)) {
+		foreach($rapportsRows as $rapports) {
             echo '<td>'.htmlspecialchars($rapports['image'], ENT_QUOTES, 'UTF-8').'</td>';
 			if($rapports['statut'] != 0){
 				echo '<td><a href="rapports.php?rapport='.$rapports['id'].'">'.htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';

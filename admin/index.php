@@ -95,11 +95,11 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 				<th>Ip multiple</th>
 				<th>Supprimer les comptes</th>
 			</tr>
-			<?php $retour = dbQuery($base, 'SELECT ip FROM membre GROUP BY ip HAVING (count(*)>1)');
-			while ($donnees = mysqli_fetch_array($retour)) {
-				$ex1 = dbQuery($base, 'SELECT login FROM membre WHERE ip = ?', 's', $donnees['ip']);
+			<?php $ipRows = dbFetchAll($base, 'SELECT ip FROM membre GROUP BY ip HAVING (count(*)>1)');
+			foreach ($ipRows as $donnees) {
+				$loginRows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $donnees['ip']);
 				$a = 0;
-				while ($d1 = mysqli_fetch_array($ex1)) {
+				foreach ($loginRows as $d1) {
 					if (statut($d1['login'])) {
 						$a = 1;
 					}
@@ -151,8 +151,8 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 				<th>Justification</th>
 				<th>Destinataire</th>
 			</tr>
-			<?php $retour = dbQuery($base, 'SELECT * FROM moderation');
-			while ($donnees = mysqli_fetch_array($retour)) {
+			<?php $moderationRows = dbFetchAll($base, 'SELECT * FROM moderation');
+			foreach ($moderationRows as $donnees) {
 			?>
 				<tr>
 					<td><?php echo $donnees['energie']; ?></td>

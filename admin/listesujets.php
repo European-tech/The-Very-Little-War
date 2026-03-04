@@ -61,8 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <th>Date</th>
 </tr>
 <?php
-$retour = dbQuery($base, 'SELECT * FROM sujets ORDER BY auteur DESC');
-while ($donnees = mysqli_fetch_array($retour))
+$sujetRows = dbFetchAll($base, 'SELECT * FROM sujets ORDER BY auteur DESC');
+foreach ($sujetRows as $donnees)
 {
 $sujetId = (int)$donnees['id'];
 ?>

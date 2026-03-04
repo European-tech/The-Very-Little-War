@@ -73,8 +73,8 @@ require_once(__DIR__ . '/../includes/database.php');
             <th>Date</th>
         </tr>
         <?php
-        $retour = dbQuery($base, 'SELECT * FROM news ORDER BY id DESC');
-        while ($donnees = mysqli_fetch_array($retour)) // On fait une boucle pour lister les news.
+        $newsRows = dbFetchAll($base, 'SELECT * FROM news ORDER BY id DESC');
+        foreach ($newsRows as $donnees) // On fait une boucle pour lister les news.
         {
         ?>
             <tr>

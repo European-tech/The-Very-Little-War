@@ -7,8 +7,8 @@ debutCarte("Messages envoyés");
 ?>
 <div class="table-responsive">
 <?php
-$ex = dbQuery($base, 'SELECT * FROM messages WHERE expeditaire = ? ORDER BY timestamp DESC', 's', $_SESSION['login']);
-$nb_messages = mysqli_num_rows($ex);
+$messageRows = dbFetchAll($base, 'SELECT * FROM messages WHERE expeditaire = ? ORDER BY timestamp DESC', 's', $_SESSION['login']);
+$nb_messages = count($messageRows);
 if($nb_messages > 0) {
 	echo '<table class="table table-striped table-bordered">
 	<thead>
@@ -17,7 +17,7 @@ if($nb_messages > 0) {
 	<th>Destinataire</th>
 	<th>Date</th>
 	</tr></thead><tbody>';
-	while($message = mysqli_fetch_array($ex)) {
+	foreach($messageRows as $message) {
 		echo '<tr><td><a href="messages.php?message='.(int)$message['id'].'">'.htmlspecialchars($message['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 		echo '<td><a href="joueur.php?id='.htmlspecialchars($message['destinataire'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($message['destinataire'], ENT_QUOTES, 'UTF-8').'</a></td>';
 		echo '<td><em>'.date('d/m/Y à H\hi', $message['timestamp']).'</em></td></tr>';

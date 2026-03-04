@@ -44,8 +44,8 @@ border:1px solid black;
 <th>Date</th>
 </tr>
 <?php
-$retour = dbQuery($base, 'SELECT * FROM reponses ORDER BY auteur DESC');
-while ($donnees = mysqli_fetch_array($retour))
+$reponseRows = dbFetchAll($base, 'SELECT * FROM reponses ORDER BY auteur DESC');
+foreach ($reponseRows as $donnees)
 {
 ?>
 <tr>

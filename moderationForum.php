@@ -86,8 +86,8 @@ debutCarte("Modération du forum");
 	<?php
 	finCarte();
 	debutCarte("Sanctions en cours");
-	$ex3 = dbQuery($base, 'SELECT * FROM sanctions');
-	if (!mysqli_num_rows($ex3)) {
+	$sanctions = dbFetchAll($base, 'SELECT * FROM sanctions');
+	if (!count($sanctions)) {
 		debutContent();
 		echo "Aucune sanction en cours.";
 		finContent();
@@ -108,7 +108,7 @@ debutCarte("Modération du forum");
 				</thead>
 				<tbody>
 					<?php
-					while ($sanction = mysqli_fetch_array($ex3)) {
+					foreach ($sanctions as $sanction) {
 						// Convertion des dates
 						list($annee, $mois, $jour) = explode('-', $sanction['dateDebut']);
 						$sanction['dateDebut'] = $jour . '/' . $mois . '/' . $annee;

@@ -19,8 +19,8 @@ debutCarte('Historique des connexions'); ?>
         </thead>
         <tbody>
             <?php
-            $ex = dbQuery($base, 'SELECT login, derniereConnexion FROM membre ORDER BY derniereConnexion DESC');
-            while ($donnees = mysqli_fetch_array($ex)) {
+            $connectesRows = dbFetchAll($base, 'SELECT login, derniereConnexion FROM membre ORDER BY derniereConnexion DESC');
+            foreach ($connectesRows as $donnees) {
                 if ($donnees['login'] != "Guortates") {
                     echo '<tr>
                 <td class="nowrapColumn"><a href="joueur.php?id=' . htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8') . '</a></td>
