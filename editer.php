@@ -24,7 +24,7 @@ if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 		$newNbMessages = $nbMessages['nbMessages'] - 1;
 		dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', $newNbMessages, $_SESSION['login']);
 		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
-		echo "<script>window.location.replace(\"sujet.php?id=" . $sujetId . "\")</script>";
+		header("Location: sujet.php?id=" . (int)$sujetId); exit;
 	} else {
 		$erreur = "Vous ne pouvez pas supprimer une réponse dont vous n'êtes pas l'auteur.";
 	}
@@ -35,14 +35,14 @@ if ($type == 5 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
 	dbExecute($base, 'UPDATE reponses SET visibilite = 0 WHERE id = ?', 'i', $id);
 	$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
-	echo "<script>window.location.replace(\"sujet.php?id=" . $sujetId . "\")</script>";
+	header("Location: sujet.php?id=" . (int)$sujetId); exit;
 }
 // Si on souhaite afficher un message - require POST with CSRF
 if ($type == 4 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
 	dbExecute($base, 'UPDATE reponses SET visibilite = 1 WHERE id = ?', 'i', $id);
 	$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
-	echo "<script>window.location.replace(\"sujet.php?id=" . $sujetId . "\")</script>";
+	header("Location: sujet.php?id=" . (int)$sujetId); exit;
 }
 
 if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type > 0) {
@@ -56,10 +56,7 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 				dbExecute($base, 'UPDATE sujets SET contenu = ?, titre = ? WHERE id = ?', 'ssi', $contenu, $titre, $id);
 				$information = "Le sujet a bien été modifié";
 				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $id);
-                ?>
-                <script>
-                    window.location.replace("sujet.php?id=<?php echo $id; ?>");
-                </script> <?php
+				header("Location: sujet.php?id=" . (int)$id); exit;
 			} else {
 				$erreur = "Vous ne pouvez modifier un sujet donc vous n'êtes pas l'auteur";
 			}
@@ -79,10 +76,7 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 
                 $sujetRow = dbFetchOne($base, 'SELECT idsujet FROM reponses WHERE id = ?', 'i', $id);
                 if ($sujetRow) {
-                ?>
-                <script>
-                    window.location.replace("sujet.php?id=<?php echo (int)$sujetRow['idsujet']; ?>");
-                </script> <?php
+                    header("Location: sujet.php?id=" . (int)$sujetRow['idsujet']); exit;
                 }
 			} else {
 				$erreur = "Vous ne pouvez pas modifier une réponse donc vous n'êtes pas l'auteur";

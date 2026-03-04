@@ -41,10 +41,7 @@ if (isset($_POST['login'])) {
 					if ($nbLogin == 0) {
 						inscrire($loginInput, $passInput, $emailInput);
 						logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'email' => $emailInput]);
-						echo '<script type="text/javascript">
-						window.location.href = "index.php?inscrit=1";
-						</script>';
-						exit();
+						header("Location: index.php?inscrit=1"); exit;
 					} else {
 						$erreur = 'Ce login est d&eacute;j&agrave; utilis&eacute;.';
 					}

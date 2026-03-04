@@ -48,7 +48,7 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
 
                     logInfo('ALLIANCE', 'Alliance created', ['name' => $_POST['nomalliance'], 'tag' => $_POST['tagalliance'], 'creator' => $_SESSION['login']]);
                     $information = "Votre équipe a été créée.";
-                    echo '<script>window.location="alliance.php";</script>';
+                    header("Location: alliance.php"); exit;
                 } else {
                     $erreur = "Une équipe avec ce nom ou ce tag existe déja.";
                 }
@@ -160,7 +160,7 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
             if ($_POST['actioninvitation'] == "Accepter") {
                 dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
                 $information = "Vous avez accepté l'invitation.";
-                echo '<script>window.location="alliance.php";</script>';
+                header("Location: alliance.php"); exit;
             }
             dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
         } else {

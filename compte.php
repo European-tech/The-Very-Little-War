@@ -7,7 +7,7 @@ csrfCheck();
 
 if (isset($_POST['verification']) and isset($_POST['oui'])) {
     supprimerJoueur($_SESSION['login']);
-    echo "<script>window.location.replace(\"deconnexion.php\")</script>";
+    header("Location: deconnexion.php"); exit;
 }
 
 if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
@@ -22,7 +22,7 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
         dbExecute($base, 'INSERT INTO vacances VALUES (default, ?, CURRENT_DATE, ?)', 'is', $membreId, $date);
         dbExecute($base, 'UPDATE membre SET vacance = 1 WHERE id = ?', 'i', $membreId);
         // Rafraichissement de la page
-        echo "<script>window.location.replace(\"compte.php\")</script>";
+        header("Location: compte.php"); exit;
     } else {
         $erreur = "Vous ne pouvez pas vous mettre en vacances moins de trois jours.";
     }

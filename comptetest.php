@@ -95,10 +95,7 @@ if (isset($_GET['inscription'])) {
 						$_SESSION['session_token'] = $sessionToken;
 						dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, $newLogin);
 
-						echo '<script type="text/javascript">
-						window.location.href = "index.php?inscrit=1";
-						</script>';
-						exit();
+						header("Location: index.php?inscrit=1"); exit;
 					} else {
 						$erreur = 'Ce login est déjà utilisé.';
 					}
@@ -112,5 +109,5 @@ if (isset($_GET['inscription'])) {
 	} else {
 		$erreur = 'Un ou plusieurs champs sont vides.';
 	}
-    echo '<script>document.location.href="constructions.php?erreur=' . urlencode($erreur) . '";</script>';
+    header("Location: constructions.php?erreur=" . urlencode($erreur)); exit;
 }
