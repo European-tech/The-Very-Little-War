@@ -88,8 +88,8 @@ if (isset($_GET['id'])) {
 	creerBBcode("contenu", $message['contenu'], 1);
 	$options = $message['contenu'];
 } elseif (isset($_POST['contenu'])) {
-	creerBBcode("contenu", stripslashes(preg_replace('#(\\\r\\\n|\\\r|\\\n)#', "\n", ($_POST['contenu']))));
-	$options = stripslashes(preg_replace('#(\\\r\\\n|\\\r|\\\n)#', "\n", ($_POST['contenu'])));
+	creerBBcode("contenu", preg_replace('#(\\\r\\\n|\\\r|\\\n)#', "\n", ($_POST['contenu'])));
+	$options = preg_replace('#(\\\r\\\n|\\\r|\\\n)#', "\n", ($_POST['contenu']));
 } else {
 	creerBBcode("contenu");
 	$options = "";

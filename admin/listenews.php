@@ -86,7 +86,7 @@ require_once(__DIR__ . '/../includes/database.php');
                         <input type="submit" value="Supprimer" />
                     </form>
                 </td>
-                <td><?php echo htmlspecialchars(stripslashes($donnees['titre']), ENT_QUOTES, 'UTF-8'); ?></td>
+                <td><?php echo htmlspecialchars($donnees['titre'], ENT_QUOTES, 'UTF-8'); ?></td>
                 <td><?php echo date('d/m/Y', $donnees['timestamp']); ?></td>
             </tr>
         <?php

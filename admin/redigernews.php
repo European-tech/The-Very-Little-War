@@ -26,8 +26,8 @@ if (isset($_GET['modifier_news'])) // Si on demande de modifier une news.
     $donnees = dbFetchOne($base, 'SELECT * FROM news WHERE id = ?', 'i', $modifierNewsId);
 
     // On place le titre et le contenu dans des variables simples.
-    $titre = stripslashes($donnees['titre']);
-    $contenu = stripslashes($donnees['contenu']);
+    $titre = $donnees['titre'];
+    $contenu = $donnees['contenu'];
     $id_news = $donnees['id']; // Cette variable va servir pour se souvenir que c'est une modification.
 }
 else // C'est qu'on rédige une nouvelle news.

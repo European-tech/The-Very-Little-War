@@ -113,7 +113,7 @@ if (!$donnees) {
     $contenuNews = 'Aucune news pour l\'instant.';
 } else {
     $allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><hr>';
-    $contenuNews = nl2br(strip_tags(stripslashes($donnees['contenu']), $allowedTags));
+    $contenuNews = nl2br(strip_tags($donnees['contenu'], $allowedTags));
 }
 
 debutCarte();

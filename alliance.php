@@ -199,7 +199,7 @@ if ($_GET['id'] != -1) {
             $pointstotaux = $joueur['totalPoints'] + $pointstotaux;
         }
 
-        debutCarte(stripslashes($allianceJoueurPage['nom']));
+        debutCarte($allianceJoueurPage['nom']);
 
         $rangRows = dbFetchAll($base, 'SELECT tag FROM alliances ORDER BY pointstotaux DESC');
         $rang = 1;
@@ -213,7 +213,7 @@ if ($_GET['id'] != -1) {
 
         echo important('Informations');
         echo chipInfo('<span class="important">Rang : </span>' . imageClassement($rang), 'images/alliance/up.png') . '<br/>';
-        echo chipInfo('<span class="important">TAG : </span>' . htmlspecialchars(stripslashes($allianceJoueurPage['tag']), ENT_QUOTES, 'UTF-8'), 'images/alliance/post-it.png') . '<br/>';
+        echo chipInfo('<span class="important">TAG : </span>' . htmlspecialchars($allianceJoueurPage['tag'], ENT_QUOTES, 'UTF-8'), 'images/alliance/post-it.png') . '<br/>';
         echo chipInfo('<span class="important">Membres : </span>' . $nbjoueurs, 'images/alliance/sommejoueurs.png') . '<br/>';
         echo chipInfo('<span class="important">Points : </span>' . $pointstotaux, 'images/alliance/points.png') . '<br/>';
         echo chipInfo('<span class="important">Moyenne : </span>' . floor($pointstotaux / $nbjoueurs), 'images/alliance/sommepoints.png') . '<br/>';

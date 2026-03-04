@@ -348,9 +348,9 @@ include("includes/layout.php");
 debutCarte('Paramètres de l\'équipe');
 debutListe();
 if ($chef) {
-	item(['form' => ["allianceadmin.php", "changerNom"], 'floating' => true, 'titre' => "Nom de l'alliance", 'input' => '<input type="text" name="changernom" id="changernom" value="' . htmlspecialchars(stripslashes($chef['nom']), ENT_QUOTES, 'UTF-8') . '" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'changerNom'])]);
+	item(['form' => ["allianceadmin.php", "changerNom"], 'floating' => true, 'titre' => "Nom de l'alliance", 'input' => '<input type="text" name="changernom" id="changernom" value="' . htmlspecialchars($chef['nom'], ENT_QUOTES, 'UTF-8') . '" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'changerNom'])]);
 
-	item(['form' => ["allianceadmin.php", "changerTAG"], 'floating' => true, 'titre' => "TAG", 'input' => '<input maxlength="' . ALLIANCE_TAG_MAX_LENGTH . '" type="text" name="changertag" id="changertag" value="' . htmlspecialchars(stripslashes($chef['tag']), ENT_QUOTES, 'UTF-8') . '" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'changerTAG'])]);
+	item(['form' => ["allianceadmin.php", "changerTAG"], 'floating' => true, 'titre' => "TAG", 'input' => '<input maxlength="' . ALLIANCE_TAG_MAX_LENGTH . '" type="text" name="changertag" id="changertag" value="' . htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8') . '" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'changerTAG'])]);
 }
 if ($description) {
 	creerBBcode("changerdescription", $chef['description']);

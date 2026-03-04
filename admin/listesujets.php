@@ -70,8 +70,8 @@ $sujetId = (int)$donnees['id'];
 <td><form method="post" action="listesujets.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="verouillersujet" value="<?php echo $sujetId; ?>" /><button type="submit">Vérouiller</button></form></td>
 <td><form method="post" action="listesujets.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="deverouillersujet" value="<?php echo $sujetId; ?>" /><button type="submit">Dévérouiller</button></form></td>
 <td><form method="post" action="listesujets.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="supprimersujet" value="<?php echo $sujetId; ?>" /><button type="submit">Supprimer</button></form></td>
-<td><?php echo htmlspecialchars(stripslashes($donnees['titre']), ENT_QUOTES, 'UTF-8'); ?></td>
-<td><?php echo htmlspecialchars(stripslashes($donnees['auteur']), ENT_QUOTES, 'UTF-8'); ?></td>
+<td><?php echo htmlspecialchars($donnees['titre'], ENT_QUOTES, 'UTF-8'); ?></td>
+<td><?php echo htmlspecialchars($donnees['auteur'], ENT_QUOTES, 'UTF-8'); ?></td>
 <td><?php if($donnees['statut'] == 0){ echo "Ouvert"; } else { echo "Vérouillé"; } ?></td>
 <td><?php echo date('d/m/Y', $donnees['timestamp']); ?></td>
 </tr>

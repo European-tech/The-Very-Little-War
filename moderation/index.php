@@ -230,8 +230,8 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 								<td><form method="post" action="index.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="verouillersujet" value="<?php echo (int)$donnees['id']; ?>" /><button type="submit">Vérouiller</button></form></td>
 								<td><form method="post" action="index.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="deverouillersujet" value="<?php echo (int)$donnees['id']; ?>" /><button type="submit">Dévérouiller</button></form></td>
 								<td><form method="post" action="index.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="supprimersujet" value="<?php echo (int)$donnees['id']; ?>" /><button type="submit">Supprimer</button></form></td>
-								<td><?php echo htmlspecialchars(stripslashes($donnees['titre']), ENT_QUOTES, 'UTF-8'); ?></td>
-								<td><?php echo htmlspecialchars(stripslashes($donnees['auteur']), ENT_QUOTES, 'UTF-8'); ?></td>
+								<td><?php echo htmlspecialchars($donnees['titre'], ENT_QUOTES, 'UTF-8'); ?></td>
+								<td><?php echo htmlspecialchars($donnees['auteur'], ENT_QUOTES, 'UTF-8'); ?></td>
 								<td><?php if ($donnees['statut'] == 0) {
 										echo "Ouvert";
 									} else {

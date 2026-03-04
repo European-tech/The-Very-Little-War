@@ -50,8 +50,8 @@ foreach ($reponseRows as $donnees)
 ?>
 <tr>
 <td><form method="post" action="supprimerreponse.php" style="display:inline"><?php echo csrfField(); ?><input type="hidden" name="supprimer" value="<?php echo (int)$donnees['id']; ?>" /><input type="submit" value="Supprimer" /></form></td>
-<td><?php echo htmlspecialchars(stripslashes($donnees['contenu']), ENT_QUOTES, 'UTF-8'); ?></td>
-<td><?php echo htmlspecialchars(stripslashes($donnees['auteur']), ENT_QUOTES, 'UTF-8'); ?></td>
+<td><?php echo htmlspecialchars($donnees['contenu'], ENT_QUOTES, 'UTF-8'); ?></td>
+<td><?php echo htmlspecialchars($donnees['auteur'], ENT_QUOTES, 'UTF-8'); ?></td>
 <td><?php echo date('d/m/Y', $donnees['timestamp']); ?></td>
 </tr>
 <?php
