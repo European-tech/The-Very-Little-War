@@ -79,4 +79,150 @@ L'exploitation de tout bug découvert sur The Very Little War est interdite. Ce 
 <?php
 finContent();
 finCarte();
+
+// =============================================================================
+// V4 GAME MECHANICS — Règles du jeu
+// =============================================================================
+
+debutCarte("Règles du jeu — Mécaniques V4");
+debutContent();
+?>
+
+<?php echo important('Synergies covalentes'); ?>
+Chaque atome possède un <strong>rôle principal</strong> et un <strong>rôle secondaire</strong> (synergie). L'atome principal détermine la puissance de base, tandis que l'atome secondaire l'amplifie. Le <strong>condenseur</strong> multiplie l'efficacité de tous les atomes.<br/><br/>
+
+<strong>Formule générale :</strong><br/>
+<code>(atome<sup>1.2</sup> + atome) &times; (1 + synergie / 100) &times; modCondenseur</code><br/>
+où <code>modCondenseur = 1 + (niveau condenseur / 50)</code><br/><br/>
+
+<table style="width:100%;border-collapse:collapse;text-align:left;">
+<thead>
+<tr style="background-color:#f0f0f0;">
+<th style="padding:6px;border:1px solid #ddd;">Statistique</th>
+<th style="padding:6px;border:1px solid #ddd;">Atome principal</th>
+<th style="padding:6px;border:1px solid #ddd;">Synergie</th>
+</tr>
+</thead>
+<tbody>
+<tr><td style="padding:6px;border:1px solid #ddd;">Attaque</td><td style="padding:6px;border:1px solid #ddd;"><strong style="color:red;">Oxygène (O)</strong></td><td style="padding:6px;border:1px solid #ddd;">Hydrogène (H)</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Défense</td><td style="padding:6px;border:1px solid #ddd;"><strong style="color:black;">Carbone (C)</strong></td><td style="padding:6px;border:1px solid #ddd;">Brome (Br)</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Points de vie</td><td style="padding:6px;border:1px solid #ddd;"><strong style="color:#840000;">Brome (Br)</strong></td><td style="padding:6px;border:1px solid #ddd;">Carbone (C)</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Destruction</td><td style="padding:6px;border:1px solid #ddd;"><strong style="color:gray;">Hydrogène (H)</strong></td><td style="padding:6px;border:1px solid #ddd;">Oxygène (O)</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Pillage</td><td style="padding:6px;border:1px solid #ddd;"><strong style="color:#D07D00;">Soufre (S)</strong></td><td style="padding:6px;border:1px solid #ddd;">Chlore (Cl)</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Vitesse</td><td style="padding:6px;border:1px solid #ddd;"><strong style="color:green;">Chlore (Cl)</strong></td><td style="padding:6px;border:1px solid #ddd;">Azote (N)</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Temps de formation</td><td style="padding:6px;border:1px solid #ddd;"><strong style="color:blue;">Azote (N)</strong></td><td style="padding:6px;border:1px solid #ddd;">Iode (I)</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Production d'énergie</td><td style="padding:6px;border:1px solid #ddd;"><strong style="color:#BB6668;">Iode (I)</strong></td><td style="padding:6px;border:1px solid #ddd;">—</td></tr>
+</tbody>
+</table><br/>
+
+<em>Astuce :</em> Les paires Carbone/Brome et Oxygène/Hydrogène ont une synergie croisée. En investissant dans les deux, vous renforcez deux statistiques à la fois !<br/><br/>
+
+<?php echo important('Variants isotopiques'); ?>
+Lors de la création d'une classe de molécules, vous choisissez un <strong>type isotopique</strong> qui modifie définitivement ses caractéristiques. Ce choix est stratégique et irréversible.<br/><br/>
+
+<table style="width:100%;border-collapse:collapse;text-align:left;">
+<thead>
+<tr style="background-color:#f0f0f0;">
+<th style="padding:6px;border:1px solid #ddd;">Isotope</th>
+<th style="padding:6px;border:1px solid #ddd;">Attaque</th>
+<th style="padding:6px;border:1px solid #ddd;">Points de vie</th>
+<th style="padding:6px;border:1px solid #ddd;">Disparition</th>
+<th style="padding:6px;border:1px solid #ddd;">Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:6px;border:1px solid #ddd;"><strong>Normal</strong></td>
+<td style="padding:6px;border:1px solid #ddd;">—</td>
+<td style="padding:6px;border:1px solid #ddd;">—</td>
+<td style="padding:6px;border:1px solid #ddd;">—</td>
+<td style="padding:6px;border:1px solid #ddd;">Aucune modification</td>
+</tr>
+<tr>
+<td style="padding:6px;border:1px solid #ddd;"><strong>Stable</strong></td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;">-10%</td>
+<td style="padding:6px;border:1px solid #ddd;color:green;">+20%</td>
+<td style="padding:6px;border:1px solid #ddd;color:green;">-30%</td>
+<td style="padding:6px;border:1px solid #ddd;">Tank / Défenseur</td>
+</tr>
+<tr>
+<td style="padding:6px;border:1px solid #ddd;"><strong>Réactif</strong></td>
+<td style="padding:6px;border:1px solid #ddd;color:green;">+20%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;">-10%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;">+20%</td>
+<td style="padding:6px;border:1px solid #ddd;">Canon de verre</td>
+</tr>
+<tr>
+<td style="padding:6px;border:1px solid #ddd;"><strong>Catalytique</strong></td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;">-10%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;">-10%</td>
+<td style="padding:6px;border:1px solid #ddd;">—</td>
+<td style="padding:6px;border:1px solid #ddd;">Support : <strong>+15%</strong> à toutes les stats des <em>autres</em> classes</td>
+</tr>
+</tbody>
+</table><br/>
+
+<em>Astuce :</em> Une classe Catalytique est faible individuellement, mais elle renforce considérablement vos trois autres classes. Elle est particulièrement efficace si vous avez plusieurs classes actives.<br/><br/>
+
+<?php echo important('Spécialisations'); ?>
+Les spécialisations sont des <strong>choix irréversibles</strong> débloqués en atteignant un niveau de bâtiment spécifique. Chaque spécialisation offre un bonus et un malus — choisissez celle qui correspond à votre stratégie.<br/><br/>
+
+<strong>Combat</strong> — débloqué à <strong>Ionisateur niveau 15</strong><br/>
+<table style="width:100%;border-collapse:collapse;text-align:left;margin-bottom:12px;">
+<tr style="background-color:#f0f0f0;"><th style="padding:6px;border:1px solid #ddd;">Choix</th><th style="padding:6px;border:1px solid #ddd;">Effet</th></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Oxydant</strong></td><td style="padding:6px;border:1px solid #ddd;"><span style="color:green;">+10% attaque</span>, <span style="color:#c00;">-5% défense</span></td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Réducteur</strong></td><td style="padding:6px;border:1px solid #ddd;"><span style="color:green;">+10% défense</span>, <span style="color:#c00;">-5% attaque</span></td></tr>
+</table>
+
+<strong>Économie</strong> — débloqué à <strong>Producteur niveau 20</strong><br/>
+<table style="width:100%;border-collapse:collapse;text-align:left;margin-bottom:12px;">
+<tr style="background-color:#f0f0f0;"><th style="padding:6px;border:1px solid #ddd;">Choix</th><th style="padding:6px;border:1px solid #ddd;">Effet</th></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Industriel</strong></td><td style="padding:6px;border:1px solid #ddd;"><span style="color:green;">+20% production d'atomes</span>, <span style="color:#c00;">-10% production d'énergie</span></td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Énergétique</strong></td><td style="padding:6px;border:1px solid #ddd;"><span style="color:green;">+20% production d'énergie</span>, <span style="color:#c00;">-10% production d'atomes</span></td></tr>
+</table>
+
+<strong>Recherche</strong> — débloqué à <strong>Condenseur niveau 15</strong><br/>
+<table style="width:100%;border-collapse:collapse;text-align:left;margin-bottom:12px;">
+<tr style="background-color:#f0f0f0;"><th style="padding:6px;border:1px solid #ddd;">Choix</th><th style="padding:6px;border:1px solid #ddd;">Effet</th></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Théorique</strong></td><td style="padding:6px;border:1px solid #ddd;"><span style="color:green;">+2 points condenseur/niveau</span>, <span style="color:#c00;">-20% vitesse de formation</span></td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Appliqué</strong></td><td style="padding:6px;border:1px solid #ddd;"><span style="color:green;">+20% vitesse de formation</span>, <span style="color:#c00;">-1 point condenseur/niveau</span></td></tr>
+</table>
+
+<em>Attention :</em> Une fois choisie, une spécialisation ne peut pas être changée ! Réfléchissez bien avant de vous engager.<br/><br/>
+
+<?php echo important('Protection du coffre-fort'); ?>
+Le <strong>coffre-fort</strong> protège une partie de vos ressources contre le pillage en cas de défaite au combat. Plus votre coffre-fort est haut, plus vos réserves sont en sécurité.<br/><br/>
+
+<strong>Fonctionnement :</strong><br/>
+Chaque niveau de coffre-fort protège <strong>2%</strong> de votre capacité de stockage (dépôt), jusqu'à un maximum de <strong>50%</strong> (soit niveau 25).<br/><br/>
+
+<code>Ressources protégées = min(50%, niveau &times; 2%) &times; capacité du dépôt</code><br/><br/>
+
+<em>Exemple :</em> Avec un coffre-fort niveau 10 et un dépôt de 5000, vous protégez 20% &times; 5000 = <strong>1000 unités</strong> de chaque atome contre le pillage.<br/><br/>
+
+<?php echo important('Marché'); ?>
+Le marché permet d'acheter et de vendre des atomes. Les prix fluctuent en fonction de l'offre et de la demande de tous les joueurs.<br/><br/>
+
+<strong>Mécanismes :</strong><br/>
+&bull; <strong>Glissement de prix :</strong> chaque transaction déplace le cours en fonction du volume échangé, divisé par l'économie globale (10 000). Plus la transaction est importante, plus le prix bouge.<br/>
+&bull; <strong>Retour à la moyenne :</strong> après chaque transaction, le prix est tiré de 1% vers le prix de référence (1.0), ce qui empêche les prix extrêmes de persister.<br/>
+&bull; <strong>Taxe :</strong> toute vente est taxée à <strong>5%</strong> — vous ne récupérez que 95% de la valeur vendue.<br/>
+&bull; <strong>Limites de prix :</strong> les cours ne peuvent pas descendre en dessous de 0.1 ni dépasser 10.0.<br/><br/>
+
+<em>Astuce :</em> Achetez quand les prix sont bas et vendez quand ils sont hauts. Surveillez les tendances du marché pour faire des profits !<br/><br/>
+
+<?php echo important('Cascade de dégâts'); ?>
+En combat, les dégâts infligés ne sont jamais perdus. Si une classe de molécules est entièrement détruite et qu'il reste des dégâts excédentaires (<em>overkill</em>), ceux-ci se <strong>propagent à la classe suivante</strong>.<br/><br/>
+
+<strong>Fonctionnement selon la formation :</strong><br/>
+&bull; <strong>Dispersée :</strong> les dégâts sont répartis à parts égales entre les classes actives. L'excédent de chaque classe se propage aux suivantes.<br/>
+&bull; <strong>Phalange :</strong> la classe 1 absorbe 60% des dégâts (avec +20% de défense). L'excédent se propage aux classes 2, 3 et 4.<br/>
+&bull; <strong>Embuscade :</strong> les dégâts traversent vos classes dans l'ordre (1 &rarr; 2 &rarr; 3 &rarr; 4), cascade directe.<br/><br/>
+
+<em>Astuce :</em> Répartissez vos molécules entre plusieurs classes pour absorber plus de dégâts totaux. Une seule classe concentrée peut être anéantie d'un coup !<br/><br/>
+
+<?php
+finContent();
+finCarte();
+
 include("includes/copyright.php"); ?>
