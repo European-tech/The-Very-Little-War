@@ -83,7 +83,6 @@ if (isset($_POST['joueurAAttaquer'])) {
                 $positions = dbFetchOne($base, 'SELECT x,y FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
 
                 if ($nb > 0) {
-                    $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $_SESSION['login']);
                     $bool = 1;
 
                     $troupesPositives = true; // si sup a 0
@@ -108,12 +107,13 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                     if ($troupesPositives) {
 
+                        $moleculesAttaqueRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $_SESSION['login']);
                         $c = 1;
                         $tempsTrajet = 0;
                         $troupes = "";
                         $cout = 0;
 
-                        while ($moleculesAttaque = mysqli_fetch_array($ex)) {
+                        foreach ($moleculesAttaqueRows as $moleculesAttaque) {
                             if (ceil($moleculesAttaque['nombre']) < $_POST['nbclasse' . $c]) {
                                 $bool = 0;
                             }
@@ -144,9 +144,9 @@ if (isset($_POST['joueurAAttaquer'])) {
                         if ($cout <= $ressources['energie']) {
                             if ($bool) {
                                 withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet) {
-                                    $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $_SESSION['login']);
+                                    $moleculesAttaqueTxRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $_SESSION['login']);
                                     $c = 1;
-                                    while ($moleculesAttaque = mysqli_fetch_array($ex)) {
+                                    foreach ($moleculesAttaqueTxRows as $moleculesAttaque) {
                                         $newNombre = $moleculesAttaque['nombre'] - $_POST['nbclasse' . $c];
                                         if ($newNombre < 0) {
                                             throw new Exception('Pas assez de molécules');
@@ -197,14 +197,14 @@ if (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
 $nbResult = dbFetchOne($base, 'SELECT count(*) AS nb FROM actionsattaques WHERE attaquant=? OR (defenseur=? AND troupes!=?)', 'sss', $_SESSION['login'], $_SESSION['login'], 'Espionnage');
 $nb = $nbResult;
 
-$ex = dbQuery($base, 'SELECT * FROM actionsattaques WHERE attaquant=? OR defenseur=? ORDER BY tempsAttaque ASC', 'ss', $_SESSION['login'], $_SESSION['login']);
+$actionsattaquesRows = dbFetchAll($base, 'SELECT * FROM actionsattaques WHERE attaquant=? OR defenseur=? ORDER BY tempsAttaque ASC', 'ss', $_SESSION['login'], $_SESSION['login']);
 if ($nb['nb'] > 0) {
     debutCarte();
     scriptAffichageTemps();
     echo '<div class="table-responsive"><table>';
     echo '<tr><th>Type</th><th>Joueur</th><th>Temps</th></tr>';
 
-    while ($actionsattaques = mysqli_fetch_array($ex)) {
+    foreach ($actionsattaquesRows as $actionsattaques) {
 
         if ($_SESSION['login'] == $actionsattaques['attaquant']) { // faire si retour ou non
             if (time() < $actionsattaques['tempsAttaque']) {
@@ -377,17 +377,16 @@ if ($_GET['type'] == 0) {
 if (isset($_GET['id'])) {
     $_GET['id'] = trim($_GET['id']);
 
-    $ex = dbQuery($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
-    $nb = mysqli_num_rows($ex);
-    $joueur = mysqli_fetch_array($ex);
+    $joueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
+    $nb = $joueur ? 1 : 0;
 
     if ($nb > 0) {
         if ($_GET['type'] == 1) {
             debutCarte("Attaquer");
             echo '<form method="post" action="attaquer.php" name="formAttaquer">';
             echo csrfField();
-            $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse', 's', $_SESSION['login']);
-            if (!$ex) {
+            $moleculesFormRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse', 's', $_SESSION['login']);
+            if (!is_array($moleculesFormRows)) {
                 error_log("SQL error fetching molecules for attacker view");
                 echo "Une erreur est survenue.";
             } else {
@@ -408,13 +407,13 @@ if (isset($_GET['id'])) {
             echo important("Troupes attaquantes");
             debutListe();
 
-            $ex1 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? AND formule!=?', 'ss', $_SESSION['login'], "Vide");
+            $moleculesNonVideRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? AND formule!=?', 'ss', $_SESSION['login'], "Vide");
 
-            $nombreClasses = mysqli_num_rows($ex1);
+            $nombreClasses = count($moleculesNonVideRows);
             if ($nombreClasses == 0) {
                 echo 'Vous n\'avez aucune molécule et vous ne pouvez donc pas attaquer.';
             } else {
-                while ($molecules = mysqli_fetch_array($ex)) {
+                foreach ($moleculesFormRows as $molecules) {
                     if ($molecules['formule'] != "Vide") {
                         item(['titre' => '<a href="molecule.php?id=' . $molecules['id'] . '" class="lienFormule">' . couleurFormule($molecules['formule']) . '</a>', 'floating' => false, 'input' => '<input type="number" name="nbclasse' . $molecules['numeroclasse'] . '" id="nbclasse' . $molecules['numeroclasse'] . '" placeholder="Nombre" />', 'after' => nombreMolecules('<a href="javascript:document.getElementById(\'nbclasse' . $molecules['numeroclasse'] . '\').value = ' . ceil($molecules['nombre']) . ';actualiseTemps();actualiseCout();" class="lienVisible">' . ceil($molecules['nombre']) . '</a>')]);
                     }
@@ -425,11 +424,11 @@ if (isset($_GET['id'])) {
             }
             echo '</form>';
 
-            $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? AND formule!=? ORDER BY numeroclasse', 'ss', $_SESSION['login'], 'Vide');
-            if (!$ex) {
+            $moleculesJsRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? AND formule!=? ORDER BY numeroclasse', 'ss', $_SESSION['login'], 'Vide');
+            if (!is_array($moleculesJsRows)) {
                 error_log("SQL error fetching molecules for attack JS");
             } else {
-            $nbClasses = mysqli_num_rows($ex);
+            $nbClasses = count($moleculesJsRows);
             // affichage du temps pour attaquer
             echo '
             <script>
@@ -472,7 +471,7 @@ if (isset($_GET['id'])) {
 
 
             $c = 1;
-            while ($molecules = mysqli_fetch_array($ex)) {
+            foreach ($moleculesJsRows as $molecules) {
                 echo 'tempsAttaque[' . ($c - 1) . '] = ' . round($distance / vitesse($molecules['chlore'], $molecules['azote'], $niveauchlore) * SECONDS_PER_HOUR) . ';';
                 echo 'document.getElementById("nbclasse' . $molecules['numeroclasse'] . '").addEventListener("input",function(){
                         var nbUnites = document.getElementById("nbclasse' . $molecules['numeroclasse'] . '").value;

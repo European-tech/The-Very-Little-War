@@ -108,7 +108,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	$premierJoueurAafficher = ($page - 1) * $nombreDeJoueursParPage;
 
 	// $order is whitelisted, $premierJoueurAafficher and $nombreDeJoueursParPage are integers
-	$classement = dbQuery($base, 'SELECT * FROM autre ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierJoueurAafficher, $nombreDeJoueursParPage);
+	$classementRows = dbFetchAll($base, 'SELECT * FROM autre ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierJoueurAafficher, $nombreDeJoueursParPage);
 	$compteur = $nombreDeJoueursParPage*($page-1)+1;
 
 	if(isset($_SESSION['login'])) {
@@ -165,7 +165,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	</thead>
 	<tbody>
 	<?php
-	while($donnees = mysqli_fetch_array($classement)){
+	foreach($classementRows as $donnees){
 		$rowAllianceId = (int) $donnees['idalliance'];
 		$enGuerre = "";
 
@@ -300,7 +300,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 	}
 
 	// $order is whitelisted
-	$classement = dbQuery($base, 'SELECT * FROM alliances ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premiereAllianceAafficher, $nombreDeAlliancesParPage);
+	$classementAllianceRows = dbFetchAll($base, 'SELECT * FROM alliances ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premiereAllianceAafficher, $nombreDeAlliancesParPage);
 	$compteur = $nombreDeAlliancesParPage*($page-1)+1;
 
 	// Pre-load member counts per alliance to avoid N+1 queries
@@ -345,7 +345,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 	</thead>
 	<tbody>
 	<?php
-	while($donnees = mysqli_fetch_array($classement)){
+	foreach($classementAllianceRows as $donnees){
 		$rowAllianceIdAT = (int)$donnees['id'];
 		$enGuerre = "";
 
@@ -447,8 +447,8 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 		$allianceTagCache[(int)$atr['id']] = $atr['tag'];
 	}
 
-	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE type=0 AND fin!= 0 ORDER BY (pertes1 + pertes2) DESC LIMIT ?, ?', 'ii', $premiereGuerreAafficher, $nombreDeGuerresParPage);
-	while ($donnees = mysqli_fetch_array($ex)) {
+	$guerreClassRows = dbFetchAll($base, 'SELECT * FROM declarations WHERE type=0 AND fin!= 0 ORDER BY (pertes1 + pertes2) DESC LIMIT ?, ?', 'ii', $premiereGuerreAafficher, $nombreDeGuerresParPage);
+	foreach ($guerreClassRows as $donnees) {
 		$alliance1 = ['tag' => isset($allianceTagCache[(int)$donnees['alliance1']]) ? $allianceTagCache[(int)$donnees['alliance1']] : '???'];
 		$alliance2 = ['tag' => isset($allianceTagCache[(int)$donnees['alliance2']]) ? $allianceTagCache[(int)$donnees['alliance2']] : '???'];
 		?>
@@ -571,8 +571,8 @@ else {
 	$bombeMedals = [0 => 'Rien', 1 => 'Bronze', 2 => 'Argent', 3 => 'Or', 4 => 'Platine'];
 
 	// $order and $table are whitelisted
-	$ex = dbQuery($base, 'SELECT login FROM ' . $table . ' ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
-	while ($donnees = mysqli_fetch_array($ex)) {
+	$forumClassRows = dbFetchAll($base, 'SELECT login FROM ' . $table . ' ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
+	foreach ($forumClassRows as $donnees) {
 		$donnees1 = isset($autreForumCache[$donnees['login']]) ? $autreForumCache[$donnees['login']] : ['nbMessages' => 0, 'bombe' => 0];
 		$trollLevel = isset($membreForumCache[$donnees['login']]) ? $membreForumCache[$donnees['login']] : 0;
 		$trollImage = isset($trollMedals[$trollLevel]) ? $trollMedals[$trollLevel] : 'diamantrouge';

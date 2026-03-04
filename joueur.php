@@ -15,15 +15,8 @@ include("includes/layout.php");
 
 if (isset($_GET['id'])) {
 	$_GET['id'] = trim($_GET['id']);
-	$req = dbQuery($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
-	if (!$req) {
-		error_log("SQL error fetching membre for joueur page");
-		$membre = null;
-		$nb = 0;
-	} else {
-		$membre = mysqli_fetch_array($req);
-		$nb = mysqli_num_rows($req);
-	}
+	$membre = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
+	$nb = $membre ? 1 : 0;
 
 	if($nb > 0) {
 		$donnees1 = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $membre['login']);
@@ -32,9 +25,9 @@ if (isset($_GET['id'])) {
 
 		$donnees2 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $donnees3['idalliance']);
 
-		$req4 = dbQuery($base, 'SELECT nombre FROM molecules WHERE proprietaire=? AND nombre!=0', 's', $membre['login']);
+		$moleculesCountRows = dbFetchAll($base, 'SELECT nombre FROM molecules WHERE proprietaire=? AND nombre!=0', 's', $membre['login']);
 		$nb_molecules = 0;
-		while($donnees4 = mysqli_fetch_array($req4)) {
+		foreach($moleculesCountRows as $donnees4) {
 			$nb_molecules = $nb_molecules + $donnees4['nombre'];
 		}
 

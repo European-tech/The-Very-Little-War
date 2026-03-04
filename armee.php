@@ -30,8 +30,8 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
 
             dbExecute($base, 'DELETE FROM actionsformation WHERE login=? AND idclasse=?', 'si', $login, $moleculeId);
             $nvxDebut = time();
-            $exActuActions = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=?', 's', $login);
-            while ($actionsformation = mysqli_fetch_array($exActuActions)) {
+            $actuActionsRows = dbFetchAll($base, 'SELECT * FROM actionsformation WHERE login=?', 's', $login);
+            foreach ($actuActionsRows as $actionsformation) {
                 if (time() < $actionsformation['debut']) {
                     $newFin = $nvxDebut + $actionsformation['nombreRestant'] * $actionsformation['tempsPourUn'];
                     dbExecute($base, 'UPDATE actionsformation SET debut=?, fin=? WHERE id=?', 'iii', $nvxDebut, $newFin, $actionsformation['id']);
@@ -42,8 +42,8 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
             }
 
             // on enleve ces types de molécules dans les attaques lancées
-            $ex = dbQuery($base, 'SELECT * FROM actionsattaques WHERE attaquant=?', 's', $login);
-            while ($actionsattaques = mysqli_fetch_array($ex)) {
+            $actionsattaquesRows = dbFetchAll($base, 'SELECT * FROM actionsattaques WHERE attaquant=?', 's', $login);
+            foreach ($actionsattaquesRows as $actionsattaques) {
                 $explosion = explode(";", $actionsattaques['troupes']);
                 $chaine = "";
                 for ($i = 1; $i <= $nbClasses; $i++) {
@@ -125,10 +125,10 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
                     $total = $total + $donneesFormer[$ressource];
                 }
 
-                $ex = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY fin DESC', 's', $login);
-                $nb = mysqli_num_rows($ex);
+                $actionsformationRow = dbFetchOne($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY fin DESC', 's', $login);
+                $nb = $actionsformationRow ? 1 : 0;
                 if ($nb > 0) {
-                    $actionsformation = mysqli_fetch_array($ex);
+                    $actionsformation = $actionsformationRow;
                     $tempsDebut = $actionsformation['fin'];
                 } else {
                     $tempsDebut = time();
@@ -266,8 +266,8 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
 
 include("includes/layout.php");
 
-$ex = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY debut ASC', 's', $_SESSION['login']);
-$nb = mysqli_num_rows($ex);
+$actionsformationRows = dbFetchAll($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY debut ASC', 's', $_SESSION['login']);
+$nb = count($actionsformationRows);
 if ($nb > 0) {
     debutCarte();
     scriptAffichageTemps();
@@ -275,7 +275,7 @@ if ($nb > 0) {
     echo '<tr><th>Molécule</th><th>Prochaine</th><th>Total</th></tr>';
 
     $c = 0;
-    while ($actionsformation = mysqli_fetch_array($ex)) {
+    foreach ($actionsformationRows as $actionsformation) {
         $offset = max(0, $actionsformation['debut'] - time());
 
         $moleculeEnCours = dbFetchOne($base, 'SELECT * FROM molecules WHERE id=?', 'i', $actionsformation['idclasse']);
@@ -369,16 +369,16 @@ if (isset($_POST['emplacementmoleculecreer'])) {
 
 if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
     debutCarte('Molécule ' . aide('armee'));
-    $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse', 's', $_SESSION['login']);
-    if (!$ex) {
+    $moleculeRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse', 's', $_SESSION['login']);
+    if (!is_array($moleculeRows)) {
         error_log("SQL error fetching molecules");
         echo "Une erreur est survenue.";
     } else {
-    $nbclasse = mysqli_num_rows($ex);
+    $nbclasse = count($moleculeRows);
 
     $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $_SESSION['login']);
     $compteur = 0;
-    while ($molecule = mysqli_fetch_array($ex)) {
+    foreach ($moleculeRows as $molecule) {
         echo '<form action="armee.php" method="post">' . csrfField() . '<img src="images/' . $molecule['numeroclasse'] . '.png" alt="' . $molecule['numeroclasse'] . '" style="vertical-align: middle;height:40px;width:40px;"/>';
         echo '<a href="molecule.php?id=' . $molecule['id'] . '" style="margin-left: 20px;font-weight:bold;" class="lienFormule">' . couleurFormule($molecule['formule']) . '</a>  ';
         echo nombreMolecules(ceil($molecule['nombre']));
@@ -424,12 +424,12 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
 } else {
     debutCarte("Armée" . aide("vueEnsemble"));
     debutContent();
-    $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? AND formule!=? ORDER BY numeroclasse', 'ss', $_SESSION['login'], "Vide");
-    if (!$ex) {
+    $moleculeOverviewRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? AND formule!=? ORDER BY numeroclasse', 'ss', $_SESSION['login'], "Vide");
+    if (!is_array($moleculeOverviewRows)) {
         error_log("SQL error fetching army overview");
         echo "Une erreur est survenue.";
     } else {
-    $nbclasse = mysqli_num_rows($ex);
+    $nbclasse = count($moleculeOverviewRows);
 ?>
     <div class="reponsive-table">
         <table class="table table-striped table-bordered">
@@ -441,7 +441,7 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
             </thead>
             <tbody>
                 <?php
-                while ($molecule = mysqli_fetch_array($ex)) {
+                foreach ($moleculeOverviewRows as $molecule) {
                     $mx = $molecule['oxygene'];
                     foreach ($nomsRes as $num => $ressource) {
                         $mx = max($mx, $molecule[$ressource]);

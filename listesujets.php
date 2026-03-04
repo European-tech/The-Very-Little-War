@@ -66,7 +66,7 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 
 	// On calcule le numéro du premier message qu'on prend pour le LIMIT de MySQL
 	$premierSujetAafficher = ($page - 1) * $nombreDeSujetsParPage;
-	$ex1 = dbQuery($base, 'SELECT * FROM sujets WHERE idforum = ? ORDER BY statut, timestamp DESC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
+	$sujetRows = dbFetchAll($base, 'SELECT * FROM sujets WHERE idforum = ? ORDER BY statut, timestamp DESC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);
 	if ($nb_resultats > 0) {
 		echo '
 		<div class="table-responsive">
@@ -80,7 +80,7 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 		</tr>
 		</thead>
 		<tbody>';
-		while ($sujet = mysqli_fetch_array($ex1)) {
+		foreach ($sujetRows as $sujet) {
 			echo '<tr>';
 			if ($sujet['statut'] == 0) {
 				if (isset($_SESSION['login'])) {

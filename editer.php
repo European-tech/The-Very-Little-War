@@ -103,16 +103,9 @@ include("includes/layout.php");
 debutCarte("Editer");
 
 if ($id > 0 AND $type > 0) {
-	// Modification du sujet
-	if ($type == 1) {
-		$ex = dbQuery($base, 'SELECT * FROM sujets WHERE id = ?', 'i', $id);
-	}
-	// Modification d'un des messages
-	else {
-		$ex = dbQuery($base, 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
-	}
-	$reponse = mysqli_fetch_array($ex);
-	$nbReponses = mysqli_num_rows($ex);
+	// Modification du sujet ou d'un message
+	$reponse = dbFetchOne($base, $type == 1 ? 'SELECT * FROM sujets WHERE id = ?' : 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
+	$nbReponses = $reponse ? 1 : 0;
 	if ($id != 1 && $type == 2) { // si c'est un message il n'y a pas de titre
 		$reponse['titre'] = "";
 	}

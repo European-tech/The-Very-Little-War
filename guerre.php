@@ -13,9 +13,8 @@ include("includes/layout.php");
 
 if(isset($_GET['id'])) {
 	$_GET['id'] = (int)$_GET['id'];
-	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE id=? AND type=0', 'i', $_GET['id']);
-	$guerre = mysqli_fetch_array($ex);
-	$nbGuerres = mysqli_num_rows($ex);
+	$guerre = dbFetchOne($base, 'SELECT * FROM declarations WHERE id=? AND type=0', 'i', $_GET['id']);
+	$nbGuerres = $guerre ? 1 : 0;
 
 	if($nbGuerres > 0 && $guerre) {
 	$alliance1 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance1']);

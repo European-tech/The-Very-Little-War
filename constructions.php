@@ -104,10 +104,8 @@ function mepConstructions($liste)
     global $BUILDING_CONFIG;
 
     // on doit calculer le niveau actuel (et dans le futur avec les constructions le précédant)
-    $exNiveauActuel = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
-    $niveauActuel = mysqli_fetch_array($exNiveauActuel);
-    $nb = mysqli_num_rows($exNiveauActuel);
-    if ($nb == 0) {
+    $niveauActuel = dbFetchOne($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
+    if (!$niveauActuel) {
         $niveauActuel['niveau'] = $liste['niveau'];
     }
 
@@ -308,20 +306,16 @@ function traitementConstructions($liste)
                     }
                     mysqli_stmt_close($stmt);
 
-                    $ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
-                    $nb = mysqli_num_rows($ex);
-                    if ($nb > 0) {
-                        $actionsconstruction = mysqli_fetch_array($ex);
-                        $tempsDebut = $actionsconstruction['fin'];
+                    $lastConstruction = dbFetchOne($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
+                    if ($lastConstruction) {
+                        $tempsDebut = $lastConstruction['fin'];
                     } else {
                         $tempsDebut = time();
                     }
 
-                    $exNiveauActuel = dbQuery($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
-                    $niveauActuel = mysqli_fetch_array($exNiveauActuel);
-                    $nb = mysqli_num_rows($exNiveauActuel);
+                    $niveauActuel = dbFetchOne($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
 
-                    if ($nb == 0) {
+                    if (!$niveauActuel) {
                         $niveauActuel['niveau'] = $constructions[$liste['bdd']];
                     }
 
@@ -350,13 +344,13 @@ foreach ($listeConstructions as $num => $b) {
 
 include("includes/layout.php");
 
-$ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=?', 's', $_SESSION['login']);
-$nb = mysqli_num_rows($ex);
+$actionsconstructionRows = dbFetchAll($base, 'SELECT * FROM actionsconstruction WHERE login=?', 's', $_SESSION['login']);
+$nb = count($actionsconstructionRows);
 if ($nb > 0) {
     debutCarte();
     scriptAffichageTemps();
     echo '<div class="table-responsive"><table><tr><th>Constructions</th><th>Temps restant</th><th>Fin</th></tr>';
-    while ($actionsconstruction = mysqli_fetch_array($ex)) {
+    foreach ($actionsconstructionRows as $actionsconstruction) {
         echo '<tr><td>' . $actionsconstruction['affichage'] . ' <strong>niveau ' . $actionsconstruction['niveau'] . '</strong></td><td><span id="affichage' . $actionsconstruction['id'] . '">' . affichageTemps($actionsconstruction['fin'] - time()) . '</span></td><td>' . date('H\hi', $actionsconstruction['fin']) . '</td></tr>';
         echo '<script>
             var valeur' . $actionsconstruction['id'] . ' = ' . ($actionsconstruction['fin'] - time()) . ';

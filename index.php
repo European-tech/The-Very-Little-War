@@ -107,13 +107,11 @@ if (!isset($_SESSION['login'])) {
     finCarte();
 }
 
-$retour = dbQuery($base, 'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
-$nb = mysqli_num_rows($retour);
-if ($nb == 0) {
+$donnees = dbFetchOne($base, 'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
+if (!$donnees) {
     $donnees = ['titre' => 'Aucune news', 'contenu' => ''];
     $contenuNews = 'Aucune news pour l\'instant.';
 } else {
-    $donnees = mysqli_fetch_array($retour);
     $allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><hr>';
     $contenuNews = nl2br(strip_tags(stripslashes($donnees['contenu']), $allowedTags));
 }

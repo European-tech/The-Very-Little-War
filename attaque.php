@@ -6,13 +6,12 @@ include("includes/layout.php");
 
 if(isset($_GET['id'])){
     $_GET['id'] = (int)$_GET['id'];
-    $ex = dbQuery($base, 'SELECT * FROM actionsattaques WHERE id=? AND attaquant=? AND troupes!=?', 'iss', $_GET['id'], $_SESSION['login'], 'Espionnage');
-    $nb = mysqli_num_rows($ex);
+    $attaque = dbFetchOne($base, 'SELECT * FROM actionsattaques WHERE id=? AND attaquant=? AND troupes!=?', 'iss', $_GET['id'], $_SESSION['login'], 'Espionnage');
+    $nb = $attaque ? 1 : 0;
 
     if($nb > 0){
         debutCarte("Attaque");
             scriptAffichageTemps();
-            $attaque = mysqli_fetch_array($ex);
 
             $joueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $attaque['defenseur']);
             echo important("Cible");
@@ -62,10 +61,10 @@ if(isset($_GET['id'])){
             echo important("Troupes attaquantes");
             echo '<div class="table-responsive"><table>';
             $troupes = explode(";",$attaque['troupes']);
-            $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $_SESSION['login']);
+            $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $_SESSION['login']);
 
             $c = 0;
-            while($molecules = mysqli_fetch_array($ex)){
+            foreach($moleculesRows as $molecules){
                 if($troupes[$c] > 0){
                     echo '<tr><td>'.couleurFormule($molecules['formule']).'</td><td>'.$troupes[$c].'</td></tr>';
                 }

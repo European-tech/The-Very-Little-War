@@ -32,9 +32,9 @@ debutCarte();
     debutListe();
     echo '<form action="historique.php?sub=' . htmlspecialchars($_GET['sub'], ENT_QUOTES, 'UTF-8') . '" method="post" name="formHistorique">';
 
-    $ex2 = dbQuery($base, 'SELECT * FROM parties ORDER BY id DESC');
+    $partiesRows = dbFetchAll($base, 'SELECT * FROM parties ORDER BY id DESC');
     $options = "";
-    while ($data = mysqli_fetch_array($ex2)) {
+    foreach ($partiesRows as $data) {
         $s = "";
         if($_POST['numeropartie'] == $data['id']) {$s = "selected";}
         $options = $options.'<option value="'.(int)$data['id'].'" '.$s.'>'.date('m/Y',$data['debut']).'</option>';

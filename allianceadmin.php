@@ -16,12 +16,11 @@ if (!$chef) {
     exit();
 }
 
-$ex = dbQuery($base, 'SELECT * FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $chef['id']);
-$grade = mysqli_fetch_array($ex);
-$existeGrade = mysqli_num_rows($ex);
+$grade = dbFetchOne($base, 'SELECT * FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $chef['id']);
+$existeGrade = $grade ? 1 : 0;
 
-$ex = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
-$nombreJoueurs = mysqli_num_rows($ex);
+$joueurRows = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
+$nombreJoueurs = count($joueurRows);
 
 if ($chef['chef'] != $_SESSION['login'] and $existeGrade < 1) {
 ?>
@@ -205,8 +204,8 @@ if ($pacte) {
 	if (isset($_POST['pacte'])) {
 		csrfCheck();
 		$_POST['pacte'] = trim($_POST['pacte']);
-		$ex = dbQuery($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['pacte'], $currentAlliance['idalliance']);
-		$existeAlliance = mysqli_num_rows($ex);
+		$existeAllianceRows = dbFetchAll($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['pacte'], $currentAlliance['idalliance']);
+		$existeAlliance = count($existeAllianceRows);
 		if ($existeAlliance > 0) {
 			$allianceAllie = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['pacte']);
 
@@ -259,8 +258,8 @@ if ($guerre) {
 	if (isset($_POST['guerre'])) {
 		csrfCheck();
 		$_POST['guerre'] = trim($_POST['guerre']);
-		$ex = dbQuery($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['guerre'], $currentAlliance['idalliance']);
-		$existeAlliance = mysqli_num_rows($ex);
+		$existeAllianceRows = dbFetchAll($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['guerre'], $currentAlliance['idalliance']);
+		$existeAlliance = count($existeAllianceRows);
 		if ($existeAlliance > 0) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['guerre']);
 			$nbDeclarations = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance1=? AND alliance2=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0))', 'ii', $allianceAdverse['id'], $chef['id']);
@@ -368,8 +367,8 @@ debutContent();
 debutListe();
 if ($gradeChef) {
 	$options = '';
-	$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
-	while ($chef1 = mysqli_fetch_array($ex2)) {
+	$chefRows = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
+	foreach ($chefRows as $chef1) {
 		$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 	}
 	item(['form' => ["allianceadmin.php", "formChangerChef"], 'select' => ['changerchef', $options], 'titre' => 'Chef', 'input' => csrfField()]);
@@ -379,8 +378,8 @@ if ($gradeChef) {
 
 if ($bannir) {
 	$options = '';
-	$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
-	while ($chef1 = mysqli_fetch_array($ex2)) {
+	$bannirRows = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
+	foreach ($bannirRows as $chef1) {
 		$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 	}
 	item(['form' => ["allianceadmin.php", "bannir"], 'select' => ['bannirpersonne', $options], 'titre' => 'Bannir un membre', 'input' => csrfField()]);
@@ -412,8 +411,8 @@ if ($gradeChef) {
 		item(['floating' => true, 'titre' => "Nom du grade", 'input' => '<input type="text" name="nomgrade" id="nomgrade" class="form-control"/>']);
 
 		$options = '';
-		$ex2 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
-		while ($chef1 = mysqli_fetch_array($ex2)) {
+		$gradeMembreRows = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
+		foreach ($gradeMembreRows as $chef1) {
 			$safe = htmlspecialchars($chef1['login'], ENT_QUOTES, 'UTF-8'); $options = $options . '<option value="' . $safe . '">' . $safe . '</option>';
 		}
 		item(['select' => ['personnegrade', $options], 'titre' => 'Login du gradé']);
@@ -427,7 +426,7 @@ if ($gradeChef) {
 	<form method="post" action="allianceadmin.php" name="supprimerGrade">
 		<?php echo csrfField(); ?>
 		<?php
-		$ex = dbQuery($base, 'SELECT * FROM grades WHERE idalliance=?', 'i', $chef['id']);
+		$listeGradesRows = dbFetchAll($base, 'SELECT * FROM grades WHERE idalliance=?', 'i', $chef['id']);
 		?>
 		<div class="table-responsive">
 			<table class="table table-striped table-bordered">
@@ -440,7 +439,7 @@ if ($gradeChef) {
 				</thead>
 				<tbody>
 					<?php
-					while ($listeGrades = mysqli_fetch_array($ex)) {
+					foreach ($listeGradesRows as $listeGrades) {
 						$safeLogin = htmlspecialchars($listeGrades['login'], ENT_QUOTES, 'UTF-8');
 						$safeNom = htmlspecialchars($listeGrades['nom'], ENT_QUOTES, 'UTF-8');
 						echo '<tr>
@@ -465,7 +464,7 @@ if ($gradeChef) {
 	debutListe();
 	item(['form' => ["allianceadmin.php", "declarerPacte"], 'floating' => false, 'titre' => "Demander un pacte", 'input' => '<input type="text" name="pacte" id="pacte" placeholder="TAG de l\'alliance" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Demander', 'form' => 'declarerPacte'])]);
 	echo '<li>';
-	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE alliance1=? AND type=1 AND valide!=0', 'i', $chef['id']);
+	$pacteRows1 = dbFetchAll($base, 'SELECT * FROM declarations WHERE alliance1=? AND type=1 AND valide!=0', 'i', $chef['id']);
 	echo '
                         <div class="table-responsive">
                         <table class="table table-striped table-bordered">
@@ -475,7 +474,7 @@ if ($gradeChef) {
                         <th>Début</th>
                         <th>Fin</th>
                         </tr></thead><tbody>';
-	while ($pacte = mysqli_fetch_array($ex)) {
+	foreach ($pacteRows1 as $pacte) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $pacte['alliance2']);
 
 		echo '<tr>
@@ -486,8 +485,8 @@ if ($gradeChef) {
                             <input src="images/croix.png" alt="stop" type="image" name="stoppacte"></form></td>
                             </tr>';
 	}
-	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE alliance2=? AND type=1 AND valide!=0', 'i', $chef['id']);
-	while ($pacte = mysqli_fetch_array($ex)) {
+	$pacteRows2 = dbFetchAll($base, 'SELECT * FROM declarations WHERE alliance2=? AND type=1 AND valide!=0', 'i', $chef['id']);
+	foreach ($pacteRows2 as $pacte) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $pacte['alliance1']);
 
 		echo '<tr>
@@ -512,7 +511,7 @@ if ($guerre) {
 	debutListe();
 	item(['form' => ["allianceadmin.php", "declarerGuerre"], 'floating' => false, 'titre' => "Déclarer une guerre", 'input' => '<input type="text" name="guerre" id="guerre" placeholder="TAG de l\'alliance" class="form-control"/>' . csrfField(), 'after' => submit(['titre' => 'Déclarer', 'form' => 'declarerGuerre'])]);
 	echo '<li>';
-	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE alliance1=? AND type=0 AND fin=0', 'i', $chef['id']);
+	$guerreRows1 = dbFetchAll($base, 'SELECT * FROM declarations WHERE alliance1=? AND type=0 AND fin=0', 'i', $chef['id']);
 	echo '
                         <div class="table-responsive">
                         <table class="table table-striped table-bordered">
@@ -523,7 +522,7 @@ if ($guerre) {
                         <th>Pertes</th>
                         <th>Fin</th>
                         </tr></thead><tbody>';
-	while ($guerre = mysqli_fetch_array($ex)) {
+	foreach ($guerreRows1 as $guerre) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance2']);
 
 		echo '<tr>
@@ -535,8 +534,8 @@ if ($guerre) {
                             <input src="images/croix.png" alt="stop" type="image" name="stopguerre"></form></td>
                             </tr>';
 	}
-	$ex = dbQuery($base, 'SELECT * FROM declarations WHERE alliance2=? AND type=0 AND fin=0', 'i', $chef['id']);
-	while ($guerre = mysqli_fetch_array($ex)) {
+	$guerreRows2 = dbFetchAll($base, 'SELECT * FROM declarations WHERE alliance2=? AND type=0 AND fin=0', 'i', $chef['id']);
+	foreach ($guerreRows2 as $guerre) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance1']);
 
 		echo '<tr>

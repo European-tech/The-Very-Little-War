@@ -16,23 +16,19 @@ debutCarte("Forum"); ?>
 <?php
 	// Ajout de Yojim
 	// On vérifie si l'utilisateur n'est pas banni du forum
-	if(isset($_SESSION['login'])) {
-		$ex4 = dbQuery($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
-	}
-	// If not logged in, skip the ban check entirely
 	$isBanned = false;
-	if (isset($ex4) && mysqli_num_rows($ex4)) {
-		$isBanned = true;
+	if(isset($_SESSION['login'])) {
+		$sanction = dbFetchOne($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+		if ($sanction) {
+			$isBanned = true;
+		}
 	}
 	// Si il est banni
 	if ($isBanned) {
-		$ex4Result = $ex4;
-		$sanction = mysqli_fetch_array($ex4Result);
 		// On calcul la différence entre la date de fin et la date actuelle
-		$ex5 = dbQuery($base, 'SELECT DATEDIFF(CURDATE(), ?)', 's', $sanction['dateFin']);
-		$diff = mysqli_fetch_array($ex5);
+		$diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $sanction['dateFin']);
 		// Si la date de fin de la sanction est passée, on supprime la sanction
-		if ($diff[0] >= 0){
+		if ($diff['d'] >= 0){
 			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
 			// Rafraichissement de la page
 			echo "<script>window.location.replace(\"forum.php\")</script>";
@@ -63,9 +59,9 @@ if(isset($_SESSION['login'])) {
 </thead>
 <tbody>
 <?php
-$ex = dbQuery($base, 'SELECT * FROM forums');
+$forumRows = dbFetchAll($base, 'SELECT * FROM forums');
 
-while($forum = mysqli_fetch_array($ex)) {
+foreach($forumRows as $forum) {
     $nbSujets = dbFetchOne($base, 'SELECT count(*) AS nbSujets FROM sujets WHERE idforum = ? AND statut = 0', 'i', $forum['id']);
 	echo '<tr>';
     if(isset($_SESSION['login'])) {

@@ -11,15 +11,15 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 		$_POST['contenu'] = trim($_POST['contenu']);
 		if ($_POST['destinataire'] == "[alliance]") {
 			$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
-			$ex = dbQuery($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
-			while ($destinataire = mysqli_fetch_array($ex)) {
+			$destinataireRows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
+			foreach ($destinataireRows as $destinataire) {
 				$now = time();
 				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
 			}
 			$information = "Le message a bien été envoyé à toute l'alliance.";
 		} elseif ($_POST['destinataire'] == "[all]" && $_SESSION['login'] == "Guortates") {
-			$ex = dbQuery($base, 'SELECT * FROM autre');
-			while ($destinataire = mysqli_fetch_array($ex)) {
+			$allDestinataires = dbFetchAll($base, 'SELECT * FROM autre');
+			foreach ($allDestinataires as $destinataire) {
 				$now = time();
 				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
 			}
