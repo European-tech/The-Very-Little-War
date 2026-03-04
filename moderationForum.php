@@ -70,7 +70,7 @@ debutCarte("Modération du forum");
 	<!-- Script JQuery pour la selection des dates -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/themes/smoothness/jquery-ui.min.css" integrity="sha512-EPEm2NPSRmFKzSAFm4xFSVpZMC3cKgBSxMxIfiUVGJGwSCuikYmGmFiuxmGxTQsLMOuQOBVEfCm8bnYJnQMnQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js" integrity="sha512-Ww1y9OuQ2kehgVWSD/3nhgfrb424O3SgrGCDBOd1cMWcz1ZEAIjq7bZQTDsRP3VdJHTbJcNGFKYBKwF7OoWFbA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-	<script>
+	<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
 		$(function() {
 			// Construction et paramétrage du selecteur de date
 			$("#dateFin").datepicker({

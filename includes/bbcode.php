@@ -1,4 +1,4 @@
-<script language="Javascript">
+<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
 var isMozilla = (navigator.userAgent.toLowerCase().indexOf('gecko')!=-1) ? true : false;
 var regexp = new RegExp("[\r]","gi");
 

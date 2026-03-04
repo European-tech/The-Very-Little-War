@@ -352,7 +352,7 @@ if ($nb > 0) {
     echo '<div class="table-responsive"><table><tr><th>Constructions</th><th>Temps restant</th><th>Fin</th></tr>';
     foreach ($actionsconstructionRows as $actionsconstruction) {
         echo '<tr><td>' . $actionsconstruction['affichage'] . ' <strong>niveau ' . $actionsconstruction['niveau'] . '</strong></td><td><span id="affichage' . $actionsconstruction['id'] . '">' . affichageTemps($actionsconstruction['fin'] - time()) . '</span></td><td>' . date('H\hi', $actionsconstruction['fin']) . '</td></tr>';
-        echo '<script>
+        echo cspScriptTag() . '
             var valeur' . $actionsconstruction['id'] . ' = ' . ($actionsconstruction['fin'] - time()) . ';
             function tempsDynamique' . $actionsconstruction['id'] . '(){
                 if(valeur' . $actionsconstruction['id'] . ' > 0){

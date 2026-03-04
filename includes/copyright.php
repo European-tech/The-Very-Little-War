@@ -20,13 +20,18 @@ finCarte();
     <script type="text/javascript" src="js/loader.js"></script>
     <script type="text/javascript" src="js/countdown.js"></script>
     
-<script>
+<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
     document.getElementById('titre').style.marginLeft = window.innerWidth*0.32-105+"px";
     var myApp = new Framework7({swipePanel: 'left',ajaxLinks:'.ajax',animateNavBackIcon: true,material:true,smartSelectOpenIn:'picker',externalLinks:'.external',pushState:true,swipePanelActiveArea: 40});  //voir si PushState ne fait pas des bugs
     var $$ = Dom7;
     var mainView = myApp.addView('.view-main');
     var panel = myApp.addView('.panel-overlay');
-    
+
+    // Close panel when clicking menu links (replaces inline onclick)
+    document.querySelectorAll('.close-panel-link').forEach(function(el) {
+        el.addEventListener('click', function() { myApp.closePanel(); });
+    });
+
     var calVacs = myApp.calendar({
         input: '#calVacs',
         dateFormat: 'dd/mm/yyyy',
@@ -92,18 +97,36 @@ finCarte();
     function deconnexion(){
         document.location.href="deconnexion.php";
     }
-    
+
+    // Bind generate button if present (replaces javascript:generate() URIs)
+    var btnGenerate = document.getElementById('btn-generate');
+    if (btnGenerate) {
+        btnGenerate.addEventListener('click', function(e) {
+            e.preventDefault();
+            generate();
+        });
+    }
+
+    // Confirm dialog for buttons with data-confirm (replaces inline onclick="return confirm(...)")
+    document.querySelectorAll('[data-confirm]').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            if (!confirm(this.getAttribute('data-confirm'))) {
+                e.preventDefault();
+            }
+        });
+    });
+
 </script> 
 
 <?php
 if(isset($_GET['deployer'])){
-    echo '<script>
+    echo cspScriptTag() . '
         myApp.accordionOpen(document.getElementById("tutorielAccordion"));
     </script>';
 }
 ?>
 
-<script>
+<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
     function nFormatter(num) {
   var si = [
 	{ value: 1E24, symbol: "Y" },

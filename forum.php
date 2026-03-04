@@ -31,7 +31,7 @@ debutCarte("Forum"); ?>
 		if ($diff['d'] >= 0){
 			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
 			// Rafraichissement de la page
-			echo "<script>window.location.replace(\"forum.php\")</script>";
+			echo cspScriptTag() . "window.location.replace(\"forum.php\")</script>";
 		}
 		else {
 			list($annee,$mois,$jour) = explode('-',$sanction['dateFin']);

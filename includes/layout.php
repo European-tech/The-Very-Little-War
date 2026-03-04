@@ -1,7 +1,11 @@
+<?php
+$nonce = cspNonce();
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https://www.theverylittlewar.com; font-src 'self' https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
+?>
 <!DOCTYPE html>
 <html>
   <head>
-    <?php include("includes/meta.php"); 
+    <?php include("includes/meta.php");
     include("includes/style.php"); ?>
   </head>
     <?php if (isset($_SESSION['login']))
@@ -99,7 +103,7 @@
             </div>
             <?php
             echo '
-            <script>
+            ' . cspScriptTag() . '
                 function actualiserStats(){
                     var totalAtomes = 0;
                     ';
@@ -162,6 +166,13 @@
                         document.getElementById(\'demiVie\').innerHTML = contenu.valeur;
                     }});
                 }
+                // Bind oninput for all atom composition fields (replaces inline oninput handlers)
+                ';
+                foreach($nomsRes as $num => $res){
+                    echo 'if(document.getElementById("'.$res.'")) { document.getElementById("'.$res.'").addEventListener("input", actualiserStats); }
+                    ';
+                }
+                echo '
             </script>';
             }
             

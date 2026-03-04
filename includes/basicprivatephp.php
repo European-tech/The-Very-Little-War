@@ -1,5 +1,6 @@
 <?php
 require_once(__DIR__ . '/session_init.php');
+require_once(__DIR__ . '/csp.php');
 
 include("includes/connexion.php");
 include("includes/fonctions.php");

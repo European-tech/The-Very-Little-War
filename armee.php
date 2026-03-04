@@ -298,7 +298,7 @@ if ($nb > 0) {
         echo '<tr><td><strong id="nombreRestants' . $actionsformation['id'] . '">' . $actionsformation['nombreRestant'] . '</strong> ' . $affichageFormule . '</td><td id="affichageProchain' . $actionsformation['id'] . '">' . $prochaine . '</td><td id="affichage' . $actionsformation['id'] . '">' . affichageTemps($actionsformation['fin'] - time()) . '</td></tr>';
 
         echo '
-        <script>
+        ' . cspScriptTag() . '
             var valeur' . $actionsformation['id'] . ' = ' . ($actionsformation['fin'] - time()) . ';
 
 
@@ -344,7 +344,7 @@ if (isset($_POST['emplacementmoleculecreer'])) {
     echo csrfField();
     debutListe();
     foreach ($nomsRes as $num => $ressource) {
-        item(['titre' => nombreAtome($num, 'Nombre ' . pref($ressource) . '<strong>' . $nomsAccents[$num] . '</strong>') . aide($ressource, true), 'input' => '<input type="number" name="' . $ressource . '" id="' . $ressource . '" placeholder="' . $utilite[$num] . '" class="form-control" oninput="javascript:actualiserStats()"/>']);
+        item(['titre' => nombreAtome($num, 'Nombre ' . pref($ressource) . '<strong>' . $nomsAccents[$num] . '</strong>') . aide($ressource, true), 'input' => '<input type="number" name="' . $ressource . '" id="' . $ressource . '" placeholder="' . $utilite[$num] . '" class="form-control"/>']);
     }  ?>
     <input type="hidden" name="emplacementmoleculecreer1" value="<?php echo htmlspecialchars($_POST['emplacementmoleculecreer'], ENT_QUOTES, 'UTF-8'); ?>" />
 <?php
@@ -396,7 +396,7 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
 
             echo '</form></br><br/>';
             debutListe();
-            item(['titre' => 'Former', 'form' => ['armee.php', 'formermolecule' . $molecule['numeroclasse']], 'input' => '<input type="text" name="nombremolecules" id="nombremolecules" class="form-control" placeholder="Nombre de molécules"/><input type="hidden" name="emplacementmoleculeformer" value="' . $molecule['numeroclasse'] . '"/>' . csrfField(), 'after' => '<a name="generer" id="generer" onclick="javascript:document.getElementsByName(\'nombremolecules\')[' . $compteur . '].value = ' . $nbmoleculesMax . ';" value="Générer" class="button button-raised button-fill" style="margin-right:5px">Max : ' . chiffrePetit($nbmoleculesMax, 0) . '</a>']);
+            item(['titre' => 'Former', 'form' => ['armee.php', 'formermolecule' . $molecule['numeroclasse']], 'input' => '<input type="text" name="nombremolecules" id="nombremolecules" class="form-control" placeholder="Nombre de molécules"/><input type="hidden" name="emplacementmoleculeformer" value="' . $molecule['numeroclasse'] . '"/>' . csrfField(), 'after' => '<a name="generer" class="button button-raised button-fill max-fill-btn" data-target-index="' . $compteur . '" data-max-value="' . $nbmoleculesMax . '" style="margin-right:5px">Max : ' . chiffrePetit($nbmoleculesMax, 0) . '</a>']);
             item(['input' => submit(['form' => 'formermolecule' . $molecule['numeroclasse'], 'titre' => 'Former'])]);
             if ($compteur != 3) {
                 echo '<hr class="corps"><br/>';
@@ -410,6 +410,16 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
         }
     }
     } // end else
+
+    echo cspScriptTag() . '
+        document.querySelectorAll(".max-fill-btn").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                var idx = parseInt(this.getAttribute("data-target-index"));
+                var maxVal = this.getAttribute("data-max-value");
+                document.getElementsByName("nombremolecules")[idx].value = maxVal;
+            });
+        });
+    </script>';
 
     finCarte();
 

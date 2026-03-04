@@ -34,7 +34,7 @@ if(isset($_POST['idDeclaration'])) {
 <link rel="stylesheet" type="text/css" href="style.css" >
 </head>
 <body>
-<script LANGUAGE="JavaScript">
+<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
 window.location= "rapports.php";
 </script>
 </body>

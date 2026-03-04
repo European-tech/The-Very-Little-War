@@ -6,6 +6,7 @@ require_once(__DIR__ . '/logger.php');
 require_once(__DIR__ . '/rate_limiter.php');
 
 require_once(__DIR__ . '/session_init.php');
+require_once(__DIR__ . '/csp.php');
 
 // Clear login session data for public pages, but preserve CSRF tokens
 // so that forms (login, registration) can verify their submissions

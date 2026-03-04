@@ -21,7 +21,7 @@ if(isset($_GET['id'])){
             if(time() > $attaque['tempsAttaque']){
                 echo nombreTemps('<strong>Retour</strong> : <span id="affichage'.$attaque['id'].'">'.affichageTemps($attaque['tempsRetour']-time()).'</span>');
                 echo '
-                <script>
+                ' . cspScriptTag() . '
                     var valeur'.$attaque['id'].' = '.($attaque['tempsRetour']-time()).';
 
                     function tempsDynamique'.$attaque['id'].'(){
@@ -40,7 +40,7 @@ if(isset($_GET['id'])){
             else {
                 echo nombreTemps('<strong>Attaque</strong> : <span id="affichage'.$attaque['id'].'">'.affichageTemps($attaque['tempsAttaque']-time()).'</span>');
                 echo '
-                <script>
+                ' . cspScriptTag() . '
                     var valeur'.$attaque['id'].' = '.($attaque['tempsAttaque']-time()).';
 
                     function tempsDynamique'.$attaque['id'].'(){

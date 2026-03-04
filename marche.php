@@ -409,7 +409,7 @@ if ($nb > 0) {
             echo '<tr><td><img src="images/rapports/retour.png" class="imageChip" alt="fleche"/></td><td><a href="joueur.php?id=' . $safeEnvoyeur . '">' . $safeEnvoyeur . '</a></td><td id="affichage' . $actionsenvoi['id'] . '">' . affichageTemps($actionsenvoi['tempsArrivee'] - time()) . '</td></tr>';
         }
         echo '
-                <script>
+                ' . cspScriptTag() . '
                     var valeur' . $actionsenvoi['id'] . ' = ' . ($actionsenvoi['tempsArrivee'] - time()) . ';
 
                     function tempsDynamique' . $actionsenvoi['id'] . '(){
@@ -478,9 +478,9 @@ if ($_GET['sub'] == 0) {
                 $options = $options . '<option value="' . $ressource . '" data-option-color="' . $couleursSimples[$num] . '" data-option-image="images/petitesImages/' . $ressource . '.png">' . ucfirst($ressource) . '';
             }
 
-            item(['floating' => false, 'select' => ["typeRessourceAAcheter", $options, "javascript" => 'onChange="majAchat(true)"', "hauteur" => 450], 'titre' => 'Atome']);
-            item(['floating' => false, 'input' => '<input type="text" name="nombreRessourceAAcheter" id="nombreRessourceAAcheter" class="form-control" onChange="majAchat(true)"/>', 'titre' => 'Nombre']);
-            item(['floating' => false, 'input' => '<input type="text" name="coutEnergieAchat" id="coutEnergieAchat" class="form-control" onChange="majAchat(false)"/>', 'titre' => 'Coût en énergie (' . chiffrePetit($ressources['energie']) . ')']);
+            item(['floating' => false, 'select' => ["typeRessourceAAcheter", $options, "javascript" => '', "hauteur" => 450], 'titre' => 'Atome']);
+            item(['floating' => false, 'input' => '<input type="text" name="nombreRessourceAAcheter" id="nombreRessourceAAcheter" class="form-control"/>', 'titre' => 'Nombre']);
+            item(['floating' => false, 'input' => '<input type="text" name="coutEnergieAchat" id="coutEnergieAchat" class="form-control"/>', 'titre' => 'Coût en énergie (' . chiffrePetit($ressources['energie']) . ')']);
             item(['input' => submit(['form' => 'formAcheter', 'titre' => 'Acheter', 'image' => 'images/marche/achat.png'])]);
             ?>
         </form>
@@ -499,9 +499,9 @@ if ($_GET['sub'] == 0) {
                 $options = $options . '<option value="' . $ressource . '" data-option-color="' . $couleursSimples[$num] . '" data-option-image="images/petitesImages/' . $ressource . '.png">' . ucfirst($ressource) . ' (' . chiffrePetit($ressources[$ressource]) . ')</option>';
             }
 
-            item(['floating' => false, 'select' => ["typeRessourceAVendre", $options, "javascript" => 'onChange="majVente(true)"', "hauteur" => 450], 'titre' => 'Atome']);
-            item(['floating' => false, 'input' => '<input type="text" name="nombreRessourceAVendre" id="nombreRessourceAVendre" class="form-control" onChange="majVente(true)"/>', 'titre' => 'Nombre']);
-            item(['floating' => false, 'input' => '<input type="text" name="apportEnergieVente" id="apportEnergieVente" class="form-control" onChange="majVente(false)"/>', 'titre' => 'Apport en énergie']);
+            item(['floating' => false, 'select' => ["typeRessourceAVendre", $options, "javascript" => '', "hauteur" => 450], 'titre' => 'Atome']);
+            item(['floating' => false, 'input' => '<input type="text" name="nombreRessourceAVendre" id="nombreRessourceAVendre" class="form-control"/>', 'titre' => 'Nombre']);
+            item(['floating' => false, 'input' => '<input type="text" name="apportEnergieVente" id="apportEnergieVente" class="form-control"/>', 'titre' => 'Apport en énergie']);
             item(['input' => submit(['form' => 'formVendre', 'titre' => 'Vendre', 'image' => 'images/marche/vente.png'])]);
 
             ?>
@@ -510,7 +510,7 @@ if ($_GET['sub'] == 0) {
         finListe();
         finCarte();
         ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
             // script de calcul des ressources en temps reel (pour l'échange)
             function majAchat(param) {
                 var typeRessourceAAcheter = document.getElementById('typeRessourceAAcheter').value;
@@ -572,6 +572,16 @@ if ($_GET['sub'] == 0) {
                     document.getElementById("nombreRessourceAVendre").value = nombreRessourceAVendre;
                 }
             }
+
+            // Event listeners for buy form (replaces inline onChange)
+            document.getElementById('typeRessourceAAcheter').addEventListener('change', function(){ majAchat(true); });
+            document.getElementById('nombreRessourceAAcheter').addEventListener('change', function(){ majAchat(true); });
+            document.getElementById('coutEnergieAchat').addEventListener('change', function(){ majAchat(false); });
+
+            // Event listeners for sell form (replaces inline onChange)
+            document.getElementById('typeRessourceAVendre').addEventListener('change', function(){ majVente(true); });
+            document.getElementById('nombreRessourceAVendre').addEventListener('change', function(){ majVente(true); });
+            document.getElementById('apportEnergieVente').addEventListener('change', function(){ majVente(false); });
         </script>
 
     <?php
@@ -579,7 +589,7 @@ if ($_GET['sub'] == 0) {
     ?>
 
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript">
+    <script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
         // affichage des cours
         google.charts.load('current', {
             'packages': ['corechart']

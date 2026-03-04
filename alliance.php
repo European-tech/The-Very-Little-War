@@ -183,7 +183,7 @@ if ($_GET['id'] != -1) {
         if ($chefExiste == 0 or $idalliancechef['idalliance'] != $idalliance['idalliance']) {
             supprimerAlliance($idalliance['idalliance']);
 ?>
-            <script LANGUAGE="JavaScript">
+            <script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
                 window.location = "alliance.php";
             </script>
         <?php

@@ -69,7 +69,7 @@ if($autre['niveaututo'] == 2 and in_array("classement.php",explode("/",$_SERVER[
 	dbExecute($base, 'UPDATE ressources SET energie = ? WHERE login = ?', 'ds', $newEnergie, $_SESSION['login']);
 
     $information = "Bien, voyons la suite !";
-    echo '<script>document.location.href="classement.php?sub=0&deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    echo cspScriptTag() . 'document.location.href="classement.php?sub=0&deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 
 }
 
@@ -90,7 +90,7 @@ if($autre['niveaututo'] == 3 and $depot['producteur'] >= 2){
 	dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $updateParts) . ' WHERE login = ?', $updateTypes, ...$updateParams);
 
     $information = 'Félicitations pour votre première construction !';
-    echo '<script>document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    echo cspScriptTag() . 'document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 }
 
 if($autre['niveaututo'] == 4 and $constructions['pointsProducteur'] != '1;1;1;1;1;1;1;1'){
@@ -99,7 +99,7 @@ if($autre['niveaututo'] == 4 and $constructions['pointsProducteur'] != '1;1;1;1;
 	dbExecute($base, 'UPDATE ressources SET energie = ? WHERE login = ?', 'ds', $newEnergie, $_SESSION['login']);
 
     $information = "Bravo, votre production augmente !";
-    echo '<script>document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    echo cspScriptTag() . 'document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 
 }
 
@@ -107,7 +107,7 @@ if($autre['niveaututo'] == 5 and in_array("armee.php",explode("/",$_SERVER['PHP_
 	dbExecute($base, 'UPDATE autre SET niveaututo = 6 WHERE login = ?', 's', $_SESSION['login']);
 
     $information = 'Bien !';
-    echo '<script>document.location.href="armee.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    echo cspScriptTag() . 'document.location.href="armee.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 }
 
 $molRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire = ?', 's', $_SESSION['login']);
@@ -134,7 +134,7 @@ if($autre['niveaututo'] == 6 and $numClasse!= -1){
 	dbExecute($base, 'UPDATE ressources SET energie = ? WHERE login = ?', 'ds', $newEnergie, $_SESSION['login']);
 
     $information = 'Bravo, votre armée augmente !';
-    echo '<script>document.location.href="attaquer.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    echo cspScriptTag() . 'document.location.href="attaquer.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 }
 
 if($autre['niveaututo'] == 7 and in_array("joueur.php",explode("/",$_SERVER['PHP_SELF']))){
@@ -143,7 +143,7 @@ if($autre['niveaututo'] == 7 and in_array("joueur.php",explode("/",$_SERVER['PHP
     dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $_SESSION['login']);
 
     $information = 'Parfait, passons à la suite !';
-    echo '<script>document.location.href="alliance.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    echo cspScriptTag() . 'document.location.href="alliance.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 }
 
 $idallianceRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
@@ -155,7 +155,7 @@ if($autre['niveaututo'] == 8 and $idallianceRow['idalliance']!=0){
 	dbExecute($base, 'UPDATE autre SET niveaututo = 9 WHERE login = ?', 's', $_SESSION['login']);
 
     $information = 'Bien joué, vous serez bien plus en sécurité.';
-    echo '<script>document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    echo cspScriptTag() . 'document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 }
 if($autre['niveaututo'] == 9 and isset($_POST['finir'])){
 
@@ -423,7 +423,7 @@ else { // si cela n'a pas été initialisé à la première connexion
     }
     ?>
 
-<script> // affichage des variables en temps reel
+<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>"> // affichage des variables en temps reel
 // voir temps de début pour passer au bon moment
 // faire les autres ressources
 // molecules aussi

@@ -108,7 +108,7 @@ function revenuAtomeJavascript($joueur)
     }
 
     echo '
-    <script>
+    ' . cspScriptTag() . '
     function revenuAtomeJavascript(niveau){
         return Math.round(' . $bonusDuplicateur . '*' . BASE_ATOMS_PER_POINT . '*niveau);
     }

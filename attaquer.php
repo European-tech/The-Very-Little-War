@@ -215,7 +215,7 @@ if ($nb['nb'] > 0) {
                 }
 
                 echo '
-                <script>
+                ' . cspScriptTag() . '
                     var valeur' . $actionsattaques['id'] . ' = ' . ($actionsattaques['tempsAttaque'] - time()) . ';
 
                     function tempsDynamique' . $actionsattaques['id'] . '(){
@@ -232,7 +232,7 @@ if ($nb['nb'] > 0) {
                     </script>';
             } else {
                 echo '<tr><td><a href="attaque.php?id=' . $actionsattaques['id'] . '"><img src="images/attaquer/retour.png" class="imageChip" alt="epee"/></a></td><td>Retour</td><td id="affichage' . $actionsattaques['id'] . '">' . affichageTemps($actionsattaques['tempsRetour'] - time()) . '</td></tr>';
-                echo '<script>
+                echo cspScriptTag() . '
                     var valeur' . $actionsattaques['id'] . ' = ' . ($actionsattaques['tempsRetour'] - time()) . ';
 
                     function tempsDynamique' . $actionsattaques['id'] . '(){
@@ -366,7 +366,7 @@ if ($_GET['type'] == 0) {
         }
         ?>
     </div>
-    <script>
+    <script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
         document.getElementById('conteneurCarte').scrollTop = Math.max(0, parseInt(<?php echo $tailleTile * ($x + 0.5); ?> - document.getElementById('conteneurCarte').offsetHeight / 2));
         document.getElementById('conteneurCarte').scrollLeft = Math.max(0, parseInt(<?php echo $tailleTile * ($y + 0.5); ?> - document.getElementById('conteneurCarte').offsetWidth / 2));
     </script>
@@ -415,7 +415,7 @@ if (isset($_GET['id'])) {
             } else {
                 foreach ($moleculesFormRows as $molecules) {
                     if ($molecules['formule'] != "Vide") {
-                        item(['titre' => '<a href="molecule.php?id=' . $molecules['id'] . '" class="lienFormule">' . couleurFormule($molecules['formule']) . '</a>', 'floating' => false, 'input' => '<input type="number" name="nbclasse' . $molecules['numeroclasse'] . '" id="nbclasse' . $molecules['numeroclasse'] . '" placeholder="Nombre" />', 'after' => nombreMolecules('<a href="javascript:document.getElementById(\'nbclasse' . $molecules['numeroclasse'] . '\').value = ' . ceil($molecules['nombre']) . ';actualiseTemps();actualiseCout();" class="lienVisible">' . ceil($molecules['nombre']) . '</a>')]);
+                        item(['titre' => '<a href="molecule.php?id=' . $molecules['id'] . '" class="lienFormule">' . couleurFormule($molecules['formule']) . '</a>', 'floating' => false, 'input' => '<input type="number" name="nbclasse' . $molecules['numeroclasse'] . '" id="nbclasse' . $molecules['numeroclasse'] . '" placeholder="Nombre" />', 'after' => nombreMolecules('<a href="#" class="lienVisible max-fill-attack" data-target-id="nbclasse' . $molecules['numeroclasse'] . '" data-max-value="' . ceil($molecules['nombre']) . '">' . ceil($molecules['nombre']) . '</a>')]);
                     }
                 }
                 echo '<input type="hidden" name="joueurAAttaquer" value="' . htmlspecialchars($joueur['login'], ENT_QUOTES, 'UTF-8') . '"/><br/>';
@@ -431,7 +431,7 @@ if (isset($_GET['id'])) {
             $nbClasses = count($moleculesJsRows);
             // affichage du temps pour attaquer
             echo '
-            <script>
+            ' . cspScriptTag() . '
             var tempsEnCours = 0;
             var tempsAttaque = [];
 
@@ -488,6 +488,17 @@ if (isset($_GET['id'])) {
                 $c++;
             }
             echo '
+            // Max fill buttons for attack troops (replaces inline javascript: URIs)
+            document.querySelectorAll(".max-fill-attack").forEach(function(el) {
+                el.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    var targetId = this.getAttribute("data-target-id");
+                    var maxVal = this.getAttribute("data-max-value");
+                    document.getElementById(targetId).value = maxVal;
+                    actualiseTemps();
+                    actualiseCout();
+                });
+            });
             </script>
             ';
             } // end else for ex

@@ -201,7 +201,7 @@ if (!isset($_POST['supprimercompte'])) {
     debutListe();
     $donnees = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $_SESSION['login']);
     if ((time() - $donnees['timestamp']) > SECONDS_PER_WEEK) {
-        item(['form' => ["compte.php", "formSupprimer"], 'input' => '<input type="hidden" name="supprimercompte"/>' . csrfField() . submit(['titre' => 'Supprimer le compte', 'style' => 'background-color:red', 'form' => 'formSupprimer', 'onclick' => "return confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')"])]);
+        item(['form' => ["compte.php", "formSupprimer"], 'input' => '<input type="hidden" name="supprimercompte"/>' . csrfField() . submit(['titre' => 'Supprimer le compte', 'style' => 'background-color:red', 'form' => 'formSupprimer', 'confirm' => 'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.'])]);
     } else {
         debutContent();
         echo '<br/>Le compte ne peut être supprimé qu\'au bout d\'une semaine.';

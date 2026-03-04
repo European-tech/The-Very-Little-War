@@ -146,7 +146,7 @@ function affichageTemps($secondes, $petitTemps = false)
 function scriptAffichageTemps()
 {
     echo '
-    <script>
+    ' . cspScriptTag() . '
         function affichageTemps(secondes){
             var heures=String(Math.floor(secondes / 3600))+":";
             var minutes=Math.floor((secondes % 3600) / 60);

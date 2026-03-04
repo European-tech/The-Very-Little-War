@@ -188,7 +188,7 @@ function initPlayer($joueur)
         $production = $production . nombreAtome($num, '<span style="color:green">+<span id="nbPointsAffichage' . $ressource . '">' . $revenu[$ressource] . '</span>/h</span> <input type="hidden" value="0" id="nbPoints' . $ressource . '" name="nbPoints' . $ressource . '"/><a href="#"><img class="imageAide" src="images/add.png" alt="add" style="margin-left:10px" id="add' . $ressource . '"/></a>');
 
         $production = $production . '
-        <script>
+        ' . cspScriptTag() . '
             document.getElementById("add' . $ressource . '").addEventListener("click",function(){
                 var pointsRestants = parseInt(document.getElementById("nbPointsRestants").innerHTML);
                 if(pointsRestants > 0){
@@ -212,7 +212,7 @@ function initPlayer($joueur)
         $productionCondenseur = $productionCondenseur . nombreAtome($num, 'Niveau <span id="nbPointsCondenseurAffichage' . $ressource . '">' . ${'niveau' . $ressource} . '</span><input type="hidden" value="0" id="nbPointsCondenseur' . $ressource . '" name="nbPointsCondenseur' . $ressource . '"/><a href="#"><img class="imageAide" src="images/add.png" alt="add" style="margin-left:10px" id="addCondenseur' . $ressource . '"/></a>');
 
         $productionCondenseur = $productionCondenseur . '
-        <script>
+        ' . cspScriptTag() . '
             document.getElementById("addCondenseur' . $ressource . '").addEventListener("click",function(){
                 var pointsRestants = parseInt(document.getElementById("nbPointsCondenseurRestants").innerHTML);
                 if(pointsRestants > 0){

@@ -1,5 +1,6 @@
 <?php
 require_once("includes/session_init.php");
+require_once("includes/csp.php");
 include("includes/connexion.php");
 include("includes/fonctions.php");
 if(isset($_POST['verification']) AND isset($_POST['oui'])) {
@@ -33,7 +34,7 @@ if (ini_get("session.use_cookies")) {
 </head>
 <body>
 
-<script>
+<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
     localStorage.removeItem("login");
     window.location = "index.php";
 </script>

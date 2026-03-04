@@ -237,7 +237,7 @@ function item($options)
             $autocompleteId = '';
         }
 
-        $link = '<a class="item-link' . $ajax . $autocomplete . '" onclick="javascript:myApp.closePanel()" data-view=".view-main" href="' . $options["link"] . '" ' . $autocompleteId . '>';
+        $link = '<a class="item-link' . $ajax . $autocomplete . ' close-panel-link" data-view=".view-main" href="' . $options["link"] . '" ' . $autocompleteId . '>';
         $finLink = '</a>';
     } else {
         $link = "";
@@ -532,13 +532,16 @@ function submit($options)
         $titre = "";
     }
 
+    $isFormSubmit = false;
     if (array_key_exists("form", $options) && $options["form"]) {
-        $form = 'javascript:document.' . $options['form'] . '.submit()';
+        $isFormSubmit = true;
+        $form = '';
     } else {
         $form = "";
     }
 
     if (array_key_exists("link", $options) && $options["link"]) {
+        $isFormSubmit = false;
         $form = $options["link"];
     }
 
@@ -572,7 +575,15 @@ function submit($options)
         $nom = '';
     }
 
-    return $nom . '<a class="button ' . $classe . '" style="' . $style . '" href="' . $form . '" ' . $id . '>' . $image1 . $titre . $image2 . '</a>';
+    $confirmAttr = '';
+    if (array_key_exists("confirm", $options) && $options["confirm"]) {
+        $confirmAttr = ' data-confirm="' . htmlspecialchars($options['confirm'], ENT_QUOTES, 'UTF-8') . '"';
+    }
+
+    if ($isFormSubmit) {
+        return $nom . '<button type="submit" class="button ' . $classe . '" style="' . $style . '" ' . $id . $confirmAttr . '>' . $image1 . $titre . $image2 . '</button>';
+    }
+    return $nom . '<a class="button ' . $classe . '" style="' . $style . '" href="' . $form . '" ' . $id . $confirmAttr . '>' . $image1 . $titre . $image2 . '</a>';
 }
 
 function important($contenu)

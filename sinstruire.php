@@ -310,7 +310,7 @@ foreach($cours as $num=>$titre){
     }
     $options = $options."<option value=\"?cours=$num\" $selected>$titre</option>";
 }
-item(['select' => ['numeroCours',$options,'javascript' => 'onchange="document.location = \'sinstruire.php\' + this.options[this.selectedIndex].value;"']]);
+item(['select' => ['numeroCours',$options,'javascript' => 'data-navigate="sinstruire.php"']]);
 echo '<div class="row">';
 if($cours_id > 0) {
 	echo '<div class="col-50"><a href="sinstruire.php?cours='.($cours_id - 1).'"><img src="images/prev.png" alt="prev" style="margin-right: 10px"/></a></div>';
@@ -322,5 +322,10 @@ if($cours_id < 5) {
 echo '</div>';
 finListe();
 finCarte();
+echo cspScriptTag() . '
+    document.getElementById("numeroCours").addEventListener("change", function() {
+        document.location = "sinstruire.php" + this.options[this.selectedIndex].value;
+    });
+</script>';
 
 include("includes/copyright.php"); ?>
