@@ -1160,7 +1160,7 @@ git commit -m "docs(V4-19): explain sqrt ranking system in regles.php"
 
 ---
 
-## Sprint 4: Espionage Notification, Display Fix & UX Polish (3-4h)
+## Sprint 4: Espionage Notification, Display Fix & UX Polish — COMPLETED
 
 **Goal:** Add espionage alerts, fix display inconsistencies, deliver key QoL items.
 
@@ -1256,7 +1256,7 @@ git commit -m "fix(H-046, H-045): block migrations web access, fix prestige.logi
 
 ---
 
-## Sprint 5: Resource Nodes on Map (4-6h)
+## Sprint 5: Resource Nodes on Map — COMPLETED
 
 **Goal:** Add 15-25 resource nodes to the game map that boost nearby player production.
 **Source:** V3-19
