@@ -39,12 +39,15 @@
 - H-006: Isotope Stable is strictly inferior to Normal at equal decay (design intent unclear)
 - H-007: Prestige production/combat bonuses (+5%) compound with medals creating veteran snowball
 
-**MEDIUM (5):**
+**MEDIUM (8):**
 - M-001: `creerBBcode()` function is a no-op (no toolbar, just displays "BBcode activé")
 - M-002: No CHECK constraints on numeric columns (negative values possible at DB level)
 - M-003: No empty-state messages for lists (armies, reports, messages)
 - M-004: Missing `<label>` associations on form inputs (accessibility)
 - M-005: Dead JS files and unused BBcode toolbar functions in `includes/bbcode.php`
+- M-006: No CI pipeline — 370 tests never run automatically on push
+- M-007: No monitoring — no health endpoint, no uptime checks, no error tracking
+- M-008: Dead/redundant files: `constantes.php` (empty wrapper), root `atomes.php` (duplicate with wrong field), old jQuery 1.7.2/UI 1.8.18 files
 
 ---
 
@@ -670,18 +673,205 @@ git commit -m "cleanup: remove ~250 lines of unused BBcode toolbar JS, improve c
 
 ---
 
+## Batch Q: CI Pipeline + Monitoring
+
+**Priority:** HIGH — foundation for sustainable development.
+
+### Task Q-1: GitHub Actions CI pipeline
+
+**Files:**
+- Create: `.github/workflows/ci.yml`
+
+**Step 1:** Create CI workflow:
+```yaml
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mysqli, mbstring
+          coverage: none
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+      - name: Run tests
+        run: vendor/bin/phpunit --colors=always
+```
+
+**Step 2:** Commit and push:
+```bash
+mkdir -p .github/workflows
+git add .github/workflows/ci.yml
+git commit -m "ci: add GitHub Actions pipeline — runs PHPUnit on every push"
+git push origin main
+```
+
+**Step 3:** Verify the workflow runs green on GitHub.
+
+### Task Q-2: Health check endpoint
+
+**Files:**
+- Create: `health.php`
+
+**Step 1:** Create a minimal health check that verifies DB connectivity:
+```php
+<?php
+require_once 'includes/connexion.php';
+header('Content-Type: application/json');
+header('Cache-Control: no-cache');
+$db_ok = false;
+try {
+    $result = mysqli_query($base, 'SELECT 1');
+    $db_ok = ($result !== false);
+} catch (Exception $e) {
+    $db_ok = false;
+}
+echo json_encode([
+    'status' => $db_ok ? 'ok' : 'error',
+    'db' => $db_ok,
+    'disk_free_gb' => round(disk_free_space('/') / 1073741824, 1),
+    'php' => PHP_VERSION,
+    'ts' => time()
+]);
+```
+
+**Step 2:** Commit:
+```bash
+git add health.php
+git commit -m "ops: add /health.php endpoint for uptime monitoring"
+```
+
+### Task Q-3: Log rotation cron + .gitkeep for logs directory
+
+**Files:**
+- Create: `cron/cleanup-logs.sh`
+- Create: `logs/.gitkeep`
+
+**Step 1:** Create log cleanup script:
+```bash
+#!/bin/bash
+# Delete TVLW game logs older than 30 days
+find /var/www/html/logs -name "*.log" -mtime +30 -delete
+```
+
+**Step 2:** Ensure logs directory exists and is gitignored properly:
+```bash
+mkdir -p logs
+touch logs/.gitkeep
+# .gitignore should have: logs/*.log
+```
+
+**Step 3:** Commit:
+```bash
+git add cron/cleanup-logs.sh logs/.gitkeep
+git commit -m "ops: add log rotation script and logs directory"
+```
+
+---
+
+## Batch R: File Structure Cleanup
+
+**Priority:** MEDIUM — removes confusion, dead code, and legacy shims.
+
+### Task R-1: Delete dead/duplicate files
+
+**Files:**
+- Delete: `includes/constantes.php` (16 lines — empty wrapper, just requires constantesBase.php)
+- Delete: root `atomes.php` (12 lines — duplicate of includes/atomes.php, uses wrong field name `points` vs `totalPoints`)
+
+**Step 1:** Find all files that include `constantes.php` and update them to include `constantesBase.php` directly:
+```bash
+grep -rl "constantes.php" --include="*.php" | grep -v "constantesBase" | grep -v vendor | grep -v docs
+```
+Update each include path.
+
+**Step 2:** Find all files that include root `atomes.php` and update to use `includes/atomes.php`:
+```bash
+grep -rl "atomes.php" --include="*.php" | grep -v "includes/atomes" | grep -v vendor | grep -v docs
+```
+
+**Step 3:** Delete the dead files and run tests:
+```bash
+rm includes/constantes.php atomes.php
+php vendor/bin/phpunit
+```
+
+**Step 4:** Commit:
+```bash
+git add -A
+git commit -m "cleanup: delete dead constantes.php wrapper and duplicate root atomes.php"
+```
+
+### Task R-2: Remove old jQuery/JS files
+
+**Step 1:** Identify which jQuery files are actually loaded. Search includes for script tags:
+```bash
+grep -r "jquery" --include="*.php" includes/ | grep -i "script\|src="
+```
+
+**Step 2:** If jQuery 1.7.2, jQuery UI 1.8.18, or other old versions are not referenced, delete them:
+- `js/jquery-1.7.2.min.js` (if exists)
+- `js/jquery-ui-1.8.18.custom.min.js` (if exists)
+- `js/jcryption.js` (deprecated encryption library)
+- `js/aes.js`, `js/sha.js`, `js/sha1.js`, `js/aes-json-format.js` (client-side crypto — if unused)
+
+**Step 3:** Run tests and verify no pages break.
+
+**Step 4:** Commit:
+```bash
+git add -A
+git commit -m "cleanup: remove unused old jQuery 1.7.2, jQuery UI 1.8.18, and dead JS libraries"
+```
+
+### Task R-3: Rename tout.php → layout.php
+
+**Files:**
+- Rename: `includes/tout.php` → `includes/layout.php`
+
+**Step 1:** Find all files that include tout.php:
+```bash
+grep -rl "tout.php" --include="*.php" | grep -v vendor | grep -v docs
+```
+
+**Step 2:** Rename and update all references:
+```bash
+mv includes/tout.php includes/layout.php
+sed -i 's/tout\.php/layout.php/g' [each file from step 1]
+```
+
+**Step 3:** Run tests: `php vendor/bin/phpunit`
+
+**Step 4:** Commit:
+```bash
+git add -A
+git commit -m "refactor: rename tout.php → layout.php for clarity"
+```
+
+---
+
 ## Execution Order
 
-1. **Batch J** (mysqli_fetch_array migration) — largest, most mechanical, highest impact
-2. **Batch K** (die/exit + stripslashes cleanup) — quick wins, improves error handling
-3. **Batch L** (security: rate limiter + confirmation) — focused security fixes
-4. **Batch M** (CSP: extract inline JS + add headers) — significant effort, big security payoff
-5. **Batch N** (game balance V4.1) — independent, can be done in any order
-6. **Batch O** (database constraints) — requires careful testing, do after J ensures helpers are clean
-7. **Batch P** (UX polish) — lowest priority, best for last
+1. **Batch Q** (CI + monitoring) — foundation, fast, highest value-per-minute
+2. **Batch R** (file cleanup) — quick wins, removes confusion
+3. **Batch J** (mysqli_fetch_array migration) — largest, most mechanical, highest code impact
+4. **Batch K** (die/exit + stripslashes cleanup) — quick wins, improves error handling
+5. **Batch L** (security: rate limiter + confirmation) — focused security fixes
+6. **Batch M** (CSP: extract inline JS + add headers) — significant effort, big security payoff
+7. **Batch N** (game balance V4.1) — independent, can be done in any order
+8. **Batch O** (database constraints) — requires careful testing, do after J ensures helpers are clean
+9. **Batch P** (UX polish) — lowest priority, best for last
 
-**Total estimated tasks:** 17
-**Total estimated commits:** ~17
+**Total estimated tasks:** 23
+**Total estimated commits:** ~23
 
 ---
 
@@ -695,3 +885,11 @@ git commit -m "cleanup: remove ~250 lines of unused BBcode toolbar JS, improve c
 | Full BBcode toolbar restoration | Low value — current users know BBcode syntax. |
 | Beginner protection extension (3→7 days) | Needs playtesting data first. |
 | Formations rework for defenders | V4 already added 3 formations. Needs combat data. |
+| Laravel/Symfony migration | Not justified at 80 files. Current procedural architecture is organized and tested. |
+| React/Vue SPA frontend | Server-rendered pages + jQuery 3.7.1 is correct for a turn-based game. |
+| Docker/Kubernetes | One app, one server. No benefit. |
+| ELK/Grafana/Prometheus | Enterprise monitoring tools for clusters. UptimeRobot + Sentry free tier is sufficient. |
+| Sentry integration | Good idea but requires account setup — recommend as manual follow-up after CI is live. |
+| PHP 8.2 → 8.4 upgrade | 8.2 EOL Dec 2026. Plan upgrade in Q3 2026 via Sury PPA. Low risk for procedural code. |
+| PHPStan static analysis | Add to CI after pipeline is stable. Start at level 1. |
+| constantesBase.php elimination | Legacy shim translating config.php → old French variable names. Requires touching ~30 files. Low priority. |
