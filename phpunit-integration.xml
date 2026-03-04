@@ -1,21 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="tests/bootstrap.php"
+         bootstrap="tests/integration/bootstrap_integration.php"
          colors="true"
          verbose="true">
     <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/unit</directory>
-        </testsuite>
         <testsuite name="Integration">
             <directory>tests/integration</directory>
-        </testsuite>
-        <testsuite name="Balance">
-            <directory>tests/balance</directory>
-        </testsuite>
-        <testsuite name="Functional">
-            <directory>tests/functional</directory>
+            <exclude>tests/integration/fixtures</exclude>
         </testsuite>
     </testsuites>
 </phpunit>
