@@ -474,7 +474,7 @@ if ($_GET['sub'] == 0) {
             }
 
             item(['floating' => false, 'select' => ["typeRessourceAAcheter", $options, "javascript" => '', "hauteur" => 450], 'titre' => 'Atome']);
-            item(['floating' => false, 'input' => '<input type="text" name="nombreRessourceAAcheter" id="nombreRessourceAAcheter" class="form-control"/>', 'titre' => 'Nombre']);
+            item(['floating' => false, 'input' => '<input type="text" name="nombreRessourceAAcheter" id="nombreRessourceAAcheter" class="form-control" placeholder="Quantité d\'atomes"/>', 'titre' => 'Nombre']);
             item(['floating' => false, 'input' => '<input type="text" name="coutEnergieAchat" id="coutEnergieAchat" class="form-control"/>', 'titre' => 'Coût en énergie (' . chiffrePetit($ressources['energie']) . ')']);
             item(['input' => submit(['form' => 'formAcheter', 'titre' => 'Acheter', 'image' => 'images/marche/achat.png'])]);
             ?>

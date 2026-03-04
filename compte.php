@@ -190,7 +190,16 @@ if (!isset($_POST['supprimercompte'])) {
     debutListe();
     echo '<form action="compte.php" method="post" name="formVacances">';
     echo csrfField();
-    echo '<br/><br/><div class="content-block">La mise en vacance supprimera tout ordre de production de mol&eacute;cule en cours.</div><br/>';
+    echo '<br/><br/><div class="content-block">
+        <strong>Avantages du mode vacances :</strong><br/>
+        - Vous ne pouvez plus être attaqué<br/>
+        - Vos molécules ne se dégradent pas<br/>
+        - Votre production continue normalement<br/>
+        <strong>Inconvénients :</strong><br/>
+        - Vous ne pouvez pas attaquer, former des molécules, ou commercer<br/>
+        - La production de molécules en cours sera annulée<br/>
+        - Durée minimum : 3 jours
+    </div><br/>';
     item(['floating' => false, 'titre' => 'Date de début', 'input' => '<input type="text" name="dateDebut" id="dateDebut" class="form-control" value="' . htmlspecialchars($debut, ENT_QUOTES, 'UTF-8') . '"/>', 'disabled' => true]);
     item(['floating' => false, 'titre' => 'Date de fin', 'input' => $fin, 'disabled' => $disabled]);
     item(['input' => $activation]);
