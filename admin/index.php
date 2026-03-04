@@ -1,6 +1,7 @@
 <?php
 include("../includes/connexion.php");
 
+session_name('TVLW_ADMIN');
 session_start();
 include("../includes/constantesBase.php");
 include("../includes/fonctions.php");

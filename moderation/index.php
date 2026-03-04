@@ -1,4 +1,5 @@
 <?php
+session_name('TVLW_MOD');
 session_start();
 include("../includes/connexion.php");
 include("../includes/constantesBase.php");
