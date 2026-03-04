@@ -72,21 +72,18 @@ function ajouterPoints($nb, $joueur, $type = 0)
         return 0;
     }
 
-    $points = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $joueur);
+    $points = dbFetchOne($base, 'SELECT * FROM autre WHERE login=? FOR UPDATE', 's', $joueur);
 
-    // TODO: needs FOR UPDATE lock in calling context
     if ($type == 1) {
         $newPoints = max(0, $points['pointsAttaque'] + $nb);
         dbExecute($base, 'UPDATE autre SET pointsAttaque=?, totalPoints=? WHERE login=?', 'dds', $newPoints, ($points['totalPoints'] - pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints)), $joueur);
         return -pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints);
     }
-    // TODO: needs FOR UPDATE lock in calling context
     if ($type == 2) {
         $newPoints = max(0, $points['pointsDefense'] + $nb);
         dbExecute($base, 'UPDATE autre SET pointsDefense=?, totalPoints=? WHERE login=?', 'dds', $newPoints, ($points['totalPoints'] - pointsDefense($points['pointsDefense']) + pointsDefense($newPoints)), $joueur);
         return -pointsDefense($points['pointsDefense']) + pointsDefense($newPoints);
     }
-    // TODO: needs FOR UPDATE lock in calling context
     if ($type == 3) {
         $newPillage = $points['ressourcesPillees'] + $nb;
         $oldPillageContrib = pointsPillage($points['ressourcesPillees']);
