@@ -10,4 +10,4 @@ CREATE TABLE IF NOT EXISTS player_compounds (
     INDEX idx_compounds_login (login),
     INDEX idx_compounds_active (login, expires_at),
     CONSTRAINT fk_compounds_login FOREIGN KEY (login) REFERENCES membre(login) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
