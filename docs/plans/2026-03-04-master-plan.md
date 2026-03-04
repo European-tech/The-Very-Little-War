@@ -1028,11 +1028,21 @@ git commit -m "feat(NEW-2h): auto-block transfers between flagged account pairs"
 
 ---
 
-## Sprint 3: Sqrt Ranking & Points Rebalance (3-4h)
+## Sprint 3: Sqrt Ranking & Points Rebalance — COMPLETED
 
 **Goal:** Apply sqrt scaling to all point categories so no single activity dominates rankings.
 **Source:** V4-19 (deferred), C-021 (quadratic snowball)
 **Depends on:** Sprint 2 (anti-multiaccount prevents group-attack exploitation of new system)
+
+**Completed:** All 3 tasks (3.1-3.3) implemented in 3 commits:
+- config.php: 6 RANKING_* constants (weights per category + sqrt exponent)
+- formulas.php: calculerTotalPoints() + recalculerTotalPointsJoueur()
+- player.php: ajouterPoints() refactored to use sqrt recomputation
+- marche.php: trade volume simplified to recalculate after update
+- classement.php: Commerce column added, trade sortable (clas=6)
+- Migration 0022: one-time recalculation + prestige.login width fix (H-045)
+- regles.php: ranking explanation with category table and diversification advice
+- 12 unit tests, 394 total / 2353 assertions
 
 ---
 
