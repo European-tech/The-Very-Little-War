@@ -584,6 +584,15 @@ define('MAP_TILE_SIZE_PX', 80);
 $MAP_ICON_DIVISORS = [16, 8, 4, 2]; // Fractions of VICTORY_POINTS_TOTAL for icon sizes
 
 // =============================================================================
+// RESOURCE NODES (map bonuses)
+// =============================================================================
+define('RESOURCE_NODE_MIN_COUNT', 15);
+define('RESOURCE_NODE_MAX_COUNT', 25);
+define('RESOURCE_NODE_DEFAULT_BONUS_PCT', 10.0);  // % production bonus
+define('RESOURCE_NODE_DEFAULT_RADIUS', 5);         // effect radius in map tiles
+define('RESOURCE_NODE_MIN_DISTANCE', 3);           // minimum distance between nodes
+
+// =============================================================================
 // TUTORIAL
 // =============================================================================
 define('TUTORIAL_STARTER_MOLECULE_TOTAL_ATOMS', 1000);

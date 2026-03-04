@@ -245,4 +245,21 @@ Le classement est basé sur <strong>5 catégories d'activité</strong>, chacune 
 finContent();
 finCarte();
 
+debutCarte("Noeuds de Ressources");
+debutContent();
+?>
+
+La carte contient des <strong>noeuds de ressources</strong> dispersés aléatoirement au début de chaque saison (<?php echo RESOURCE_NODE_MIN_COUNT; ?> à <?php echo RESOURCE_NODE_MAX_COUNT; ?> noeuds).<br/><br/>
+
+<strong>Fonctionnement :</strong><br/>
+Chaque noeud est associé à un <strong>type de ressource</strong> (atome ou énergie) et offre un bonus de production de <strong>+<?php echo (int)RESOURCE_NODE_DEFAULT_BONUS_PCT; ?>%</strong> aux joueurs situés dans un rayon de <strong><?php echo RESOURCE_NODE_DEFAULT_RADIUS; ?> cases</strong>.<br/><br/>
+
+Les noeuds sont visibles sur la carte sous forme de losanges colorés. Survolez un noeud pour voir son type et son bonus.<br/><br/>
+
+<em>Astuce :</em> Positionnez-vous stratégiquement à proximité des noeuds correspondant aux ressources dont vous avez besoin. Les noeuds changent à chaque nouvelle saison !<br/><br/>
+
+<?php
+finContent();
+finCarte();
+
 include("includes/copyright.php"); ?>

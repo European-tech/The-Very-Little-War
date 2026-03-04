@@ -194,6 +194,48 @@ debutCarte("Production d'Atomes");
 finCarte();
 
 // =============================================================================
+// SECTION B2: Resource Nodes (Nearby Map Bonuses)
+// =============================================================================
+require_once('includes/resource_nodes.php');
+$playerPos = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login = ?', 's', $login);
+$nearbyNodes = [];
+if ($playerPos && $playerPos['x'] >= 0 && $playerPos['y'] >= 0) {
+    $allNodes = getActiveResourceNodes($base);
+    foreach ($allNodes as $node) {
+        $dist = sqrt(pow($playerPos['x'] - $node['x'], 2) + pow($playerPos['y'] - $node['y'], 2));
+        if ($dist <= $node['radius']) {
+            $node['distance'] = round($dist, 1);
+            $nearbyNodes[] = $node;
+        }
+    }
+}
+
+if (!empty($nearbyNodes)) {
+    debutCarte("Noeuds de Ressources (proximite)");
+        debutContent();
+
+        echo '<div class="data-table"><table>';
+        echo '<thead><tr><th>Type</th><th>Position</th><th>Distance</th><th>Bonus</th></tr></thead>';
+        echo '<tbody>';
+
+        foreach ($nearbyNodes as $node) {
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars(ucfirst($node['resource_type']), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . (int)$node['x'] . ',' . (int)$node['y'] . '</td>';
+            echo '<td>' . $node['distance'] . ' cases</td>';
+            echo '<td style="color:green">+' . (int)$node['bonus_pct'] . '%</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table></div>';
+
+        echo '<p style="margin-top:8px;font-size:13px;color:#666;">Les noeuds de ressources sont regeneres chaque saison. Installez-vous pres d\'un noeud pour beneficier du bonus de production.</p>';
+
+        finContent();
+    finCarte();
+}
+
+// =============================================================================
 // SECTION C: Combat — Attaque
 // =============================================================================
 debutCarte("Combat — Attaque");

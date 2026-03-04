@@ -333,6 +333,18 @@ if ($_GET['type'] == 0) {
 ?>
     <div style="width:600px;height:300px;" id="carte">
         <?php
+        // Resource node color mapping
+        $nodeColors = [
+            'carbone' => '#333',    'azote' => '#4488ff',  'hydrogene' => '#ff4444',
+            'oxygene' => '#44cc44', 'chlore' => '#aadd00',  'soufre' => '#ddcc00',
+            'brome' => '#cc6600',   'iode' => '#9944cc',   'energie' => '#ffaa00'
+        ];
+
+        // Load resource nodes for the map
+        require_once('includes/resource_nodes.php');
+        $mapNodes = getActiveResourceNodes($base);
+
+        // Render map tiles
         for ($i = 0; $i < $tailleCarte['tailleCarte']; $i++) {
             for ($j = 0; $j < $tailleCarte['tailleCarte']; $j++) {
                 if ($carte[$i][$j] != 0) {
@@ -363,6 +375,16 @@ if ($_GET['type'] == 0) {
                     echo '<img src="images/carte/rien.png" style="position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;outline:lightgray 1px solid" />';
                 }
             }
+        }
+
+        // Render resource nodes as diamond markers on top of tiles
+        foreach ($mapNodes as $node) {
+            if ($node['x'] >= $tailleCarte['tailleCarte'] || $node['y'] >= $tailleCarte['tailleCarte']) continue;
+            $color = $nodeColors[$node['resource_type']] ?? '#fff';
+            $safeType = htmlspecialchars(ucfirst($node['resource_type']), ENT_QUOTES, 'UTF-8');
+            $nodeSize = 16;
+            $offset = ($tailleTile - $nodeSize) / 2;
+            echo '<span title="' . $safeType . ' +' . (int)$node['bonus_pct'] . '% (rayon ' . (int)$node['radius'] . ')" style="position:absolute;display:block;top:' . ($node['x'] * $tailleTile + $offset) . 'px;left:' . ($node['y'] * $tailleTile + $offset) . 'px;width:' . $nodeSize . 'px;height:' . $nodeSize . 'px;background:' . $color . ';transform:rotate(45deg);opacity:0.85;border:1px solid #fff;pointer-events:auto;z-index:2;"></span>';
         }
         ?>
     </div>

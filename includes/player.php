@@ -895,6 +895,12 @@ function performSeasonEnd()
     // Phase 2: Reset all game state (has its own internal transaction)
     remiseAZero();
 
+    // Phase 3: Generate resource nodes for the new season
+    // Use a reasonable default map size since the map grows dynamically as players connect
+    require_once(__DIR__ . '/resource_nodes.php');
+    $nodeMapSize = max(20, (int)dbFetchOne($base, 'SELECT tailleCarte FROM statistiques')['tailleCarte']);
+    generateResourceNodes($base, $nodeMapSize);
+
     // Update season start time
     $now = time();
     dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);

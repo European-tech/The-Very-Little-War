@@ -55,7 +55,17 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     $prodMedaille = (1 + ($bonus / 100)) * $prodIode;
     $prodDuplicateur = $bonusDuplicateur * $prodMedaille;
     $prodPrestige = $prodDuplicateur * prestigeProductionBonus($joueur);
-    $prodProducteur = $prodPrestige - drainageProducteur($producteur['producteur']);
+
+    // Resource node proximity bonus for energy
+    $energyNodeBonus = 0;
+    $pos = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login=?', 's', $joueur);
+    if ($pos && $pos['x'] >= 0 && $pos['y'] >= 0) {
+        require_once(__DIR__ . '/resource_nodes.php');
+        $energyNodeBonus = getResourceNodeBonus($base, $pos['x'], $pos['y'], 'energie');
+    }
+    $prodNodes = $prodPrestige * (1 + $energyNodeBonus);
+
+    $prodProducteur = $prodNodes - drainageProducteur($producteur['producteur']);
     if ($detail == 0) {
         $result = max(0, round($prodProducteur));
     } elseif ($detail == 1) {
@@ -79,6 +89,7 @@ function revenuAtome($num, $joueur)
     if (isset($cache[$cacheKey])) return $cache[$cacheKey];
 
     global $base;
+    global $nomsRes;
 
     $pointsProducteur = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $joueur);
 
@@ -91,7 +102,15 @@ function revenuAtome($num, $joueur)
         $bonusDuplicateur = 1 + bonusDuplicateur($duplicateur['duplicateur']);
     }
 
-    $result = round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur));
+    // Resource node proximity bonus
+    $nodeBonus = 0;
+    $pos = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login=?', 's', $joueur);
+    if ($pos && $pos['x'] >= 0 && $pos['y'] >= 0) {
+        require_once(__DIR__ . '/resource_nodes.php');
+        $nodeBonus = getResourceNodeBonus($base, $pos['x'], $pos['y'], $nomsRes[$num]);
+    }
+
+    $result = round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur) * (1 + $nodeBonus));
     $cache[$cacheKey] = $result;
     return $result;
 }
