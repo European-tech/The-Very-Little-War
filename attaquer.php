@@ -257,7 +257,20 @@ if ($nb['nb'] > 0) {
             }
         } else {
             if ($actionsattaques['troupes'] != 'Espionnage' && $actionsattaques['attaqueFaite'] == 0) {
-                echo '<tr><td><img src="images/batiments/shield.png" class="imageChip" alt="bouclier"/></td><td><a href="joueur.php?id=' . $actionsattaques['attaquant'] . '">' . $actionsattaques['attaquant'] . '</a></td><td>?</td>';
+                $etaSeconds = max(0, $actionsattaques['tempsAttaque'] - time());
+                echo '<tr><td><img src="images/batiments/shield.png" class="imageChip" alt="bouclier"/></td><td><a href="joueur.php?id=' . htmlspecialchars($actionsattaques['attaquant'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($actionsattaques['attaquant'], ENT_QUOTES, 'UTF-8') . '</a></td><td id="eta' . $actionsattaques['id'] . '">' . affichageTemps($etaSeconds) . '</td></tr>';
+                echo cspScriptTag() . '
+                    var eta' . $actionsattaques['id'] . ' = ' . $etaSeconds . ';
+                    function etaDynamique' . $actionsattaques['id'] . '(){
+                        if(eta' . $actionsattaques['id'] . ' > 0){
+                            eta' . $actionsattaques['id'] . ' -= 1;
+                            document.getElementById("eta' . $actionsattaques['id'] . '").innerHTML = affichageTemps(eta' . $actionsattaques['id'] . ');
+                        } else {
+                            document.location.href="attaquer.php";
+                        }
+                    }
+                    setInterval(etaDynamique' . $actionsattaques['id'] . ', 1000);
+                </script>';
             }
         }
     }
@@ -338,7 +351,8 @@ if ($_GET['type'] == 0) {
     }
 
 ?>
-    <div style="width:600px;height:300px;" id="carte">
+    <?php $mapPx = $tailleCarte['tailleCarte'] * $tailleTile; ?>
+    <div style="width:<?php echo $mapPx; ?>px;height:<?php echo $mapPx; ?>px;position:relative;background-size:<?php echo $tailleTile; ?>px <?php echo $tailleTile; ?>px;background-image:linear-gradient(to right, lightgray 1px, transparent 1px),linear-gradient(to bottom, lightgray 1px, transparent 1px);" id="carte">
         <?php
         // Resource node color mapping
         $nodeColors = [
@@ -351,10 +365,10 @@ if ($_GET['type'] == 0) {
         require_once('includes/resource_nodes.php');
         $mapNodes = getActiveResourceNodes($base);
 
-        // Render map tiles
+        // Render map tiles — only occupied cells (empty tiles shown via CSS grid background)
         for ($i = 0; $i < $tailleCarte['tailleCarte']; $i++) {
             for ($j = 0; $j < $tailleCarte['tailleCarte']; $j++) {
-                if ($carte[$i][$j] != 0) {
+                if ($carte[$i][$j] !== 0) {
                     $mapImages = ["petit.png", "moyen.png", "grand.png", "tgrand.png", "geant.png"];
                     $image = $mapImages[count($MAP_ICON_DIVISORS)]; // default to largest
                     foreach ($MAP_ICON_DIVISORS as $idx => $divisor) {
@@ -378,8 +392,6 @@ if ($_GET['type'] == 0) {
 
                     $safeMapLogin = htmlspecialchars($carte[$i][$j][1], ENT_QUOTES, 'UTF-8');
                     echo '<a href="joueur.php?id=' . $safeMapLogin . '"><img src="images/carte/' . $image . '" style="position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;outline:' . $border . ' solid;width:' . $tailleTile . 'px;height:' . $tailleTile . 'px;" /></a><span style="text-align:center;position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;width:' . $tailleTile . 'px;opacity:0.7;background-color:black;color:white;">' . $safeMapLogin . '</span>';
-                } else {
-                    echo '<img src="images/carte/rien.png" style="position:absolute;display:block;top:' . ($i * $tailleTile) . 'px;left:' . ($j * $tailleTile) . 'px;outline:lightgray 1px solid" />';
                 }
             }
         }

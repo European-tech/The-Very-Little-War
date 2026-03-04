@@ -140,6 +140,10 @@ include("includes/layout.php");
 if (!isset($_POST['supprimercompte'])) {
     debutCarte("Gestion du compte");
     echo important("Changer le mot de passe");
+    $mailForDisplay = dbFetchOne($base, 'SELECT email FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    if ($mailForDisplay && !empty($mailForDisplay['email'])) {
+        echo '<p style="color:gray;font-size:0.9em;">Email actuel : <strong>' . htmlspecialchars($mailForDisplay['email'], ENT_QUOTES, 'UTF-8') . '</strong></p>';
+    }
     debutListe();
     echo '<form action="compte.php" method="post" name="formChangerMdp">';
     echo csrfField();

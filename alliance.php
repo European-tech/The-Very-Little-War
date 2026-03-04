@@ -39,12 +39,12 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
                 $nballiance = count($allianceCheckRows);
 
                 if ($nballiance == 0) {
-                    dbExecute($base, 'INSERT INTO alliances VALUES (default, ?, ?, ?, default, ?, default, default, default, default, default, default, default, default)', 'ssss',
-                        $_POST['nomalliance'], $_POST['tagalliance'], '', $_SESSION['login']);
-
-                    $nouvellealliance = dbFetchOne($base, 'SELECT id FROM alliances WHERE tag=?', 's', $_POST['tagalliance']);
-
-                    dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $nouvellealliance['id'], $_SESSION['login']);
+                    withTransaction($base, function() use ($base) {
+                        dbExecute($base, 'INSERT INTO alliances VALUES (default, ?, ?, ?, default, ?, default, default, default, default, default, default, default, default)', 'ssss',
+                            $_POST['nomalliance'], $_POST['tagalliance'], '', $_SESSION['login']);
+                        $allianceId = mysqli_insert_id($base);
+                        dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $allianceId, $_SESSION['login']);
+                    });
 
                     logInfo('ALLIANCE', 'Alliance created', ['name' => $_POST['nomalliance'], 'tag' => $_POST['tagalliance'], 'creator' => $_SESSION['login']]);
                     $information = "Votre équipe a été créée.";
@@ -158,7 +158,10 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
         $nombreJoueurs = count($joueurRows);
         if ($nombreJoueurs < $joueursEquipe) {
             if ($_POST['actioninvitation'] == "Accepter") {
-                dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
+                withTransaction($base, function() use ($base, $idalliance) {
+                    dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
+                    dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
+                });
                 $information = "Vous avez accepté l'invitation.";
                 header("Location: alliance.php"); exit;
             }

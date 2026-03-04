@@ -240,12 +240,13 @@ else { // si cela n'a pas été initialisé à la première connexion
 
         item(['media' => '<img src="images/menu/constructions.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Constructions '.$constructionsPlus, 'link' => 'constructions.php', 'style' => 'color:black']);
 
-        item(['media' => '<img src="images/menu/armee.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Armée', 'link' => 'armee.php', 'style' => 'color:black']);
+        $incomingCount = dbCount($base, 'SELECT COUNT(*) AS cnt FROM actionsattaques WHERE defenseur=? AND troupes!=? AND attaqueFaite=0', 'ss', $_SESSION['login'], 'Espionnage');
+        $armeePlus = $incomingCount > 0 ? ' <span class="badge bg-red">' . $incomingCount . '</span>' : '';
+        item(['media' => '<img src="images/menu/armee.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Armée' . $armeePlus, 'link' => 'armee.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/attaquer.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Carte', 'link' => 'attaquer.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/marche.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Marché', 'link' => 'marche.php', 'style' => 'color:black']);
 
-        $inviteRows = dbFetchAll($base, 'SELECT invite FROM invitations WHERE invite = ?', 's', $_SESSION['login']);
-        $invitations = count($inviteRows);
+        $invitations = dbCount($base, 'SELECT COUNT(*) AS cnt FROM invitations WHERE invite = ?', 's', $_SESSION['login']);
         $alliancePlus = "";
 
 			$alliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
@@ -255,19 +256,17 @@ else { // si cela n'a pas été initialisé à la première connexion
         item(['media' => '<img src="images/menu/alliance.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Equipe '.$alliancePlus, 'link' => 'alliance.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/classement.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Classement', 'link' => 'classement.php?sub=0', 'style' => 'color:black']);
 
-      $messagesRows = dbFetchAll($base, 'SELECT destinataire FROM messages WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
+      $nb_messages_nonlus = dbCount($base, 'SELECT COUNT(*) AS cnt FROM messages WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
             $messagePlus = "";
-			$nb_messages_nonlus = count($messagesRows);
             if($nb_messages_nonlus != 0) {
                 $messagePlus =  '<span class="badge bg-red" >'.$nb_messages_nonlus.'</span>';
             }
         item(['media' => '<img src="images/menu/message.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Messages '.$messagePlus, 'link' => 'messages.php', 'style' => 'color:black']);
 
-      $rapportsRows = dbFetchAll($base, 'SELECT destinataire FROM rapports WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
+      $nb_rapports_nonlus = dbCount($base, 'SELECT COUNT(*) AS cnt FROM rapports WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
             $rapportPlus = "";
-			$nb_messages_nonlus = count($rapportsRows);
-            if($nb_messages_nonlus != 0) {
-                $rapportPlus =  '<span class="badge bg-red" >'.$nb_messages_nonlus.'</span>';
+            if($nb_rapports_nonlus != 0) {
+                $rapportPlus =  '<span class="badge bg-red" >'.$nb_rapports_nonlus.'</span>';
             }
         item(['media' => '<img src="images/menu/rapports.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Rapports '.$rapportPlus, 'link' => 'rapports.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/compte.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Mon compte', 'link' => 'compte.php', 'style' => 'color:black']);
