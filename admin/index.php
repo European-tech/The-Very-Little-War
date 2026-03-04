@@ -86,6 +86,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 			<li><a href="supprimercompte.php">Supprimer un compte</a></li>
 			<li><a href="listesujets.php">Verouiller ou supprimer un sujet</a></li>
 			<li><a href="supprimerreponse.php">Supprimer une reponse</a></li>
+			<li><a href="multiaccount.php">Anti multi-comptes</a></li>
 		</ul>
 		</p>
 
