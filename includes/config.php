@@ -69,6 +69,13 @@ define('COVALENT_BASE_EXPONENT', 1.2);     // pow(atom, 1.2) + atom
 define('COVALENT_SYNERGY_DIVISOR', 100);   // (1 + secondary / 100)
 define('MOLECULE_MIN_HP', 10);             // Min HP — prevents 0-brome insta-wipe
 
+// Speed formula: vitesse = 1 + min(SOFT_CAP, Cl * COEFF) + Cl*N / SYNERGY_DIV
+// BAL-SIM: Cl alone accounts for 86-99% of speed without cap. Soft cap at 30
+// ensures N investment stays meaningful beyond Cl=60.
+define('SPEED_ATOM_COEFFICIENT', 0.5);     // Cl linear contribution
+define('SPEED_SYNERGY_DIVISOR', 200);      // Cl*N synergy divisor
+define('SPEED_SOFT_CAP', 30);              // Cap on Cl*0.5 contribution (effective Cl max: 60)
+
 // Iode energy production: round((0.003 * iode^2 + 0.04 * iode) * (1 + niveau / 50))
 define('IODE_ENERGY_COEFFICIENT', 0.04);
 define('IODE_QUADRATIC_COEFFICIENT', 0.003);
@@ -265,11 +272,12 @@ define('FORMATION_EMBUSCADE', 2);
 // BAL-CROSS C7: Reduces empty-class-1 exploit (60% free damage discard, not 70%)
 define('FORMATION_PHALANX_ABSORB', 0.60);        // class 1 absorbs this % of damage
 define('FORMATION_PHALANX_DEFENSE_BONUS', 0.20);  // +20% defense for phalanx class 1
-define('FORMATION_AMBUSH_ATTACK_BONUS', 0.15);    // +15% attack when outnumbering attacker
+// BAL-SIM: Embuscade was never optimal (0% "Best In"). Buffed 15%→25%.
+define('FORMATION_AMBUSH_ATTACK_BONUS', 0.25);    // +25% attack when outnumbering attacker
 $FORMATIONS = [
     FORMATION_DISPERSEE => ['name' => 'Dispersée', 'desc' => 'Les dégâts sont répartis également entre vos 4 classes (25% chacune). Efficace contre les attaques concentrées.'],
     FORMATION_PHALANGE => ['name' => 'Phalange', 'desc' => 'Votre classe 1 absorbe 60% des dégâts et gagne +20% de défense. Idéal si votre classe 1 est très résistante.'],
-    FORMATION_EMBUSCADE => ['name' => 'Embuscade', 'desc' => 'Si vous avez plus de molécules que l\'attaquant, vous gagnez +15% d\'attaque. Idéal pour les armées nombreuses.'],
+    FORMATION_EMBUSCADE => ['name' => 'Embuscade', 'desc' => 'Si vous avez plus de molécules que l\'attaquant, vous gagnez +25% d\'attaque. Idéal pour les armées nombreuses.'],
 ];
 
 // =============================================================================

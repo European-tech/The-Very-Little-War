@@ -184,7 +184,8 @@ function productionEnergieMolecule($iode, $niveau)
 
 function vitesse($Cl, $N, $nivCondCl)
 {
-    $base = 1 + ($Cl * 0.5) + (($Cl * $N) / 200);
+    $clContrib = min(SPEED_SOFT_CAP, $Cl * SPEED_ATOM_COEFFICIENT);
+    $base = 1 + $clContrib + (($Cl * $N) / SPEED_SYNERGY_DIVISOR);
     return max(1.0, floor($base * modCond($nivCondCl) * 100) / 100);
 }
 
