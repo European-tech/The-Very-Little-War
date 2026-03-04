@@ -105,7 +105,7 @@ else {
         $pages ="";
         $supprimer = "";
         debutContent();
-		echo "<br/>Vous n'avez aucun rapports.<br/>";
+		echo '<p style="text-align:center; color:#999; padding:20px;">Aucun rapport pour le moment.</p>';
         finContent();
 	}
 	finCarte($supprimer.$pages);

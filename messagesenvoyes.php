@@ -25,7 +25,7 @@ if($nb_messages > 0) {
 	echo '</tbody></table>';
 }
 else {
-	echo "Vous n'avez envoyé aucun messages.";
+	echo '<p style="text-align:center; color:#999; padding:20px;">Aucun message envoyé.</p>';
 }
 ?>
 </div>

@@ -108,7 +108,7 @@ else {
         $pages ="";
         $supprimer = "";
         debutContent();
-		echo "Vous n'avez aucun messages ou cette page n'existe pas.<br/>";
+		echo '<p style="text-align:center; color:#999; padding:20px;">Votre boîte de réception est vide.</p>';
         finContent();
 	}
     finCarte('<a href="ecriremessage.php">Ecrire</a><a href="messagesenvoyes.php">Envoyés</a>'.$pages);

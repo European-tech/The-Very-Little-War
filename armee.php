@@ -440,6 +440,9 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
         echo "Une erreur est survenue.";
     } else {
     $nbclasse = count($moleculeOverviewRows);
+    if ($nbclasse == 0 && $autre['neutrinos'] <= 0) {
+        echo '<p style="text-align:center; color:#999; padding:20px;">Vous n\'avez pas encore de molécules. Rendez-vous dans Formation pour en créer !</p>';
+    } else {
 ?>
     <div class="reponsive-table">
         <table class="table table-striped table-bordered">
@@ -478,6 +481,8 @@ if (!isset($_GET['sub']) || $_GET['sub'] == 0) {
             </tbody>
         </table>
     </div>
+<?php
+    }
 <?php
     } // end else
     finContent();
