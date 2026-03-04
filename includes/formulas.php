@@ -66,6 +66,41 @@ function pointsPillage($nbRessources)
     return round(tanh($nbRessources / PILLAGE_POINTS_DIVISOR) * PILLAGE_POINTS_MULTIPLIER);
 }
 
+/**
+ * Unified sqrt ranking: prevents any single activity from dominating.
+ * Total = sum of (weight * pow(category_points, 0.5)) for each category.
+ * Category points are the already-transformed values (pointsAttaque, pointsDefense, etc.)
+ */
+function calculerTotalPoints($construction, $attaque, $defense, $commerce, $pillage)
+{
+    return round(
+        RANKING_CONSTRUCTION_WEIGHT * pow(max(0, $construction), RANKING_SQRT_EXPONENT)
+        + RANKING_ATTACK_WEIGHT * pow(max(0, $attaque), RANKING_SQRT_EXPONENT)
+        + RANKING_DEFENSE_WEIGHT * pow(max(0, $defense), RANKING_SQRT_EXPONENT)
+        + RANKING_TRADE_WEIGHT * pow(max(0, $commerce), RANKING_SQRT_EXPONENT)
+        + RANKING_PILLAGE_WEIGHT * pow(max(0, $pillage), RANKING_SQRT_EXPONENT)
+    );
+}
+
+/**
+ * Recompute totalPoints for a player from their raw category columns.
+ * Call after any point category changes.
+ */
+function recalculerTotalPointsJoueur($base, $joueur)
+{
+    $data = dbFetchOne($base, 'SELECT points, pointsAttaque, pointsDefense, ressourcesPillees, tradeVolume FROM autre WHERE login = ?', 's', $joueur);
+    if (!$data) return;
+
+    $total = calculerTotalPoints(
+        $data['points'],
+        pointsAttaque($data['pointsAttaque']),
+        pointsDefense($data['pointsDefense']),
+        $data['tradeVolume'],
+        pointsPillage($data['ressourcesPillees'])
+    );
+    dbExecute($base, 'UPDATE autre SET totalPoints = ? WHERE login = ?', 'ds', $total, $joueur);
+}
+
 function bonusDuplicateur($niveau)
 {
     return $niveau * DUPLICATEUR_BONUS_PER_LEVEL;

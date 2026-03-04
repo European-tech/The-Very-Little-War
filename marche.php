@@ -224,17 +224,11 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             // Award trade points based on energy spent (not atom volume, to prevent buy-sell exploits)
                             $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
                             $tradeVolume = round($coutAchat * $reseauBonus);
-                            $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', 's', $_SESSION['login']);
+                            $autreData = dbFetchOne($base, 'SELECT tradeVolume FROM autre WHERE login=?', 's', $_SESSION['login']);
                             $oldVolume = $autreData['tradeVolume'] ?? 0;
                             $newVolume = $oldVolume + $tradeVolume;
-                            $oldTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($oldVolume)));
-                            $newTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($newVolume)));
-                            $pointsDelta = $newTradePoints - $oldTradePoints;
-                            if ($pointsDelta > 0) {
-                                dbExecute($base, 'UPDATE autre SET tradeVolume=?, totalPoints=? WHERE login=?', 'dds', $newVolume, ($autreData['totalPoints'] + $pointsDelta), $_SESSION['login']);
-                            } else {
-                                dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
-                            }
+                            dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
+                            recalculerTotalPointsJoueur($base, $_SESSION['login']);
                         });
                         logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
                         $safeResName = $nomsRes[$numRes]; // server-side validated resource name
@@ -351,17 +345,11 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         // Award trade points on sell (mirror buy logic)
                         $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
                         $tradeVolume = round($energyGained * $reseauBonus);
-                        $autreData = dbFetchOne($base, 'SELECT tradeVolume, totalPoints FROM autre WHERE login=?', 's', $_SESSION['login']);
+                        $autreData = dbFetchOne($base, 'SELECT tradeVolume FROM autre WHERE login=?', 's', $_SESSION['login']);
                         $oldVolume = $autreData['tradeVolume'] ?? 0;
                         $newVolume = $oldVolume + $tradeVolume;
-                        $oldTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($oldVolume)));
-                        $newTradePoints = min(MARKET_POINTS_MAX, floor(MARKET_POINTS_SCALE * sqrt($newVolume)));
-                        $pointsDelta = $newTradePoints - $oldTradePoints;
-                        if ($pointsDelta > 0) {
-                            dbExecute($base, 'UPDATE autre SET tradeVolume=?, totalPoints=? WHERE login=?', 'dds', $newVolume, ($autreData['totalPoints'] + $pointsDelta), $_SESSION['login']);
-                        } else {
-                            dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
-                        }
+                        dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
+                        recalculerTotalPointsJoueur($base, $_SESSION['login']);
                     });
                     logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $actualSold, 'energy_gained' => $energyGained]);
                     $safeResName = $nomsRes[$numRes]; // server-side validated resource name

@@ -448,6 +448,18 @@ define('PILLAGE_POINTS_DIVISOR', 50000);
 define('PILLAGE_POINTS_MULTIPLIER', 80);
 
 // =============================================================================
+// SQRT RANKING SYSTEM (V4-19)
+// =============================================================================
+// Total ranking = sum of (weight * sqrt(category_points)) across 5 categories.
+// Sqrt prevents any single activity from dominating. Balanced players rank higher.
+define('RANKING_CONSTRUCTION_WEIGHT', 1.0);
+define('RANKING_ATTACK_WEIGHT', 1.5);
+define('RANKING_DEFENSE_WEIGHT', 1.5);
+define('RANKING_TRADE_WEIGHT', 1.0);
+define('RANKING_PILLAGE_WEIGHT', 1.2);
+define('RANKING_SQRT_EXPONENT', 0.5);
+
+// =============================================================================
 // MEDALS / TIERS
 // =============================================================================
 // Medal tier names

@@ -65,8 +65,10 @@ function ajouterPoints($nb, $joueur, $type = 0)
     global $base;
 
     if ($type == 0) {
-        $result = dbExecute($base, 'UPDATE autre SET points = points + ?, totalPoints = totalPoints + ? WHERE login = ? AND points + ? >= 0', 'ddsd', $nb, $nb, $joueur, $nb);
+        // Construction points — update raw, then recompute sqrt total
+        $result = dbExecute($base, 'UPDATE autre SET points = points + ? WHERE login = ? AND points + ? >= 0', 'dsd', $nb, $joueur, $nb);
         if (mysqli_affected_rows($base) > 0) {
+            recalculerTotalPointsJoueur($base, $joueur);
             return $nb;
         }
         return 0;
@@ -76,20 +78,20 @@ function ajouterPoints($nb, $joueur, $type = 0)
 
     if ($type == 1) {
         $newPoints = max(0, $points['pointsAttaque'] + $nb);
-        dbExecute($base, 'UPDATE autre SET pointsAttaque=?, totalPoints=? WHERE login=?', 'dds', $newPoints, ($points['totalPoints'] - pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints)), $joueur);
+        dbExecute($base, 'UPDATE autre SET pointsAttaque=? WHERE login=?', 'ds', $newPoints, $joueur);
+        recalculerTotalPointsJoueur($base, $joueur);
         return -pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints);
     }
     if ($type == 2) {
         $newPoints = max(0, $points['pointsDefense'] + $nb);
-        dbExecute($base, 'UPDATE autre SET pointsDefense=?, totalPoints=? WHERE login=?', 'dds', $newPoints, ($points['totalPoints'] - pointsDefense($points['pointsDefense']) + pointsDefense($newPoints)), $joueur);
+        dbExecute($base, 'UPDATE autre SET pointsDefense=? WHERE login=?', 'ds', $newPoints, $joueur);
+        recalculerTotalPointsJoueur($base, $joueur);
         return -pointsDefense($points['pointsDefense']) + pointsDefense($newPoints);
     }
     if ($type == 3) {
         $newPillage = $points['ressourcesPillees'] + $nb;
-        $oldPillageContrib = pointsPillage($points['ressourcesPillees']);
-        $newPillageContrib = pointsPillage(max(0, $newPillage));
-        $totalPointsDelta = $newPillageContrib - $oldPillageContrib;
-        dbExecute($base, 'UPDATE autre SET ressourcesPillees=?, totalPoints=? WHERE login=?', 'dds', $newPillage, ($points['totalPoints'] + $totalPointsDelta), $joueur);
+        dbExecute($base, 'UPDATE autre SET ressourcesPillees=? WHERE login=?', 'ds', $newPillage, $joueur);
+        recalculerTotalPointsJoueur($base, $joueur);
         return chiffrePetit($nb, 0);
     }
 }
