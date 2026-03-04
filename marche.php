@@ -25,7 +25,11 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
         $ipdd = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_POST['destinataire']);
         $ipmm = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
 
-        if ($ipmm['ip'] != $ipdd['ip']) {
+        // Block transfers between flagged multi-account pairs
+        require_once('includes/multiaccount.php');
+        if (areFlaggedAccounts($base, $_SESSION['login'], $_POST['destinataire'])) {
+            $information = "Transfert bloqué : les comptes sont sous surveillance pour suspicion de multi-compte.";
+        } elseif ($ipmm['ip'] != $ipdd['ip']) {
             if (empty($_POST['energieEnvoyee'])) {
                 $_POST['energieEnvoyee'] = 0;
             }
@@ -97,6 +101,9 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                         dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
                             $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
 
+                        // Multi-account: check for suspicious transfer patterns
+                        require_once('includes/multiaccount.php');
+                        checkTransferPatterns($base, $_SESSION['login'], $_POST['destinataire'], time());
 
                         // Build dynamic UPDATE for ressources
                         $chaine = "";

@@ -69,6 +69,9 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 				dbExecute($base, 'UPDATE membre SET ip = ? WHERE login = ?', 'ss', $_SERVER['REMOTE_ADDR'], $loginInput);
 				logInfo('AUTH', 'Login successful', ['login' => $loginInput]);
 
+				require_once(__DIR__ . '/multiaccount.php');
+				logLoginEvent($base, $loginInput, 'login');
+
 				header('Location: constructions.php');
 				exit();
 			} else {

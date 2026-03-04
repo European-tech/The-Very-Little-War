@@ -348,6 +348,11 @@ function updateActions($joueur)
 
                 dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage);
                 mysqli_commit($base);
+
+                // Multi-account: check for coordinated attacks from same-IP accounts
+                require_once(__DIR__ . '/multiaccount.php');
+                checkCoordinatedAttacks($base, $actions['attaquant'], $actions['defenseur'], $actions['tempsAttaque']);
+
                 } catch (Exception $combatException) {
                     mysqli_rollback($base);
                     error_log('Combat transaction rolled back for action ' . $actions['id'] . ': ' . $combatException->getMessage());
