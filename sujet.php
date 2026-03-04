@@ -217,5 +217,5 @@ if (isset($_GET['id'])) {
 }
 
 
-include("includes/copyright.php"); ?>
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<?php include("includes/copyright.php"); ?>

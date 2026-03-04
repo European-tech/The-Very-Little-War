@@ -31,10 +31,14 @@ if (ini_get("session.use_cookies")) {
 <head>
 <?php include("includes/meta.php"); ?>
 <title>The Very Little War - Deconnexion</title>
+<?php
+$nonce = cspNonce();
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self';");
+?>
 </head>
 <body>
 
-<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
+<script nonce="<?php echo htmlspecialchars($nonce, ENT_QUOTES, 'UTF-8'); ?>">
     localStorage.removeItem("login");
     window.location = "index.php";
 </script>
