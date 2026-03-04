@@ -1,0 +1,346 @@
+╔══════════════════════════════════════════════════════════════════╗
+║     TVLW Balance Simulator v1.0                                ║
+║     Using constants from includes/config.php                   ║
+╚══════════════════════════════════════════════════════════════════╝
+Date: 2026-03-04 19:39:05
+
+╔══════════════════════════════════════════════════════════════════╗
+║       ARCHETYPE STAT COMPARISON (per molecule, cond=10)        ║
+╚══════════════════════════════════════════════════════════════════╝
+
+ Archetype   Atoms   Attack    Defense   HP      Destruct  Pillage   Speed   FormTime  
+ ──────────────────────────────────────────────────────────────────────────────────────
+ raider      200     268       36        66      223       109       18.45   3.4h      
+ turtle      200     34        277       266     34        36        12.00   2.9h      
+ pillager    200     100       34        46      61        298       28.79   3.2h      
+ speedster   200     81        54        48      81        76        49.05   0.9h      
+ balanced    200     109       109       121     109       109       19.95   1.9h      
+
+ BALANCE CHECK: No archetype should dominate >2 categories.
+   Raider should lead in Attack+Destruction.
+   Turtle should lead in Defense+HP.
+   Pillager should lead in Pillage.
+   Speedster should lead in Speed.
+   Balanced should be competitive but not best in any.
+
+╔══════════════════════════════════════════════════════════════════╗
+║              ATOM EFFICIENCY ANALYSIS                          ║
+╚══════════════════════════════════════════════════════════════════╝
+Shows stat output per atom invested. Condenseur level=10 (mid-game).
+
+┌─── ATTACK: attaque(O, H, condO=10) ───────────────────────────┐
+ O\H   H=0        H=25       H=50       H=100      marginal   
+ ─────────────────────────────────────────────────────────────
+ 10    31         39         47         62         
+ 25    87         109        131        174        +4.8/O     
+ 50    191        239        287        382        +5.4/O     
+ 75    303        379        455        607        +5.7/O     
+ 100   421        527        632        843        +6.0/O     
+ 150   670        838        1,005      1,341      +6.4/O     
+ 200   932        1,166      1,399      1,865      +6.7/O     
+
+┌─── DEFENSE: defense(C, Br, condC=10) ──────────────────────────┐
+ C\Br  Br=0       Br=25      Br=50      Br=100     marginal   
+ ─────────────────────────────────────────────────────────────
+ 10    31         39         47         62         
+ 25    87         109        131        174        +4.8/C     
+ 50    191        239        287        382        +5.4/C     
+ 75    303        379        455        607        +5.7/C     
+ 100   421        527        632        843        +6.0/C     
+ 150   670        838        1,005      1,341      +6.4/C     
+ 200   932        1,166      1,399      1,865      +6.7/C     
+
+┌─── PILLAGE: pillage(S, Cl, condS=10) ─────────────────────────┐
+ S\Cl  Cl=0       Cl=25      Cl=50      Cl=100     marginal   
+ ─────────────────────────────────────────────────────────────
+ 10    31         39         47         62         
+ 25    87         109        131        174        +4.8/S     
+ 50    191        239        287        382        +5.4/S     
+ 75    303        379        455        607        +5.7/S     
+ 100   421        527        632        843        +6.0/S     
+ 150   670        838        1,005      1,341      +6.4/S     
+ 200   932        1,166      1,399      1,865      +6.7/S     
+
+┌─── MOLECULE HP: pointsDeVieMolecule(Br, C, condBr=10) ───────┐
+ Br\C  C=0        C=25       C=50       C=100      
+ ──────────────────────────────────────────────────
+ 10    43         51         59         74         
+ 25    99         121        143        186        
+ 50    203        251        299        394        
+ 75    315        391        467        619        
+ 100   433        539        644        855        
+ 150   682        850        1,017      1,353      
+ 200   944        1,178      1,411      1,877      
+
+┌─── SPEED: vitesse(Cl, N, condCl=10) ─────────────────────────┐
+ Cl\N  N=0        N=25       N=50       N=100      
+ ──────────────────────────────────────────────────
+ 10    7.19       8.69       10.19      13.20      
+ 25    16.20      19.95      23.70      31.20      
+ 50    31.20      38.69      46.20      61.20      
+ 75    46.20      57.45      68.70      91.20      
+ 100   61.20      76.20      91.20      121.19     
+ 150   91.20      113.70     136.19     181.20     
+ 200   121.19     151.19     181.20     241.20     
+
+┌─── DESTRUCTION: potentielDestruction(H, O, condH=10) ────────┐
+ H\O   O=0        O=25       O=50       O=100      
+ ──────────────────────────────────────────────────
+ 10    31         39         47         62         
+ 25    87         109        131        174        
+ 50    191        239        287        382        
+ 75    303        379        455        607        
+ 100   421        527        632        843        
+ 150   670        838        1,005      1,341      
+ 200   932        1,166      1,399      1,865      
+
+╔══════════════════════════════════════════════════════════════════╗
+║       SPEED DOMINANCE ANALYSIS (H-009)                         ║
+╚══════════════════════════════════════════════════════════════════╝
+Question: Is Cl too dominant in the speed formula?
+Formula: vitesse = 1 + Cl*0.5 + Cl*N/200
+
+┌─── Cl contribution breakdown at N=25, condCl=10 ──────────────┐
+ Cl    Base(1)   Cl*0.5    Cl*N/200  Total     Cl%       Final     
+ ──────────────────────────────────────────────────────────────────
+ 10    1.0       5.0       1.3       7.3       86.2%     8.69      
+ 25    1.0       12.5      3.1       16.6      94.0%     19.95     
+ 50    1.0       25.0      6.3       32.3      96.9%     38.69     
+ 75    1.0       37.5      9.4       47.9      97.9%     57.45     
+ 100   1.0       50.0      12.5      63.5      98.4%     76.20     
+ 150   1.0       75.0      18.8      94.8      98.9%     113.70    
+ 200   1.0       100.0     25.0      126.0     99.2%     151.19    
+
+┌─── N contribution at Cl=50, condCl=10 ────────────────────────┐
+ N     Base(1)   Cl*0.5    Cl*N/200  Total     N%        Final     
+ ──────────────────────────────────────────────────────────────────
+ 0     1.0       25.0      0.0       26.0      0.0%      31.20     
+ 10    1.0       25.0      2.5       28.5      8.8%      34.19     
+ 25    1.0       25.0      6.3       32.3      19.4%     38.69     
+ 50    1.0       25.0      12.5      38.5      32.5%     46.20     
+ 100   1.0       25.0      25.0      51.0      49.0%     61.20     
+ 150   1.0       25.0      37.5      63.5      59.1%     76.20     
+ 200   1.0       25.0      50.0      76.0      65.8%     91.20     
+
+┌─── Soft cap analysis: what if min(30, Cl*0.5)? ──────────────┐
+ Cl    Current     Capped      Diff        %Change     
+ ──────────────────────────────────────────────────────
+ 10    8.69        8.69        0.00        0.0%        
+ 25    19.95       19.95       0.00        0.0%        
+ 50    38.69       38.69       0.00        0.0%        
+ 75    57.45       48.45       9.00        15.7%       
+ 100   76.20       52.20       24.00       31.5%       
+ 150   113.70      59.70       54.00       47.5%       
+ 200   151.19      67.20       83.99       55.6%       
+
+ VERDICT: If Cl alone accounts for >70% of speed at high values,
+          a soft cap is warranted to keep N investment meaningful.
+
+╔══════════════════════════════════════════════════════════════════╗
+║       PILLAGE SOUFRE DIVISOR ANALYSIS (H-008)                  ║
+╚══════════════════════════════════════════════════════════════════╝
+Question: Should PILLAGE_SOUFRE_DIVISOR=2 be applied?
+Context: PILLAGE_SOUFRE_DIVISOR exists but is unused in V4.
+
+┌─── Reference: depot capacity at various levels ────────────────┐
+  Depot level 10: 4,046 per resource
+  Depot level 15: 8,137 per resource
+  Depot level 20: 16,367 per resource
+  Depot level 25: 32,919 per resource
+  Depot level 30: 66,212 per resource
+
+┌─── Pillage per molecule by archetype ─────────────────────────┐
+ Archetype   S     Cl    Pil/mol     w/div Pil   500mol      w/div 500   vs Dep15    
+ ──────────────────────────────────────────────────────────────────────────────────
+ raider      25    25    109         48          54,500      24,000      669.8%      
+ turtle      10    15    36          16          18,000      8,000       221.2%      
+ pillager    55    40    298         133         149,000     66,500      1,831.1%    
+ speedster   15    55    76          32          38,000      16,000      467.0%      
+ balanced    25    25    109         48          54,500      24,000      669.8%      
+
+┌─── With vault protection (coffrefort) ──────────────────────────┐
+ Vault level 10, depot level 15: protected = 1,627 per resource
+ Effective pillageable = 6,510 per resource
+
+ VERDICT: If pillage per 500-molecule raid > 100% of depot capacity,
+          the soufre divisor is needed to prevent raid wipes.
+          If < 50%, soufre is balanced and divisor is not needed.
+
+╔══════════════════════════════════════════════════════════════════╗
+║       COMBAT MATCHUP ANALYSIS                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+4000 molecules each (1000 per class), condLevel=10
+Format: [winner] survivors% | d=draw, a=attacker, D=defender
+
+┌─── Defender Formation: Dispersée ───────────────────────────────────┐
+ Att\Def    raider       turtle       pillager     speedster    balanced     
+ ────────────────────────────────────────────────────────────────────────────
+ raider     A 40%a       D 0%d        A 43%a       A 10%a       D 0%d        
+ turtle     D 45%d       D 86%d       D 22%d       D 25%d       D 70%d       
+ pillager   A 14%a       D 53%d       A 19%a       D 0%d        D 0%d        
+ speedster  A 18%a       D 63%d       A 22%a       D 0%d        D 20%d       
+ balanced   A 67%a       D 51%d       A 69%a       A 51%a       D 0%d        
+
+┌─── Defender Formation: Phalange ─────────────────────────────────────┐
+ Att\Def    raider       turtle       pillager     speedster    balanced     
+ ────────────────────────────────────────────────────────────────────────────
+ raider     A 37%a       D 0%d        A 41%a       A 6%a        D 0%d        
+ turtle     D 50%d       D 88%d       D 27%d       D 30%d       D 73%d       
+ pillager   A 10%a       D 58%d       A 15%a       D 0%d        D 3%d        
+ speedster  A 13%a       D 67%d       A 18%a       D 0%d        D 25%d       
+ balanced   A 66%a       D 56%d       A 68%a       A 48%a       D 0%d        
+
+┌─── Defender Formation: Embuscade ────────────────────────────────────┐
+ Att\Def    raider       turtle       pillager     speedster    balanced     
+ ────────────────────────────────────────────────────────────────────────────
+ raider     A 36%a       D 0%d        A 39%a       A 3%a        D 0%d        
+ turtle     D 45%d       D 86%d       D 22%d       D 25%d       D 70%d       
+ pillager   A 7%a        D 53%d       A 13%a       D 0%d        D 0%d        
+ speedster  A 11%a       D 63%d       A 16%a       D 0%d        D 20%d       
+ balanced   A 65%a       D 51%d       A 67%a       A 47%a       D 0%d        
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║       FORMATION WIN-RATE ANALYSIS (H-010)                      ║
+╚══════════════════════════════════════════════════════════════════╝
+Which formation gives the best defensive outcomes?
+
+┌─── Formation Effectiveness Summary ────────────────────────────┐
+ Formation      Def Wins    Win Rate    Draws     Avg Surv    Best In     
+ ─────────────────────────────────────────────────────────────────────────
+ Dispersée     5/25        20.0%       10        698         60.0%       
+ Phalange       6/25        24.0%       9         762         40.0%       
+ Embuscade      5/25        20.0%       10        698         0.0%        
+
+ TARGET: Each formation should win ~33% ± 10% of matchups.
+         'Best In' should be close to 33% each.
+         If Phalange > 45%, reduce FORMATION_PHALANX_ABSORB.
+         If Embuscade < 20%, increase FORMATION_AMBUSH_ATTACK_BONUS.
+
+╔══════════════════════════════════════════════════════════════════╗
+║       31-DAY ECONOMY PROGRESSION                               ║
+╚══════════════════════════════════════════════════════════════════╝
+Simplified simulation: resource accrual per hour, mol creation
+every 4h when atoms available, decay per hour.
+
+┌─── raider (Aggressive attacker: high O/H for damage) ─────────┐
+ Day 1  : E=8,137      A=64,096     Mol=29       T½=6.2d    
+ Day 3  : E=8,137      A=64,096     Mol=77       T½=6.2d    
+ Day 7  : E=8,137      A=64,096     Mol=146      T½=6.2d    
+ Day 14 : E=8,137      A=64,096     Mol=213      T½=6.2d    
+ Day 21 : E=8,137      A=64,096     Mol=244      T½=6.2d    
+ Day 31 : E=8,137      A=64,096     Mol=261      T½=6.2d    
+ FINAL: Atk=65,250 Def=8,613 Pil=26,622 Spd=17.22 Form=3.6h
+
+┌─── turtle (Defensive player: high C/Br for tanking) ──────────┐
+ Day 1  : E=12,375     A=98,000     Mol=29       T½=6.6d    
+ Day 3  : E=12,375     A=98,000     Mol=78       T½=6.6d    
+ Day 7  : E=12,375     A=98,000     Mol=149      T½=6.6d    
+ Day 14 : E=12,375     A=98,000     Mol=221      T½=6.6d    
+ Day 21 : E=12,375     A=98,000     Mol=255      T½=6.6d    
+ Day 31 : E=12,375     A=98,000     Mol=275      T½=6.6d    
+ FINAL: Atk=8,800 Def=71,225 Pil=9,075 Spd=11.20 Form=3.1h
+
+┌─── pillager (Resource raider: high S/Cl for looting) ─────────┐
+ Day 1  : E=8,137      A=64,096     Mol=29       T½=6.2d    
+ Day 3  : E=8,137      A=64,096     Mol=77       T½=6.2d    
+ Day 7  : E=8,137      A=64,096     Mol=146      T½=6.2d    
+ Day 14 : E=8,137      A=64,096     Mol=213      T½=6.2d    
+ Day 21 : E=8,137      A=64,096     Mol=244      T½=6.2d    
+ Day 31 : E=8,137      A=64,096     Mol=261      T½=6.2d    
+ FINAL: Atk=24,273 Def=8,352 Pil=72,558 Spd=26.88 Form=3.4h
+
+┌─── speedster (Speed-focused: high Cl/N for fast attacks) ─────┐
+ Day 1  : E=8,137      A=64,096     Mol=29       T½=6.2d    
+ Day 3  : E=8,137      A=64,096     Mol=77       T½=6.2d    
+ Day 7  : E=8,137      A=64,096     Mol=146      T½=6.2d    
+ Day 14 : E=8,137      A=64,096     Mol=213      T½=6.2d    
+ Day 21 : E=8,137      A=64,096     Mol=244      T½=6.2d    
+ Day 31 : E=8,137      A=64,096     Mol=261      T½=6.2d    
+ FINAL: Atk=20,097 Def=13,311 Pil=18,792 Spd=46.59 Form=1.0h
+
+┌─── balanced (Well-rounded: even atom distribution) ───────────┐
+ Day 1  : E=8,137      A=64,096     Mol=29       T½=6.2d    
+ Day 3  : E=8,137      A=64,096     Mol=77       T½=6.2d    
+ Day 7  : E=8,137      A=64,096     Mol=146      T½=6.2d    
+ Day 14 : E=8,137      A=64,096     Mol=213      T½=6.2d    
+ Day 21 : E=8,137      A=64,096     Mol=244      T½=6.2d    
+ Day 31 : E=8,137      A=64,096     Mol=261      T½=6.2d    
+ FINAL: Atk=26,883 Def=26,883 Pil=26,883 Spd=18.95 Form=2.0h
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║       RANKING BALANCE ANALYSIS                                 ║
+╚══════════════════════════════════════════════════════════════════╝
+Does the sqrt ranking prevent any single activity from dominating?
+
+┌─── Sqrt Ranking Breakdown ────────────────────────────────────┐
+ Archetype   Constr    Attack    Defense   Trade     Pillage   TOTAL     Top%    
+ ────────────────────────────────────────────────────────────────────────────────
+ raider      22.4      17.8      12.6      10.0      10.7      73.5      30.4%   
+ turtle      24.5      8.9       18.4      14.1      4.8       70.7      34.7%   
+ pillager    20.0      15.0      11.7      7.1       10.7      64.5      31.0%   
+ speedster   21.2      15.9      12.6      17.3      10.7      77.8      27.3%   
+ balanced    22.4      15.0      15.0      20.0      10.7      83.1      26.9%   
+
+ TARGET: No single category > 40% of total.
+         Balanced player should rank highest.
+
+╔══════════════════════════════════════════════════════════════════╗
+║       MOLECULE DECAY ANALYSIS                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+Half-life for different molecule sizes and stabilisateur levels.
+
+┌─── Half-life table (hours/days) ───────────────────────────────┐
+ Atoms\Stab  S=0           S=5           S=10          S=15          S=20          S=30          
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ 50          13.0 days     14.3 days     15.9 days     17.5 days     19.4 days     23.8 days     
+ 100         9.3 days      10.3 days     11.4 days     12.6 days     13.9 days     17.0 days     
+ 200         5.6 days      6.2 days      6.9 days      7.6 days      8.4 days      10.3 days     
+ 400         2.8 days      3.1 days      3.5 days      3.8 days      4.3 days      5.2 days      
+ 600         1.8 days      2.0 days      2.2 days      2.4 days      2.7 days      3.3 days      
+ 800         1.3 days      1.4 days      1.5 days      1.7 days      1.9 days      2.3 days      
+ 1200        17.7 hours    19.6 hours    21.7 hours    1.0 days      1.1 days      1.4 days      
+
+ Molecule size guide:
+   50 atoms = tiny (cheap, fast to make)
+   200 atoms = standard (typical mid-game)
+   800 atoms = large (expensive, needs high stabilisateur)
+   1200 atoms = max-size (requires specialized build)
+
+ TARGET: Standard (200 atom) molecules should have 3-7 day half-life
+         at typical stab level (5-10). Large (800+) molecules should
+         need stab 15+ to last more than a few days.
+
+╔══════════════════════════════════════════════════════════════════╗
+║       FORMATION TIME ANALYSIS                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+Time to create molecules at various sizes, azote, iode levels.
+
+┌─── Formation time in hours (condN=10, iode=20) ───────────────┐
+ Size\Lieur  L=1 N=25      L=5 N=25      L=10 N=25     L=15 N=25     L=10 N=50     L=10 N=100    
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ 50 atm      0.9h          0.6h          0.4h          0.3h          0.2h          0.1h          
+ 100 atm     1.9h          1.2h          0.9h          0.7h          0.4h          0.2h          
+ 200 atm     3.7h          2.5h          1.7h          1.3h          0.8h          0.4h          
+ 400 atm     7.5h          4.9h          3.4h          2.6h          1.6h          0.8h          
+ 800 atm     14.9h         9.8h          6.9h          5.3h          3.2h          1.5h          
+
+ TARGET: Standard (200 atom) molecules should take 2-6 hours at
+         mid-game. Large (800+ atom) should take 12-24+ hours.
+
+╔══════════════════════════════════════════════════════════════════╗
+║     SIMULATION COMPLETE                                        ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Review results above to determine:
+  7.1 (H-008): Whether PILLAGE_SOUFRE_DIVISOR should be applied
+  7.2 (H-009): Whether chlore speed needs a soft cap
+  7.3 (H-010): Whether formations need rebalancing
+
+Key thresholds:
+  Speed: Cl should not account for >70% of speed at high values
+  Pillage: 500-molecule raid should loot <50% of depot capacity
+  Formations: Each should win 25-40% of matchups
+  Ranking: No category >40% of total; balanced archetype ranks #1
+  Decay: 200-atom mol half-life 3-7 days at stab 5-10
