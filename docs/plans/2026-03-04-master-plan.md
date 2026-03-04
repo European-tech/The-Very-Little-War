@@ -50,7 +50,18 @@ Sprint 0 ──┬── Sprint 1 (blocked on DNS)
 
 ---
 
-## Sprint 0: Cleanup & Security Fixes (3-4h)
+## Prior Work Already Completed
+
+The following remediation batches are DONE (101+ items fixed) and NOT repeated in this plan:
+- **Batches A-E**: Transaction safety (H-001/002/013-016), BBCode XSS (H-025/026), column whitelists (H-037-042), season reset hardening (H-048-052), prestige.php UI (C-030)
+- **Batch I**: Security fixes (L-023, H-033, H-027), data integrity (M-001, M-005, L-019), dead files (L-013, L-018), UX polish (M-027, M-022, M-011)
+- **Batches J-R**: CSP nonce implementation (C-004 substantially fixed), code hardening (stripslashes, die(), mysqli_fetch_array), bilan.php bonus page, CHECK constraints (migration 0017), CI pipeline
+- **V4 Balance**: 18/20 V4 gameplay items implemented (covalent synergy, exponential economy, iode catalyst, decay V4, overkill cascade, combat points)
+- **CSP Status**: Nonce-based CSP via includes/csp.php + layout.php header. script-src uses nonce, no unsafe-inline. ~21 inline scripts remain but are nonce-gated.
+
+---
+
+## Sprint 0: Cleanup & Security Fixes — COMPLETED
 
 **Goal:** Fix all remaining CRITICAL security items, clean dead constants, fix display bug.
 
