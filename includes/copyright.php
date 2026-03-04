@@ -41,8 +41,8 @@ finCarte();
     <?php if(isset($_SESSION['login'])){ ?>
     var joueurs = [
         <?php
-        $ex = dbQuery($base, 'SELECT login FROM membre WHERE login!=?', 's', $_SESSION['login']);
-        while($noms = mysqli_fetch_array($ex)){
+        $nomsRows = dbFetchAll($base, 'SELECT login FROM membre WHERE login!=?', 's', $_SESSION['login']);
+        foreach($nomsRows as $noms){
             echo '"'.htmlspecialchars($noms['login'], ENT_QUOTES, 'UTF-8').'",';
         }
         ?>

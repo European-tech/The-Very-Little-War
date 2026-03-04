@@ -184,11 +184,11 @@ function updateRessources($joueur)
 
     $donneesMedaille = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $joueur);
 
-    $ex = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $joueur);
+    $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $joueur);
 
     $compteur = 0;
     $totalMoleculesPerdues = 0;
-    while ($molecules = mysqli_fetch_array($ex)) {
+    foreach ($moleculesRows as $molecules) {
 
         $moleculesRestantes = (pow(coefDisparition($joueur, $compteur + 1), $nbsecondes) * $molecules['nombre']);
         ${'nombre' . ($compteur + 1)} = $molecules['nombre'];

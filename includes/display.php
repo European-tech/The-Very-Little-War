@@ -268,8 +268,8 @@ function rangForum($joueur)
 
     $donnees = dbFetchOne($base, 'SELECT count(*) AS nbmessages FROM reponses WHERE auteur=?', 's', $joueur);
 
-    $exLogin = dbQuery($base, 'SELECT login FROM membre WHERE login=?', 's', $joueur);
-    $nb = mysqli_num_rows($exLogin);
+    $loginRows = dbFetchAll($base, 'SELECT login FROM membre WHERE login=?', 's', $joueur);
+    $nb = count($loginRows);
 
     if ($nb == 0) {
         $couleur = "gray";

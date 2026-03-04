@@ -142,8 +142,8 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
 
     //envoi des mails (always send — even without winner, notify of reset)
     // Runs AFTER maintenance cleared — email failures won't lock the game
-    $exMails = dbQuery($base, 'SELECT email, login FROM membre');
-    while ($donnees = mysqli_fetch_array($exMails)) {
+    $mailRows = dbFetchAll($base, 'SELECT email, login FROM membre', '');
+    foreach ($mailRows as $donnees) {
         $mail = $donnees['email']; // Déclaration de l'adresse de destination.
         if (!preg_match("#^[a-z0-9._-]+@(hotmail|live|msn).[a-z]{2,4}$#", $mail)) // On filtre les serveurs qui rencontrent des bogues.
         {

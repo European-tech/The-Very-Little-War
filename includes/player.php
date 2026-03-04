@@ -630,8 +630,8 @@ function coordonneesAleatoires()
         $carte[] = $temp;
     }
 
-    $ex = dbQuery($base, 'SELECT x,y FROM membre');
-    while ($joueurs = mysqli_fetch_array($ex)) {
+    $joueursRows = dbFetchAll($base, 'SELECT x,y FROM membre', '');
+    foreach ($joueursRows as $joueurs) {
         $carte[$joueurs['x']][$joueurs['y']] = 1;
     }
 
@@ -708,15 +708,15 @@ function recalculerStatsAlliances()
 {
     global $base;
 
-    $ex = dbQuery($base, 'SELECT id FROM alliances');
-    while ($donnees = mysqli_fetch_array($ex)) {
-        $ex1 = dbQuery($base, 'SELECT * FROM autre WHERE idalliance=?', 'i', $donnees['id']);
+    $alliancesRows = dbFetchAll($base, 'SELECT id FROM alliances', '');
+    foreach ($alliancesRows as $donnees) {
+        $membresRows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=?', 'i', $donnees['id']);
         $pointstotaux = 0;
         $cTotal = 0;
         $aTotal = 0;
         $dTotal = 0;
         $pTotal = 0;
-        while ($donnees1 = mysqli_fetch_array($ex1)) {
+        foreach ($membresRows as $donnees1) {
             $pointstotaux = $donnees1['totalPoints'] + $pointstotaux;
             $cTotal += $donnees1['points'];
             $aTotal += pointsAttaque($donnees1['pointsAttaque']);
@@ -811,17 +811,17 @@ function performSeasonEnd()
         // Archive top players
         $chaine = '';
         $vainqueurManche = null;
-        $classement = dbQuery($base, 'SELECT * FROM autre ORDER BY totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
+        $classementRows = dbFetchAll($base, 'SELECT * FROM autre ORDER BY totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N, '');
         $compteur = 0;
-        while ($data = mysqli_fetch_array($classement)) {
-            $sql4Result = dbQuery($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $data['login']);
+        foreach ($classementRows as $data) {
+            $molRows = dbFetchAll($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $data['login']);
             if ($data['idalliance'] > 0) {
                 $alliance = dbFetchOne($base, 'SELECT tag, id FROM alliances WHERE id = ?', 'i', $data['idalliance']);
             } else {
                 $alliance['tag'] = '';
             }
             $nb_molecules = 0;
-            while ($donnees4 = mysqli_fetch_array($sql4Result)) {
+            foreach ($molRows as $donnees4) {
                 $nb_molecules = $nb_molecules + $donnees4['nombre'];
             }
             $chaine = $chaine . '[' . $data['login'] . ',' . $data['totalPoints'] . ',' . $alliance['tag'] . ',' . $data['points'] . ',' . pointsAttaque($data['pointsAttaque']) . ',' . pointsDefense($data['pointsDefense']) . ',' . $data['ressourcesPillees'] . ',' . $data['victoires'] . '';
@@ -834,24 +834,24 @@ function performSeasonEnd()
         }
 
         // Archive alliances
-        $classement = dbQuery($base, 'SELECT * FROM alliances ORDER BY pointstotaux DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
+        $allianceClassement = dbFetchAll($base, 'SELECT * FROM alliances ORDER BY pointstotaux DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N, '');
         $chaine1 = '';
-        while ($data = mysqli_fetch_array($classement)) {
-            $req1 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
-            $nbjoueurs = mysqli_num_rows($req1);
+        foreach ($allianceClassement as $data) {
+            $membresAlliance = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
+            $nbjoueurs = count($membresAlliance);
             if ($nbjoueurs != 0) {
                 $chaine1 = $chaine1 . '[' . $data['tag'] . ',' . $nbjoueurs . ',' . $data['pointstotaux'] . ',' . $data['pointstotaux'] / $nbjoueurs . ',' . $data['totalConstructions'] . ',' . pointsAttaque($data['totalAttaque']) . ',' . pointsDefense($data['totalDefense']) . ',' . $data['totalPillage'] . ',' . $data['pointsVictoire'] . '';
             }
         }
 
         // Archive wars
-        $classement = dbQuery($base, 'SELECT * FROM declarations WHERE pertesTotales != 0 AND type = 0 AND fin != 0 ORDER BY pertesTotales DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N);
+        $guerreClassement = dbFetchAll($base, 'SELECT * FROM declarations WHERE pertesTotales != 0 AND type = 0 AND fin != 0 ORDER BY pertesTotales DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N, '');
         $chaine2 = '';
-        while ($data = mysqli_fetch_array($classement)) {
+        foreach ($guerreClassement as $data) {
             $alliance1 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id = ?', 'i', $data['alliance1']);
             $alliance2 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id = ?', 'i', $data['alliance2']);
-            $req1 = dbQuery($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
-            $nbjoueurs = mysqli_num_rows($req1);
+            $membresGuerre = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
+            $nbjoueurs = count($membresGuerre);
             if ($nbjoueurs != 0) {
                 $chaine2 = $chaine2 . '[' . $alliance1['tag'] . ' contre ' . $alliance2['tag'] . ',' . $data['pertesTotales'] . ',' . (($data['fin'] - $data['timestamp']) / SECONDS_PER_DAY) . ',' . $data['id'] . '';
             }
@@ -949,11 +949,9 @@ function remiseAZero()
         dbExecute($base, 'UPDATE statistiques SET nbDerniere=0, tailleCarte=1');
         dbExecute($base, 'UPDATE membre SET x=-1000, y=-1000');
 
-        $prestigePlayers = dbQuery($base, 'SELECT login, unlocks FROM prestige WHERE unlocks LIKE ?', 's', '%debutant_rapide%');
-        if ($prestigePlayers) {
-            while ($pp = mysqli_fetch_array($prestigePlayers)) {
-                dbExecute($base, 'UPDATE constructions SET generateur=2, vieGenerateur=? WHERE login=?', 'ds', pointsDeVie(2), $pp['login']);
-            }
+        $prestigeRows = dbFetchAll($base, 'SELECT login, unlocks FROM prestige WHERE unlocks LIKE ?', 's', '%debutant_rapide%');
+        foreach ($prestigeRows as $pp) {
+            dbExecute($base, 'UPDATE constructions SET generateur=2, vieGenerateur=? WHERE login=?', 'ds', pointsDeVie(2), $pp['login']);
         }
 
         dbExecute($base, 'DELETE FROM attack_cooldowns');

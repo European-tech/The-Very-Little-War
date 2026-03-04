@@ -1,10 +1,8 @@
 <?php
 
-$exMess = dbQuery($base, 'SELECT count(*) as nbMess FROM messages WHERE expeditaire = ?', 's', $_SESSION['login']);
-$nbMess = mysqli_fetch_array($exMess);
+$nbMess = dbFetchOne($base, 'SELECT count(*) as nbMess FROM messages WHERE expeditaire = ?', 's', $_SESSION['login']);
 
-$exClasses = dbQuery($base, 'SELECT count(*) as nbClasses FROM molecules WHERE proprietaire = ? AND formule != ?', 'ss', $_SESSION['login'], 'Vide');
-$nbClassesTuto = mysqli_fetch_array($exClasses);
+$nbClassesTuto = dbFetchOne($base, 'SELECT count(*) as nbClasses FROM molecules WHERE proprietaire = ? AND formule != ?', 'ss', $_SESSION['login'], 'Vide');
 
 $listeMissions = [
     ['titre' => 'Changer la description', 'contenu' => 'Pour vous démarquer des autres joueurs, changez la description publique de votre profil dans <strong>Mon compte</strong>','atomes' => 30,'resultat' => $autre['description'] != "Pas de description",'icone' => '<img alt="des" src="images/missions/description.png" class="w32"/>'],
@@ -50,9 +48,9 @@ $listeMissions = [
 
 $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ?', 's', $_SESSION['login']);
 
-$req2 = dbQuery($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $_SESSION['login']);
+$molJoueurRows = dbFetchAll($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $_SESSION['login']);
 $nb_moleculesJoueur = 0;
-while($moleculesJoueur = mysqli_fetch_array($req2)) {
+foreach($molJoueurRows as $moleculesJoueur) {
 	$nb_moleculesJoueur = $nb_moleculesJoueur + $moleculesJoueur['nombre'];
 }
 
@@ -112,10 +110,10 @@ if($autre['niveaututo'] == 5 and in_array("armee.php",explode("/",$_SERVER['PHP_
     echo '<script>document.location.href="armee.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 }
 
-$exMol = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire = ?', 's', $_SESSION['login']);
+$molRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire = ?', 's', $_SESSION['login']);
 $numClasse = -1;
 $nombre = 0;
-while($data = mysqli_fetch_array($exMol)){
+foreach($molRows as $data){
 	if($data['formule'] != "Vide"){
 		$numClasse = $data['numeroclasse'];
 		$nombre = $data['nombre'];
@@ -246,8 +244,8 @@ else { // si cela n'a pas été initialisé à la première connexion
         item(['media' => '<img src="images/menu/attaquer.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Carte', 'link' => 'attaquer.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/marche.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Marché', 'link' => 'marche.php', 'style' => 'color:black']);
 
-        $exInvite = dbQuery($base, 'SELECT invite FROM invitations WHERE invite = ?', 's', $_SESSION['login']);
-        $invitations = mysqli_num_rows($exInvite);
+        $inviteRows = dbFetchAll($base, 'SELECT invite FROM invitations WHERE invite = ?', 's', $_SESSION['login']);
+        $invitations = count($inviteRows);
         $alliancePlus = "";
 
 			$alliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
@@ -257,17 +255,17 @@ else { // si cela n'a pas été initialisé à la première connexion
         item(['media' => '<img src="images/menu/alliance.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Equipe '.$alliancePlus, 'link' => 'alliance.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/classement.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Classement', 'link' => 'classement.php?sub=0', 'style' => 'color:black']);
 
-      $exMessages = dbQuery($base, 'SELECT destinataire FROM messages WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
+      $messagesRows = dbFetchAll($base, 'SELECT destinataire FROM messages WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
             $messagePlus = "";
-			$nb_messages_nonlus = mysqli_num_rows($exMessages);
+			$nb_messages_nonlus = count($messagesRows);
             if($nb_messages_nonlus != 0) {
                 $messagePlus =  '<span class="badge bg-red" >'.$nb_messages_nonlus.'</span>';
             }
         item(['media' => '<img src="images/menu/message.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Messages '.$messagePlus, 'link' => 'messages.php', 'style' => 'color:black']);
 
-      $exRapports = dbQuery($base, 'SELECT destinataire FROM rapports WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
+      $rapportsRows = dbFetchAll($base, 'SELECT destinataire FROM rapports WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
             $rapportPlus = "";
-			$nb_messages_nonlus = mysqli_num_rows($exRapports);
+			$nb_messages_nonlus = count($rapportsRows);
             if($nb_messages_nonlus != 0) {
                 $rapportPlus =  '<span class="badge bg-red" >'.$nb_messages_nonlus.'</span>';
             }

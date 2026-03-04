@@ -2,21 +2,21 @@
 // Récupération des variables d'attaque, de défense, de coup critiques et de capacité de pillage pour chaque classe
 // Pour l'attaquant
 
-$exClasse1 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
+$rowsDefenseur = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
 
 $c = 1;
-while ($classeDefenseur = mysqli_fetch_array($exClasse1)) {
+foreach ($rowsDefenseur as $classeDefenseur) {
 	${'classeDefenseur' . $c} = $classeDefenseur;
 	${'classeDefenseur' . $c}['nombre'] = ceil(${'classeDefenseur' . $c}['nombre']);
 
 	$c++;
 }
 
-$exClasse1 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
+$rowsAttaquant = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
 
 $c = 1;
 $chaineExplosee = explode(";", $actions['troupes']);
-while ($classeAttaquant = mysqli_fetch_array($exClasse1)) {
+foreach ($rowsAttaquant as $classeAttaquant) {
 	${'classeAttaquant' . $c} = $classeAttaquant;
 	${'classeAttaquant' . $c}['nombre'] = ceil($chaineExplosee[$c - 1]); // on prends le nombre d'unites en attaque
 
@@ -655,9 +655,9 @@ $idallianceAutre = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?
 $joueurAlliance = ($joueur && isset($joueur['idalliance'])) ? $joueur['idalliance'] : 0;
 $autreAlliance = ($idallianceAutre && isset($idallianceAutre['idalliance'])) ? $idallianceAutre['idalliance'] : 0;
 
-$exGuerre = dbQuery($base, 'SELECT * FROM declarations WHERE type=0 AND fin=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?))', 'iiii', $joueurAlliance, $autreAlliance, $joueurAlliance, $autreAlliance);
-$guerre = mysqli_fetch_array($exGuerre);
-$nbGuerres = mysqli_num_rows($exGuerre);
+$guerres = dbFetchAll($base, 'SELECT * FROM declarations WHERE type=0 AND fin=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?))', 'iiii', $joueurAlliance, $autreAlliance, $joueurAlliance, $autreAlliance);
+$guerre = !empty($guerres) ? $guerres[0] : null;
+$nbGuerres = count($guerres);
 if ($nbGuerres >=  1) {
 	if ($guerre['alliance1'] == $joueurAlliance) {
 		dbExecute($base, 'UPDATE declarations SET pertes1=?, pertes2=? WHERE id=?', 'ddi', ($guerre['pertes1'] + $pertesAttaquant), ($guerre['pertes2'] + $pertesDefenseur), $guerre['id']);

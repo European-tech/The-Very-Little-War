@@ -32,8 +32,8 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 		// Use prepared statement to fetch user
 		$row = dbFetchOne($base, 'SELECT login, pass_md5 FROM membre WHERE login = ?', 's', $loginInput);
 
-		$a = dbQuery($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - VISITOR_SESSION_CLEANUP_SECONDS);
-		while ($supp = mysqli_fetch_array($a)) {
+		$suppRows = dbFetchAll($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - VISITOR_SESSION_CLEANUP_SECONDS);
+		foreach ($suppRows as $supp) {
 			supprimerJoueur($supp['login']);
 		}
 

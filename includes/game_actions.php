@@ -23,8 +23,8 @@ function updateActions($joueur)
     initPlayer($joueur);
 
     // Constructions
-    $ex = dbQuery($base, 'SELECT * FROM actionsconstruction WHERE login=? AND fin<?', 'si', $joueur, time());
-    while ($actions = mysqli_fetch_array($ex)) {
+    $rows = dbFetchAll($base, 'SELECT * FROM actionsconstruction WHERE login=? AND fin<?', 'si', $joueur, time());
+    foreach ($rows as $actions) {
         // CAS guard: DELETE first, only process if we claimed it (prevents double-processing)
         try {
             withTransaction($base, function() use ($base, $actions, $joueur) {
@@ -42,9 +42,9 @@ function updateActions($joueur)
 
     // Formation
 
-    $ex = dbQuery($base, 'SELECT * FROM actionsformation WHERE login=? AND debut<?', 'si', $joueur, time()); // toutes les formations qui sont en cours
+    $rows = dbFetchAll($base, 'SELECT * FROM actionsformation WHERE login=? AND debut<?', 'si', $joueur, time()); // toutes les formations qui sont en cours
 
-    while ($actions = mysqli_fetch_array($ex)) {
+    foreach ($rows as $actions) {
         $actionId = $actions['id'];
         withTransaction($base, function() use ($base, $actionId, $joueur) {
             // CAS guard: lock and re-read action to prevent double-processing
@@ -81,9 +81,9 @@ function updateActions($joueur)
 
     // Attaques
 
-    $ex = dbQuery($base, 'SELECT * FROM actionsattaques WHERE attaquant=? OR defenseur=? ORDER BY tempsAttaque DESC', 'ss', $joueur, $joueur);
+    $rows = dbFetchAll($base, 'SELECT * FROM actionsattaques WHERE attaquant=? OR defenseur=? ORDER BY tempsAttaque DESC', 'ss', $joueur, $joueur);
 
-    while ($actions = mysqli_fetch_array($ex)) {
+    foreach ($rows as $actions) {
         if ($actions['attaqueFaite'] == 0 && $actions['tempsAttaque'] < time()) { // on fait l'attaque
             if ($actions['troupes'] != 'Espionnage') {
                 // CAS guard: only proceed if this request is the first to claim the action
@@ -110,12 +110,12 @@ function updateActions($joueur)
                 try {
 
                 // Decay loop now inside the transaction
-                $ex3 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
+                $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
 
                 $compteur = 1;
                 $chaine = '';
                 $totalMoleculesPerdues = 0;
-                while ($moleculesProp = mysqli_fetch_array($ex3)) {
+                foreach ($moleculesRows as $moleculesProp) {
                     if (!isset($molecules[$compteur - 1])) {
                         logError("Malformed troupes string for action " . $actions['id']);
                         break;
@@ -359,9 +359,9 @@ function updateActions($joueur)
                 $espionageThreshold = ($nDef['neutrinos'] * ESPIONAGE_SUCCESS_RATIO) * $radarDiscount;
 
                 if ($espionageThreshold < $actions['nombreneutrinos']) {
-                    $exEspionnage = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
+                    $espionnageRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
                     $i = 1;
-                    while ($donneesEspionnage = mysqli_fetch_array($exEspionnage)) {
+                    foreach ($espionnageRows as $donneesEspionnage) {
                         ${'classe' . $i} = $donneesEspionnage;
                         $i++;
                     }
@@ -490,12 +490,12 @@ function updateActions($joueur)
                     $actionRow = dbFetchOne($base, 'SELECT id FROM actionsattaques WHERE id=? FOR UPDATE', 'i', $actionId);
                     if (!$actionRow) return; // Already processed by concurrent request
 
-                    $ex3 = dbQuery($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $joueur);
+                    $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $joueur);
 
                     $compteur = 1;
                     $totalMoleculesPerdues = 0;
 
-                    while ($moleculesProp = mysqli_fetch_array($ex3)) {
+                    foreach ($moleculesRows as $moleculesProp) {
                         if (!isset($molecules[$compteur - 1])) break;
                         $moleculesRestantes = (pow(coefDisparition($joueur, $compteur), $nbsecondes) * $molecules[$compteur - 1]);
 
@@ -516,9 +516,9 @@ function updateActions($joueur)
         }
     }
 
-    $ex = dbQuery($base, 'SELECT * FROM actionsenvoi WHERE (receveur=? OR envoyeur=?) AND tempsArrivee<?', 'ssi', $joueur, $joueur, time());
+    $rows = dbFetchAll($base, 'SELECT * FROM actionsenvoi WHERE (receveur=? OR envoyeur=?) AND tempsArrivee<?', 'ssi', $joueur, $joueur, time());
 
-    while ($actions = mysqli_fetch_array($ex)) {
+    foreach ($rows as $actions) {
         dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actions['id']);
 
         $envoyees = explode(";", $actions['ressourcesEnvoyees']);
