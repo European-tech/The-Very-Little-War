@@ -28,7 +28,26 @@ if (isset($_GET['att'])) {
 include("includes/tout.php");
 
 if (!isset($_SESSION['login'])) {
-    debutCarte("Connexion", "background-color:#8A0000");
+    // --- Hero tagline card ---
+    debutCarte();
+    debutContent(); ?>
+    <div style="text-align:center; padding:10px 0;">
+        <img src="images/icone.png" alt="atome" style="width:64px; height:64px;" /><br/>
+        <span class="magma" style="font-size:22px; color:#8A0000;">The Very Little War</span><br/>
+        <span style="font-size:15px; color:#555; font-style:italic;">Jeu de strat&eacute;gie chimique multijoueur gratuit</span>
+    </div>
+    <div style="text-align:center; padding:5px 10px;">
+        Construisez votre base, composez des mol&eacute;cules, forgez des alliances et dominez le classement dans ce jeu de strat&eacute;gie unique au th&egrave;me chimique.
+    </div>
+    <div style="text-align:center; padding:10px 0;">
+        <?php echo submit(['link' => 'inscription.php', 'titre' => 'S\'inscrire', 'style' => 'font-size:16px;']); ?>
+    </div>
+    <?php
+    finContent();
+    finCarte();
+
+    // --- Login card (returning players) ---
+    debutCarte("Se connecter", "background-color:#8A0000");
     debutListe();
     echo '<form action="index.php?noAutoConnexion=1" method="post" name="connexion">';
     echo csrfField();
@@ -38,6 +57,53 @@ if (!isset($_SESSION['login'])) {
     echo '<br/><p class="buttons-row">' . submit(['form' => 'connexion', 'titre' => 'Connexion', 'id' => 'boutonConnexion']) . submit(['link' => 'comptetest.php?inscription=1', 'titre' => 'Tester']);
     echo '</p>';
     echo '</form>';
+    finCarte();
+
+    // --- Key features overview card ---
+    debutCarte("Pourquoi jouer ?", "background-color:#333");
+    debutContent(); ?>
+    <div style="padding:5px 0;">
+        <div style="margin-bottom:12px;">
+            <img src="images/accueil/molecules.png" alt="molecules" class="w32" style="vertical-align:middle; margin-right:8px;" />
+            <strong>8 types d'atomes</strong><br/>
+            <span style="color:#555; font-size:13px; margin-left:40px; display:inline-block;">Carbone, oxyg&egrave;ne, azote, hydrog&egrave;ne, soufre, chlore, brome, iode : chacun avec un r&ocirc;le unique.</span>
+        </div>
+        <hr/>
+        <div style="margin-bottom:12px;">
+            <img src="images/accueil/cellule.png" alt="combat" class="w32" style="vertical-align:middle; margin-right:8px;" />
+            <strong>Mol&eacute;cules et combat</strong><br/>
+            <span style="color:#555; font-size:13px; margin-left:40px; display:inline-block;">Composez des mol&eacute;cules sur mesure et envoyez-les attaquer vos rivaux ou d&eacute;fendre votre territoire.</span>
+        </div>
+        <hr/>
+        <div style="margin-bottom:12px;">
+            <img src="images/accueil/deal.png" alt="alliances" class="w32" style="vertical-align:middle; margin-right:8px;" />
+            <strong>Alliances</strong><br/>
+            <span style="color:#555; font-size:13px; margin-left:40px; display:inline-block;">Rejoignez ou fondez une &eacute;quipe, d&eacute;clarez des guerres et partagez des bonus avec vos alli&eacute;s.</span>
+        </div>
+        <hr/>
+        <div style="margin-bottom:12px;">
+            <img src="images/accueil/cubes.png" alt="marche" class="w32" style="vertical-align:middle; margin-right:8px;" />
+            <strong>March&eacute; des ressources</strong><br/>
+            <span style="color:#555; font-size:13px; margin-left:40px; display:inline-block;">Achetez, vendez et &eacute;changez des atomes sur un march&eacute; dynamique avec des cours fluctuants.</span>
+        </div>
+        <hr/>
+        <div style="margin-bottom:12px;">
+            <img src="images/accueil/crown.png" alt="prestige" class="w32" style="vertical-align:middle; margin-right:8px;" />
+            <strong>Syst&egrave;me de prestige</strong><br/>
+            <span style="color:#555; font-size:13px; margin-left:40px; display:inline-block;">Gagnez des points de prestige, d&eacute;bloquez des bonus permanents et grimpez dans les classements.</span>
+        </div>
+        <hr/>
+        <div style="margin-bottom:12px;">
+            <img src="images/accueil/dimension.png" alt="formations" class="w32" style="vertical-align:middle; margin-right:8px;" />
+            <strong>Formations d&eacute;fensives</strong><br/>
+            <span style="color:#555; font-size:13px; margin-left:40px; display:inline-block;">Placez vos mol&eacute;cules en formation pour maximiser vos chances de survie lors des attaques ennemies.</span>
+        </div>
+    </div>
+    <div style="text-align:center; padding:8px 0;">
+        <span style="font-size:13px; color:#888;">Parties mensuelles &mdash; tout le monde repart &agrave; z&eacute;ro le 1er du mois !</span>
+    </div>
+    <?php
+    finContent();
     finCarte();
 }
 
