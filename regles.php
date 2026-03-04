@@ -221,6 +221,26 @@ En combat, les dégâts infligés ne sont jamais perdus. Si une classe de moléc
 
 <em>Astuce :</em> Répartissez vos molécules entre plusieurs classes pour absorber plus de dégâts totaux. Une seule classe concentrée peut être anéantie d'un coup !<br/><br/>
 
+<?php echo important('Classement'); ?>
+Le classement est basé sur <strong>5 catégories d'activité</strong>, chacune avec un poids différent et des <strong>rendements décroissants</strong> grâce à une formule racine carrée.<br/><br/>
+
+<strong>Catégories et poids :</strong><br/>
+<table style="border-collapse:collapse;margin:10px 0">
+<tr><th style="padding:6px;border:1px solid #ddd;">Catégorie</th><th style="padding:6px;border:1px solid #ddd;">Poids</th><th style="padding:6px;border:1px solid #ddd;">Source</th></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Construction</td><td style="padding:6px;border:1px solid #ddd;">1.0&times;</td><td style="padding:6px;border:1px solid #ddd;">Points de bâtiments</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Attaque</td><td style="padding:6px;border:1px solid #ddd;">1.5&times;</td><td style="padding:6px;border:1px solid #ddd;">Dégâts infligés en combat</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Défense</td><td style="padding:6px;border:1px solid #ddd;">1.5&times;</td><td style="padding:6px;border:1px solid #ddd;">Dégâts subis en combat</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Commerce</td><td style="padding:6px;border:1px solid #ddd;">1.0&times;</td><td style="padding:6px;border:1px solid #ddd;">Volume échangé au marché</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">Pillage</td><td style="padding:6px;border:1px solid #ddd;">1.2&times;</td><td style="padding:6px;border:1px solid #ddd;">Ressources pillées</td></tr>
+</table><br/>
+
+<strong>Formule :</strong><br/>
+<code>Score total = &sum; (poids &times; &radic;(points de la catégorie))</code><br/><br/>
+
+<strong>Conséquence :</strong> La racine carrée fait que les premiers points dans une catégorie rapportent plus que les suivants. Un joueur <strong>équilibré</strong> (actif dans toutes les catégories) sera mieux classé qu'un spécialiste d'une seule catégorie avec le même nombre total de points bruts.<br/><br/>
+
+<em>Astuce :</em> Diversifiez vos activités ! Construisez, combattez, défendez, commercez et pillez pour maximiser votre score.<br/><br/>
+
 <?php
 finContent();
 finCarte();
