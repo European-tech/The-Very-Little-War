@@ -1318,7 +1318,7 @@ For each resource, check if the player is within radius of a matching node and a
 
 ---
 
-## Sprint 6: Compound Synthesis Lab (6-8h)
+## Sprint 6: Compound Synthesis Lab (6-8h) ✅ COMPLETED
 
 **Goal:** Add a laboratory building where players craft consumable compounds from atoms.
 **Source:** V3-20
@@ -1417,7 +1417,7 @@ Page shows available compounds, recipes, current stock, and "Synthétiser" butto
 
 ---
 
-## Sprint 7: Balance Tuning — Batch G (2-3h)
+## Sprint 7: Balance Tuning — Batch G (2-3h) — PARTIAL (7.4+7.5 done, 7.1-7.3 deferred)
 
 **Goal:** Adjust game balance based on playtesting data.
 **Source:** C-021, C-024, H-008, H-009, H-010, H-053
