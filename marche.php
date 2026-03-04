@@ -588,7 +588,11 @@ if ($_GET['sub'] == 0) {
 }
     ?>
 
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <!-- SRI hash may break if Google updates loader.js; remove integrity attr if chart stops loading -->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"
+            integrity="sha384-Q4nTc23a1YNtnl17XDjJkYn/j5Ksb7rsGG1NTcIxbz6sTGfGXZJ8WdvzALeeuafr"
+            crossorigin="anonymous"
+            nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>"></script>
     <script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
         // affichage des cours
         google.charts.load('current', {
