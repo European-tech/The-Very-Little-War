@@ -1,0 +1,790 @@
+<?php
+include("includes/basicprivatephp.php");
+include("includes/layout.php");
+
+// =============================================================================
+// DATA LOADING
+// =============================================================================
+$login = $_SESSION['login'];
+
+// Buildings
+$constructions = dbFetchOne($base, 'SELECT * FROM constructions WHERE login = ?', 's', $login);
+
+// Player stats
+$autre = dbFetchOne($base, 'SELECT * FROM autre WHERE login = ?', 's', $login);
+
+// Resources
+$ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ?', 's', $login);
+
+// Molecules (4 classes)
+$molecules = [];
+for ($i = 1; $i <= 4; $i++) {
+    $mol = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire = ? AND numeroclasse = ?', 'si', $login, $i);
+    $molecules[$i] = $mol;
+}
+
+// Alliance info
+$allianceId = (int)$autre['idalliance'];
+$allianceName = '';
+$duplicateurLevel = 0;
+$allianceData = null;
+if ($allianceId > 0) {
+    $allianceData = dbFetchOne($base, 'SELECT * FROM alliances WHERE id = ?', 'i', $allianceId);
+    $allianceName = $allianceData['nom'] ?? '';
+    $duplicateurLevel = (int)($allianceData['duplicateur'] ?? 0);
+}
+
+// Medal globals
+global $paliersEnergievore, $paliersAttaque, $paliersDefense, $paliersPillage, $paliersPertes, $paliersTerreur;
+global $bonusMedailles, $paliersMedailles, $imagesMedailles;
+global $nomsRes, $nomsAccents, $lettre, $couleurs;
+global $ALLIANCE_RESEARCH, $SPECIALIZATIONS, $FORMATIONS, $CATALYSTS, $PRESTIGE_UNLOCKS;
+
+// Condenseur and Producteur point allocations
+$niveauxCondenseur = explode(';', $constructions['pointsCondenseur']);
+$niveauxProducteur = explode(';', $constructions['pointsProducteur']);
+
+// =============================================================================
+// HELPER: Format number with space separator
+// =============================================================================
+function fmtNum($n) {
+    return number_format(round($n), 0, ',', ' ');
+}
+
+// =============================================================================
+// HELPER: Find current medal tier index (-1 = none) and bonus
+// =============================================================================
+function getMedalTier($value, $paliers) {
+    global $bonusMedailles;
+    $tier = -1;
+    foreach ($paliers as $idx => $threshold) {
+        if ($value >= $threshold) {
+            $tier = $idx;
+        }
+    }
+    return $tier;
+}
+
+function getMedalBonus($value, $paliers) {
+    global $bonusMedailles;
+    $tier = getMedalTier($value, $paliers);
+    return $tier >= 0 ? $bonusMedailles[$tier] : 0;
+}
+
+// =============================================================================
+// PAGE HEADER
+// =============================================================================
+debutCarte("Bilan des bonus", "", "images/menu/classement.png");
+    debutContent();
+        echo '<p>Cette page recense l\'ensemble de vos bonus actifs et leur provenance. Chaque section montre le calcul detaille etape par etape.</p>';
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION A: Production d'Energie
+// =============================================================================
+debutCarte("Production d'Energie");
+    debutContent();
+
+    $genLevel = (int)$constructions['generateur'];
+    $prodLevel = (int)$constructions['producteur'];
+
+    // Step 1: Base
+    $energyBase = BASE_ENERGY_PER_LEVEL * $genLevel;
+
+    // Step 2: Iode catalyst
+    $totalIodeAtoms = 0;
+    for ($i = 1; $i <= 4; $i++) {
+        if ($molecules[$i]) {
+            $totalIodeAtoms += $molecules[$i]['iode'] * $molecules[$i]['nombre'];
+        }
+    }
+    $iodeCatalystBonus = 1.0 + min(IODE_CATALYST_MAX_BONUS, $totalIodeAtoms / IODE_CATALYST_DIVISOR);
+    $afterIode = $energyBase * $iodeCatalystBonus;
+
+    // Step 3: Medal Energievore
+    $medalEnergyBonus = getMedalBonus($autre['energieDepensee'], $paliersEnergievore);
+    $afterMedal = $afterIode * (1 + $medalEnergyBonus / 100);
+
+    // Step 4: Duplicateur
+    $bonusDupVal = 1 + bonusDuplicateur($duplicateurLevel);
+    $afterDup = $afterMedal * $bonusDupVal;
+
+    // Step 5: Prestige
+    $prestigeProdMult = prestigeProductionBonus($login);
+    $afterPrestige = $afterDup * $prestigeProdMult;
+
+    // Step 6: Producteur drain
+    $drainage = drainageProducteur($prodLevel);
+    $netEnergy = max(0, round($afterPrestige) - $drainage);
+
+    // Verify against revenuEnergie
+    $verifiedEnergy = revenuEnergie($genLevel, $login, 0);
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Source</th><th>Bonus</th><th>Valeur</th></tr></thead>';
+    echo '<tbody>';
+    echo '<tr><td>Generateur niveau ' . $genLevel . '</td><td>' . BASE_ENERGY_PER_LEVEL . ' x ' . $genLevel . '</td><td>' . fmtNum($energyBase) . ' E/h</td></tr>';
+
+    if ($totalIodeAtoms > 0) {
+        echo '<tr><td>Catalyseur Iode (' . fmtNum($totalIodeAtoms) . ' atomes)</td><td style="color:green">x' . round($iodeCatalystBonus, 4) . '</td><td>' . fmtNum(round($afterIode)) . ' E/h</td></tr>';
+    }
+
+    if ($medalEnergyBonus > 0) {
+        $tierIdx = getMedalTier($autre['energieDepensee'], $paliersEnergievore);
+        echo '<tr><td>Medaille Energivore (' . htmlspecialchars($paliersMedailles[$tierIdx], ENT_QUOTES, 'UTF-8') . ')</td><td style="color:green">+' . $medalEnergyBonus . '%</td><td>' . fmtNum(round($afterMedal)) . ' E/h</td></tr>';
+    }
+
+    if ($duplicateurLevel > 0) {
+        echo '<tr><td>Duplicateur niveau ' . $duplicateurLevel . '</td><td style="color:green">+' . round(bonusDuplicateur($duplicateurLevel) * 100) . '%</td><td>' . fmtNum(round($afterDup)) . ' E/h</td></tr>';
+    }
+
+    if ($prestigeProdMult > 1.0) {
+        echo '<tr><td>Prestige (Experimente)</td><td style="color:green">+' . round(($prestigeProdMult - 1) * 100) . '%</td><td>' . fmtNum(round($afterPrestige)) . ' E/h</td></tr>';
+    }
+
+    echo '<tr><td>Producteur niveau ' . $prodLevel . '</td><td style="color:red">-' . fmtNum($drainage) . ' E/h</td><td>' . fmtNum($netEnergy) . ' E/h</td></tr>';
+    echo '<tr style="font-weight:bold;background:#f5f5f5;"><td>Production nette</td><td></td><td style="color:green">' . fmtNum($verifiedEnergy) . ' E/h</td></tr>';
+    echo '</tbody></table></div>';
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION B: Production d'Atomes
+// =============================================================================
+debutCarte("Production d'Atomes");
+    debutContent();
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Atome</th><th>Points alloues</th><th>Base</th>';
+    if ($duplicateurLevel > 0) echo '<th>Duplicateur</th>';
+    if ($prestigeProdMult > 1.0) echo '<th>Prestige</th>';
+    echo '<th>Total/h</th></tr></thead>';
+    echo '<tbody>';
+
+    $nomsDisplay = ['Carbone', 'Azote', 'Hydrogene', 'Oxygene', 'Chlore', 'Soufre', 'Brome', 'Iode'];
+
+    foreach ($nomsRes as $num => $ressource) {
+        $points = (int)$niveauxProducteur[$num];
+        $atomBase = BASE_ATOMS_PER_POINT * $points;
+        $atomDup = $atomBase * $bonusDupVal;
+        $atomPrestige = $atomDup * $prestigeProdMult;
+        $verified = revenuAtome($num, $login);
+
+        echo '<tr>';
+        echo '<td style="color:' . htmlspecialchars($couleurs[$num], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($nomsDisplay[$num], ENT_QUOTES, 'UTF-8') . ' (' . htmlspecialchars($lettre[$num], ENT_QUOTES, 'UTF-8') . ')</td>';
+        echo '<td>' . $points . '</td>';
+        echo '<td>' . fmtNum($atomBase) . '</td>';
+        if ($duplicateurLevel > 0) echo '<td>' . fmtNum(round($atomDup)) . '</td>';
+        if ($prestigeProdMult > 1.0) echo '<td>' . fmtNum(round($atomPrestige)) . '</td>';
+        echo '<td style="color:green;font-weight:bold">' . fmtNum($verified) . '/h</td>';
+        echo '</tr>';
+    }
+    echo '</tbody></table></div>';
+
+    // Show shared bonus summary
+    echo '<p style="margin-top:8px;font-size:13px;color:#666;">';
+    echo 'Base : ' . BASE_ATOMS_PER_POINT . ' atomes/h par point alloue';
+    if ($duplicateurLevel > 0) echo ' | Duplicateur : +' . round(bonusDuplicateur($duplicateurLevel) * 100) . '%';
+    if ($prestigeProdMult > 1.0) echo ' | Prestige : +' . round(($prestigeProdMult - 1) * 100) . '%';
+    echo '</p>';
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION C: Combat — Attaque
+// =============================================================================
+debutCarte("Combat — Attaque");
+    debutContent();
+
+    $ionisateurLevel = (int)$constructions['ionisateur'];
+    $ionisateurBonus = $ionisateurLevel * IONISATEUR_COMBAT_BONUS_PER_LEVEL;
+
+    $medalAttackBonus = getMedalBonus($autre['pointsAttaque'], $paliersAttaque);
+    $medalAttackTier = getMedalTier($autre['pointsAttaque'], $paliersAttaque);
+
+    $prestigeCombatMult = prestigeCombatBonus($login);
+
+    $catalystAttackBonus = catalystEffect('attack_bonus');
+
+    $specCombat = (int)($constructions['spec_combat'] ?? 0);
+    $specAttackMod = 0;
+    $specAttackLabel = '';
+    if ($specCombat === 1) {
+        $specAttackMod = 0.10;
+        $specAttackLabel = 'Oxydant (+10%)';
+    } elseif ($specCombat === 2) {
+        $specAttackMod = -0.05;
+        $specAttackLabel = 'Reducteur (-5%)';
+    }
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Source</th><th>Bonus</th></tr></thead>';
+    echo '<tbody>';
+
+    echo '<tr><td>Ionisateur niveau ' . $ionisateurLevel . '</td><td style="color:green">+' . $ionisateurBonus . '% d\'attaque</td></tr>';
+
+    if ($medalAttackTier >= 0) {
+        echo '<tr><td>Medaille Attaquant (' . htmlspecialchars($paliersMedailles[$medalAttackTier], ENT_QUOTES, 'UTF-8') . ')</td><td style="color:green">+' . $medalAttackBonus . '%</td></tr>';
+    } else {
+        echo '<tr><td>Medaille Attaquant</td><td style="color:#999">Aucune</td></tr>';
+    }
+
+    if ($prestigeCombatMult > 1.0) {
+        echo '<tr><td>Prestige (Maitre Chimiste)</td><td style="color:green">+' . round(($prestigeCombatMult - 1) * 100) . '%</td></tr>';
+    }
+
+    if ($catalystAttackBonus > 0) {
+        echo '<tr><td>Catalyseur de la semaine (Combustion)</td><td style="color:green">+' . round($catalystAttackBonus * 100) . '%</td></tr>';
+    }
+
+    if ($specAttackMod != 0) {
+        $color = $specAttackMod > 0 ? 'green' : 'red';
+        echo '<tr><td>Specialisation ' . htmlspecialchars($specAttackLabel, ENT_QUOTES, 'UTF-8') . '</td><td style="color:' . $color . '">' . ($specAttackMod > 0 ? '+' : '') . round($specAttackMod * 100) . '%</td></tr>';
+    } elseif ($specCombat === 0) {
+        echo '<tr><td>Specialisation Combat</td><td style="color:#999">Non choisie</td></tr>';
+    }
+
+    // Formation
+    $currentFormation = (int)($constructions['formation'] ?? 0);
+    echo '<tr><td>Formation defensive</td><td>' . htmlspecialchars($FORMATIONS[$currentFormation]['name'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
+
+    echo '</tbody></table></div>';
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION D: Combat — Defense
+// =============================================================================
+debutCarte("Combat — Defense");
+    debutContent();
+
+    $champdeforceLevel = (int)$constructions['champdeforce'];
+    $champdeforceBonus = $champdeforceLevel * CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL;
+
+    $medalDefenseBonus = getMedalBonus($autre['pointsDefense'], $paliersDefense);
+    $medalDefenseTier = getMedalTier($autre['pointsDefense'], $paliersDefense);
+
+    $specDefenseMod = 0;
+    $specDefenseLabel = '';
+    if ($specCombat === 1) {
+        $specDefenseMod = -0.05;
+        $specDefenseLabel = 'Oxydant (-5%)';
+    } elseif ($specCombat === 2) {
+        $specDefenseMod = 0.10;
+        $specDefenseLabel = 'Reducteur (+10%)';
+    }
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Source</th><th>Bonus</th></tr></thead>';
+    echo '<tbody>';
+
+    echo '<tr><td>Champ de force niveau ' . $champdeforceLevel . '</td><td style="color:green">+' . $champdeforceBonus . '% de defense</td></tr>';
+
+    if ($medalDefenseTier >= 0) {
+        echo '<tr><td>Medaille Defenseur (' . htmlspecialchars($paliersMedailles[$medalDefenseTier], ENT_QUOTES, 'UTF-8') . ')</td><td style="color:green">+' . $medalDefenseBonus . '%</td></tr>';
+    } else {
+        echo '<tr><td>Medaille Defenseur</td><td style="color:#999">Aucune</td></tr>';
+    }
+
+    if ($prestigeCombatMult > 1.0) {
+        echo '<tr><td>Prestige (Maitre Chimiste)</td><td style="color:green">+' . round(($prestigeCombatMult - 1) * 100) . '%</td></tr>';
+    }
+
+    if ($specDefenseMod != 0) {
+        $color = $specDefenseMod > 0 ? 'green' : 'red';
+        echo '<tr><td>Specialisation ' . htmlspecialchars($specDefenseLabel, ENT_QUOTES, 'UTF-8') . '</td><td style="color:' . $color . '">' . ($specDefenseMod > 0 ? '+' : '') . round($specDefenseMod * 100) . '%</td></tr>';
+    } elseif ($specCombat === 0) {
+        echo '<tr><td>Specialisation Combat</td><td style="color:#999">Non choisie</td></tr>';
+    }
+
+    // Formation details
+    echo '<tr><td>Formation defensive</td><td>' . htmlspecialchars($FORMATIONS[$currentFormation]['name'], ENT_QUOTES, 'UTF-8') . ' — ' . htmlspecialchars($FORMATIONS[$currentFormation]['desc'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
+
+    echo '</tbody></table></div>';
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION E: Pillage
+// =============================================================================
+debutCarte("Pillage");
+    debutContent();
+
+    $medalPillageBonus = getMedalBonus($autre['ressourcesPillees'], $paliersPillage);
+    $medalPillageTier = getMedalTier($autre['ressourcesPillees'], $paliersPillage);
+
+    $catalystPillageBonus = catalystEffect('pillage_bonus');
+
+    $coffrefortLevel = (int)$constructions['coffrefort'];
+    $depotLevel = (int)$constructions['depot'];
+    $vaultProtection = capaciteCoffreFort($coffrefortLevel, $depotLevel);
+    $totalStorage = placeDepot($depotLevel);
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Source</th><th>Valeur</th></tr></thead>';
+    echo '<tbody>';
+
+    if ($medalPillageTier >= 0) {
+        echo '<tr><td>Medaille Pilleur (' . htmlspecialchars($paliersMedailles[$medalPillageTier], ENT_QUOTES, 'UTF-8') . ')</td><td style="color:green">+' . $medalPillageBonus . '% de capacite de pillage</td></tr>';
+    } else {
+        echo '<tr><td>Medaille Pilleur</td><td style="color:#999">Aucune</td></tr>';
+    }
+
+    if ($catalystPillageBonus > 0) {
+        echo '<tr><td>Catalyseur (Volatilite)</td><td style="color:green">+' . round($catalystPillageBonus * 100) . '% de pillage</td></tr>';
+    }
+
+    // Vault protection
+    echo '<tr><td>Coffre-fort niveau ' . $coffrefortLevel . '</td><td style="color:green">' . fmtNum($vaultProtection) . ' ressources protegees par type</td></tr>';
+
+    $pctProtected = $totalStorage > 0 ? round(($vaultProtection / $totalStorage) * 100, 1) : 0;
+    echo '<tr><td>Protection relative</td><td>' . $pctProtected . '% du stockage protege</td></tr>';
+
+    // Alliance research bouclier
+    $bouclierBonus = allianceResearchBonus($login, 'pillage_defense');
+    if ($bouclierBonus > 0) {
+        echo '<tr><td>Recherche Bouclier (alliance)</td><td style="color:green">-' . round($bouclierBonus * 100) . '% de pertes au pillage</td></tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION F: Stockage
+// =============================================================================
+debutCarte("Stockage");
+    debutContent();
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Element</th><th>Valeur</th></tr></thead>';
+    echo '<tbody>';
+
+    echo '<tr><td>Depot niveau ' . $depotLevel . '</td><td>' . fmtNum($totalStorage) . ' par ressource</td></tr>';
+    echo '<tr><td>Coffre-fort niveau ' . $coffrefortLevel . '</td><td>' . fmtNum($vaultProtection) . ' proteges par type (' . $pctProtected . '%)</td></tr>';
+
+    // Current fill status
+    echo '<tr><td>Energie</td><td>' . fmtNum($ressources['energie']) . ' / ' . fmtNum($totalStorage) . '</td></tr>';
+    foreach ($nomsRes as $num => $ressource) {
+        echo '<tr><td style="color:' . htmlspecialchars($couleurs[$num], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($nomsDisplay[$num], ENT_QUOTES, 'UTF-8') . '</td><td>' . fmtNum($ressources[$ressource]) . ' / ' . fmtNum($totalStorage) . '</td></tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION G: Vitesse de Formation
+// =============================================================================
+debutCarte("Vitesse de Formation");
+    debutContent();
+
+    $lieurLevel = (int)$constructions['lieur'];
+    $lieurBonusVal = bonusLieur($lieurLevel);
+
+    $allianceCatalyseurBonus = allianceResearchBonus($login, 'formation_speed');
+    $catalystFormationBonus = catalystEffect('formation_speed');
+
+    $specResearch = (int)($constructions['spec_research'] ?? 0);
+    $specFormationMod = 0;
+    $specFormationLabel = '';
+    if ($specResearch === 1) {
+        $specFormationMod = -0.20;
+        $specFormationLabel = 'Theorique (-20% vitesse)';
+    } elseif ($specResearch === 2) {
+        $specFormationMod = 0.20;
+        $specFormationLabel = 'Applique (+20% vitesse)';
+    }
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Source</th><th>Bonus</th></tr></thead>';
+    echo '<tbody>';
+
+    echo '<tr><td>Lieur niveau ' . $lieurLevel . '</td><td style="color:green">x' . round($lieurBonusVal, 2) . ' (base : 1 + ' . $lieurLevel . ' x ' . LIEUR_LINEAR_BONUS_PER_LEVEL . ')</td></tr>';
+
+    if ($allianceCatalyseurBonus > 0) {
+        echo '<tr><td>Recherche Catalyseur (alliance)</td><td style="color:green">+' . round($allianceCatalyseurBonus * 100) . '%</td></tr>';
+    }
+
+    if ($catalystFormationBonus > 0) {
+        echo '<tr><td>Catalyseur de la semaine (Synthese)</td><td style="color:green">+' . round($catalystFormationBonus * 100) . '%</td></tr>';
+    }
+
+    if ($specFormationMod != 0) {
+        $color = $specFormationMod > 0 ? 'green' : 'red';
+        echo '<tr><td>Specialisation ' . htmlspecialchars($specFormationLabel, ENT_QUOTES, 'UTF-8') . '</td><td style="color:' . $color . '">' . ($specFormationMod > 0 ? '+' : '') . round($specFormationMod * 100) . '%</td></tr>';
+    } elseif ($specResearch === 0) {
+        echo '<tr><td>Specialisation Recherche</td><td style="color:#999">Non choisie</td></tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION H: Declin des Molecules
+// =============================================================================
+debutCarte("Declin des Molecules");
+    debutContent();
+
+    $stabilisateurLevel = (int)$constructions['stabilisateur'];
+    $stabReduction = (1 - pow(STABILISATEUR_ASYMPTOTE, $stabilisateurLevel)) * 100;
+
+    $medalPertesBonus = getMedalBonus($autre['moleculesPerdues'], $paliersPertes);
+    $medalPertesTier = getMedalTier($autre['moleculesPerdues'], $paliersPertes);
+
+    $catalystDecayIncrease = catalystEffect('decay_increase');
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Source</th><th>Effet</th></tr></thead>';
+    echo '<tbody>';
+
+    echo '<tr><td>Stabilisateur niveau ' . $stabilisateurLevel . '</td><td style="color:green">-' . round($stabReduction, 1) . '% de vitesse de disparition</td></tr>';
+
+    if ($medalPertesTier >= 0) {
+        echo '<tr><td>Medaille Pertes (' . htmlspecialchars($paliersMedailles[$medalPertesTier], ENT_QUOTES, 'UTF-8') . ')</td><td style="color:green">-' . $medalPertesBonus . '% de disparition</td></tr>';
+    } else {
+        echo '<tr><td>Medaille Pertes</td><td style="color:#999">Aucune</td></tr>';
+    }
+
+    if ($catalystDecayIncrease > 0) {
+        echo '<tr><td>Catalyseur (Volatilite)</td><td style="color:red">+' . round($catalystDecayIncrease * 100) . '% de disparition</td></tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    // Per-class half-lives
+    $hasAnyMolecule = false;
+    for ($i = 1; $i <= 4; $i++) {
+        if ($molecules[$i] && $molecules[$i]['formule'] !== 'Vide') {
+            $hasAnyMolecule = true;
+            break;
+        }
+    }
+
+    if ($hasAnyMolecule) {
+        echo '<br/>';
+        echo '<div class="data-table"><table>';
+        echo '<thead><tr><th>Classe</th><th>Formule</th><th>Demi-vie</th><th>Isotope</th></tr></thead>';
+        echo '<tbody>';
+
+        global $ISOTOPES;
+        for ($i = 1; $i <= 4; $i++) {
+            if ($molecules[$i] && $molecules[$i]['formule'] !== 'Vide') {
+                $halfLife = demiVie($login, $i);
+                $halfLifeDisplay = ($halfLife >= PHP_INT_MAX) ? 'Infinie' : affichageTemps($halfLife);
+                $isotope = (int)($molecules[$i]['isotope'] ?? 0);
+                $isotopeName = $ISOTOPES[$isotope]['name'] ?? 'Normal';
+
+                echo '<tr>';
+                echo '<td>Classe ' . $i . '</td>';
+                echo '<td>' . couleurFormule(htmlspecialchars($molecules[$i]['formule'], ENT_QUOTES, 'UTF-8')) . '</td>';
+                echo '<td>' . htmlspecialchars($halfLifeDisplay, ENT_QUOTES, 'UTF-8') . '</td>';
+                echo '<td>' . htmlspecialchars($isotopeName, ENT_QUOTES, 'UTF-8') . '</td>';
+                echo '</tr>';
+            }
+        }
+
+        echo '</tbody></table></div>';
+    }
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION I: Recherche Alliance
+// =============================================================================
+if ($allianceId > 0 && $allianceData) {
+    debutCarte("Recherche Alliance (" . htmlspecialchars($allianceName, ENT_QUOTES, 'UTF-8') . ")");
+        debutContent();
+
+        echo '<div class="data-table"><table>';
+        echo '<thead><tr><th>Technologie</th><th>Niveau</th><th>Bonus actuel</th></tr></thead>';
+        echo '<tbody>';
+
+        // Duplicateur
+        echo '<tr><td>Duplicateur</td><td>' . $duplicateurLevel . '</td><td style="color:green">+' . round(bonusDuplicateur($duplicateurLevel) * 100) . '% de production</td></tr>';
+
+        // Other techs
+        foreach ($ALLIANCE_RESEARCH as $techName => $tech) {
+            $techLevel = (int)($allianceData[$techName] ?? 0);
+            $techBonus = $techLevel * $tech['effect_per_level'];
+            $techBonusPct = round($techBonus * 100, 1);
+
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($tech['name'], ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . $techLevel . '</td>';
+            if ($techLevel > 0) {
+                echo '<td style="color:green">+' . $techBonusPct . '% — ' . htmlspecialchars($tech['desc'], ENT_QUOTES, 'UTF-8') . '</td>';
+            } else {
+                echo '<td style="color:#999">Aucun</td>';
+            }
+            echo '</tr>';
+        }
+
+        echo '</tbody></table></div>';
+
+        finContent();
+    finCarte();
+}
+
+// =============================================================================
+// SECTION J: Medailles
+// =============================================================================
+debutCarte("Medailles");
+    debutContent();
+
+    $medalCategories = [
+        ['name' => 'Terreur', 'stat' => 'nbattaques', 'paliers' => $paliersTerreur, 'unit' => 'attaques', 'bonus_desc' => 'reduction du cout d\'attaque'],
+        ['name' => 'Attaquant', 'stat' => 'pointsAttaque', 'paliers' => $paliersAttaque, 'unit' => 'pts attaque', 'bonus_desc' => 'attaque supplementaire'],
+        ['name' => 'Defenseur', 'stat' => 'pointsDefense', 'paliers' => $paliersDefense, 'unit' => 'pts defense', 'bonus_desc' => 'defense supplementaire'],
+        ['name' => 'Pilleur', 'stat' => 'ressourcesPillees', 'paliers' => $paliersPillage, 'unit' => 'ressources', 'bonus_desc' => 'pillage supplementaire'],
+        ['name' => 'Energivore', 'stat' => 'energieDepensee', 'paliers' => $paliersEnergievore, 'unit' => 'energie', 'bonus_desc' => 'production d\'energie'],
+        ['name' => 'Pertes', 'stat' => 'moleculesPerdues', 'paliers' => $paliersPertes, 'unit' => 'molecules', 'bonus_desc' => 'stabilisation des molecules'],
+    ];
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Medaille</th><th>Palier</th><th>Progression</th><th>Bonus</th></tr></thead>';
+    echo '<tbody>';
+
+    foreach ($medalCategories as $cat) {
+        $currentValue = floor($autre[$cat['stat']]);
+        $tier = getMedalTier($currentValue, $cat['paliers']);
+        $bonus = $tier >= 0 ? $bonusMedailles[$tier] : 0;
+        $tierName = $tier >= 0 ? $paliersMedailles[$tier] : '—';
+
+        // Find next threshold
+        $nextThreshold = '—';
+        $nextTierName = '';
+        if ($tier < count($cat['paliers']) - 1) {
+            $nextIdx = $tier + 1;
+            $nextThreshold = fmtNum($cat['paliers'][$nextIdx]);
+            $nextTierName = ' (' . $paliersMedailles[$nextIdx] . ')';
+        }
+
+        echo '<tr>';
+        echo '<td>' . htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8') . '</td>';
+        echo '<td>' . htmlspecialchars($tierName, ENT_QUOTES, 'UTF-8') . '</td>';
+        echo '<td>' . fmtNum($currentValue) . ' / ' . $nextThreshold . htmlspecialchars($nextTierName, ENT_QUOTES, 'UTF-8') . '</td>';
+        if ($bonus > 0) {
+            echo '<td style="color:green">+' . $bonus . '% ' . htmlspecialchars($cat['bonus_desc'], ENT_QUOTES, 'UTF-8') . '</td>';
+        } else {
+            echo '<td style="color:#999">Aucun</td>';
+        }
+        echo '</tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION K: Prestige
+// =============================================================================
+debutCarte("Prestige");
+    debutContent();
+
+    $prestigeData = getPrestige($login);
+    $totalPP = (int)$prestigeData['total_pp'];
+    $currentUnlocks = array_filter(explode(',', $prestigeData['unlocks']));
+
+    echo '<p style="font-size:18px;font-weight:bold;text-align:center;color:#FFD700;">' . fmtNum($totalPP) . ' PP disponibles</p>';
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Amelioration</th><th>Cout</th><th>Effet</th><th>Statut</th></tr></thead>';
+    echo '<tbody>';
+
+    foreach ($PRESTIGE_UNLOCKS as $key => $unlock) {
+        $owned = in_array($key, $currentUnlocks);
+        echo '<tr>';
+        echo '<td>' . htmlspecialchars($unlock['name'], ENT_QUOTES, 'UTF-8') . '</td>';
+        echo '<td>' . $unlock['cost'] . ' PP</td>';
+        echo '<td>' . htmlspecialchars($unlock['desc'], ENT_QUOTES, 'UTF-8') . '</td>';
+        if ($owned) {
+            echo '<td style="color:green;font-weight:bold">Debloque</td>';
+        } else {
+            echo '<td style="color:#999">Verrouille</td>';
+        }
+        echo '</tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    // Active prestige bonuses summary
+    $activeBonuses = [];
+    if (hasPrestigeUnlock($login, 'experimente')) {
+        $activeBonuses[] = '+5% production de ressources';
+    }
+    if (hasPrestigeUnlock($login, 'maitre_chimiste')) {
+        $activeBonuses[] = '+5% stats de combat';
+    }
+    if (hasPrestigeUnlock($login, 'veteran')) {
+        $activeBonuses[] = '+1 jour de protection debutant';
+    }
+    if (hasPrestigeUnlock($login, 'debutant_rapide')) {
+        $activeBonuses[] = 'Generateur commence au niveau 2';
+    }
+    if (hasPrestigeUnlock($login, 'legende')) {
+        $activeBonuses[] = 'Badge Legende';
+    }
+
+    if (!empty($activeBonuses)) {
+        echo '<p style="margin-top:8px;"><strong>Bonus actifs :</strong> ' . implode(' | ', array_map(function($b) { return htmlspecialchars($b, ENT_QUOTES, 'UTF-8'); }, $activeBonuses)) . '</p>';
+    }
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION L: Catalyseur de la Semaine
+// =============================================================================
+debutCarte("Catalyseur de la Semaine");
+    debutContent();
+
+    $activeCatalyst = getActiveCatalyst();
+
+    echo '<div style="text-align:center;padding:8px;">';
+    echo '<p style="font-size:18px;font-weight:bold;">' . htmlspecialchars($activeCatalyst['name'], ENT_QUOTES, 'UTF-8') . '</p>';
+    echo '<p>' . htmlspecialchars($activeCatalyst['desc'], ENT_QUOTES, 'UTF-8') . '</p>';
+    echo '</div>';
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Effet</th><th>Valeur</th></tr></thead>';
+    echo '<tbody>';
+
+    foreach ($activeCatalyst['effects'] as $effectName => $effectValue) {
+        $effectLabels = [
+            'attack_bonus' => 'Bonus d\'attaque',
+            'formation_speed' => 'Vitesse de formation',
+            'market_convergence' => 'Convergence du marche',
+            'duplicateur_discount' => 'Reduction cout Duplicateur',
+            'construction_speed' => 'Vitesse de construction',
+            'decay_increase' => 'Augmentation de la disparition',
+            'pillage_bonus' => 'Bonus de pillage',
+        ];
+        $label = $effectLabels[$effectName] ?? $effectName;
+        $color = ($effectName === 'decay_increase') ? 'red' : 'green';
+        $sign = ($effectName === 'decay_increase') ? '+' : '+';
+
+        echo '<tr><td>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</td><td style="color:' . $color . '">' . $sign . round($effectValue * 100) . '%</td></tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    // Next rotation
+    $nextMonday = strtotime('next monday');
+    $timeUntilRotation = $nextMonday - time();
+    if ($timeUntilRotation > 0) {
+        echo '<p style="margin-top:8px;font-size:13px;color:#666;text-align:center;">Prochain catalyseur dans ' . htmlspecialchars(affichageTemps($timeUntilRotation), ENT_QUOTES, 'UTF-8') . '</p>';
+    }
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION M: Condenseur (Atom Effectiveness)
+// =============================================================================
+debutCarte("Niveaux du Condenseur");
+    debutContent();
+
+    $condenseurLevel = (int)$constructions['condenseur'];
+
+    $specCondMod = 0;
+    if ($specResearch === 1) {
+        $specCondMod = 2; // +2 points per level (Theorique)
+    } elseif ($specResearch === 2) {
+        $specCondMod = -1; // -1 point per level (Applique)
+    }
+
+    echo '<p>Condenseur niveau ' . $condenseurLevel . ' — Multiplicateur global : x' . round(modCond($condenseurLevel), 2) . '</p>';
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Atome</th><th>Niveau condenseur</th><th>Effet</th></tr></thead>';
+    echo '<tbody>';
+
+    $condenseurEffects = [
+        'Carbone' => 'Defense',
+        'Azote' => 'Temps de formation',
+        'Hydrogene' => 'Degats batiments',
+        'Oxygene' => 'Attaque',
+        'Chlore' => 'Vitesse',
+        'Soufre' => 'Pillage',
+        'Brome' => 'Points de vie',
+        'Iode' => 'Production d\'energie',
+    ];
+
+    foreach ($nomsRes as $num => $ressource) {
+        $nivCond = (int)$niveauxCondenseur[$num];
+        $mult = modCond($nivCond);
+
+        echo '<tr>';
+        echo '<td style="color:' . htmlspecialchars($couleurs[$num], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($nomsDisplay[$num], ENT_QUOTES, 'UTF-8') . '</td>';
+        echo '<td>' . $nivCond . '</td>';
+        echo '<td>x' . round($mult, 2) . ' ' . htmlspecialchars($condenseurEffects[$nomsDisplay[$num]] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
+        echo '</tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    if ($specCondMod != 0) {
+        $condLabel = $specCondMod > 0 ? '+' . $specCondMod . ' pts/niv (Theorique)' : $specCondMod . ' pt/niv (Applique)';
+        echo '<p style="margin-top:8px;font-size:13px;color:#666;">Specialisation Recherche : ' . htmlspecialchars($condLabel, ENT_QUOTES, 'UTF-8') . '</p>';
+    }
+
+    finContent();
+finCarte();
+
+// =============================================================================
+// SECTION N: Specialisations
+// =============================================================================
+debutCarte("Specialisations");
+    debutContent();
+
+    echo '<div class="data-table"><table>';
+    echo '<thead><tr><th>Type</th><th>Deblocage</th><th>Choix</th><th>Effets</th></tr></thead>';
+    echo '<tbody>';
+
+    foreach ($SPECIALIZATIONS as $specType => $spec) {
+        $col = $spec['column'];
+        $currentChoice = (int)($constructions[$col] ?? 0);
+        $unlockBuilding = $spec['unlock_building'];
+        $unlockLevel = $spec['unlock_level'];
+        $currentBuildingLevel = (int)($constructions[$unlockBuilding] ?? 0);
+        $unlocked = $currentBuildingLevel >= $unlockLevel;
+
+        echo '<tr>';
+        echo '<td>' . ucfirst(htmlspecialchars($specType, ENT_QUOTES, 'UTF-8')) . '</td>';
+        echo '<td>' . htmlspecialchars(ucfirst($unlockBuilding), ENT_QUOTES, 'UTF-8') . ' niv. ' . $unlockLevel;
+        if (!$unlocked) {
+            echo ' <span style="color:red">(niv. ' . $currentBuildingLevel . ')</span>';
+        } else {
+            echo ' <span style="color:green">(OK)</span>';
+        }
+        echo '</td>';
+
+        if ($currentChoice > 0 && isset($spec['options'][$currentChoice])) {
+            $opt = $spec['options'][$currentChoice];
+            echo '<td style="font-weight:bold">' . htmlspecialchars($opt['name'], ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars($opt['desc'], ENT_QUOTES, 'UTF-8') . '</td>';
+        } else {
+            echo '<td style="color:#999">Non choisie</td>';
+            echo '<td>—</td>';
+        }
+        echo '</tr>';
+    }
+
+    echo '</tbody></table></div>';
+
+    finContent();
+finCarte();
+
+include("includes/copyright.php");

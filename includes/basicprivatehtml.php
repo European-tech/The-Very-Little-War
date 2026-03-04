@@ -283,6 +283,7 @@ else { // si cela n'a pas été initialisé à la première connexion
         item(['media' => '<img src="images/menu/forum.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Forum '.$messagePlus, 'link' => 'forum.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/medailles.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Médailles', 'link' => 'medailles.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/classement.png" alt="prestige" style="width:25px;height:25px;">', 'titre' => 'Prestige', 'link' => 'prestige.php', 'style' => 'color:black']);
+        item(['media' => '<img src="images/menu/medailles.png" alt="bilan" style="width:25px;height:25px;">', 'titre' => 'Bilan', 'link' => 'bilan.php', 'style' => 'color:black']);
 
       finListe();
       finContent();
