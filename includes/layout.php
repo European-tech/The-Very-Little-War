@@ -35,6 +35,28 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
                 <img alt="banniere" src="images/banniere.png" id="titre" style="position:fixed;top:10px;left:15%;width:260px;height:27px;"/>
                 </p>
                 </div>
+                <?php if (isset($_SESSION['login']) && isset($debut) && !empty($debut['debut'])): ?>
+                <div class="right" style="position:absolute;right:8px;top:0;line-height:44px;">
+                    <?php
+                    // Season ends when calendar month changes from the month of $debut['debut']
+                    $seasonStartMonth = (int)date('n', $debut['debut']);
+                    $seasonStartYear = (int)date('Y', $debut['debut']);
+                    // End = first second of next month
+                    $endMonth = $seasonStartMonth + 1;
+                    $endYear = $seasonStartYear;
+                    if ($endMonth > 12) {
+                        $endMonth = 1;
+                        $endYear++;
+                    }
+                    $seasonEndTimestamp = mktime(0, 0, 0, $endMonth, 1, $endYear);
+                    $secondsLeft = max(0, $seasonEndTimestamp - time());
+                    $daysLeft = floor($secondsLeft / SECONDS_PER_DAY);
+                    ?>
+                    <span id="season-countdown" data-end="<?php echo (int)$seasonEndTimestamp; ?>"
+                          style="font-size:10px;color:#aaa;cursor:pointer;"
+                          title="Fin de manche"><?php echo $daysLeft; ?>j</span>
+                </div>
+                <?php endif; ?>
               </div>
             </div>
             
