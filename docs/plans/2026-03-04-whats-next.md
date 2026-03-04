@@ -10,16 +10,19 @@
 
 ---
 
-## Current State (2026-03-04)
+## Current State (2026-03-04, updated)
 
 | Area | Status |
 |------|--------|
 | Tests | 371 pass / 2327 assertions |
-| Git | 13 commits ahead of origin (V4 balance + Batch I) |
-| VPS | **Unreachable** — SSH timeout on 212.227.38.111:22 |
+| Git | All commits pushed to GitHub origin |
+| VPS | **Needs recheck** — was unreachable, may need Ionos panel restart |
 | HTTPS | Not enabled — DNS not pointed to VPS |
-| Remediation | Batches A-E + I done. F blocked (DNS). G done (V4). H deferred (CSP). |
-| V4 Balance | Fully implemented locally, **not yet live** |
+| Remediation | Batches A-E, I, J-P done. F blocked (DNS). G deferred (balance). H substantially done (nonce CSP). |
+| V4 Balance | Fully implemented locally, needs VPS deploy |
+| CSP | Nonce-based CSP via includes/csp.php + layout.php. unsafe-inline removed from script-src. |
+| Mega audit | 101/198 findings fixed, 76 open, 2 blocked, 19 deferred |
+| New pages | prestige.php (unlock shop), bilan.php (bonus summary) |
 | Remaining TODOs | 3x `TODO: needs FOR UPDATE lock` in player.php (minor) |
 
 ---
@@ -224,9 +227,9 @@ Expected: `301 Moved Permanently` → `https://theverylittlewar.com`
 
 ---
 
-## Phase 4: CSP Hardening — Remove unsafe-inline (4-6h)
+## Phase 4: CSP Hardening — Remove unsafe-inline (SUBSTANTIALLY COMPLETE)
 
-Extract all inline `<script>` blocks into external .js files and switch to nonce-based CSP.
+Nonce-based CSP is now active. The `includes/csp.php` generates per-request nonces, `layout.php` sends the CSP header, and all inline `<script>` tags have nonce attributes. 15 inline JS redirects were converted to PHP `header()` redirects. The remaining ~21 inline scripts use nonces and work under the current CSP policy. Full inline-JS extraction to external .js files is optional polish.
 
 ### Task 4.1: Audit all inline scripts
 

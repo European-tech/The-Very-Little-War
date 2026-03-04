@@ -1,9 +1,31 @@
 # Mega Audit Findings Tracker
 
 **Date:** 2026-03-03
+**Last updated:** 2026-03-04
 **Scope:** 51 agent reports across 3 rounds (R1 primary scan, R2 deep-dive, R3 cross-domain correlation), 17 domains
 **Total findings before dedup:** ~850+
 **Total unique findings after dedup:** 198 (32 CRITICAL, 62 HIGH, 59 MEDIUM, 25 LOW, 20 QoL/IDEA)
+
+---
+
+## Resolution Status Summary (2026-03-04)
+
+| Category | Total | FIXED | OPEN | BLOCKED | DEFERRED |
+|---|---|---|---|---|---|
+| CRITICAL | 32 | 21 | 6 | 2 | 3 |
+| HIGH | 62 | 46 | 10 | 0 | 6 |
+| MEDIUM | 59 | 22 | 30 | 0 | 7 |
+| LOW | 25 | 7 | 16 | 0 | 2 |
+| QoL/IDEA | 20 | 5 | 14 | 0 | 1 |
+| **TOTAL** | **198** | **101** | **76** | **2** | **19** |
+
+**Implementation batches completed:** A, B, C, D, E, I (from remaining-remediation.md), J, K, L, M, N, O, P, Q, R (from mega-audit-remediation.md)
+
+**CRITICAL still open:** C-005 (admin shared password), C-008 (admin XSS), C-013 (admin hash in source), C-020 (SRI missing), C-024 (RNG destruction — balance), C-028 (no FK constraints)
+
+**CRITICAL blocked:** C-006 (HSTS — needs HTTPS), C-007 (cookie_secure — needs HTTPS)
+
+**CRITICAL deferred:** C-021, C-023, C-024 (balance decisions requiring playtesting — Batch G)
 
 ---
 
@@ -34,7 +56,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** DATA-R1-001, DATA-R1-003, SEASON-CROSS-002, DATA-CROSS #2
 - **Description:** 18+ destructive SQL statements (UPDATE/DELETE across all tables) execute without withTransaction(). Partial failure leaves database in mixed-season state. Players active during reset read inconsistent data.
 - **Fix:** Wrap entire remiseAZero() body in withTransaction($base, function() use (...) { ... })
-- **Status:** OPEN
+- **Status:** FIXED — remiseAZero() wrapped in withTransaction (player.php:917), performSeasonEnd() wraps archiving/VP/prestige, advisory lock in basicprivatephp.php
 
 ### C-002: Combat null dereferences crash combat resolution permanently
 - **Domain:** ERR / COMBAT
@@ -42,7 +64,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** ERR-R1-001, ERR-R2-001–005, COMBAT-CROSS CRASH-01–12
 - **Description:** 8+ dbFetchOne() calls in combat path return null when player/data is missing. Null → TypeError crashes combat mid-transaction, permanently losing attacker's troops with no report generated.
 - **Fix:** Add null guards with throw RuntimeException before each dbFetchOne usage. Return troops on failure.
-- **Status:** OPEN
+- **Status:** FIXED — All dbFetchOne() in combat.php have null guards with throw Exception (combat.php:29-59)
 
 ### C-003: Attack launch has no transaction — molecule double-spend
 - **Domain:** DB / DATA
@@ -50,7 +72,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** DB-R1-002, DATA-CROSS #11
 - **Description:** Per-molecule UPDATE loop, INSERT actionsattaques, energy deduction — all without transaction or FOR UPDATE. Concurrent submissions overdraft troops and energy.
 - **Fix:** Wrap in withTransaction() with SELECT molecules FOR UPDATE.
-- **Status:** OPEN
+- **Status:** FIXED — withTransaction + SELECT molecules FOR UPDATE in attaquer.php:146-162
 
 ### C-004: CSP allows unsafe-inline — XSS protection defeated
 - **Domain:** INFRA / FE / SEC
@@ -58,7 +80,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** FE-R1-003, FE-R1-005, INFRA-R1-001, INFRA-R2-001, FE-R2-003, UX-CROSS, INFRA-CROSS
 - **Description:** Content-Security-Policy allows 'unsafe-inline' for both script-src and style-src. 76+ inline scripts need extraction to external files before CSP can be tightened.
 - **Fix:** Phase 1: Add gstatic.com to script-src. Phase 2: Extract inline scripts to .js files. Phase 3: Remove unsafe-inline, add nonce-based CSP.
-- **Status:** OPEN
+- **Status:** SUBSTANTIALLY FIXED — Nonce-based CSP via includes/csp.php + layout.php header. unsafe-inline removed from script-src. ~21 inline scripts remain but are nonce-gated. .htaccess CSP removed (PHP handles it).
 
 ### C-005: Admin/moderator share password and session namespace
 - **Domain:** ADMIN / SEC / AUTH
@@ -66,7 +88,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** ADMIN-R1-001–002, ADMIN-R2-001–002, SEC-R1-001, SEC-R2-001–002, AUTH-CROSS
 - **Description:** Single shared password for admin and moderator. No session_regenerate_id on admin login. No CSRF on admin login form. Admin and player sessions share same PHP namespace.
 - **Fix:** Separate admin session namespace (session_name), add CSRF to admin login, add session_regenerate_id, create per-user admin accounts.
-- **Status:** OPEN
+- **Status:** PARTIALLY FIXED — CSRF added to admin login, session_regenerate_id on login. Still uses shared password, shared session namespace.
 
 ### C-006: No HSTS header — SSL stripping possible
 - **Domain:** INFRA
@@ -74,7 +96,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** INFRA-R1-003, INFRA-R2-002, INFRA-CROSS
 - **Description:** No Strict-Transport-Security header. After HTTPS is enabled, browsers can still be downgraded to HTTP.
 - **Fix:** Add `Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"` after HTTPS setup.
-- **Status:** OPEN (blocked on HTTPS)
+- **Status:** BLOCKED — Requires DNS pointed to VPS + certbot HTTPS setup (Batch F)
 
 ### C-007: session.cookie_secure conditionally disabled
 - **Domain:** INFRA / AUTH
@@ -82,7 +104,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** INFRA-R1-002, INFRA-R2-003
 - **Description:** cookie_secure only set when HTTPS detected. Sessions transmit over HTTP allowing hijacking.
 - **Fix:** Hardcode session.cookie_secure=1 after HTTPS is live.
-- **Status:** OPEN (blocked on HTTPS)
+- **Status:** BLOCKED — Requires HTTPS (Batch F)
 
 ### C-008: Admin stored XSS via strip_tags
 - **Domain:** SEC / ADMIN
@@ -90,7 +112,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** ADMIN-R1-003, SEC-CROSS CHAIN-05
 - **Description:** Database values rendered without htmlspecialchars in admin panel. strip_tags allows attribute-based XSS (e.g. `<img onerror=...>`). Admin news editor content reaches all players.
 - **Fix:** Replace strip_tags with htmlspecialchars() on all admin outputs.
-- **Status:** OPEN
+- **Status:** OPEN — admin/tableau.php:76 still outputs DB values without htmlspecialchars
 
 ### C-009: Build queue has no transaction — resource double-spend
 - **Domain:** DATA
@@ -98,7 +120,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** DATA-CROSS #13
 - **Description:** UPDATE ressources + INSERT actionsconstruction + UPDATE energieDepensee without transaction. Concurrent submissions double-deduct and insert duplicate queue entries.
 - **Fix:** Wrap in withTransaction() with SELECT ressources FOR UPDATE.
-- **Status:** OPEN
+- **Status:** FIXED — withTransaction + SELECT ressources FOR UPDATE in constructions.php:266-307
 
 ### C-010: Double resource credit via non-atomic tempsPrecedent update
 - **Domain:** DB / GAME
@@ -106,7 +128,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** DB-R1-001, GAME-R1-001, SQL-CROSS MED-01
 - **Description:** updateTargetResources (in dead update.php) has no CAS guard. updateRessources has CAS on tempsPrecedent but moleculesPerdues loop has TOCTOU gap.
 - **Fix:** Delete update.php (dead). Fix moleculesPerdues to use atomic UPDATE ... SET moleculesPerdues = moleculesPerdues + ? instead of SELECT+UPDATE.
-- **Status:** OPEN
+- **Status:** FIXED — update.php deleted, moleculesPerdues uses atomic UPDATE ... + ? (game_actions.php:129-131)
 
 ### C-011: Combat pre-transaction decay writes cause permanent molecule loss
 - **Domain:** COMBAT / DATA
@@ -114,7 +136,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** DATA-CROSS #7, COMBAT-CROSS
 - **Description:** Molecule decay loop runs OUTSIDE the manual BEGIN/COMMIT block. If transaction rolls back, decay is already committed = permanent molecule loss with no combat report.
 - **Fix:** Move decay loop inside the transaction block.
-- **Status:** OPEN
+- **Status:** FIXED — Decay loop now inside the transaction block (game_actions.php:113-131)
 
 ### C-012: Maintenance mode doesn't block game actions
 - **Domain:** SEASON
@@ -122,7 +144,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** SEASON-CROSS-001, SEASON-CROSS-003
 - **Description:** Maintenance check only sets a display variable ($erreur) but never exits or redirects. Players continue attacking, trading, building during reset.
 - **Fix:** Add `if ($maintenance) { echo json_encode(['error' => 'maintenance']); exit; }` to all action processing blocks.
-- **Status:** OPEN
+- **Status:** FIXED — POST blocking in maintenance mode (basicprivatephp.php:216-229)
 
 ### C-013: Admin password hash hardcoded in source-controlled file
 - **Domain:** INFRA
@@ -130,7 +152,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** INFRA-R1-004
 - **Description:** Admin bcrypt hash in version-controlled PHP file. Anyone with repo access can crack it.
 - **Fix:** Move to .env file loaded via getenv().
-- **Status:** OPEN
+- **Status:** OPEN — Admin hash still in constantesBase.php:54, not moved to .env
 
 ### C-014: game_actions.php division by zero in formation processing
 - **Domain:** ERR
@@ -138,7 +160,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** ERR-R1-003
 - **Description:** floor((...) / $actions['tempsPourUn']) divides by zero if tempsPourUn=0 in database.
 - **Fix:** Add guard: if ($actions['tempsPourUn'] <= 0) { logError(...); continue; }
-- **Status:** OPEN
+- **Status:** FIXED — Guard at game_actions.php:56-59
 
 ### C-015: Undefined variables in combat report template
 - **Domain:** ERR
@@ -146,7 +168,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** ERR-R1-004
 - **Description:** $attaquePts, $defensePts, $pillagePts, $pillagePts1 never assigned. Every combat report has PHP warnings and empty chipInfo outputs.
 - **Fix:** Assign from combat resolution output before template usage.
-- **Status:** OPEN
+- **Status:** FIXED — Variables mapped at game_actions.php:137-140 (Batch A)
 
 ### C-016: Invitation acceptance has no ownership check — any player steals invitations
 - **Domain:** SOC / SEC
@@ -154,7 +176,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** SOC-R1-001, SOC-R2-001, SOC-CROSS #2-3
 - **Description:** DELETE/UPDATE on invitation by ID only. No check that invite == $_SESSION['login']. Any logged-in player can accept any invitation.
 - **Fix:** Add WHERE invite = ? with $_SESSION['login'] to all invitation queries.
-- **Status:** OPEN
+- **Status:** FIXED — WHERE id=? AND invite=? guard (alliance.php:152)
 
 ### C-017: Season winner variable undefined when no players exist
 - **Domain:** ERR / SEASON
@@ -162,7 +184,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** ERR-R1-005
 - **Description:** $vainqueurManche undefined if classement query returns zero rows. Season reset crashes with fatal error.
 - **Fix:** Initialize $vainqueurManche = null before loop; guard prestige/email with if ($vainqueurManche !== null).
-- **Status:** OPEN
+- **Status:** FIXED — Null-coalescing guard at basicprivatephp.php:156
 
 ### C-018: Null dereference in auth guard on every private page
 - **Domain:** ERR
@@ -170,7 +192,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** ERR-R1-006
 - **Description:** dbFetchOne returns null if player deleted between session check and query. Line 77 accesses null['tempsPrecedent']. Crashes every page for deleted-but-session-active players.
 - **Fix:** Add null guard: if (!$donnees) { session_destroy(); header('Location: index.php'); exit; }
-- **Status:** OPEN
+- **Status:** FIXED — Session token validation + null guard in basicprivatephp.php:11-17
 
 ### C-019: Hardcoded HTTP URL in notification.js leaks GCM key
 - **Domain:** FE
@@ -178,7 +200,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** FE-R1-001
 - **Description:** Push notification registration sends GCM key over plain HTTP. Mixed content error on HTTPS.
 - **Fix:** Change to protocol-relative URL or HTTPS. Or remove dead push notification code entirely.
-- **Status:** OPEN
+- **Status:** FIXED — js/notification.js deleted entirely (Batch A)
 
 ### C-020: External scripts without SRI (Google Charts, CKEditor)
 - **Domain:** FE / SEC
@@ -186,7 +208,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** FE-R1-004, QOL-R2-022
 - **Description:** Google Charts loader.js loaded without integrity attribute. CDN compromise = XSS on all market pages.
 - **Fix:** Self-host loader.js or add integrity/crossorigin attributes.
-- **Status:** OPEN
+- **Status:** OPEN — Google Charts loader.js still without SRI in marche.php
 
 ### C-021: Quadratic stat formulas create exponential snowball
 - **Domain:** BAL
@@ -194,7 +216,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** BAL-R1-001
 - **Description:** Attack/defense/pillage formulas are quadratic (N^2 terms). Combined with condenseur levels, creates exponential advantage that new players cannot overcome.
 - **Fix:** Change formulas to linear or soft-logarithmic scaling. See BAL-CROSS for specific coefficient recommendations.
-- **Status:** OPEN
+- **Status:** DEFERRED — V4 covalent synergy system addresses some concerns. Further tuning needs playtesting (Batch G)
 
 ### C-022: Iode energy production negligibly weak — dead atom type
 - **Domain:** BAL
@@ -202,7 +224,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** BAL-R1-005, BAL-R2-006
 - **Description:** Iode linear formula vs quadratic others = 20x weaker at high counts. No reason to ever use iode atoms.
 - **Fix:** Buff iode formula or add unique iode-only mechanics. See BAL-CROSS recommendations.
-- **Status:** OPEN
+- **Status:** FIXED — Iode catalyst system: quadratic formula (0.003*I^2 + 0.04*I), multiplicative generator bonus up to +100% (V4)
 
 ### C-023: Decay formula exponential-on-exponential kills molecule diversity
 - **Domain:** BAL
@@ -210,7 +232,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** BAL-R1-006
 - **Description:** Molecule decay is so aggressive that large diverse armies are impossible. Only single-class stacking is viable.
 - **Fix:** Reduce decay exponent or add a soft cap. See BAL-CROSS.
-- **Status:** OPEN
+- **Status:** FIXED — DECAY_ATOM_DIVISOR 100→150, DECAY_MASS_EXPONENT 2→1.5, asymptotic stabilisateur pow(0.98, level) (V4)
 
 ### C-024: Building destruction is pure RNG — no strategic counterplay
 - **Domain:** BAL
@@ -218,7 +240,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** BAL-R1-007
 - **Description:** Which building gets destroyed in combat is purely random. No way to protect key buildings.
 - **Fix:** Add targeting priority or building protection mechanics.
-- **Status:** OPEN
+- **Status:** DEFERRED — Balance decision requiring playtesting (Batch G)
 
 ### C-025: Attacker damage uses defender's isotope modifier (combat formula bug)
 - **Domain:** BAL / GAME
@@ -226,7 +248,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** BAL-R1-004
 - **Description:** Damage calculation uses wrong variable — defender's isotope attack modifier applied to attacker's damage.
 - **Fix:** Use $isotopeAttaquant instead of $isotopeDefenseur in attacker damage formula.
-- **Status:** OPEN
+- **Status:** FIXED — Correct variable separation for attacker/defender isotope mods (combat.php:171-172)
 
 ### C-026: ISO-8859-1 charset in admin page
 - **Domain:** I18N
@@ -234,7 +256,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** I18N-R1-001, I18N-R2-001
 - **Description:** Admin page declares ISO-8859-1 while all other pages use UTF-8. French characters corrupt.
 - **Fix:** Change to UTF-8 charset declaration.
-- **Status:** OPEN
+- **Status:** FIXED — <meta charset="UTF-8"> in admin/listesujets.php:8
 
 ### C-027: Database charset utf8 instead of utf8mb4
 - **Domain:** I18N / SCHEMA
@@ -242,7 +264,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** I18N-R1-003, SCHEMA-CROSS SC-009
 - **Description:** Connection uses 'utf8' (3-byte). Mixed charsets (latin1, utf8, utf8mb4) prevent index use on JOINs and corrupt accented characters.
 - **Fix:** SET NAMES utf8mb4. Migrate all tables to utf8mb4.
-- **Status:** OPEN
+- **Status:** FIXED — connexion.php:20 uses utf8mb4, migration 0013 converted tables
 
 ### C-028: Zero foreign key constraints in entire schema
 - **Domain:** SCHEMA
@@ -250,7 +272,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** SCHEMA-CROSS SC-001
 - **Description:** No FK constraints exist. All referential integrity enforced in PHP. supprimerJoueur runs 11+ DELETEs — mid-failure leaves orphans.
 - **Fix:** Add ON DELETE CASCADE FKs for critical relationships (membre→autre, membre→ressources, etc).
-- **Status:** OPEN
+- **Status:** OPEN — Migration 0017 adds CHECK constraints but no FK constraints. Migration 0018 (FKs) planned but not created.
 
 ### C-029: actionsformation.idclasse type mismatch (INT stores string 'neutrino')
 - **Domain:** SCHEMA
@@ -258,7 +280,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** SCHEMA-CROSS SC-003
 - **Description:** Column is INT(11) but code stores 'neutrino' string literal. INT receives 'neutrino' → silently stores 0. Neutrino formation path unreliable.
 - **Fix:** ALTER TABLE actionsformation MODIFY idclasse VARCHAR(50).
-- **Status:** OPEN
+- **Status:** OPEN — Needs live DB migration
 
 ### C-030: No prestige.php page — entire progression system unreachable
 - **Domain:** QOL / GAME
@@ -266,7 +288,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** QOL-R2-046, QOL-R2-031
 - **Description:** 5 unlocks implemented, purchasePrestigeUnlock() works, PP awards exist. Zero UI. Players cannot interact with the prestige system.
 - **Fix:** Create prestige.php page with PP display, unlock shop, and history.
-- **Status:** OPEN
+- **Status:** FIXED — prestige.php created with PP display, unlock shop, and earning guide (Batch E)
 
 ### C-031: BBCode [url=] ReDoS via nested quantifiers
 - **Domain:** INP / SEC
@@ -274,7 +296,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** INP-R2-003
 - **Description:** URL regex has nested quantifiers that cause catastrophic backtracking on crafted input. DoS vector.
 - **Fix:** Rewrite regex with atomic grouping or possessive quantifiers.
-- **Status:** OPEN
+- **Status:** FIXED — URL regex rewritten without nested quantifiers (bbcode.php:18)
 
 ### C-032: Medal bonuses carry across seasons — unbreakable veteran advantage
 - **Domain:** BAL
@@ -282,7 +304,7 @@ Many findings were reported by multiple agents across rounds. The following majo
 - **Found by:** BAL-R2-010
 - **Description:** Diamond+ medal holders from season 1 get 30-50% combat multiplier in season 2. New players cannot compete.
 - **Fix:** Reset medal bonuses each season, or cap cross-season bonus at 10%.
-- **Status:** OPEN
+- **Status:** FIXED — MAX_CROSS_SEASON_MEDAL_BONUS capped at 10%, 14-day grace period, Gold tier cap during grace (config.php, Batch N)
 
 ---
 

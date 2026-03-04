@@ -1,5 +1,70 @@
 # Changelog
 
+## [3.1.0] - 2026-03-04 - Security Hardening, CSP Nonces, Bonus Summary
+
+Comprehensive security and code quality pass across all PHP files.
+
+### Security — CSP Nonce Implementation (Batch M)
+
+- Created `includes/csp.php` with per-request nonce generation (`cspNonce()`, `cspScriptTag()`)
+- CSP header sent via PHP `header()` in `layout.php` — script-src uses nonce, no `unsafe-inline`
+- Converted 15 inline JS redirects to PHP `header("Location: ...")` in 6 files
+- Added nonces to all remaining 26 inline `<script>` tags
+- Replaced inline event handlers (onclick/onchange/oninput) with data attributes + delegated listeners
+- Fixed `deconnexion.php` — had nonce but missing CSP header
+- Fixed `admin/tableau.php` — added csp.php include + nonce on inline script
+- Removed stale CSP header from `.htaccess` (PHP handles it now)
+
+### Security — Code Hardening (Batches K, L)
+
+- Removed `stripslashes()` from 10 files (dead since PHP 5.4)
+- Replaced bare `die()` calls with proper error handling in 6 files
+- Eliminated all `mysqli_fetch_array()` calls — migrated to `dbFetchAll()` / `dbFetchOne()`
+- Fixed rapports.php XSS (strip_tags attribute injection)
+- Fixed moderation charset declaration
+- Fixed stale grade access in allianceadmin.php
+- Molecule deletion, war declaration wrapped in transactions
+- Forum ID race condition fixed (uses `mysqli_insert_id`)
+- Alliance cooldowns cleanup on member removal
+
+### New Features
+
+- **bilan.php**: Comprehensive bonus summary page — 14 sections showing all active bonuses, effects, and step-by-step calculation breakdowns (energy, atoms, combat, pillage, storage, formation speed, decay, alliance research, medals, prestige, catalysts, condenseurs, specializations)
+- **prestige.php**: PP balance column linked in classement.php
+- Market chart X-axis timestamps
+- Tutorial reward escalation (200, 300, 400... instead of flat 500)
+- Empty-state messages for armee.php, rapports.php, messages.php, messagesenvoyes.php
+
+### Game Balance (Batch N)
+
+- Isotope Stable buffed: -10% attack/+20% HP → -5% attack/+30% HP
+- Medal thresholds rebalanced for 31-day seasons (upper tiers were unreachable)
+- Medal thresholds in both config.php and constantesBase.php aligned
+
+### Database (Batch O)
+
+- Migration 0017: 27 CHECK constraints (9 on ressources, 9 on constructions, 9 on molecules) preventing negative values
+
+### Code Quality (Batches J, P, Q, R)
+
+- BBcode cleanup: ~313 lines of unused JS toolbar functions removed
+- Dead files removed (PushNotification.js, notification.js, etc.)
+- Rate limiter moved from /tmp to project-local data/rates/
+- GitHub Actions CI pipeline created
+- MathJax script moved before `</body>` (was after `</html>`)
+
+### Documentation
+
+- Mega-findings-tracker.md updated: 101/198 items fixed, accurate status on all 32 CRITICAL findings
+- whats-next.md updated with current state
+- bilan.php design document created
+
+### Tests
+
+- 371 tests / 2327 assertions all passing
+
+---
+
 ## [3.0.0] - 2026-03-03 - V4 Gameplay Balance Overhaul
 
 Complete rewrite of the game balance engine. Every formula, cost, and economy
