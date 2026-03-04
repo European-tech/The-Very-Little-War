@@ -181,6 +181,13 @@ for ($c = 1; $c <= $nbClasses; $c++) {
 $degatsAttaquant *= prestigeCombatBonus($actions['attaquant']);
 $degatsDefenseur *= prestigeCombatBonus($actions['defenseur']);
 
+// Apply compound synthesis combat bonuses
+require_once(__DIR__ . '/compounds.php');
+$compoundAttackBonus = getCompoundBonus($base, $actions['attaquant'], 'attack_boost');
+$compoundDefenseBonus = getCompoundBonus($base, $actions['defenseur'], 'defense_boost');
+if ($compoundAttackBonus > 0) $degatsAttaquant *= (1 + $compoundAttackBonus);
+if ($compoundDefenseBonus > 0) $degatsDefenseur *= (1 + $compoundDefenseBonus);
+
 // Apply Embuscade bonus to defender's effective damage (FIX FINDING-GAME-018)
 $degatsDefenseur *= $embuscadeDefBoost;
 
@@ -387,6 +394,10 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 		// V4: Apply weekly catalyst pillage bonus (migrated from pillage() which is now pure)
 		$catalystPillageBonus = 1 + catalystEffect('pillage_bonus');
 		$ressourcesAPiller *= $catalystPillageBonus;
+
+		// Compound synthesis pillage boost
+		$compoundPillageBonus = getCompoundBonus($base, $actions['attaquant'], 'pillage_boost');
+		if ($compoundPillageBonus > 0) $ressourcesAPiller *= (1 + $compoundPillageBonus);
 
 		// Alliance Bouclier research reduces pillage losses for defender
 		$bouclierReduction = allianceResearchBonus($actions['defenseur'], 'pillage_defense');

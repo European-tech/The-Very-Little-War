@@ -829,4 +829,37 @@ debutCarte("Specialisations");
     finContent();
 finCarte();
 
+// =============================================================================
+// SECTION O: Composés Actifs (Laboratoire)
+// =============================================================================
+require_once('includes/compounds.php');
+$activeCompounds = getActiveCompounds($base, $login);
+if (!empty($activeCompounds)) {
+    global $COMPOUNDS;
+    debutCarte("Composés Actifs");
+        debutContent();
+
+        echo '<div class="data-table"><table>';
+        echo '<thead><tr><th>Composé</th><th>Effet</th><th>Expire dans</th></tr></thead>';
+        echo '<tbody>';
+
+        foreach ($activeCompounds as $comp) {
+            $key = $comp['compound_key'];
+            if (!isset($COMPOUNDS[$key])) continue;
+            $def = $COMPOUNDS[$key];
+            $remaining = max(0, $comp['expires_at'] - time());
+
+            echo '<tr>';
+            echo '<td><strong>' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '</strong> — ' . htmlspecialchars($def['name'], ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td style="color:green">' . htmlspecialchars($def['description'], ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars(affichageTemps($remaining), ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table></div>';
+
+        finContent();
+    finCarte();
+}
+
 include("includes/copyright.php");

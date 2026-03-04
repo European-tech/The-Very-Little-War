@@ -141,6 +141,13 @@ if (isset($_POST['joueurAAttaquer'])) {
                             $c++;
                         }
 
+                        // Apply compound speed boost to travel time
+                        require_once('includes/compounds.php');
+                        $speedBoost = getCompoundBonus($base, $_SESSION['login'], 'speed_boost');
+                        if ($speedBoost > 0) {
+                            $tempsTrajet = max(1, round($tempsTrajet / (1 + $speedBoost)));
+                        }
+
                         if ($cout <= $ressources['energie']) {
                             if ($bool) {
                                 withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet) {

@@ -65,7 +65,12 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     }
     $prodNodes = $prodPrestige * (1 + $energyNodeBonus);
 
-    $prodProducteur = $prodNodes - drainageProducteur($producteur['producteur']);
+    // Compound synthesis boost (production_boost)
+    require_once(__DIR__ . '/compounds.php');
+    $compoundProdBonus = getCompoundBonus($base, $joueur, 'production_boost');
+    $prodCompound = $prodNodes * (1 + $compoundProdBonus);
+
+    $prodProducteur = $prodCompound - drainageProducteur($producteur['producteur']);
     if ($detail == 0) {
         $result = max(0, round($prodProducteur));
     } elseif ($detail == 1) {
@@ -110,7 +115,11 @@ function revenuAtome($num, $joueur)
         $nodeBonus = getResourceNodeBonus($base, $pos['x'], $pos['y'], $nomsRes[$num]);
     }
 
-    $result = round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur) * (1 + $nodeBonus));
+    // Compound synthesis boost (production_boost)
+    require_once(__DIR__ . '/compounds.php');
+    $compoundProdBonus = getCompoundBonus($base, $joueur, 'production_boost');
+
+    $result = round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur) * (1 + $nodeBonus) * (1 + $compoundProdBonus));
     $cache[$cacheKey] = $result;
     return $result;
 }

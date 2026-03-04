@@ -630,6 +630,57 @@ define('MARKET_HISTORY_LIMIT', 1000);
 define('ACTIVE_PLAYER_THRESHOLD', SECONDS_PER_MONTH); // 2678400 = 31 days
 
 // =============================================================================
+// COMPOUND SYNTHESIS (laboratoire)
+// =============================================================================
+// Recipes use resource name keys. Quantities are in multiples of 100 atoms.
+// Effects are temporary buffs (duration in seconds).
+define('COMPOUND_ATOM_MULTIPLIER', 100); // each recipe unit costs this many atoms
+define('COMPOUND_MAX_STORED', 3);        // max compounds stored per player
+
+$COMPOUNDS = [
+    'H2O' => [
+        'name' => 'Eau',
+        'recipe' => ['hydrogene' => 2, 'oxygene' => 1],
+        'effect' => 'production_boost',
+        'effect_value' => 0.10,
+        'duration' => SECONDS_PER_HOUR,
+        'description' => "+10% production pendant 1h"
+    ],
+    'NaCl' => [
+        'name' => 'Sel',
+        'recipe' => ['chlore' => 1, 'soufre' => 1],
+        'effect' => 'defense_boost',
+        'effect_value' => 0.15,
+        'duration' => SECONDS_PER_HOUR,
+        'description' => "+15% défense pendant 1h"
+    ],
+    'CO2' => [
+        'name' => 'Dioxyde de Carbone',
+        'recipe' => ['carbone' => 1, 'oxygene' => 2],
+        'effect' => 'attack_boost',
+        'effect_value' => 0.10,
+        'duration' => SECONDS_PER_HOUR,
+        'description' => "+10% attaque pendant 1h"
+    ],
+    'NH3' => [
+        'name' => 'Ammoniac',
+        'recipe' => ['azote' => 1, 'hydrogene' => 3],
+        'effect' => 'speed_boost',
+        'effect_value' => 0.20,
+        'duration' => SECONDS_PER_HOUR,
+        'description' => "+20% vitesse pendant 1h"
+    ],
+    'H2SO4' => [
+        'name' => 'Acide Sulfurique',
+        'recipe' => ['hydrogene' => 2, 'soufre' => 1, 'oxygene' => 4],
+        'effect' => 'pillage_boost',
+        'effect_value' => 0.25,
+        'duration' => SECONDS_PER_HOUR,
+        'description' => "+25% pillage pendant 1h"
+    ],
+];
+
+// =============================================================================
 // ATOM SPECIALIZATIONS — irreversible choices unlocked at building milestones
 // =============================================================================
 // 0 = not chosen, 1 = option A, 2 = option B
