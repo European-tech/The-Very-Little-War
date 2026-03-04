@@ -28,9 +28,9 @@ $bonusForum = ['insigne bronze','insigne argent','insigne or','insigne emeraude'
 $bonusTroll = ['Rien','Rien','Rien','Rien','Rien','Rien','Rien','Rien'];
 
 $paliersTerreur = [5,15,30,60,120,250,500,1000];
-$paliersAttaque = [100,1000,5000,20000,100000,500000,2000000,10000000];
-$paliersDefense = [100,1000,5000,20000,100000,500000,2000000,10000000];
-$paliersPillage = [1000,10000,50000,200000,1000000,5000000,20000000,100000000];
+$paliersAttaque = [50,200,500,1500,4000,8000,15000,30000];
+$paliersDefense = [50,200,500,1500,4000,8000,15000,30000];
+$paliersPillage = [500,5000,25000,100000,500000,2000000,5000000,10000000];
 $paliersPipelette = [10,25,50,100,200,500,1000,5000];
 $paliersPertes = [10,100,500,2000,10000,50000,200000,1000000];
 $paliersEnergievore = [100,500,3000,20000,100000,2000000,10000000,1000000000];

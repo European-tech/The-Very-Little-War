@@ -516,14 +516,15 @@ $MEDAL_FORUM_BADGES = [
 // Terreur (number of attacks launched)
 $MEDAL_THRESHOLDS_TERREUR = [5, 15, 30, 60, 120, 250, 500, 1000];
 
-// Attaque (total attack points)
-$MEDAL_THRESHOLDS_ATTAQUE = [100, 1000, 5000, 20000, 100000, 500000, 2000000, 10000000];
+// Attaque (total attack points) — rebalanced for 31-day seasons
+// Top player ~5000-10000 pts/season: Diamond achievable by best, Red Diamond aspirational
+$MEDAL_THRESHOLDS_ATTAQUE = [50, 200, 500, 1500, 4000, 8000, 15000, 30000];
 
-// Defense (total defense points)
-$MEDAL_THRESHOLDS_DEFENSE = [100, 1000, 5000, 20000, 100000, 500000, 2000000, 10000000];
+// Defense (total defense points) — mirrors Attaque curve
+$MEDAL_THRESHOLDS_DEFENSE = [50, 200, 500, 1500, 4000, 8000, 15000, 30000];
 
-// Pillage (total resources pillaged)
-$MEDAL_THRESHOLDS_PILLAGE = [1000, 10000, 50000, 200000, 1000000, 5000000, 20000000, 100000000];
+// Pillage (total resources pillaged) — rebalanced for achievable upper tiers
+$MEDAL_THRESHOLDS_PILLAGE = [500, 5000, 25000, 100000, 500000, 2000000, 5000000, 10000000];
 
 // Pipelette (forum messages posted)
 $MEDAL_THRESHOLDS_PIPELETTE = [10, 25, 50, 100, 200, 500, 1000, 5000];
