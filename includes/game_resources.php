@@ -264,4 +264,16 @@ function updateRessources($joueur)
             dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $joueur, '<img alt="skull" src="images/rapports/rapportpertes.png"/ class="imageAide">');
         }
     }
+
+    // Probabilistic garbage collection (~1% of requests)
+    if (mt_rand(1, 100) === 1) {
+        // Trim market history to MARKET_HISTORY_LIMIT rows
+        $keepId = dbFetchOne($base, 'SELECT id FROM cours ORDER BY id DESC LIMIT 1 OFFSET ' . MARKET_HISTORY_LIMIT);
+        if ($keepId) {
+            dbExecute($base, 'DELETE FROM cours WHERE id < ?', 'i', $keepId['id']);
+        }
+        // Cleanup expired compounds
+        require_once(__DIR__ . '/compounds.php');
+        cleanupExpiredCompounds($base);
+    }
 }
