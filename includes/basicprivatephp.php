@@ -40,7 +40,8 @@ if ($posAct && $posAct['x'] == -1000) {
     $position = coordonneesAleatoires();
     dbExecute($base, 'UPDATE membre SET x = ?, y = ? WHERE login = ?', 'iis', $position['x'], $position['y'], $_SESSION['login']);
 }
-include("includes/constantes.php");
+require_once(__DIR__ . '/constantesBase.php');
+initPlayer($_SESSION['login']);
 
 /////////////////////////////////////////////////////
 

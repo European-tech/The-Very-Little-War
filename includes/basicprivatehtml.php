@@ -225,7 +225,7 @@ else { // si cela n'a pas été initialisé à la première connexion
     </p>
     </div>
     <?php
-    include("atomes.php");
+    include(__DIR__ . "/atomes.php");
     debutContent();
       debutListe();
         item(['media' => '<img src="images/menu/power-button.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Déconnexion', 'link' => 'deconnexion.php', 'style' => 'color:black']);

@@ -376,7 +376,8 @@ if ($nb > 0) {
     finCarte();
 }
 
-include("includes/constantes.php"); // on actualise les constantes
+require_once("includes/constantesBase.php");
+initPlayer($_SESSION['login']); // on actualise les constantes
 
 // --- Defensive Formation Selector ---
 $currentFormation = $constructions['formation'] ?? 0;
