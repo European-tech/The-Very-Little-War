@@ -25,9 +25,11 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
         if ($_POST['joueurAEspionner'] != $_SESSION['login']) {
             // Check vacation mode + beginner protection for espionage target
             $espTarget = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
-            if ($espTarget && $espTarget['vacance']) {
+            if (!$espTarget) {
+                $erreur = "Ce joueur n'existe pas.";
+            } elseif ($espTarget['vacance']) {
                 $erreur = "Vous ne pouvez pas espionner un joueur en vacances.";
-            } elseif ($espTarget && time() - $espTarget['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
+            } elseif (time() - $espTarget['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
                 $erreur = "Le joueur est encore sous protection des débutants.";
             } elseif (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
                 $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);

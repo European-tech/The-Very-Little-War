@@ -29,7 +29,11 @@ $text = preg_replace_callback('!\[img=([^\]]+)\]!isU', function($matches) {
 }, $text);
 $text = preg_replace('!\[color=(blue|red|green|white|black|beige|brown|cyan|yellow|orange|gray|purple|maroon)\](.+)\[/color\]!isU', '<span style="color:$1;">$2</span>', $text);
 
-$text = preg_replace('!\[latex\](.+)\[/latex\]!isU', '\$\$$1\$\$', $text);
+$text = preg_replace_callback('!\[latex\](.+)\[/latex\]!isU', function($m) {
+    // Strip dangerous MathJax commands (\href, \url, \unicode, \cssId, \class) to prevent XSS
+    $latex = preg_replace('/\\\\(href|url|unicode|cssId|class)\b/i', '\\text{blocked}', $m[1]);
+    return '$$' . $latex . '$$';
+}, $text);
 
 $text = preg_replace('!:arrow:!isU', '→', $text);
 $text = preg_replace('!:(-)?D!isU', '😃', $text);
@@ -41,8 +45,8 @@ $text = preg_replace('!O_o!sU', '😮', $text);
 $text = preg_replace('!o_O!sU', '😮', $text);
 $text = preg_replace('!3:(-)?\)!isU', '😈', $text);
 $text = preg_replace('!:idea:!isU', '💡', $text);
-$text = preg_replace('!lol!isU', '😁', $text);
-$text = preg_replace('!=/!isU', '😕', $text);
+$text = preg_replace('!\blol\b!isU', '😁', $text);
+$text = preg_replace('!(?<![=<>/])=/(?![=>])!sU', '😕', $text);
 $text = preg_replace('!:green:!isU', '😷', $text);
 $text = preg_replace('!:(-)?(\||l)!isU', '😐', $text);
 $text = preg_replace('!:(-)?p!isU', '😛', $text);

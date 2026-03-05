@@ -215,6 +215,11 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
 
                 try {
                     withTransaction($base, function() use ($base, $login, $nomsRes, $nbRes, $atomValues, $formule, $isotope, $numClasse) {
+                        // Verify slot is empty before overwriting (prevent clobbering existing molecule)
+                        $existingSlot = dbFetchOne($base, 'SELECT formule FROM molecules WHERE proprietaire=? AND numeroclasse=? FOR UPDATE', 'si', $login, $numClasse);
+                        if ($existingSlot && $existingSlot['formule'] !== 'Vide') {
+                            throw new \RuntimeException('Slot not empty');
+                        }
                         $cout = dbFetchOne($base, 'SELECT energie, niveauclasse FROM ressources WHERE login=? FOR UPDATE', 's', $login);
                         if (!$cout || $cout['energie'] < coutClasse($cout['niveauclasse'])) {
                             throw new \RuntimeException('Insufficient energy');
@@ -248,7 +253,11 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
                     });
                     $information = "Une nouvelle classe de molécule a été créée.";
                 } catch (\RuntimeException $e) {
-                    $erreur = "Vous n'avez pas assez d'energie.";
+                    if ($e->getMessage() === 'Slot not empty') {
+                        $erreur = "Cet emplacement contient déjà une molécule.";
+                    } else {
+                        $erreur = "Vous n'avez pas assez d'energie.";
+                    }
                 }
             } else {
                 $erreur = "Votre molécule doit au moins être composée d'un atome.";
