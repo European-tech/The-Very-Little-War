@@ -219,7 +219,7 @@ function updateRessources($joueur)
 
     $donneesMedaille = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $joueur);
 
-    $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $joueur);
+    $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $joueur);
 
     $compteur = 0;
     $totalMoleculesPerdues = 0;

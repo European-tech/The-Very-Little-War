@@ -256,7 +256,7 @@ if (!isset($_POST['supprimercompte'])) {
     debutListe();
     item(['input' => '
                  <center>
-                    <input type="image" style="vertical-align:middle;margin-right:80px" src="images/yes.png" name="oui" value="Oui"/><input src="images/croix.png" style="vertical-align:middle" type ="image" name="non" value="Non"/>
+                    <input type="submit" style="vertical-align:middle;margin-right:80px;background:url(images/yes.png) no-repeat;width:48px;height:48px;border:none;cursor:pointer;" name="oui" value=""/><input style="vertical-align:middle;background:url(images/croix.png) no-repeat;width:48px;height:48px;border:none;cursor:pointer;" type="submit" name="non" value=""/>
 	               <input type="hidden" name="verification"/>
                    ' . csrfField() . '
                 </center>', 'form' => ["compte.php", "supprimerLeCompte"]]);

@@ -30,7 +30,7 @@ if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulai
                 $existingPoints = explode(';', $locked['pointsProducteur']);
                 $chaine = "";
                 foreach ($nomsRes as $num => $ressource) {
-                    $plus = ($num - 1 < sizeof($nomsRes)) ? ";" : "";
+                    $plus = ($num + 1 < sizeof($nomsRes)) ? ";" : "";
                     $chaine = $chaine . ($_POST['nbPoints' . $ressource] + ($existingPoints[$num] ?? 0)) . $plus;
                 }
                 $newPoints = $locked['pointsProducteurRestants'] - $somme;
@@ -74,7 +74,7 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
                 $existingPoints = explode(';', $locked['pointsCondenseur']);
                 $chaine = "";
                 foreach ($nomsRes as $num => $ressource) {
-                    $plus = ($num - 1 < sizeof($nomsRes)) ? ";" : "";
+                    $plus = ($num + 1 < sizeof($nomsRes)) ? ";" : "";
                     $chaine = $chaine . ($_POST['nbPointsCondenseur' . $ressource] + ($existingPoints[$num] ?? 0)) . $plus;
                 }
                 $newPoints = $locked['pointsCondenseurRestants'] - $somme;

@@ -185,7 +185,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                                         $c++;
                                     }
                                     $now = time();
-                                    dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,0,default)', 'ssiiiss',
+                                    dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,0,default)', 'ssiiis',
                                         $_SESSION['login'], $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes);
                                     ajouter('energie', 'ressources', -$cout, $_SESSION['login']);
                                     ajouter('energieDepensee', 'autre', $cout, $_SESSION['login']);

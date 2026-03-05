@@ -31,7 +31,7 @@ $listeMissions = [
 
     ['titre' => 'Ecrivez sur le forum', 'contenu' => 'Le forum est un lieu d\'échange avec la communauté des autres joueurs. Vous pouvez y poster vos suggestions, reporter les bugs ou vous présenter voir jouer à des jeux !  <strong>Ecrivez un message</strong> sur le forum','atomes'=>600, 'resultat' => $autre['nbMessages'] > 0, 'icone' => '<img alt="des" src="images/menu/forum.png" class="w32"/>'],
 
-    ['titre' => 'Champ de force niveau 10', 'contenu' => 'Le champ de force protège toutes les constructions de niveau inférieur contre les attaques ennemies, augmentez le afin d\'éviter de mauvaises surprises à base d\'hydrogène ennemi.','carbon' => 800,'resultat' => $constructions['champdeforce'] >= 10,'icone' => '<img alt="des" src="images/batiments/champdeforce.png" class="w32"/>'],
+    ['titre' => 'Champ de force niveau 10', 'contenu' => 'Le champ de force protège toutes les constructions de niveau inférieur contre les attaques ennemies, augmentez le afin d\'éviter de mauvaises surprises à base d\'hydrogène ennemi.','carbone' => 800,'resultat' => $constructions['champdeforce'] >= 10,'icone' => '<img alt="des" src="images/batiments/champdeforce.png" class="w32"/>'],
 
     ['titre' => 'Stockage niveau 10', 'contenu' => 'Pour pouvoir stocker plus de ressources et avoir de la réserve en cas de défaite, il vous faut un bon stockage.','energie' => floor(placeDepot(10)/2), 'atomes'=>floor(placeDepot(10)/3), 'resultat' => $constructions['depot'] >= 10,'icone' => '<img alt="des" src="images/batiments/depot.png" class="w32"/>'],
 

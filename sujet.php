@@ -105,6 +105,11 @@ if (isset($_GET['id'])) {
 	}
 
 	// Si il est banni (skip check if not logged in)
+	// Clean up expired bans (same logic as forum.php)
+	if (isset($sanctionRow) && $sanctionRow && strtotime($sanctionRow['dateFin']) < time()) {
+		dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+		$sanctionRow = null;
+	}
 	$isBanned = isset($sanctionRow) && $sanctionRow;
 	if ($isBanned) {
 		$sanction = $sanctionRow;

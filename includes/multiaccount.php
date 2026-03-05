@@ -285,7 +285,7 @@ function createAdminAlert($base, $type, $message, $details, $severity = 'warning
  */
 function sendAdminAlertEmail($subject, $body)
 {
-    $adminEmail = getenv('ADMIN_ALERT_EMAIL') ?: 'theverylittewar@gmail.com';
+    $adminEmail = getenv('ADMIN_ALERT_EMAIL') ?: 'theverylittlewar@gmail.com';
     $headers = "From: noreply@theverylittlewar.com\r\nContent-Type: text/plain; charset=UTF-8";
     @mail($adminEmail, $subject, $body, $headers);
 }

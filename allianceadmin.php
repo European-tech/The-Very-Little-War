@@ -120,6 +120,9 @@ if ($gradeChef) {
 		csrfCheck();
 		if (!empty($_POST['changertag'])) {
 			$_POST['changertag'] = trim($_POST['changertag']);
+			if (!preg_match('#^[a-zA-Z0-9_]{1,' . ALLIANCE_TAG_MAX_LENGTH . '}$#', $_POST['changertag'])) {
+				$erreur = "Le tag ne peut contenir que des lettres, chiffres et underscores (" . ALLIANCE_TAG_MAX_LENGTH . " max).";
+			} else {
 			$nballiance = dbCount($base, 'SELECT count(*) as nb FROM alliances WHERE tag=?', 's', $_POST['changertag']);
 
 			if ($nballiance == 0) {
@@ -128,6 +131,7 @@ if ($gradeChef) {
 				$information = 'Le tag de l\'équipe a bien été changé et est devenu ' . htmlspecialchars($_POST['changertag'], ENT_QUOTES, 'UTF-8') . '.';
 			} else {
 				$erreur = "Une équipe avec ce tag existe déjà.";
+			}
 			}
 		} else {
 			$erreur = "Le tag de votre équipe doit au moins comporter un caractère.";
@@ -173,9 +177,15 @@ if ($bannir) {
 			$_POST['bannirpersonne'] = ucfirst(trim($_POST['bannirpersonne']));
 			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $_POST['bannirpersonne']);
 			if ($dansLAlliance > 0) {
+				// Cannot ban the alliance chef
+				$allianceData = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=?', 'i', $currentAlliance['idalliance']);
+				if ($allianceData && $allianceData['chef'] === $_POST['bannirpersonne']) {
+					$erreur = "Vous ne pouvez pas bannir le chef de l'alliance.";
+				} else {
 				dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_POST['bannirpersonne']);
 				dbExecute($base, 'DELETE FROM grades WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $_POST['bannirpersonne']);
 				$information = 'Vous avez banni ' . htmlspecialchars($_POST['bannirpersonne'], ENT_QUOTES, 'UTF-8') . '.';
+				}
 			} else {
 				$erreur = "Le joueur que vous essayez de bannir n'existe pas ou n'est pas dans votre équipe.";
 			}
@@ -207,6 +217,7 @@ if ($pacte) {
 				$rapportTitre = 'L\'alliance ' . $safeTag . ' vous propose un pacte.';
 				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeTag . '</a> vous propose un pacte.
 				<form action="validerpacte.php" method="post">
+				' . csrfField() . '
 				<input type="submit" value="Accepter" name="accepter"/>
 				<input type="submit" value="Refuser" name="refuser"/>
 				<input type="hidden" value="' . $idDeclaration['id'] . '" name="idDeclaration"/>

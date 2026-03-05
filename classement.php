@@ -461,7 +461,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 			<td><?php echo number_format($donnees['totalAttaque'], 0 , ' ', ' ');?></td>
 			<td><?php echo number_format($donnees['totalDefense'], 0 , ' ', ' ');?></td>
 			<td><?php echo number_format($donnees['totalPillage'], 0 , ' ', ' ');?></td>
-            <td><?php echo $donnees['pointsVictoire'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireAlliance($compteur).'</span></td>'; ?></td>
+            <td><?php echo $donnees['pointsVictoire'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireAlliance($compteur).'</span>'; ?></td>
 			</tr>
 			<?php $compteur++;
 		}

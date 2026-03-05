@@ -131,16 +131,10 @@ function affichageTemps($secondes, $petitTemps = false)
         return (floor($secondes / SECONDS_PER_HOUR / 24 * 100) / 100) . ' jours';
     }
 
-    $heures = intval($secondes / SECONDS_PER_HOUR) . ':';
-    $minutes = intval(($secondes % SECONDS_PER_HOUR) / 60) . ':';
-    if ($minutes < 10) {
-        $minutes = '0' . $minutes;
-    }
-    $secondes = intval((($secondes % SECONDS_PER_HOUR) % 60));
-    if ($secondes < 10) {
-        $secondes = '0' . $secondes;
-    }
-    return $heures . $minutes . $secondes;
+    $heures = intval($secondes / SECONDS_PER_HOUR);
+    $minutesVal = intval(($secondes % SECONDS_PER_HOUR) / 60);
+    $secondesVal = intval((($secondes % SECONDS_PER_HOUR) % 60));
+    return $heures . ':' . str_pad($minutesVal, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secondesVal, 2, '0', STR_PAD_LEFT);
 }
 
 function scriptAffichageTemps()
