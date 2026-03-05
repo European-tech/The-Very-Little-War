@@ -141,7 +141,7 @@ Lors de la création d'une classe de molécules, vous choisissez un <strong>type
 <tr>
 <td style="padding:6px;border:1px solid #ddd;"><strong>Stable</strong></td>
 <td style="padding:6px;border:1px solid #ddd;color:#c00;">-5%</td>
-<td style="padding:6px;border:1px solid #ddd;color:green;">+30%</td>
+<td style="padding:6px;border:1px solid #ddd;color:green;">+40%</td>
 <td style="padding:6px;border:1px solid #ddd;color:green;">-30%</td>
 <td style="padding:6px;border:1px solid #ddd;">Tank / Défenseur</td>
 </tr>
@@ -194,11 +194,11 @@ Les spécialisations sont des <strong>choix irréversibles</strong> débloqués 
 Le <strong>coffre-fort</strong> protège une partie de vos ressources contre le pillage en cas de défaite au combat. Plus votre coffre-fort est haut, plus vos réserves sont en sécurité.<br/><br/>
 
 <strong>Fonctionnement :</strong><br/>
-Chaque niveau de coffre-fort protège <strong>2%</strong> de votre capacité de stockage (dépôt), jusqu'à un maximum de <strong>50%</strong> (soit niveau 25).<br/><br/>
+Chaque niveau de coffre-fort protège <strong>3%</strong> de votre capacité de stockage (dépôt), jusqu'à un maximum de <strong>50%</strong> (soit niveau 17).<br/><br/>
 
-<code>Ressources protégées = min(50%, niveau &times; 2%) &times; capacité du dépôt</code><br/><br/>
+<code>Ressources protégées = min(50%, niveau &times; 3%) &times; capacité du dépôt</code><br/><br/>
 
-<em>Exemple :</em> Avec un coffre-fort niveau 10 et un dépôt de 5000, vous protégez 20% &times; 5000 = <strong>1000 unités</strong> de chaque atome contre le pillage.<br/><br/>
+<em>Exemple :</em> Avec un coffre-fort niveau 10 et un dépôt de 5000, vous protégez 30% &times; 5000 = <strong>1500 unités</strong> de chaque atome contre le pillage.<br/><br/>
 
 <?php echo important('Marché'); ?>
 Le marché permet d'acheter et de vendre des atomes. Les prix fluctuent en fonction de l'offre et de la demande de tous les joueurs.<br/><br/>
@@ -216,7 +216,7 @@ En combat, les dégâts infligés ne sont jamais perdus. Si une classe de moléc
 
 <strong>Fonctionnement selon la formation :</strong><br/>
 &bull; <strong>Dispersée :</strong> les dégâts sont répartis à parts égales entre les classes actives. L'excédent de chaque classe se propage aux suivantes.<br/>
-&bull; <strong>Phalange :</strong> la classe 1 absorbe 60% des dégâts (avec +20% de défense). L'excédent se propage aux classes 2, 3 et 4.<br/>
+&bull; <strong>Phalange :</strong> la classe 1 absorbe 50% des dégâts (avec +20% de défense). L'excédent se propage aux classes 2, 3 et 4.<br/>
 &bull; <strong>Embuscade :</strong> les dégâts traversent vos classes dans l'ordre (1 &rarr; 2 &rarr; 3 &rarr; 4), cascade directe.<br/><br/>
 
 <em>Astuce :</em> Répartissez vos molécules entre plusieurs classes pour absorber plus de dégâts totaux. Une seule classe concentrée peut être anéantie d'un coup !<br/><br/>
@@ -257,6 +257,93 @@ Chaque noeud est associé à un <strong>type de ressource</strong> (atome ou én
 Les noeuds sont visibles sur la carte sous forme de losanges colorés. Survolez un noeud pour voir son type et son bonus.<br/><br/>
 
 <em>Astuce :</em> Positionnez-vous stratégiquement à proximité des noeuds correspondant aux ressources dont vous avez besoin. Les noeuds changent à chaque nouvelle saison !<br/><br/>
+
+<?php
+finContent();
+finCarte();
+
+// =============================================================================
+// COMBAT & ECONOMY BALANCE
+// =============================================================================
+
+debutCarte("Combat et Économie");
+debutContent();
+?>
+
+<?php echo important('Protection des débutants'); ?>
+Les nouveaux joueurs bénéficient d'une <strong>protection de 5 jours</strong> après leur inscription. Pendant cette période, ils ne peuvent pas être attaqués ni attaquer d'autres joueurs. Profitez-en pour développer votre base !<br/><br/>
+
+<?php echo important('Taxe de pillage'); ?>
+Lors d'un pillage réussi, <strong>15%</strong> des ressources volées sont perdues (taxe de friction). L'attaquant ne récupère que 85% des ressources pillées. Cela réduit l'écart entre attaquants et défenseurs.<br/><br/>
+
+<?php echo important('Récompense de défense'); ?>
+En cas de défaite, le défenseur récupère <strong>30%</strong> des dégâts subis en points de défense. Se battre vaillamment, même en perdant, fait progresser votre score de défense au classement.<br/><br/>
+
+<?php echo important('Formations de combat'); ?>
+Trois formations tactiques sont disponibles :<br/><br/>
+
+<table style="width:100%;border-collapse:collapse;text-align:left;">
+<thead>
+<tr style="background-color:#f0f0f0;">
+<th style="padding:6px;border:1px solid #ddd;">Formation</th>
+<th style="padding:6px;border:1px solid #ddd;">Effet</th>
+</tr>
+</thead>
+<tbody>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Dispersée</strong></td><td style="padding:6px;border:1px solid #ddd;">Dégâts répartis également entre toutes les classes. Équilibré.</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Phalange</strong></td><td style="padding:6px;border:1px solid #ddd;">Classe 1 absorbe <strong>50%</strong> des dégâts (+20% défense). Protège les classes arrière.</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Embuscade</strong></td><td style="padding:6px;border:1px solid #ddd;"><strong>+40% attaque</strong>, mais dégâts traversent les classes dans l'ordre (1→2→3→4). Risqué mais dévastateur.</td></tr>
+</tbody>
+</table><br/>
+
+<?php
+finContent();
+finCarte();
+
+// =============================================================================
+// RETENTION & ENGAGEMENT SYSTEMS
+// =============================================================================
+
+debutCarte("Systèmes de fidélité");
+debutContent();
+?>
+
+<?php echo important('Connexion quotidienne'); ?>
+Connectez-vous chaque jour pour accumuler des <strong>Points de Prestige (PP)</strong> bonus ! Votre série de connexion augmente à chaque jour consécutif.<br/><br/>
+
+<table style="width:100%;border-collapse:collapse;text-align:left;">
+<thead>
+<tr style="background-color:#f0f0f0;">
+<th style="padding:6px;border:1px solid #ddd;">Série</th>
+<th style="padding:6px;border:1px solid #ddd;">PP gagnés</th>
+</tr>
+</thead>
+<tbody>
+<tr><td style="padding:6px;border:1px solid #ddd;">Chaque jour</td><td style="padding:6px;border:1px solid #ddd;">+1 PP</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">3 jours consécutifs</td><td style="padding:6px;border:1px solid #ddd;">+2 PP bonus</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">7 jours consécutifs</td><td style="padding:6px;border:1px solid #ddd;">+5 PP bonus</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">14 jours consécutifs</td><td style="padding:6px;border:1px solid #ddd;">+10 PP bonus</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">21 jours consécutifs</td><td style="padding:6px;border:1px solid #ddd;">+15 PP bonus</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;">28 jours consécutifs</td><td style="padding:6px;border:1px solid #ddd;">+25 PP bonus</td></tr>
+</tbody>
+</table><br/>
+
+<em>Astuce :</em> Si vous manquez un jour, votre série repart à zéro. Consultez votre progression sur la page <strong>Prestige</strong>.<br/><br/>
+
+<?php echo important('Bonus de retour'); ?>
+Si vous êtes absent pendant <strong>3 jours ou plus</strong>, vous recevez un <strong>bonus de bienvenue</strong> à votre retour :<br/><br/>
+
+&bull; <strong>500 énergie</strong><br/>
+&bull; <strong>100 unités</strong> de chaque type d'atome<br/>
+&bull; <strong>Bouclier de 24 heures</strong> — personne ne peut vous attaquer pendant cette période<br/><br/>
+
+Ce bonus ne peut être déclenché qu'une fois tous les 7 jours.<br/><br/>
+
+<?php echo important('Week-ends de rattrapage'); ?>
+Pendant les <strong>semaines 2 et 3</strong> de chaque saison (jours 7 à 21), les points de combat gagnés le <strong>week-end</strong> (samedi et dimanche) sont <strong>multipliés par 2</strong>. C'est l'occasion idéale pour les joueurs qui ont pris du retard de rattraper le peloton !<br/><br/>
+
+<?php echo important('Historique des saisons'); ?>
+À la fin de chaque saison, vos statistiques sont archivées. Consultez votre historique complet (classement, points, molécules, bâtiments) sur la page <strong>Historique saisons</strong> accessible depuis le menu.<br/><br/>
 
 <?php
 finContent();
