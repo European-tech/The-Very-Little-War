@@ -217,7 +217,6 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         $message .= $passage_ligne . $message_html . $passage_ligne;
         //==========
         $message .= $passage_ligne . "--" . $boundary . "--" . $passage_ligne;
-        $message .= $passage_ligne . "--" . $boundary . "--" . $passage_ligne;
         //==========
 
         //=====Envoi de l'e-mail.

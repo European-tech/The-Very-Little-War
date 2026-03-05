@@ -849,7 +849,7 @@ debutCarte("Specialisations");
                     . '<input type="hidden" name="spec_type" value="' . htmlspecialchars($specType, ENT_QUOTES, 'UTF-8') . '"/>'
                     . '<input type="hidden" name="spec_choice" value="' . $optId . '"/>'
                     . '<button type="submit" name="choose_specialization" value="1" class="button button-fill" '
-                    . 'onclick="return confirm(\'Choisir ' . htmlspecialchars($opt['name'], ENT_QUOTES, 'UTF-8') . ' ? Ce choix est irréversible !\')">'
+                    . 'onclick="return confirm(' . htmlspecialchars(json_encode('Choisir ' . $opt['name'] . ' ? Ce choix est irréversible !'), ENT_QUOTES, 'UTF-8') . ')">'
                     . htmlspecialchars($opt['name'], ENT_QUOTES, 'UTF-8')
                     . '</button>'
                     . '<br/><small>' . htmlspecialchars($opt['desc'], ENT_QUOTES, 'UTF-8') . '</small>'

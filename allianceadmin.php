@@ -203,8 +203,9 @@ if ($pacte) {
 				dbExecute($base, 'INSERT INTO declarations VALUES(default, 1, ?, ?, ?, default, default, default, default, default)', 'iii', $chef['id'], $allianceAllie['id'], $now);
 				$idDeclaration = dbFetchOne($base, 'SELECT id FROM declarations WHERE type=1 AND valide=0 AND alliance1=? AND alliance2=?', 'ii', $chef['id'], $allianceAllie['id']);
 
-				$rapportTitre = 'L\'alliance ' . $chef['tag'] . ' vous propose un pacte.';
-				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chef['tag'] . '">' . $chef['tag'] . '</a> vous propose un pacte.
+				$safeTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
+				$rapportTitre = 'L\'alliance ' . $safeTag . ' vous propose un pacte.';
+				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeTag . '</a> vous propose un pacte.
 				<form action="validerpacte.php" method="post">
 				<input type="submit" value="Accepter" name="accepter"/>
 				<input type="submit" value="Refuser" name="refuser"/>
@@ -248,7 +249,6 @@ if ($guerre) {
 		if ($existeAlliance > 0) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['guerre']);
 			$nbDeclarations = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance1=? AND alliance2=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0))', 'ii', $allianceAdverse['id'], $chef['id']);
-			echo $nbDeclarations['nbDeclarations'];
 
 			$nbDeclarations1 = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance2=? AND alliance1=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0))', 'ii', $allianceAdverse['id'], $chef['id']);
 
@@ -263,8 +263,9 @@ if ($guerre) {
 					dbExecute($base, 'DELETE FROM declarations WHERE alliance2=? AND alliance1=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
 					$now = time();
 					dbExecute($base, 'INSERT INTO declarations VALUES(default, 0, ?, ?, ?, default, default, default, default, default)', 'iii', $chefId, $allianceAdverseId, $now);
-					$rapportTitre = 'L\'alliance ' . $chefTag . ' vous déclare la guerre.';
-					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chefTag . '">' . $chefTag . '</a> vous déclare la guerre.';
+					$safeChefTag = htmlspecialchars($chefTag, ENT_QUOTES, 'UTF-8');
+					$rapportTitre = 'L\'alliance ' . $safeChefTag . ' vous déclare la guerre.';
+					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chefTag) . '">' . $safeChefTag . '</a> vous déclare la guerre.';
 					dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverseChef);
 				});
 
