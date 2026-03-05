@@ -874,8 +874,9 @@ function performSeasonEnd()
             $molRows = dbFetchAll($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $data['login']);
             if ($data['idalliance'] > 0) {
                 $alliance = dbFetchOne($base, 'SELECT tag, id FROM alliances WHERE id = ?', 'i', $data['idalliance']);
+                if (!$alliance) $alliance = ['tag' => ''];
             } else {
-                $alliance['tag'] = '';
+                $alliance = ['tag' => ''];
             }
             $nb_molecules = 0;
             foreach ($molRows as $donnees4) {

@@ -15,13 +15,16 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
     $dateT = new DateTime();
     $dateT->setDate($annee, $mois, $jour);
     if ($dateT->getTimestamp() >= time() + VACATION_MIN_ADVANCE_SECONDS) {
-        dbExecute($base, 'DELETE FROM actionsformation WHERE login = ?', 's', $_SESSION['login']);
         $date = $annee . '-' . $mois . '-' . $jour;
-        $membreRow = dbFetchOne($base, 'SELECT id FROM membre WHERE login = ?', 's', $_SESSION['login']);
-        $membreId = (int)$membreRow['id'];
-        dbExecute($base, 'INSERT INTO vacances VALUES (default, ?, CURRENT_DATE, ?)', 'is', $membreId, $date);
-        dbExecute($base, 'UPDATE membre SET vacance = 1 WHERE id = ?', 'i', $membreId);
-        // Rafraichissement de la page
+        $login = $_SESSION['login'];
+        withTransaction($base, function() use ($base, $login, $date) {
+            $membreRow = dbFetchOne($base, 'SELECT id, vacance FROM membre WHERE login = ? FOR UPDATE', 's', $login);
+            if (!$membreRow || $membreRow['vacance']) return; // already on vacation
+            $membreId = (int)$membreRow['id'];
+            dbExecute($base, 'DELETE FROM actionsformation WHERE login = ?', 's', $login);
+            dbExecute($base, 'INSERT INTO vacances VALUES (default, ?, CURRENT_DATE, ?)', 'is', $membreId, $date);
+            dbExecute($base, 'UPDATE membre SET vacance = 1 WHERE id = ?', 'i', $membreId);
+        });
         header("Location: compte.php"); exit;
     } else {
         $erreur = "Vous ne pouvez pas vous mettre en vacances moins de trois jours.";
@@ -47,7 +50,7 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
             // Verify current password: try bcrypt first, then MD5 fallback
             if (password_verify($currentPassword, $storedHash)) {
                 $verified = true;
-            } elseif (md5($currentPassword) === $storedHash) {
+            } elseif (hash_equals(md5($currentPassword), $storedHash)) {
                 $verified = true;
             }
 
@@ -60,6 +63,8 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
             } else {
                 $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
                 dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $newHash, $_SESSION['login']);
+                // Regenerate session ID to prevent fixation after credential change
+                session_regenerate_id(true);
                 // Regenerate session token so session validation keeps working
                 $newToken = bin2hex(random_bytes(32));
                 $_SESSION['session_token'] = $newToken;

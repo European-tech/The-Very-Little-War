@@ -56,8 +56,11 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 		// Full season-end flow with advisory lock to prevent race with automatic reset
 		$lockResult = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_reset', 0) as locked");
 		if ($lockResult && $lockResult['locked'] == 1) {
-			performSeasonEnd();
-			dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
+			try {
+				performSeasonEnd();
+			} finally {
+				dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
+			}
 		} else {
 			echo '<p style="color:red">Remise à zéro déjà en cours. Réessayez dans quelques secondes.</p>';
 		}

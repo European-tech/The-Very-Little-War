@@ -155,15 +155,17 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         $erreur = "Une nouvelle partie recommencera dans 24 heures.";
     } else {
 
+    try {
     // Full season-end flow: archive, VP, prestige, reset, news
     $vainqueurManche = performSeasonEnd();
 
     // Reset complete, disable maintenance mode BEFORE emails
     // so game stays accessible even if email loop hangs or times out
     dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
-
-    // Release the advisory lock now that the reset is fully committed
+    } finally {
+    // Always release the advisory lock, even if performSeasonEnd() throws
     dbExecute($base, "SELECT RELEASE_LOCK('tvlw_season_reset')", '');
+    }
 
     //envoi des mails (always send — even without winner, notify of reset)
     // Runs AFTER maintenance cleared — email failures won't lock the game

@@ -13,7 +13,17 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 	$_GET['id'] = trim($_GET['id']);
 	if (preg_match("#^[0-9]*$#", $_GET['id'])) {
 		if (isset($_SESSION['login'])) {
-			if (!empty($_POST['contenu']) && mb_strlen($_POST['contenu']) <= 10000) {
+			// Check if poster is banned from forum
+			$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+			if ($banCheck) {
+				$diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $banCheck['dateFin']);
+				if ($diff['d'] >= 0) {
+					dbExecute($base, 'DELETE FROM sanctions WHERE id = ?', 'i', $banCheck['id']);
+				} else {
+					$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
+				}
+			}
+			if (empty($erreur) && !empty($_POST['contenu']) && mb_strlen($_POST['contenu']) <= 10000) {
 				$getId = (int)$_GET['id'];
 				// Check topic is not locked (P5-GAP-023)
 				$topicStatus = dbFetchOne($base, 'SELECT statut FROM sujets WHERE id = ?', 'i', $getId);

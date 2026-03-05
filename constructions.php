@@ -276,6 +276,11 @@ function traitementConstructions($liste)
 
             if ($ressources['energie'] >= $liste['coutEnergie'] and $bool == 1) {
                 withTransaction($base, function() use ($base, $liste, $nomsRes, $nbRes, $constructions, $autre, &$information, &$erreur) {
+                    // Re-check queue slots inside transaction to prevent TOCTOU race
+                    $nbSlots = dbFetchOne($base, 'SELECT count(*) as nb FROM actionsconstruction WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                    if ($nbSlots && $nbSlots['nb'] >= 2) {
+                        $erreur = "Vous avez déjà deux constructions en cours."; return;
+                    }
                     // Lock resources with FOR UPDATE
                     $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                     if (!$ressources) { $erreur = "Une erreur est survenue."; return; }

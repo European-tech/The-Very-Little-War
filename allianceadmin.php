@@ -23,7 +23,7 @@ $joueurRows = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance=?', 'i
 $nombreJoueurs = count($joueurRows);
 
 if ($chef['chef'] != $_SESSION['login'] and $existeGrade < 1) {
-	header("Location: allianceprive.php"); exit;
+	header("Location: alliance.php"); exit;
 }
 
 if ($_SESSION['login'] != $chef['chef']) {
@@ -48,7 +48,7 @@ if ($gradeChef) {
 		csrfCheck();
 		logInfo('ALLIANCE', 'Alliance deleted', ['alliance_id' => $currentAlliance['idalliance'], 'deleted_by' => $_SESSION['login']]);
 		supprimerAlliance($currentAlliance['idalliance']);
-		header("Location: allianceprive.php"); exit;
+		header("Location: alliance.php"); exit;
 	}
 
 	if (isset($_POST['changernom'])) {
@@ -141,7 +141,7 @@ if ($gradeChef) {
 			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $_POST['changerchef']);
 			if ($dansLAlliance > 0) {
 					dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $_POST['changerchef'], $currentAlliance['idalliance']);
-				header("Location: allianceprive.php"); exit;
+				header("Location: alliance.php"); exit;
 			} else {
 				$erreur = "Le joueur que vous essayez de mettre en chef n'existe pas ou n'est pas dans votre équipe.";
 			}
