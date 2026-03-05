@@ -73,14 +73,14 @@ debutCarte("Modération du forum");
 	<script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
 		$(function() {
 			// Construction et paramétrage du selecteur de date
-			$("#dateFin").datepicker({
+			$("#calVacs").datepicker({
 				minDate: 1,
 				dayNamesMin: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
 				monthNames: ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Decembre"],
 				hideIfNoPrevNext: true,
 				constrainInput: true
 			});
-			$("#dateFin").datepicker("option", "dateFormat", "dd/mm/yy");
+			$("#calVacs").datepicker("option", "dateFormat", "dd/mm/yy");
 		});
 	</script><br />
 	<?php
