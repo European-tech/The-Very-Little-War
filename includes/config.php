@@ -575,6 +575,13 @@ $STREAK_MILESTONES = [
     28 => STREAK_REWARD_DAY_28,
 ];
 
+// === COMEBACK / WELCOME-BACK (P1-D8-044/047) ===
+define('COMEBACK_ABSENCE_DAYS', 3);             // Days absent to trigger comeback bonus
+define('COMEBACK_SHIELD_HOURS', 24);            // Hours of attack protection on return
+define('COMEBACK_ENERGY_BONUS', 500);           // Energy granted on return
+define('COMEBACK_ATOMS_BONUS', 100);            // Each atom type granted on return
+define('COMEBACK_COOLDOWN_DAYS', 7);            // Min days between comeback bonuses
+
 // =============================================================================
 // SESSION & SECURITY
 // =============================================================================

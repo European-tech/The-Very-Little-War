@@ -1023,3 +1023,60 @@ function updateLoginStreak($base, $login) {
 
     return ['streak' => $currentStreak, 'pp_earned' => $ppEarned, 'milestone' => $isMilestone];
 }
+
+/**
+ * Check and apply welcome-back bonus for returning players (P1-D8-044/047).
+ * Call once per login, after streak update.
+ * Returns ['applied' => bool, 'energy' => int, 'atoms' => int, 'shield_hours' => int]
+ */
+function checkComebackBonus($base, $login) {
+    $membre = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login = ?', 's', $login);
+    $autre = dbFetchOne($base, 'SELECT last_catch_up FROM autre WHERE login = ?', 's', $login);
+    if (!$membre || !$autre) return ['applied' => false];
+
+    $lastLogin = (int)$membre['derniereConnexion'];
+    $lastCatchUp = (int)$autre['last_catch_up'];
+    $now = time();
+    $absentDays = ($now - $lastLogin) / SECONDS_PER_DAY;
+    $cooldownOk = ($now - $lastCatchUp) > (COMEBACK_COOLDOWN_DAYS * SECONDS_PER_DAY);
+
+    if ($absentDays < COMEBACK_ABSENCE_DAYS || !$cooldownOk) {
+        return ['applied' => false];
+    }
+
+    withTransaction($base, function() use ($base, $login, $now) {
+        dbExecute($base, 'UPDATE ressources SET energie = energie + ?, carbone = carbone + ?,
+            azote = azote + ?, hydrogene = hydrogene + ?, oxygene = oxygene + ?,
+            chlore = chlore + ?, soufre = soufre + ?, brome = brome + ?, iode = iode + ?
+            WHERE login = ?',
+            'ddddddddds',
+            (float)COMEBACK_ENERGY_BONUS,
+            (float)COMEBACK_ATOMS_BONUS, (float)COMEBACK_ATOMS_BONUS,
+            (float)COMEBACK_ATOMS_BONUS, (float)COMEBACK_ATOMS_BONUS,
+            (float)COMEBACK_ATOMS_BONUS, (float)COMEBACK_ATOMS_BONUS,
+            (float)COMEBACK_ATOMS_BONUS, (float)COMEBACK_ATOMS_BONUS,
+            $login
+        );
+
+        $shieldUntil = $now + (COMEBACK_SHIELD_HOURS * SECONDS_PER_HOUR);
+        dbExecute($base, 'UPDATE autre SET last_catch_up = ?, comeback_shield_until = ? WHERE login = ?',
+            'iis', $now, $shieldUntil, $login);
+    });
+
+    logInfo('COMEBACK', 'Welcome-back bonus applied', ['login' => $login, 'absent_days' => round($absentDays, 1)]);
+
+    return [
+        'applied' => true,
+        'energy' => COMEBACK_ENERGY_BONUS,
+        'atoms' => COMEBACK_ATOMS_BONUS,
+        'shield_hours' => COMEBACK_SHIELD_HOURS,
+    ];
+}
+
+/**
+ * Check if player is under comeback shield protection.
+ */
+function hasActiveShield($base, $login) {
+    $row = dbFetchOne($base, 'SELECT comeback_shield_until FROM autre WHERE login = ?', 's', $login);
+    return $row && (int)$row['comeback_shield_until'] > time();
+}

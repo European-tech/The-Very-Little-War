@@ -122,6 +122,12 @@ if (isset($_SESSION['login'])) {
     }
 }
 
+// Welcome-back bonus (P1-D8-044/047)
+$comebackResult = checkComebackBonus($base, $_SESSION['login']);
+if ($comebackResult['applied']) {
+    $_SESSION['comeback_bonus'] = $comebackResult;
+}
+
 //////////////////////////////////////////////////////////// Gestion des ressources
 //Vérification si nouveau mois le lendemain
 $debutRow = dbFetchOne($base, 'SELECT debut FROM statistiques');

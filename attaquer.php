@@ -73,6 +73,9 @@ if (isset($_POST['joueurAAttaquer'])) {
                 $erreur = "Le joueur est encore sous protection des débutants.";
             } elseif (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
                 $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps(BEGINNER_PROTECTION_SECONDS - time() + $membre['timestamp']) . " h</strong>) et vous ne pouvez donc pas attaquer.";
+            } elseif (hasActiveShield($base, $_POST['joueurAAttaquer'])) {
+                // Comeback shield protection (P1-D8-044)
+                $erreur = "Ce joueur est sous protection de retour. Revenez plus tard.";
             } else {
                 // Check attack cooldown (after failed attack on same target)
                 $cooldown = dbFetchOne($base, 'SELECT expires FROM attack_cooldowns WHERE attacker=? AND defender=? AND expires > ?', 'ssi', $_SESSION['login'], $_POST['joueurAAttaquer'], time());
