@@ -2,6 +2,7 @@
 
 include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
+require_once("includes/rate_limiter.php");
 
 if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['contenu'])) {
 	csrfCheck();
@@ -10,13 +11,18 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 		$_POST['destinataire'] = ucfirst(trim($_POST['destinataire']));
 		$_POST['contenu'] = trim($_POST['contenu']);
 		if ($_POST['destinataire'] == "[alliance]") {
-			$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
-			$destinataireRows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
-			foreach ($destinataireRows as $destinataire) {
-				$now = time();
-				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
+			// Rate limit: 3 alliance broadcasts per 5 minutes (P5-GAP-022)
+			if (!rateLimitCheck($_SESSION['login'], 'broadcast_alliance', 3, 300)) {
+				$erreur = "Vous envoyez trop de messages de masse. Veuillez patienter.";
+			} else {
+				$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+				$destinataireRows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
+				foreach ($destinataireRows as $destinataire) {
+					$now = time();
+					dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
+				}
+				$information = "Le message a bien été envoyé à toute l'alliance.";
 			}
-			$information = "Le message a bien été envoyé à toute l'alliance.";
 		} elseif ($_POST['destinataire'] == "[all]" && $_SESSION['login'] == "Guortates") {
 			$allDestinataires = dbFetchAll($base, 'SELECT * FROM autre');
 			foreach ($allDestinataires as $destinataire) {
