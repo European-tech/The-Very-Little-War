@@ -76,7 +76,7 @@
 
 ### NanoBanana 2 MCP Configuration
 - **Server:** https://github.com/zhongweili/nanobanana-mcp-server
-- **API Key:** AIzaSyAp39EnoCEAhb7S36DotW_4lwHnFCppgkM
+- **API Key:** [REMOVED — rotate this key, it was exposed in git history]
 - **Use for:** Generating missing game assets, icons, sprites, backgrounds
 
 ### Subagent 9.1: Visual Audit & Missing Assets
