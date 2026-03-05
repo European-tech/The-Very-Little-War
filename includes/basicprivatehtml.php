@@ -269,6 +269,10 @@ else { // si cela n'a pas été initialisé à la première connexion
             if($nb_rapports_nonlus != 0) {
                 $rapportPlus =  '<span class="badge bg-red" >'.$nb_rapports_nonlus.'</span>';
             }
+            // Unread attack badge (P1-D8-049)
+            if (!empty($_SESSION['unread_attacks'])) {
+                $rapportPlus .= ' <span class="badge color-red" title="Attaques">' . (int)$_SESSION['unread_attacks'] . ' &#x2694;</span>';
+            }
         item(['media' => '<img src="images/menu/rapports.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Rapports '.$rapportPlus, 'link' => 'rapports.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/compte.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Mon compte', 'link' => 'compte.php', 'style' => 'color:black']);
 

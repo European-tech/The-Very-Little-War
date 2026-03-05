@@ -128,6 +128,16 @@ if ($comebackResult['applied']) {
     $_SESSION['comeback_bonus'] = $comebackResult;
 }
 
+// Unread attack count for navbar badge (P1-D8-049)
+$recentAttackCount = dbCount($base,
+    'SELECT COUNT(*) AS cnt FROM rapports WHERE destinataire = ? AND statut = 0 AND image LIKE ?',
+    'ss', $_SESSION['login'], '%sword.png%');
+if ($recentAttackCount > 0) {
+    $_SESSION['unread_attacks'] = $recentAttackCount;
+} else {
+    unset($_SESSION['unread_attacks']);
+}
+
 //////////////////////////////////////////////////////////// Gestion des ressources
 //Vérification si nouveau mois le lendemain
 $debutRow = dbFetchOne($base, 'SELECT debut FROM statistiques');

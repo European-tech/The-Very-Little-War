@@ -70,10 +70,91 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 include("includes/layout.php");
 
 $_GET['sub'] = isset($_GET['sub']) ? (int)$_GET['sub'] : 0;
+$mode = isset($_GET['mode']) && $_GET['mode'] === 'daily' ? 'daily' : 'total';
 debutCarte("Classement"); ?>
 <div class="table-responsive">
 <?php
 if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
+
+	// Total / Daily toggle (P1-D8-058)
+	?>
+	<div class="segmented" style="margin:8px 16px;">
+		<a href="classement.php?sub=0&mode=total<?= isset($_GET['clas']) ? '&clas=' . (int)$_GET['clas'] : '' ?>" class="button <?= $mode === 'total' ? 'button-active' : '' ?>">Total</a>
+		<a href="classement.php?sub=0&mode=daily" class="button <?= $mode === 'daily' ? 'button-active' : '' ?>">Aujourd'hui</a>
+	</div>
+	<?php
+
+	if ($mode === 'daily'):
+		// Daily leaderboard: players who logged in today, sorted by total points
+		$midnightToday = strtotime('today midnight');
+		$dailyPlayers = dbFetchAll($base,
+			'SELECT a.login, a.totalPoints, a.pointsAttaque, a.pointsDefense, a.ressourcesPillees, a.tradeVolume, a.victoires, a.points, a.idalliance
+			 FROM autre a
+			 JOIN membre m ON m.login = a.login
+			 WHERE m.derniereConnexion >= ? AND m.x != -1000
+			 ORDER BY a.totalPoints DESC
+			 LIMIT 50',
+			'i', $midnightToday);
+
+		// Pre-load alliance tags for daily view
+		$allianceCacheDaily = [];
+		$allianceRowsDaily = dbFetchAll($base, 'SELECT id, tag FROM alliances', '');
+		foreach ($allianceRowsDaily as $ar) {
+			$allianceCacheDaily[(int)$ar['id']] = $ar['tag'];
+		}
+
+		$prestigeCacheDaily = [];
+		$prestigeRowsDaily = dbFetchAll($base, 'SELECT login, total_pp FROM prestige', '');
+		foreach ($prestigeRowsDaily as $pr) {
+			$prestigeCacheDaily[$pr['login']] = (int)$pr['total_pp'];
+		}
+
+		$compteurDaily = 1;
+		?>
+		<table class="table table-striped table-bordered">
+		<thead>
+		<tr>
+		<th><img src="images/classement/up.png" alt="up" class="imageSousMenu"/><br/><span class="labelClassement">Rang</span></th>
+		<th><img src="images/classement/joueur.png" alt="joueur" title="Joueur" class="imageSousMenu"/><br/><span class="labelClassement">Joueur</span></th>
+		<th><img src="images/classement/points.png" alt="points" title="Points" class="imageSousMenu"/><br/><span class="labelClassement">Points</span></th>
+		<th><img src="images/classement/alliance.png" alt="alliance" title="Equipe" class="imageSousMenu"/><br/><span class="labelClassement">Equipe</span></th>
+		<th><img src="images/classement/sword.png" alt="att" title="Attaque" class="imageSousMenu"/><br/><span class="labelClassement">Attaque</span></th>
+		<th><img src="images/classement/shield.png" alt="def" title="Défense" class="imageSousMenu"/><br/><span class="labelClassement">Défense</span></th>
+		<th><img src="images/classement/bag.png" alt="bag" title="Pillage" class="imageSousMenu"/><br/><span class="labelClassement">Pillage</span></th>
+		<th><a href="prestige.php"><img src="images/classement/shield.png" alt="prestige" title="Prestige" class="imageSousMenu"/><br/><span class="labelClassement">PP</span></a></th>
+		</tr>
+		</thead>
+		<tbody>
+		<?php
+		if (empty($dailyPlayers)) {
+			echo '<tr><td colspan="8" style="text-align:center;color:#999;padding:20px;">Aucun joueur connecté aujourd\'hui.</td></tr>';
+		}
+		foreach ($dailyPlayers as $donnees) {
+			$rowAllianceId = (int)$donnees['idalliance'];
+			$allianceTag = ($rowAllianceId > 0 && isset($allianceCacheDaily[$rowAllianceId])) ? $allianceCacheDaily[$rowAllianceId] : '';
+			$enGuerre = "";
+			if (isset($_SESSION['login']) && $_SESSION['login'] == $donnees['login']) {
+				$enGuerre = "160,160,160";
+			}
+			?>
+			<tr style="background-color: rgba(<?php echo $enGuerre; ?>,0.6);">
+			<td><?php echo imageClassement($compteurDaily); ?></td>
+			<td><?php echo joueur($donnees['login']); ?></td>
+			<td><?php echo number_format($donnees['totalPoints'], 0, ' ', ' '); ?></td>
+			<td><?php if ($rowAllianceId > 0 && $allianceTag !== '') { echo alliance($allianceTag); } ?></td>
+			<td><?php echo chiffrePetit(pointsAttaque($donnees['pointsAttaque'])); ?></td>
+			<td><?php echo chiffrePetit(pointsDefense($donnees['pointsDefense'])); ?></td>
+			<td><?php echo chiffrePetit($donnees['ressourcesPillees']); ?></td>
+			<td><a href="prestige.php"><?php echo isset($prestigeCacheDaily[$donnees['login']]) ? $prestigeCacheDaily[$donnees['login']] : 0; ?></a></td>
+			</tr>
+			<?php $compteurDaily++;
+		}
+		?>
+		</tbody>
+		</table>
+		<?php
+		$pages = '';
+	else:
 
 	$nombreDeJoueursParPage = LEADERBOARD_PAGE_SIZE;
 
@@ -249,6 +330,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
         echo '<br/>'.submit(['form' => 'rechercher', 'titre' => 'Rechercher', 'image' => 'images/boutons/rechercher.png']);
 	finListe();
 	}
+	endif; // end total/daily mode toggle
 }
 elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 	recalculerStatsAlliances();
