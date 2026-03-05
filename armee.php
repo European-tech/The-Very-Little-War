@@ -6,7 +6,7 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
     csrfCheck();
     $molecules = dbFetchOne($base, 'SELECT formule,id FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $_SESSION['login'], $_POST['emplacementmoleculesupprimer']);
 
-    if ($molecules['formule'] != "Vide") {
+    if ($molecules && $molecules['formule'] != "Vide") {
         $login = $_SESSION['login'];
         $emplacement = $_POST['emplacementmoleculesupprimer'];
         $moleculeId = $molecules['id'];

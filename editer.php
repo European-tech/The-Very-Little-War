@@ -89,6 +89,7 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 			$reponse = dbFetchOne($base, 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
 			if ($reponse) {
 				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $reponse['idsujet']);
+				header("Location: sujet.php?id=" . (int)$reponse['idsujet']); exit;
 			}
 		}
 	}

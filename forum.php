@@ -30,8 +30,8 @@ debutCarte("Forum"); ?>
 		// Si la date de fin de la sanction est passée, on supprime la sanction
 		if ($diff['d'] >= 0){
 			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
-			// Rafraichissement de la page
-			echo cspScriptTag() . "window.location.replace(\"forum.php\")</script>";
+			header('Location: forum.php');
+			exit();
 		}
 		else {
 			list($annee,$mois,$jour) = explode('-',$sanction['dateFin']);

@@ -464,7 +464,7 @@ if ($_GET['id'] != -1) {
         <?php
         debutListe();
         item(['floating' => true, 'titre' => 'Nom de l\'équipe', 'input' => '<input type="text" name="nomalliance" id="nomalliance"/>']);
-        item(['floating' => true, 'titre' => 'TAG de l\'équipe', 'input' => '<input type="text" name="tagalliance" id="tagalliance" maxlength="<?php echo ALLIANCE_TAG_MAX_LENGTH; ?>"/>']);
+        item(['floating' => true, 'titre' => 'TAG de l\'équipe', 'input' => '<input type="text" name="tagalliance" id="tagalliance" maxlength="' . ALLIANCE_TAG_MAX_LENGTH . '"/>']);
         item(['input' => submit(['form' => 'creerallianceForm', 'titre' => 'Créer'])]);
         finListe(); ?>
 

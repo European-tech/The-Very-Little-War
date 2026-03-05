@@ -445,8 +445,10 @@ if ($gradeChef) {
                             <td><a href="joueur.php?id=' . $safeLogin . '">' . $safeLogin . '</a></td>
                             <td>' . $safeNom . '</td>
                             <td>
+                            <form method="post" action="allianceadmin.php" style="display:inline">' . csrfField() . '
                             <input type="hidden" name="joueurGrade" value="' . $safeLogin . '"/>
-                            <input src="images/croix.png" alt="suppr" type="image" name="Supprimer"></td>
+                            <input src="images/croix.png" alt="suppr" type="image" name="Supprimer"/>
+                            </form></td>
                             </tr>';
 					}
 					?>
@@ -540,7 +542,7 @@ if ($guerre) {
 		echo '<tr>
                             <td><a href="alliance.php?id=' . $tagAlliance['tag'] . '">' . $tagAlliance['tag'] . '</a></td>
                             <td>' . date('d/m/Y à H\hi', $guerre['timestamp']) . '</td>
-                            <td>' . $guerre['pertes1'] . '</td>
+                            <td>' . $guerre['pertes2'] . '</td>
                             <td>Déclarée par ' . $tagAlliance['tag'] . '</td>
                             </tr>';
 	}

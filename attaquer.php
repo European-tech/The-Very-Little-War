@@ -521,8 +521,10 @@ if (isset($_GET['id'])) {
             for ($i = 1; $i <= $nbClasses; $i++) {
                 $molecules1 = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $_SESSION['login'], $i);
                 $totAtomes = 0;
-                foreach ($nomsRes as $num => $res) {
-                    $totAtomes += $molecules1[$res];
+                if ($molecules1) {
+                    foreach ($nomsRes as $num => $res) {
+                        $totAtomes += $molecules1[$res];
+                    }
                 }
                 echo '
                 cout += document.getElementById("nbclasse' . $i . '").value*' . ($totAtomes * $coutPourUnAtome) . ';';

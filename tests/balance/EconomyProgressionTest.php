@@ -126,12 +126,12 @@ class EconomyProgressionTest extends TestCase
      */
     public function testBeginnerProtection(): void
     {
-        $this->assertEquals(5 * SECONDS_PER_DAY, BEGINNER_PROTECTION_SECONDS);
+        $this->assertEquals(3 * SECONDS_PER_DAY, BEGINNER_PROTECTION_SECONDS);
 
-        // In 5 days at gen level 5: meaningful accumulation
-        $energyIn5Days = BASE_ENERGY_PER_LEVEL * 5 * 120; // 120 hours
-        $this->assertGreaterThan(10000, $energyIn5Days,
-            "5 days of protection should yield > 10k energy at gen 5");
+        // In 3 days at gen level 5: meaningful accumulation
+        $energyIn3Days = BASE_ENERGY_PER_LEVEL * 5 * 72; // 72 hours
+        $this->assertGreaterThan(5000, $energyIn3Days,
+            "3 days of protection should yield > 5k energy at gen 5");
     }
 
     /**

@@ -616,8 +616,12 @@ if (CATCHUP_WEEKEND_ENABLED) {
         $seasonStart = $jeuData ? (int)$jeuData['debut'] : time();
         $seasonDay = (int)floor((time() - $seasonStart) / SECONDS_PER_DAY);
         if ($seasonDay >= CATCHUP_WEEKEND_START_DAY && $seasonDay <= CATCHUP_WEEKEND_END_DAY) {
-            $pointsAttaquant = (int)floor($pointsAttaquant * CATCHUP_WEEKEND_MULTIPLIER);
-            $pointsDefenseur = (int)floor($pointsDefenseur * CATCHUP_WEEKEND_MULTIPLIER);
+            if ($pointsAttaquant > 0) {
+                $pointsAttaquant = (int)floor($pointsAttaquant * CATCHUP_WEEKEND_MULTIPLIER);
+            }
+            if ($pointsDefenseur > 0) {
+                $pointsDefenseur = (int)floor($pointsDefenseur * CATCHUP_WEEKEND_MULTIPLIER);
+            }
         }
     }
 }

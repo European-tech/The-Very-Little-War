@@ -54,8 +54,18 @@ include("includes/layout.php");
 if (isset($_GET['id'])) {
 	$_GET['id'] = trim($_GET['id']);
 	$getId = (int)$_GET['id'];
-	$allReponses = dbFetchAll($base, 'SELECT * FROM reponses WHERE idsujet = ?', 'i', $getId);
-	$nb_resultats = count($allReponses);
+	// Count replies based on visibility (mods see hidden posts, others don't)
+	$isModerator = false;
+	if (isset($_SESSION['login'])) {
+		$modCheck = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
+		$isModerator = !empty($modCheck['moderateur']);
+	}
+	if ($isModerator) {
+		$countRow = dbFetchOne($base, 'SELECT COUNT(*) AS cnt FROM reponses WHERE idsujet = ?', 'i', $getId);
+	} else {
+		$countRow = dbFetchOne($base, 'SELECT COUNT(*) AS cnt FROM reponses WHERE idsujet = ? AND visibilite=1', 'i', $getId);
+	}
+	$nb_resultats = $countRow ? (int)$countRow['cnt'] : 0;
 	$nombreDeSujetsParPage = FORUM_POSTS_PER_PAGE;
 	$nombreDePages  = ceil($nb_resultats / $nombreDeSujetsParPage);
 	$page = isset($_GET['page']) ? intval($_GET['page']) : 0;
@@ -66,12 +76,6 @@ if (isset($_GET['id'])) {
 	// On calcule le numéro du premier message qu'on prend pour le LIMIT de MySQL
 	$premierSujetAafficher = ($page - 1) * $nombreDeSujetsParPage;
 
-	// Modifié par Yojim
-	$isModerator = false;
-	if (isset($_SESSION['login'])) {
-		$joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
-		$isModerator = !empty($joueur['moderateur']);
-	}
 	// Si le joueur est modérateur, il a accès aux messages masqués
 	if ($isModerator) {
 		$reponseRows = dbFetchAll($base, 'SELECT * FROM reponses WHERE idsujet = ? ORDER BY timestamp ASC LIMIT ?, ?', 'iii', $getId, $premierSujetAafficher, $nombreDeSujetsParPage);

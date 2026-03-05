@@ -184,9 +184,14 @@ function mepConstructions($liste)
             }
 
             if ($placeDepot >= $liste['coutEnergie'] and $bool1 == 1) {
-                $max = SECONDS_PER_HOUR * ($liste['coutEnergie'] - $ressources['energie']) / $revenu['energie'];
+                $max = ($revenu['energie'] > 0)
+                    ? SECONDS_PER_HOUR * ($liste['coutEnergie'] - $ressources['energie']) / $revenu['energie']
+                    : PHP_INT_MAX / 2;
                 foreach ($nomsRes as $num => $ressource) {
-                    $max = max(SECONDS_PER_HOUR * ($liste['cout' . ucfirst($ressource)] - $ressources[$ressource]) / $revenu[$ressource], $max);
+                    $val = ($revenu[$ressource] > 0)
+                        ? SECONDS_PER_HOUR * ($liste['cout' . ucfirst($ressource)] - $ressources[$ressource]) / $revenu[$ressource]
+                        : PHP_INT_MAX / 2;
+                    $max = max($val, $max);
                 }
                 $augmenter =  'Assez de ressources le ' . date('d/m/Y', time() + $max) . ' à ' . date('H\hi', time() + $max);
             } else {
@@ -242,6 +247,8 @@ function traitementConstructions($liste)
     global $constructions;
     global $ressources;
     global $autre;
+    global $information;
+    global $erreur;
 
     if (isset($_POST[$liste['bdd']])) {
         csrfCheck();

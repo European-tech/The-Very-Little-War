@@ -11,7 +11,11 @@ if (isset($_POST['verification']) and isset($_POST['oui'])) {
 }
 
 if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
-    list($jour, $mois, $annee) = explode('/', $_POST['dateFin']);
+    $parts = explode('/', $_POST['dateFin']);
+    if (count($parts) !== 3 || !checkdate((int)$parts[1], (int)$parts[0], (int)$parts[2])) {
+        $erreur = "Format de date invalide (attendu : JJ/MM/AAAA).";
+    } else {
+    list($jour, $mois, $annee) = $parts;
     $dateT = new DateTime();
     $dateT->setDate($annee, $mois, $jour);
     if ($dateT->getTimestamp() >= time() + VACATION_MIN_ADVANCE_SECONDS) {
@@ -29,6 +33,7 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
     } else {
         $erreur = "Vous ne pouvez pas vous mettre en vacances moins de trois jours.";
     }
+    } // end date validation else
 }
 
 
@@ -56,7 +61,7 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
 
             if (!$verified) {
                 $erreur = "Le mot de passe actuel est incorrect.";
-            } elseif (mb_strlen($newPassword) < 8) {
+            } elseif (mb_strlen($newPassword) < PASSWORD_MIN_LENGTH) {
                 $erreur = "Le mot de passe doit contenir au moins 8 caract&egrave;res.";
             } elseif ($newPassword != $newPasswordConfirm) {
                 $erreur = "Les deux mots de passe ne sont pas les m&ecirc;mes.";

@@ -113,7 +113,7 @@ item(['floating' => true, 'titre' => "Contenu", 'input' => '<textarea name="cont
 
 
 item(['input' => submit(['form' => 'formEcrire', 'titre' => 'Envoyer'])]);
-echo '<form/>';
+echo '</form>';
 finListe();
 finCarte();
 include("includes/copyright.php");

@@ -82,7 +82,7 @@ else {
 		<table class="table table-striped table-bordered">
         <tbody>';
 		foreach($rapportsRows as $rapports) {
-            echo '<tr><td>'.$rapports['image'].'</td>';
+            echo '<tr><td>'.strip_tags($rapports['image'], '<img>').'</td>';
 			if($rapports['statut'] != 0){
 				echo '<td><a href="rapports.php?rapport='.$rapports['id'].'">'.htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 			}

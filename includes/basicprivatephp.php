@@ -103,6 +103,11 @@ if (!$joueurEnVac['vacance']) {
 else {
     // On récupère la date de fin du mode vacances
     $vac = dbFetchOne($base, 'SELECT dateFin FROM vacances WHERE idJoueur IN (SELECT id FROM membre WHERE login = ?)', 's', $_SESSION['login']);
+    if (!$vac) {
+        // Orphaned vacance=1 with no vacances row — clear the flag
+        dbExecute($base, 'UPDATE membre SET vacance = 0 WHERE login = ?', 's', $_SESSION['login']);
+        header('Location: ' . $_SERVER['PHP_SELF']); exit;
+    }
     // On calcul la différence entre la date de fin et la date actuelle
     $diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $vac['dateFin']);
     $now = time();
