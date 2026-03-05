@@ -57,7 +57,7 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 		if ($playerScore) {
 			$rankRow = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'd', $playerScore['score']);
 			$place = ($rankRow['rank'] ?? 0) + 1;
-			$pageParDefaut = ceil($place / 20);
+			$pageParDefaut = ceil($place / LEADERBOARD_PAGE_SIZE);
 		}
 		$pasTrouve = 1;
 	}

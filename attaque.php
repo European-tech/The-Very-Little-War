@@ -61,7 +61,7 @@ if(isset($_GET['id'])){
             echo important("Troupes attaquantes");
             echo '<div class="table-responsive"><table>';
             $troupes = explode(";",$attaque['troupes']);
-            $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $_SESSION['login']);
+            $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $_SESSION['login']);
 
             $c = 0;
             foreach($moleculesRows as $molecules){

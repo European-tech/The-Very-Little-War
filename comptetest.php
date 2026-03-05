@@ -119,5 +119,5 @@ if (isset($_GET['inscription'])) {
 	} else {
 		$erreur = 'Un ou plusieurs champs sont vides.';
 	}
-    header("Location: constructions.php?erreur=" . urlencode($erreur)); exit;
+    header("Location: comptetest.php?erreur=" . urlencode($erreur)); exit;
 }

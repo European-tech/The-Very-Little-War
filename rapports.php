@@ -2,7 +2,7 @@
 include("includes/basicprivatephp.php");
 require_once("includes/csrf.php");
 
-if(isset($_POST['supprimer']) AND preg_match("#\d#",$_POST['supprimer'])) {
+if(isset($_POST['supprimer']) AND preg_match("#^\d+$#",$_POST['supprimer'])) {
 	csrfCheck();
 	if($_POST['supprimer'] == 1) {
 		dbExecute($base, 'DELETE FROM rapports WHERE destinataire = ?', 's', $_SESSION['login']);

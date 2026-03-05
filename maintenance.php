@@ -4,6 +4,12 @@ include("includes/fonctions.php");
 include("includes/layout.php");
 debutCarte("Maintenance");
 $donnees = dbFetchOne($base, 'SELECT * FROM news ORDER BY id DESC LIMIT 0, 1');
+if (!$donnees) {
+    echo '<p>Aucune annonce disponible.</p>';
+    finCarte();
+    include("includes/copyright.php");
+    exit;
+}
 $allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><hr>';
 $contenu = strip_tags($donnees['contenu'], $allowedTags);
 // Strip event handlers and dangerous attributes (P5-GAP-012)

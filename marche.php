@@ -60,6 +60,8 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                     // Self-transfer check (P4-ADV-003)
                     if ($_POST['destinataire'] === $_SESSION['login']) {
                         $erreur = "Vous ne pouvez pas vous envoyer des ressources.";
+                    } elseif ($_POST['energieEnvoyee'] == 0 && array_sum(array_map(function($r) { return (int)$_POST[$r . 'Envoyee']; }, $nomsRes)) == 0) {
+                        $erreur = "Vous devez envoyer au moins une ressource.";
                     } else {
                     try {
                         $transferInfo = '';

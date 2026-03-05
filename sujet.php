@@ -11,7 +11,7 @@ require_once("includes/csrf.php");
 if (isset($_POST['contenu']) and isset($_GET['id'])) {
 	csrfCheck();
 	$_GET['id'] = trim($_GET['id']);
-	if (preg_match("#^[0-9]*$#", $_GET['id'])) {
+	if (preg_match("#^[0-9]+$#", $_GET['id'])) {
 		if (isset($_SESSION['login'])) {
 			// Check if poster is banned from forum
 			$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);

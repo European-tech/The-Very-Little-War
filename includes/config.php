@@ -23,7 +23,7 @@ define('MAX_CONCURRENT_CONSTRUCTIONS', 2);
 define('MAX_MOLECULE_CLASSES', 4);       // 4 classes per player
 define('MAX_ATOMS_PER_ELEMENT', 200);    // max atoms of one type in a molecule
 define('MAX_ALLIANCE_MEMBERS', 20);      // $joueursEquipe
-define('BEGINNER_PROTECTION_SECONDS', 5 * SECONDS_PER_DAY); // P1-D4-029: extended from 3 to 5 days
+define('BEGINNER_PROTECTION_SECONDS', 3 * SECONDS_PER_DAY);
 define('ABSENCE_REPORT_THRESHOLD_HOURS', 6); // hours offline before loss report
 define('ONLINE_TIMEOUT_SECONDS', 300);   // 60 * 5 = 5 minutes for online status
 define('VICTORY_POINTS_TOTAL', 1000);    // $nbPointsVictoire

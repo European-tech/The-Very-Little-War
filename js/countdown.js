@@ -32,6 +32,7 @@
     el.textContent = jours + "j " + heures + "h " + minutes + "m";
   }
 
+  var intervalId;
   update();
-  var intervalId = setInterval(update, 60000);
+  intervalId = setInterval(update, 60000);
 })();

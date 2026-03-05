@@ -113,6 +113,7 @@ if($autre['niveaututo'] == 5 and in_array("armee.php",explode("/",$_SERVER['PHP_
 $molRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire = ?', 's', $_SESSION['login']);
 $numClasse = -1;
 $nombre = 0;
+$aAjouter = 0;
 foreach($molRows as $data){
 	if($data['formule'] != "Vide"){
 		$numClasse = $data['numeroclasse'];
@@ -137,7 +138,7 @@ if($autre['niveaututo'] == 6 and $numClasse!= -1){
     echo cspScriptTag() . 'document.location.href="attaquer.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 }
 
-if($autre['niveaututo'] == 7 and in_array("joueur.php",explode("/",$_SERVER['PHP_SELF']))){
+if($autre['niveaututo'] == 7 and $numClasse != -1 and in_array("joueur.php",explode("/",$_SERVER['PHP_SELF']))){
 	$newNombre = $nombre + $aAjouter;
 	dbExecute($base, 'UPDATE molecules SET nombre = ? WHERE proprietaire = ? AND numeroclasse = ?', 'isi', $newNombre, $_SESSION['login'], $numClasse);
     dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $_SESSION['login']);

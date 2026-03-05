@@ -196,7 +196,7 @@ if(isset($_POST['claimMission'])) {
                         dbExecute($base, 'UPDATE autre SET missions=? WHERE login=?', 'ss', $chaineM, $_SESSION['login']);
 
                         // Give energy reward atomically
-                        dbExecute($base, 'UPDATE ressources SET energie = energie + ? WHERE login=?', 'ds', $mission['recompense_energie'], $_SESSION['login']);
+                        dbExecute($base, 'UPDATE ressources SET energie = energie + ? WHERE login=?', 'is', $mission['recompense_energie'], $_SESSION['login']);
 
                         $tutoResult = 'ok';
                     } else {

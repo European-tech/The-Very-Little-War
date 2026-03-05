@@ -174,7 +174,7 @@ function mepConstructions($liste)
     $nbResult = dbFetchOne($base, 'SELECT count(*) as nb FROM actionsconstruction WHERE login=?', 's', $_SESSION['login']);
     $nb = $nbResult;
     if ($nb['nb'] < 2) {
-        if ($liste['coutEnergie'] >= $ressources['energie'] or $bool == 0) {
+        if ($liste['coutEnergie'] > $ressources['energie'] or $bool == 0) {
             $bool1 = 1;
 
             foreach ($nomsRes as $num => $ressource) {
@@ -295,6 +295,18 @@ function traitementConstructions($liste)
                         $erreur = "Vous n'avez pas assez de ressources."; return;
                     }
 
+                    // Check max level BEFORE deducting resources
+                    $niveauActuel = dbFetchOne($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
+
+                    if (!$niveauActuel) {
+                        $niveauActuel['niveau'] = $constructions[$liste['bdd']];
+                    }
+
+                    $newNiveau = $niveauActuel['niveau'] + 1;
+                    if ($newNiveau > MAX_BUILDING_LEVEL) {
+                        $erreur = "Niveau maximum atteint (" . MAX_BUILDING_LEVEL . ")."; return;
+                    }
+
                     // Build dynamic UPDATE for ressources - these are computed values, not user input
                     $chaine = "";
                     $newEnergie = $ressources['energie'] - $liste['coutEnergie'];
@@ -315,17 +327,6 @@ function traitementConstructions($liste)
                         $tempsDebut = $lastConstruction['fin'];
                     } else {
                         $tempsDebut = time();
-                    }
-
-                    $niveauActuel = dbFetchOne($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
-
-                    if (!$niveauActuel) {
-                        $niveauActuel['niveau'] = $constructions[$liste['bdd']];
-                    }
-
-                    $newNiveau = $niveauActuel['niveau'] + 1;
-                    if ($newNiveau > MAX_BUILDING_LEVEL) {
-                        $erreur = "Niveau maximum atteint (" . MAX_BUILDING_LEVEL . ")."; return;
                     }
                     $adjustedConstructionTime = round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')));
                     $finTemps = $tempsDebut + $adjustedConstructionTime;

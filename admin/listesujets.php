@@ -36,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['supprimersujet'])) {
         $supprimersujet = (int)$_POST['supprimersujet'];
+        dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
         dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
         dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
     }

@@ -56,7 +56,12 @@ foreach ($files as $file) {
     // Record migration
     $stmt = mysqli_prepare($base, "INSERT INTO migrations (filename) VALUES (?)");
     mysqli_stmt_bind_param($stmt, "s", $filename);
-    mysqli_stmt_execute($stmt);
+    if (!mysqli_stmt_execute($stmt)) {
+        echo "ERROR recording migration: " . mysqli_stmt_error($stmt) . "\n";
+        mysqli_stmt_close($stmt);
+        exit(1);
+    }
+    mysqli_stmt_close($stmt);
 
     echo "OK\n";
     $pending++;

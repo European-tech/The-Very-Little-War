@@ -20,9 +20,7 @@ if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	$modo = dbFetchOne($base, 'SELECT count(*) AS modo FROM membre WHERE login = ? AND moderateur = 1', 's', $_SESSION['login']);
 	if ($auteur && ($auteur['auteur'] == $_SESSION['login'] OR $modo['modo'] >= 1)) {
 		dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $id);
-		$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $_SESSION['login']);
-		$newNbMessages = $nbMessages['nbMessages'] - 1;
-		dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', $newNbMessages, $_SESSION['login']);
+		dbExecute($base, 'UPDATE autre SET nbMessages = nbMessages - 1 WHERE login = ? AND nbMessages > 0', 's', $auteur['auteur']);
 		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
 		header("Location: sujet.php?id=" . (int)$sujetId); exit;
 	} else {

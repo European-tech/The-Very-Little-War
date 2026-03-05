@@ -8,6 +8,6 @@ function loadEnv($path) {
         if (count($parts) !== 2) continue;
         $name = trim($parts[0]);
         $value = trim($parts[1], " \t\n\r\0\x0B\"'");
-        if (!getenv($name)) putenv("$name=$value");
+        if (getenv($name) === false) putenv("$name=$value");
     }
 }

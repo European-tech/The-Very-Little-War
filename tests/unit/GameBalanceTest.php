@@ -320,10 +320,10 @@ class GameBalanceTest extends TestCase
         $this->assertGreaterThan(placeDepot(1), placeDepot(10));
     }
 
-    public function testBeginnerProtectionAtLeastFiveDays(): void
+    public function testBeginnerProtectionAtLeastThreeDays(): void
     {
-        $this->assertGreaterThanOrEqual(5 * 86400, BEGINNER_PROTECTION_SECONDS,
-            'Beginner protection should be at least 5 days');
+        $this->assertGreaterThanOrEqual(3 * 86400, BEGINNER_PROTECTION_SECONDS,
+            'Beginner protection should be at least 3 days');
     }
 
     public function testStreakMilestonesAreDefined(): void

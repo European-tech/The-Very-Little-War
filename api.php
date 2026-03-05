@@ -88,7 +88,8 @@ $dispatch = [
         return affichageTemps(tempsFormation($nbTotalAtomes, $nombre, $nombre2, $niveau, $nivLieurApi, $joueur), true);
     },
     'demiVie' => function() use ($joueur, $nbTotalAtomes) {
-        return affichageTemps(demiVie($joueur, $nbTotalAtomes, 1));
+        $hl = demiVie($joueur, $nbTotalAtomes, 1);
+        return ($hl >= PHP_INT_MAX) ? '∞' : affichageTemps($hl);
     },
 ];
 

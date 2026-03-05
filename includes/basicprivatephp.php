@@ -82,6 +82,10 @@ if (!isset($_SESSION['last_online_update']) || time() - $_SESSION['last_online_u
 $joueurEnVac = dbFetchOne($base, 'SELECT vacance FROM membre WHERE login = ?', 's', $_SESSION['login']);
 
 
+// Capture derniereConnexion BEFORE overwriting it (needed for comeback bonus)
+$prevConnRow = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login = ?', 's', $_SESSION['login']);
+$prevConnexion = $prevConnRow ? (int)$prevConnRow['derniereConnexion'] : 0;
+
 // Si le joueur n'est pas en vacance on fait la mise a jour des ressources ...
 if (!$joueurEnVac['vacance']) {
     updateRessources($_SESSION['login']); // mise a jour
@@ -123,7 +127,7 @@ if (isset($_SESSION['login'])) {
 }
 
 // Welcome-back bonus (P1-D8-044/047)
-$comebackResult = checkComebackBonus($base, $_SESSION['login']);
+$comebackResult = checkComebackBonus($base, $_SESSION['login'], $prevConnexion);
 if ($comebackResult['applied']) {
     $_SESSION['comeback_bonus'] = $comebackResult;
 }
@@ -164,7 +168,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
     } finally {
     // Always release the advisory lock, even if performSeasonEnd() throws
-    dbExecute($base, "SELECT RELEASE_LOCK('tvlw_season_reset')", '');
+    dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
     }
 
     //envoi des mails (always send — even without winner, notify of reset)

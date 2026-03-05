@@ -144,7 +144,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 
 								$insertCols .= ', ?';
 								$insertTypes .= 's';
-								$justification = htmlentities(trim($_POST['justification']), ENT_QUOTES, 'UTF-8');
+								$justification = htmlentities(trim($_POST['justification'] ?? ''), ENT_QUOTES, 'UTF-8');
 								$insertParams[] = $justification;
 
 								dbExecute($base, 'INSERT INTO moderation VALUES(' . $insertCols . ')', $insertTypes, ...$insertParams);

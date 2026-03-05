@@ -19,6 +19,7 @@ function updateActions($joueur)
     global $base;
     global $nbRes;
     global $nbClasses;
+    global $FORMATIONS;
 
     initPlayer($joueur);
 
@@ -308,18 +309,8 @@ function updateActions($joueur)
                             </tr>";
 
 
-                // Build reactions display for combat report
+                // Reactions feature removed — placeholder for future implementation
                 $reactionsHtml = '';
-                if (!empty($activeReactionsAtt) || !empty($activeReactionsDef)) {
-                    $reactionsHtml = important('Réactions chimiques') . '<br/>';
-                    foreach ($activeReactionsAtt as $name => $bonuses) {
-                        $reactionsHtml .= '<span style="color:#D07D00">&#9883; ' . htmlspecialchars($name) . ' (attaquant)</span><br/>';
-                    }
-                    foreach ($activeReactionsDef as $name => $bonuses) {
-                        $reactionsHtml .= '<span style="color:green">&#9883; ' . htmlspecialchars($name) . ' (défenseur)</span><br/>';
-                    }
-                    $reactionsHtml .= '<br/>';
-                }
 
                 $finRapport = "
                             </tbody>
@@ -556,7 +547,7 @@ function updateActions($joueur)
             $energieRecue = nombreEnergie(number_format($recues[sizeof($nomsRes)], 0, ' ', ' '));
         }
 
-        $titreRapport = "Rapport d\'apport de ressources par " . htmlspecialchars($actions['envoyeur'], ENT_QUOTES, 'UTF-8');
+        $titreRapport = "Rapport d'apport de ressources par " . htmlspecialchars($actions['envoyeur'], ENT_QUOTES, 'UTF-8');
         $contenuRapport = "<a href=\"joueur.php?id=" . htmlspecialchars($actions['envoyeur'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['envoyeur'], ENT_QUOTES, 'UTF-8') . "</a> vous envoie les ressources suivantes : <br/><br/>
         " . important('Ressources envoyées') . "
         " . $energieEnvoyee . $chaine1 . "<br/><br/>

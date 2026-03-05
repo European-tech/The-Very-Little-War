@@ -24,6 +24,10 @@ if (isset($_GET['modifier_news'])) // Si on demande de modifier une news.
     $modifierNewsId = (int)$_GET['modifier_news'];
     // On récupère les informations de la news correspondante.
     $donnees = dbFetchOne($base, 'SELECT * FROM news WHERE id = ?', 'i', $modifierNewsId);
+    if ($donnees === null) {
+        header('Location: listenews.php');
+        exit();
+    }
 
     // On place le titre et le contenu dans des variables simples.
     $titre = $donnees['titre'];

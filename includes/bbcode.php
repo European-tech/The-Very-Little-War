@@ -1,7 +1,7 @@
 <?php
 function BBCode($text,$javascript=false){
 
-$text = htmlentities($text, ENT_QUOTES, 'UTF-8');
+$text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
 
 $text = preg_replace('!localStorage.getItem\(("|\')mdp!isU', '', $text);
 $text = preg_replace('!0:(-)?\)!isU', '<img alt="angel" src="images/smileys/icon_angel.gif"/>', $text);

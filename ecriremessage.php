@@ -18,10 +18,12 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 		} else
 		if ($_POST['destinataire'] == "[alliance]") {
 			// Rate limit: 3 alliance broadcasts per 5 minutes (P5-GAP-022)
-			if (!rateLimitCheck($_SESSION['login'], 'broadcast_alliance', 3, 300)) {
+			$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+			if (empty($idalliance['idalliance']) || $idalliance['idalliance'] <= 0) {
+				$erreur = "Vous n'avez pas d'alliance.";
+			} elseif (!rateLimitCheck($_SESSION['login'], 'broadcast_alliance', 3, 300)) {
 				$erreur = "Vous envoyez trop de messages de masse. Veuillez patienter.";
 			} else {
-				$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 				$destinataireRows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
 				foreach ($destinataireRows as $destinataire) {
 					$now = time();

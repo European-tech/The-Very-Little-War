@@ -27,12 +27,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['flag_action'];
         $validStatuses = ['investigating', 'confirmed', 'dismissed'];
         if (in_array($action, $validStatuses, true)) {
-            $resolvedAt = ($action === 'confirmed' || $action === 'dismissed') ? time() : null;
-            $resolvedBy = ($action === 'confirmed' || $action === 'dismissed') ? 'admin' : null;
-            dbExecute($base,
-                'UPDATE account_flags SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?',
-                'sisi', $action, $resolvedAt, $resolvedBy, $flagId
-            );
+            if ($action === 'confirmed' || $action === 'dismissed') {
+                dbExecute($base,
+                    'UPDATE account_flags SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?',
+                    'sisi', $action, time(), 'admin', $flagId
+                );
+            } else {
+                dbExecute($base,
+                    'UPDATE account_flags SET status = ?, resolved_at = NULL, resolved_by = NULL WHERE id = ?',
+                    'si', $action, $flagId
+                );
+            }
             logInfo('ADMIN', "Flag #$flagId status changed to $action");
         }
     }
@@ -197,7 +202,7 @@ $detailLogin = isset($_GET['login']) ? $_GET['login'] : '';
             <tr>
                 <td><?php echo (int)$flag['id']; ?></td>
                 <td><a href="multiaccount.php?view=flags&login=<?php echo urlencode($flag['login']); ?>"><?php echo htmlspecialchars($flag['login'], ENT_QUOTES, 'UTF-8'); ?></a></td>
-                <td><a href="multiaccount.php?view=flags&login=<?php echo urlencode($flag['related_login']); ?>"><?php echo htmlspecialchars($flag['related_login'] ?? '', ENT_QUOTES, 'UTF-8'); ?></a></td>
+                <td><a href="multiaccount.php?view=flags&login=<?php echo urlencode($flag['related_login'] ?? ''); ?>"><?php echo htmlspecialchars($flag['related_login'] ?? '', ENT_QUOTES, 'UTF-8'); ?></a></td>
                 <td><?php echo htmlspecialchars($flag['flag_type'], ENT_QUOTES, 'UTF-8'); ?></td>
                 <td><span class="badge badge-<?php echo htmlspecialchars($flag['severity'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($flag['severity'], ENT_QUOTES, 'UTF-8'); ?></span></td>
                 <td><span class="badge badge-<?php echo htmlspecialchars($flag['status'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($flag['status'], ENT_QUOTES, 'UTF-8'); ?></span></td>

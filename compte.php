@@ -162,11 +162,12 @@ if (!isset($_POST['supprimercompte'])) {
     echo important("Changer le mail");
 
     $mail = dbFetchOne($base, 'SELECT email FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    $mailValue = ($mail && isset($mail['email'])) ? $mail['email'] : '';
 
     debutListe();
     echo '<form action="compte.php" method="post" name="formChangerMail">';
     echo csrfField();
-    item(['media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'floating' => true, 'titre' => 'Mail', 'input' => '<input type="text" name="changermail" id="changermail" class="form-control" value="' . htmlspecialchars($mail['email'], ENT_QUOTES, 'UTF-8') . '"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'floating' => true, 'titre' => 'Mail', 'input' => '<input type="text" name="changermail" id="changermail" class="form-control" value="' . htmlspecialchars($mailValue, ENT_QUOTES, 'UTF-8') . '"/>']);
     item(['input' => submit(['titre' => 'Changer', 'form' => 'formChangerMail'])]);
     echo '</form><br/>';
     finListe();

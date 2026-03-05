@@ -3,15 +3,13 @@ include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
 require_once("includes/csrf.php");
 
-if(isset($_POST['supprimer']) AND preg_match("#\d#",$_POST['supprimer'])) {
+if(isset($_POST['supprimer_tout'])) {
 	csrfCheck();
-	if($_POST['supprimer'] == 1) {
-		dbExecute($base, 'DELETE FROM messages WHERE destinataire = ?', 's', $_SESSION['login']);
-	}
-	else {
-		$supprimerId = (int)$_POST['supprimer'];
-		dbExecute($base, 'DELETE FROM messages WHERE id = ? AND destinataire = ?', 'is', $supprimerId, $_SESSION['login']);
-	}
+	dbExecute($base, 'DELETE FROM messages WHERE destinataire = ?', 's', $_SESSION['login']);
+} elseif(isset($_POST['supprimer']) AND preg_match("#^\d+$#",$_POST['supprimer'])) {
+	csrfCheck();
+	$supprimerId = (int)$_POST['supprimer'];
+	dbExecute($base, 'DELETE FROM messages WHERE id = ? AND destinataire = ?', 'is', $supprimerId, $_SESSION['login']);
 }
 
 include("includes/layout.php");
@@ -75,7 +73,7 @@ else {
 			echo '<td><form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$messages['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="w32"></button></form></td></tr>';
 		}
 		echo '</tbody></table></div>';
-        $supprimer = '<form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="1"><button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;">Supprimer tous les messages</button></form>';
+        $supprimer = '<form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer_tout" value="1"><button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;">Supprimer tous les messages</button></form>';
 		$adresse = "messages.php?";
         $premier = '';
         if($page > 2){
@@ -111,7 +109,7 @@ else {
 		echo '<p style="text-align:center; color:#999; padding:20px;">Votre boîte de réception est vide.</p>';
         finContent();
 	}
-    finCarte('<a href="ecriremessage.php">Ecrire</a><a href="messagesenvoyes.php">Envoyés</a>'.$pages);
+    finCarte('<a href="ecriremessage.php">Ecrire</a><a href="messagesenvoyes.php">Envoyés</a>'.$pages.' '.$supprimer);
 }
 
 include("includes/copyright.php"); ?>

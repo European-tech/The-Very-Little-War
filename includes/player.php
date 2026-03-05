@@ -737,7 +737,7 @@ function recalculerStatsAlliances()
             $dTotal += pointsDefense($donnees1['pointsDefense']);
             $pTotal += $donnees1['ressourcesPillees'];
         }
-        dbExecute($base, 'UPDATE alliances SET pointstotaux=?, totalConstructions=?, totalAttaque=?, totalDefense=?, totalPillage=? WHERE id=?', 'ddddi', $pointstotaux, $cTotal, $aTotal, $dTotal, $pTotal, $donnees['id']);
+        dbExecute($base, 'UPDATE alliances SET pointstotaux=?, totalConstructions=?, totalAttaque=?, totalDefense=?, totalPillage=? WHERE id=?', 'dddddi', $pointstotaux, $cTotal, $aTotal, $dTotal, $pTotal, $donnees['id']);
     }
 }
 
@@ -1008,6 +1008,7 @@ function remiseAZero()
         dbExecute($base, 'DELETE FROM cours');
         dbExecute($base, 'DELETE FROM connectes');
         dbExecute($base, 'DELETE FROM vacances');
+        dbExecute($base, 'UPDATE membre SET vacance = 0');
         dbExecute($base, 'DELETE FROM grades');
 
         dbExecute($base, 'UPDATE statistiques SET nbDerniere=0, tailleCarte=1');
@@ -1065,7 +1066,7 @@ function updateLoginStreak($base, $login) {
     }
 
     if ($ppEarned > 0) {
-        dbExecute($base, 'UPDATE autre SET points = points + ? WHERE login = ?', 'is', $ppEarned, $login);
+        dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $login, $ppEarned, $ppEarned);
     }
 
     return ['streak' => $currentStreak, 'pp_earned' => $ppEarned, 'milestone' => $isMilestone];
@@ -1076,12 +1077,17 @@ function updateLoginStreak($base, $login) {
  * Call once per login, after streak update.
  * Returns ['applied' => bool, 'energy' => int, 'atoms' => int, 'shield_hours' => int]
  */
-function checkComebackBonus($base, $login) {
-    $membre = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login = ?', 's', $login);
+function checkComebackBonus($base, $login, $prevConnexion = null) {
     $autre = dbFetchOne($base, 'SELECT last_catch_up FROM autre WHERE login = ?', 's', $login);
-    if (!$membre || !$autre) return ['applied' => false];
+    if (!$autre) return ['applied' => false];
 
-    $lastLogin = (int)$membre['derniereConnexion'];
+    if ($prevConnexion !== null) {
+        $lastLogin = (int)$prevConnexion;
+    } else {
+        $membre = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login = ?', 's', $login);
+        if (!$membre) return ['applied' => false];
+        $lastLogin = (int)$membre['derniereConnexion'];
+    }
     $lastCatchUp = (int)$autre['last_catch_up'];
     $now = time();
     $absentDays = ($now - $lastLogin) / SECONDS_PER_DAY;
