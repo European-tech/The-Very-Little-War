@@ -805,6 +805,46 @@ function miseAJour()
 }
 
 /**
+ * Archive all player stats into season_recap before season reset (P1-D8-052).
+ * Returns the season number that was archived.
+ */
+function archiveSeasonData($base)
+{
+    // Determine season number from existing archives
+    $lastSeason = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
+    $nextSeason = ($lastSeason && $lastSeason['max_s']) ? (int)$lastSeason['max_s'] + 1 : 1;
+
+    $allPlayers = dbFetchAll($base,
+        'SELECT a.login, a.totalPoints, a.pointsAttaque, a.pointsDefense, a.tradeVolume,
+                a.ressourcesPillees, a.nbattaques, a.victoires, a.moleculesPerdues,
+                a.streak_days, al.nom AS alliance_name
+         FROM autre a
+         LEFT JOIN alliances al ON al.id = a.idalliance AND a.idalliance > 0
+         JOIN membre m ON m.login = a.login AND m.x != -1000
+         ORDER BY a.totalPoints DESC', '', '');
+
+    $rank = 0;
+    foreach ($allPlayers as $p) {
+        $rank++;
+        dbExecute($base,
+            'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
+             points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
+             molecules_perdues, alliance_name, streak_max) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            'isiiiidiiidsi',
+            $nextSeason, $p['login'], $rank, (int)$p['totalPoints'],
+            (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
+            (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
+            (int)$p['nbattaques'], (int)$p['victoires'],
+            (float)$p['moleculesPerdues'], $p['alliance_name'] ?? '',
+            (int)($p['streak_days'] ?? 0)
+        );
+    }
+
+    logInfo('SEASON', 'Season data archived', ['season' => $nextSeason, 'players' => $rank]);
+    return $nextSeason;
+}
+
+/**
  * Perform the full season-end flow: archive rankings, award VP and prestige,
  * insert season record, reset game state, update debut, post winner news.
  * Returns the winner's login name (or null if no players).
@@ -816,6 +856,9 @@ function performSeasonEnd()
     global $base;
 
     require_once(__DIR__ . '/prestige.php');
+
+    // Phase 0: Archive per-player stats into season_recap (P1-D8-052)
+    archiveSeasonData($base);
 
     // Phase 1: Archive and award VP (atomic)
     // Wrapped in transaction so a mid-execution crash cannot leave

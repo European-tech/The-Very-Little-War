@@ -289,6 +289,7 @@ else { // si cela n'a pas été initialisé à la première connexion
         item(['media' => '<img src="images/menu/classement.png" alt="prestige" style="width:25px;height:25px;">', 'titre' => 'Prestige', 'link' => 'prestige.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/medailles.png" alt="bilan" style="width:25px;height:25px;">', 'titre' => 'Bilan', 'link' => 'bilan.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/medailles.png" alt="labo" style="width:25px;height:25px;">', 'titre' => 'Laboratoire', 'link' => 'laboratoire.php', 'style' => 'color:black']);
+        item(['media' => '<img src="images/menu/classement.png" alt="saisons" style="width:25px;height:25px;">', 'titre' => 'Historique saisons', 'link' => 'season_recap.php', 'style' => 'color:black']);
 
       finListe();
       finContent();
