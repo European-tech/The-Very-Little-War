@@ -37,7 +37,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
         // Block transfers between flagged multi-account pairs
         require_once('includes/multiaccount.php');
         if (areFlaggedAccounts($base, $_SESSION['login'], $_POST['destinataire'])) {
-            $information = "Transfert bloqué : les comptes sont sous surveillance pour suspicion de multi-compte.";
+            $erreur = "Transfert bloqué : les comptes sont sous surveillance pour suspicion de multi-compte.";
         } elseif ($ipmm['ip'] != $ipdd['ip']) {
             if (empty($_POST['energieEnvoyee'])) {
                 $_POST['energieEnvoyee'] = 0;

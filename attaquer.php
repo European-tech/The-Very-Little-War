@@ -42,19 +42,27 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
 
                 $now = time();
                 // Wrap espionage in transaction with FOR UPDATE (P5-GAP-004)
-                withTransaction($base, function() use ($base, $now, $tempsTrajet) {
-                    $autreRow = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
-                    if ($autreRow['neutrinos'] < $_POST['nombreneutrinos']) {
-                        throw new \RuntimeException('NOT_ENOUGH_NEUTRINOS');
+                try {
+                    withTransaction($base, function() use ($base, $now, $tempsTrajet) {
+                        $autreRow = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                        if ($autreRow['neutrinos'] < $_POST['nombreneutrinos']) {
+                            throw new \RuntimeException('NOT_ENOUGH_NEUTRINOS');
+                        }
+                        dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,?,?)', 'ssiiisii',
+                            $_SESSION['login'], $_POST['joueurAEspionner'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), "Espionnage", 0, $_POST['nombreneutrinos']);
+                        $newNeutrinos = $autreRow['neutrinos'] - $_POST['nombreneutrinos'];
+                        dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $_SESSION['login']);
+                    });
+                    $autre['neutrinos'] -= $_POST['nombreneutrinos'];
+                    $information = 'Vous avez lancé l\'espionnage de ' . htmlspecialchars($_POST['joueurAEspionner'], ENT_QUOTES, 'UTF-8') . ' !';
+                } catch (\RuntimeException $e) {
+                    if ($e->getMessage() === 'NOT_ENOUGH_NEUTRINOS') {
+                        $erreur = "Vous n'avez pas assez de neutrinos.";
+                    } else {
+                        $erreur = "Une erreur est survenue.";
+                        error_log('Espionage failed: ' . $e->getMessage());
                     }
-                    dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,?,?)', 'ssiiisii',
-                        $_SESSION['login'], $_POST['joueurAEspionner'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), "Espionnage", 0, $_POST['nombreneutrinos']);
-                    $newNeutrinos = $autreRow['neutrinos'] - $_POST['nombreneutrinos'];
-                    dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $_SESSION['login']);
-                });
-                $autre['neutrinos'] -= $_POST['nombreneutrinos'];
-
-                $information = 'Vous avez lancé l\'espionnage de ' . htmlspecialchars($_POST['joueurAEspionner'], ENT_QUOTES, 'UTF-8') . ' !';
+                }
             } else {
                 $erreur = "Le nombre de neutrinos n'est pas valable.";
             }

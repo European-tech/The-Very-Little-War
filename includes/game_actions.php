@@ -53,6 +53,11 @@ function updateActions($joueur)
             if (!$actions) return; // Already processed by concurrent request
 
             $molecule = dbFetchOne($base, 'SELECT * FROM molecules WHERE id=?', 's', $actions['idclasse']);
+            if (!$molecule) {
+                // Molecule was deleted — remove orphaned formation action
+                dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
+                return;
+            }
 
             if ($actions['tempsPourUn'] <= 0) {
                 logError("Formation tempsPourUn <= 0 for action " . $actions['id']);
@@ -523,8 +528,7 @@ function updateActions($joueur)
     $rows = dbFetchAll($base, 'SELECT * FROM actionsenvoi WHERE (receveur=? OR envoyeur=?) AND tempsArrivee<?', 'ssi', $joueur, $joueur, time());
 
     foreach ($rows as $actions) {
-        dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actions['id']);
-
+        $actionId = $actions['id'];
         $envoyees = explode(";", $actions['ressourcesEnvoyees']);
         $recues = explode(";", $actions['ressourcesRecues']);
 
@@ -559,41 +563,36 @@ function updateActions($joueur)
         " . important('Ressources reçues') . "
         " . $energieRecue . $chaine2;
 
-        dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
+        withTransaction($base, function() use ($base, $actionId, $actions, $nomsRes, $nbRes, $recues, $titreRapport, $contenuRapport) {
+            $ressourcesDestinataire = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $actions['receveur']);
+            if (!$ressourcesDestinataire) {
+                // Recipient was deleted — just remove the transfer
+                dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
+                return;
+            }
+            // FIX FINDING-GAME-009: Cap received resources at storage limit
+            $depotReceveur = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['receveur']);
+            $maxStorageRecv = placeDepot($depotReceveur['depot']);
 
-        $ressourcesDestinataire = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['receveur']);
-        // FIX FINDING-GAME-009: Cap received resources at storage limit
-        $depotReceveur = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['receveur']);
-        $maxStorageRecv = placeDepot($depotReceveur['depot']);
-        $chaine = "";
-        foreach ($nomsRes as $num => $ressource) {
-            if (!in_array($ressource, $nomsRes, true)) {
-                throw new \RuntimeException("Invalid column: $ressource");
+            $recues[sizeof($nomsRes)] = max(0, $recues[sizeof($nomsRes)]);
+            // Build parameterized update for envoi resources
+            $envoiSetClauses = ['energie=?'];
+            $envoiTypes = 'd';
+            $envoiParams = [min($maxStorageRecv, round($ressourcesDestinataire['energie'] + $recues[sizeof($nomsRes)]))];
+            foreach ($nomsRes as $num => $ressource) {
+                $envoiSetClauses[] = "$ressource=?";
+                $envoiTypes .= 'd';
+                $recues[$num] = max(0, $recues[$num]);
+                $envoiParams[] = min($maxStorageRecv, round($ressourcesDestinataire[$ressource] + $recues[$num]));
             }
-            $plus = "";
-            $recues[$num] = max(0, $recues[$num]);
-            if ($num < $nbRes) {
-                $plus = ",";
-            }
-            $chaine = $chaine . '' . $ressource . '=' . min($maxStorageRecv, round($ressourcesDestinataire[$ressource] + $recues[$num])) . '' . $plus;
-        }
+            $envoiParams[] = $actions['receveur'];
+            $envoiTypes .= 's';
+            dbExecute($base, 'UPDATE ressources SET ' . implode(',', $envoiSetClauses) . ' WHERE login=?', $envoiTypes, ...$envoiParams);
 
-        $recues[sizeof($nomsRes)] = max(0, $recues[sizeof($nomsRes)]);
-        // Build parameterized update for envoi resources
-        $envoiSetClauses = ['energie=?'];
-        $envoiTypes = 'd';
-        $envoiParams = [min($maxStorageRecv, round($ressourcesDestinataire['energie'] + $recues[sizeof($nomsRes)]))];
-        foreach ($nomsRes as $num => $ressource) {
-            if (!in_array($ressource, $nomsRes, true)) {
-                throw new \RuntimeException("Invalid column: $ressource");
-            }
-            $envoiSetClauses[] = "$ressource=?";
-            $envoiTypes .= 'd';
-            $envoiParams[] = min($maxStorageRecv, round($ressourcesDestinataire[$ressource] + $recues[$num]));
-        }
-        $envoiParams[] = $actions['receveur'];
-        $envoiTypes .= 's';
-        dbExecute($base, 'UPDATE ressources SET ' . implode(',', $envoiSetClauses) . ' WHERE login=?', $envoiTypes, ...$envoiParams);
+            dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
+
+            dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
+        });
     }
 
     initPlayer($joueur);

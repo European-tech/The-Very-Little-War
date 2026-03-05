@@ -249,18 +249,20 @@ function updateRessources($joueur)
         }
     }
 
-    if ($nbheuresDebut > ABSENCE_REPORT_THRESHOLD_HOURS) {
-        $donnees5 = dbFetchOne($base, 'SELECT nombre, formule FROM molecules WHERE proprietaire=? AND numeroclasse=1', 's', $joueur);
-        $donnees6 = dbFetchOne($base, 'SELECT nombre, formule FROM molecules WHERE proprietaire=? AND numeroclasse=2', 's', $joueur);
-        $donnees7 = dbFetchOne($base, 'SELECT nombre, formule FROM molecules WHERE proprietaire=? AND numeroclasse=3', 's', $joueur);
-        $donnees8 = dbFetchOne($base, 'SELECT nombre, formule FROM molecules WHERE proprietaire=? AND numeroclasse=4', 's', $joueur);
-        if (($nombre1 - $donnees5['nombre']) != 0 or ($nombre2 - $donnees6['nombre']) != 0 or ($nombre3 - $donnees7['nombre']) != 0 or ($nombre4 - $donnees8['nombre']) != 0) {
+    if ($nbheuresDebut > ABSENCE_REPORT_THRESHOLD_HOURS && $compteur > 0) {
+        $lossLines = '';
+        $hasLosses = false;
+        $afterRows = dbFetchAll($base, 'SELECT nombre, formule, numeroclasse FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $joueur);
+        foreach ($afterRows as $afterMol) {
+            $cls = (int)$afterMol['numeroclasse'];
+            $before = ${'nombre' . $cls} ?? 0;
+            $lost = $before - $afterMol['nombre'];
+            if ($lost != 0) $hasLosses = true;
+            $lossLines .= couleurFormule($afterMol['formule']) . ' : ' . number_format($lost, 0, ' ', ' ') . ' molécules<br/>';
+        }
+        if ($hasLosses) {
             $titreRapport = 'Rapport des pertes durant votre absence';
-            $contenuRapport = 'Durant votre absence de ' . $nbheuresDebut . ' heures, vos pertes de molécules ont été : <br/>
-			' . couleurFormule($donnees5['formule']) . ' : ' . number_format(($nombre1 - $donnees5['nombre']), 0, ' ', ' ') . ' molécules<br/>
-			' . couleurFormule($donnees6['formule']) . ' : ' . number_format(($nombre2 - $donnees6['nombre']), 0, ' ', ' ') . ' molécules<br/>
-			' . couleurFormule($donnees7['formule']) . ' : ' . number_format(($nombre3 - $donnees7['nombre']), 0, ' ', ' ') . ' molécules<br/>
-			' . couleurFormule($donnees8['formule']) . ' : ' . number_format(($nombre4 - $donnees8['nombre']), 0, ' ', ' ') . ' molécules';
+            $contenuRapport = 'Durant votre absence de ' . $nbheuresDebut . ' heures, vos pertes de molécules ont été : <br/>' . $lossLines;
             dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $joueur, '<img alt="skull" src="images/rapports/rapportpertes.png"/ class="imageAide">');
         }
     }
