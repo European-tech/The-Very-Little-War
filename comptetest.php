@@ -55,9 +55,8 @@ if (isset($_GET['inscription'])) {
 		} elseif ($_POST['pass'] != $_POST['pass_confirm']) {
 			$erreur = 'Les deux mots de passe sont différents.';
 		} else {
-			$loginError = validateLogin($_POST['login']);
-			if ($loginError) {
-				$erreur = $loginError;
+			if (!validateLogin($_POST['login'])) {
+				$erreur = 'Le login doit contenir entre ' . LOGIN_MIN_LENGTH . ' et ' . LOGIN_MAX_LENGTH . ' caractères alphanumériques.';
 			} elseif (preg_match("#^[A-Za-z0-9]*$#", $_POST['login'])) {
 				if (preg_match("#^[a-z0-9._-]+@[a-z0-9._-]{2,}\.[a-z]{2,4}$#", $_POST['email'])) {
 					$_POST['login'] = ucfirst(mb_strtolower($_POST['login']));
@@ -80,7 +79,7 @@ if (isset($_GET['inscription'])) {
 								throw new \RuntimeException('Source account not found');
 							}
 							dbExecute($base, 'UPDATE autre SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE grade SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE grades SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE constructions SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE invitations SET invite = ? WHERE invite = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ? WHERE login = ?', 'ssss', $newLogin, $hashedPassword, $email, $oldLogin);

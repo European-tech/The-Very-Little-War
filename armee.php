@@ -106,8 +106,8 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
         $nombreMolecules = $_POST['nombremolecules'];
         if ($nombreMolecules > 1000000) {
             $erreur = "Le nombre de molécules demandé est trop élevé.";
-            $nombreMolecules = 0;
         }
+        if (empty($erreur)) {
         $emplacementFormer = $_POST['emplacementmoleculeformer'];
         $login = $_SESSION['login'];
         // V4: Fetch lieur level and azote (nitrogen) level for tempsFormation
@@ -163,6 +163,7 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
         } catch (\RuntimeException $e) {
             $erreur = "Vous n'avez pas assez d'atomes.";
         }
+        } // end empty($erreur) check
     } else {
         $erreur = "Seul des nombres positifs et entiers doivent être entrés.";
     }

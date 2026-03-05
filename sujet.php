@@ -197,17 +197,22 @@ if (isset($_GET['id'])) {
 					$donnees4 = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
 				}
 				if (isset($_SESSION['login']) and $_SESSION['login'] == $reponse['auteur'] and $donnees4['moderateur'] == 0) {
-					$editer = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> <a href="editer.php?id=' . $reponse['id'] . '&type=3">Supprimer</a>';
+					$editer = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> '
+						. '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=3" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;" onclick="return confirm(\'Supprimer cette réponse ?\')">Supprimer</button></form>';
 				}
 				// Si l'utilisateur est un modérateur
 				elseif (isset($_SESSION['login']) and $donnees4['moderateur'] == 1) {
+					$editLink = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> ';
+					$deleteForm = '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=3" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;" onclick="return confirm(\'Supprimer cette réponse ?\')">Supprimer</button></form> ';
 					// Si le message est masqué, on propose de l'afficher
 					if (!$reponse['visibilite']) {
-						$editer = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> <a href="editer.php?id=' . $reponse['id'] . '&type=3">Supprimer</a> <a href="editer.php?id=' . $reponse['id'] . '&type=4">Afficher</a>';
+						$editer = $editLink . $deleteForm
+							. '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=4" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;">Afficher</button></form>';
 					}
 					// Sinon, on propose de le masquer
 					else {
-						$editer = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> <a href="editer.php?id=' . $reponse['id'] . '&type=3">Supprimer</a> <a href="editer.php?id=' . $reponse['id'] . '&type=5">Masquer</a>';
+						$editer = $editLink . $deleteForm
+							. '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=5" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;">Masquer</button></form>';
 					}
 				}
 

@@ -113,6 +113,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                         if (!isset($_POST['nbclasse' . $i])) {
                             $_POST['nbclasse' . $i] = 0;
                         }
+                        $_POST['nbclasse' . $i] = intval($_POST['nbclasse' . $i]);
 
                         if ($_POST['nbclasse' . $i] < 0) {
                             $troupesPositives = false;
@@ -130,7 +131,7 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                     if ($troupesPositives) {
 
-                        $moleculesAttaqueRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=?', 's', $_SESSION['login']);
+                        $moleculesAttaqueRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $_SESSION['login']);
                         $c = 1;
                         $tempsTrajet = 0;
                         $troupes = "";
