@@ -18,7 +18,7 @@ if (isset($_GET['inscription'])) {
 	$visitorNum = $visitorNumRow['num']; // original value before increment
 	$log = 'Visiteur' . ($visitorNum - 1);
 	$time = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $log);
-	if ($time && time() - $time['timestamp'] > 60) { // pour éviter d'avoir trop de joueurs
+	if (!$time || time() - $time['timestamp'] > 60) { // pour éviter d'avoir trop de joueurs
 		inscrire("Visiteur" . $visitorNum, "Visiteur" . $visitorNum, "Visiteur" . $visitorNum . "@tvlw.com");
 		session_regenerate_id(true);
 		$_SESSION['login'] = ucfirst(mb_strtolower("Visiteur" . $visitorNum));
