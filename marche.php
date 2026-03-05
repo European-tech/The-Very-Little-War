@@ -8,7 +8,12 @@ $volatilite = MARKET_VOLATILITY_FACTOR / max(1, $actifs['nbActifs']);
 
 
 $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
-$tabCours = explode(",", $val['tableauCours']);
+if (!$val) {
+    // No market data yet — initialize with default prices (1.0 per resource)
+    $tabCours = array_fill(0, $nbRes + 1, 1.0);
+} else {
+    $tabCours = explode(",", $val['tableauCours']);
+}
 
 
 $bool = 1;

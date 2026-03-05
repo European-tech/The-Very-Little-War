@@ -36,6 +36,11 @@ if (isset($_GET['inscription'])) {
 		exit();
 	}
 } else {
+	// Must be logged in as a visitor to rename
+	if (!isset($_SESSION['login'])) {
+		header('Location: index.php');
+		exit();
+	}
 	// CSRF check for POST registration
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		csrfCheck();
