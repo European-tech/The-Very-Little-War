@@ -2,9 +2,6 @@
 include("ressources.php");
 
 
-$niveaututoRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ?', 's', $_SESSION['login']);
-
-
 if($tuto['niveaututo'] < 10) {
 	if($tuto['niveaututo'] == 1) {
         $image = 'images/tutoriel/question.png';
