@@ -27,7 +27,9 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 				$getId = (int)$_GET['id'];
 				// Check topic is not locked (P5-GAP-023)
 				$topicStatus = dbFetchOne($base, 'SELECT statut FROM sujets WHERE id = ?', 'i', $getId);
-				if ($topicStatus && $topicStatus['statut'] == 1) {
+				if (!$topicStatus) {
+					$erreur = "Ce sujet n'existe pas.";
+				} elseif ($topicStatus['statut'] == 1) {
 					$erreur = "Ce sujet est verrouillé.";
 				} else {
 				$timestamp = time();

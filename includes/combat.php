@@ -236,6 +236,9 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 	} elseif ($classeDefenseur1['nombre'] > 0) {
 		$classe1DefenseurMort = $classeDefenseur1['nombre'];
 		$phalanxOverflow = $phalanxDamage;
+	} else {
+		// Class 1 slot is empty — entire phalanx share cascades to remaining classes
+		$phalanxOverflow = $phalanxDamage;
 	}
 
 	// Remaining classes absorb damage sequentially + phalanx overflow, cascade between them

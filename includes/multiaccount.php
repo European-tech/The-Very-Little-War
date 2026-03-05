@@ -218,14 +218,14 @@ function checkTimingCorrelation($base, $login, $timestamp)
         $other = $rel['related_login'];
         // Check overlap: did both accounts have login events within 5 min of each other?
         $overlap = dbFetchOne($base,
-            'SELECT COUNT(*) AS cnt FROM login_history a INNER JOIN login_history b ON ABS(a.timestamp - b.timestamp) < 300 WHERE a.login = ? AND b.login = ? AND a.timestamp > ?',
-            'ssi', $login, $other, $cutoff
+            'SELECT COUNT(*) AS cnt FROM login_history a INNER JOIN login_history b ON ABS(a.timestamp - b.timestamp) < 300 WHERE a.login = ? AND b.login = ? AND a.timestamp > ? AND b.timestamp > ?',
+            'ssii', $login, $other, $cutoff, $cutoff
         );
 
         $aLogins = dbFetchOne($base, 'SELECT COUNT(*) AS cnt FROM login_history WHERE login = ? AND timestamp > ?', 'si', $login, $cutoff);
         $bLogins = dbFetchOne($base, 'SELECT COUNT(*) AS cnt FROM login_history WHERE login = ? AND timestamp > ?', 'si', $other, $cutoff);
 
-        if ($aLogins['cnt'] > 10 && $bLogins['cnt'] > 10 && $overlap['cnt'] == 0) {
+        if ($aLogins && $bLogins && $overlap && $aLogins['cnt'] > 10 && $bLogins['cnt'] > 10 && $overlap['cnt'] == 0) {
             $existing = dbFetchOne($base,
                 'SELECT id FROM account_flags WHERE login = ? AND related_login = ? AND flag_type = ?',
                 'sss', $login, $other, 'timing_correlation'

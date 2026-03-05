@@ -182,7 +182,9 @@ if ($bannir) {
 			if ($dansLAlliance > 0) {
 				// Cannot ban the alliance chef
 				$allianceData = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=?', 'i', $currentAlliance['idalliance']);
-				if ($allianceData && $allianceData['chef'] === $_POST['bannirpersonne']) {
+				if ($_POST['bannirpersonne'] === $_SESSION['login']) {
+					$erreur = "Vous ne pouvez pas vous bannir vous-même.";
+				} elseif ($allianceData && $allianceData['chef'] === $_POST['bannirpersonne']) {
 					$erreur = "Vous ne pouvez pas bannir le chef de l'alliance.";
 				} else {
 				dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_POST['bannirpersonne']);

@@ -35,7 +35,7 @@ function imageLabel($image, $label, $lien = false)
         $lien = '<a href="' . $lien . '" class="lienSousMenu">';
         $typeLabel = 'labelSousMenu';
     }
-    return $lien . $image . '<br/><span class="' . $typeLabel . '"  style="color:black">' . $label . '</span></a>';
+    return $lien . $image . '<br/><span class="' . $typeLabel . '"  style="color:black">' . $label . '</span>' . ($lien ? '</a>' : '');
 }
 
 function separerZeros($nombre)
