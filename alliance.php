@@ -213,7 +213,7 @@ if ($_GET['id'] != -1) {
             $pointstotaux = $joueur['totalPoints'] + $pointstotaux;
         }
 
-        debutCarte($allianceJoueurPage['nom']);
+        debutCarte(htmlspecialchars($allianceJoueurPage['nom'], ENT_QUOTES, 'UTF-8'));
 
         $rangRows = dbFetchAll($base, 'SELECT tag FROM alliances ORDER BY pointstotaux DESC');
         $rang = 1;

@@ -107,6 +107,17 @@ if ($id > 0 AND $type > 0) {
 		$reponse['titre'] = "";
 	}
 
+	// Authorization: only author or moderator can view the edit form
+	if ($nbReponses == 1) {
+		$auteurField = $type == 1 ? $reponse['auteur'] : $reponse['auteur'];
+		if ($auteurField !== $_SESSION['login'] && (!$moderateur || $moderateur['moderateur'] == '0')) {
+			echo 'Vous ne pouvez pas modifier un contenu dont vous n\'êtes pas l\'auteur.';
+			finCarte();
+			include("includes/copyright.php");
+			exit;
+		}
+	}
+
 	if ($nbReponses == 1) {
 		debutListe();
         echo '<form method="post" action="" name="formEditer">';

@@ -39,7 +39,7 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $timestamp);
 			$sujetId = mysqli_insert_id($base);
 			dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sii', $_SESSION['login'], $sujetId, $getId);
-			$information = "Votre sujet a été créé.";
+			header("Location: sujet.php?id=" . (int)$sujetId); exit;
 		} else {
 			$erreur = "Tous les champs ne sont pas remplis.";
 		}

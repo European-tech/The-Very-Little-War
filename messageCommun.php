@@ -31,8 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['message']) || !isset
 
 csrfCheck();
 
-$titre = antihtml(trim($_POST['titre']));
-$message = antihtml(trim($_POST['message']));
+$titre = trim($_POST['titre']);
+$message = trim($_POST['message']);
 
 if (empty($titre) || empty($message)) {
 	header('Location: messageCommun.php?erreur=' . urlencode('Titre et message requis.'));

@@ -22,7 +22,7 @@ if(isset($_GET['message'])) {
 		if($_SESSION['login'] == $messages['destinataire']) {
 			dbExecute($base, 'UPDATE messages SET statut=1 WHERE id = ?', 'i', $messageId);
 		}
-		debutCarte($messages['titre']);
+		debutCarte(htmlspecialchars($messages['titre'], ENT_QUOTES, 'UTF-8'));
 		debutContent();
 		echo BBcode($messages['contenu']);
         finContent();

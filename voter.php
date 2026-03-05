@@ -28,9 +28,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (!empty($reponse)) {
     $login = $_SESSION['login'];
 
-    $data = dbFetchOne($base, 'SELECT id FROM sondages ORDER BY date DESC LIMIT 1');
+    $data = dbFetchOne($base, 'SELECT id, reponses FROM sondages ORDER BY date DESC LIMIT 1');
 
     if (!$data) {
+        exit(json_encode(["erreur" => true]));
+    }
+
+    // Validate option index against actual number of options
+    $options = explode(',', $data['reponses']);
+    if ($reponse < 1 || $reponse > count($options)) {
         exit(json_encode(["erreur" => true]));
     }
 

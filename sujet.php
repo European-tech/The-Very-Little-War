@@ -36,7 +36,7 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $getId);
 				$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $_SESSION['login']);
 				dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', ($nbMessages['nbMessages'] + 1), $_SESSION['login']);
-				$information = "Votre réponse a été créée.";
+				header("Location: sujet.php?id=" . (int)$_GET['id']); exit;
 				} // end locked topic check
 			} else {
 				$erreur = "Tous les champs ne sont pas remplis.";

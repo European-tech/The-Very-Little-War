@@ -141,7 +141,7 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
 
                 $tempsForm = tempsFormation($total, $donneesFormer['azote'], $donneesFormer['iode'], $niveauazote, $nivLieurArmee, $login);
                 $finTemps = $tempsDebut + $tempsForm * $nombreMolecules;
-                dbExecute($base, 'INSERT INTO actionsformation VALUES(default,?,?,?,?,?,?,?,?)', 'issiiisis',
+                dbExecute($base, 'INSERT INTO actionsformation VALUES(default,?,?,?,?,?,?,?,?)', 'issiiiss',
                     $donneesFormer['id'], $login, $tempsDebut, $finTemps, $nombreMolecules, $nombreMolecules, $donneesFormer['formule'], $tempsForm);
 
                 // Build dynamic UPDATE for ressources with parameterized values

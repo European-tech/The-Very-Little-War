@@ -1078,26 +1078,30 @@ function updateLoginStreak($base, $login) {
  * Returns ['applied' => bool, 'energy' => int, 'atoms' => int, 'shield_hours' => int]
  */
 function checkComebackBonus($base, $login, $prevConnexion = null) {
-    $autre = dbFetchOne($base, 'SELECT last_catch_up FROM autre WHERE login = ?', 's', $login);
-    if (!$autre) return ['applied' => false];
+    $now = time();
+    $result = ['applied' => false];
 
     if ($prevConnexion !== null) {
         $lastLogin = (int)$prevConnexion;
     } else {
         $membre = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login = ?', 's', $login);
-        if (!$membre) return ['applied' => false];
+        if (!$membre) return $result;
         $lastLogin = (int)$membre['derniereConnexion'];
     }
-    $lastCatchUp = (int)$autre['last_catch_up'];
-    $now = time();
-    $absentDays = ($now - $lastLogin) / SECONDS_PER_DAY;
-    $cooldownOk = ($now - $lastCatchUp) > (COMEBACK_COOLDOWN_DAYS * SECONDS_PER_DAY);
 
-    if ($absentDays < COMEBACK_ABSENCE_DAYS || !$cooldownOk) {
-        return ['applied' => false];
-    }
+    withTransaction($base, function() use ($base, $login, $now, $lastLogin, &$result) {
+        // Lock row to prevent double-award from concurrent requests
+        $autre = dbFetchOne($base, 'SELECT last_catch_up FROM autre WHERE login = ? FOR UPDATE', 's', $login);
+        if (!$autre) return;
 
-    withTransaction($base, function() use ($base, $login, $now) {
+        $lastCatchUp = (int)$autre['last_catch_up'];
+        $absentDays = ($now - $lastLogin) / SECONDS_PER_DAY;
+        $cooldownOk = ($now - $lastCatchUp) > (COMEBACK_COOLDOWN_DAYS * SECONDS_PER_DAY);
+
+        if ($absentDays < COMEBACK_ABSENCE_DAYS || !$cooldownOk) {
+            return;
+        }
+
         dbExecute($base, 'UPDATE ressources SET energie = energie + ?, carbone = carbone + ?,
             azote = azote + ?, hydrogene = hydrogene + ?, oxygene = oxygene + ?,
             chlore = chlore + ?, soufre = soufre + ?, brome = brome + ?, iode = iode + ?
@@ -1114,16 +1118,16 @@ function checkComebackBonus($base, $login, $prevConnexion = null) {
         $shieldUntil = $now + (COMEBACK_SHIELD_HOURS * SECONDS_PER_HOUR);
         dbExecute($base, 'UPDATE autre SET last_catch_up = ?, comeback_shield_until = ? WHERE login = ?',
             'iis', $now, $shieldUntil, $login);
+
+        $result = ['applied' => true, 'energy' => COMEBACK_ENERGY_BONUS, 'atoms' => COMEBACK_ATOMS_BONUS, 'shield_hours' => COMEBACK_SHIELD_HOURS];
     });
 
-    logInfo('COMEBACK', 'Welcome-back bonus applied', ['login' => $login, 'absent_days' => round($absentDays, 1)]);
+    if ($result['applied']) {
+        $absentDays = ($now - $lastLogin) / SECONDS_PER_DAY;
+        logInfo('COMEBACK', 'Welcome-back bonus applied', ['login' => $login, 'absent_days' => round($absentDays, 1)]);
+    }
 
-    return [
-        'applied' => true,
-        'energy' => COMEBACK_ENERGY_BONUS,
-        'atoms' => COMEBACK_ATOMS_BONUS,
-        'shield_hours' => COMEBACK_SHIELD_HOURS,
-    ];
+    return $result;
 }
 
 /**

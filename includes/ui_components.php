@@ -13,10 +13,11 @@ function debutCarte($titre = false, $style = "", $image = false, $overflow = fal
         $classe = "";
     }
     if ($titre) {
-        $safeTitle = htmlspecialchars($titre, ENT_QUOTES, 'UTF-8');
+        // Note: $titre may contain trusted HTML (aide() icons, alliance links).
+        // Callers must escape user-supplied parts themselves.
         $titre = '
         <div class="card-header" style="' . htmlspecialchars($style, ENT_QUOTES, 'UTF-8') . '">
-            ' . $safeTitle . '
+            ' . $titre . '
         </div>';
     } else {
         $titre = "";

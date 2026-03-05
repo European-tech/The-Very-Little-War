@@ -5,6 +5,7 @@ include("includes/fonctions.php");
 require_once("includes/csrf.php");
 require_once("includes/database.php");
 require_once("includes/rate_limiter.php");
+require_once("includes/validation.php");
 
 if (isset($_GET['inscription'])) {
 	// Rate limit visitor account creation: 3 per 5 minutes per IP

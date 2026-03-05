@@ -22,7 +22,7 @@ if(isset($_GET['rapport'])) {
 	if($nb_rapports > 0) {
 		dbExecute($base, 'UPDATE rapports SET statut=1 WHERE id = ?', 'i', $rapportId);
 
-        debutCarte($rapports['titre']);
+        debutCarte(htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8'));
 		debutContent();
 		// Report content is HTML generated server-side by combat/game_actions
 		// Sanitize any residual user-controlled data (player names, alliance tags)

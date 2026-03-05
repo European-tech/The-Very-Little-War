@@ -552,7 +552,7 @@ debutCarte("Declin des Molecules");
 
                 echo '<tr>';
                 echo '<td>Classe ' . $i . '</td>';
-                echo '<td>' . couleurFormule(htmlspecialchars($molecules[$i]['formule'], ENT_QUOTES, 'UTF-8')) . '</td>';
+                echo '<td>' . couleurFormule($molecules[$i]['formule']) . '</td>';
                 echo '<td>' . htmlspecialchars($halfLifeDisplay, ENT_QUOTES, 'UTF-8') . '</td>';
                 echo '<td>' . htmlspecialchars($isotopeName, ENT_QUOTES, 'UTF-8') . '</td>';
                 echo '</tr>';

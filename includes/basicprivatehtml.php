@@ -188,6 +188,11 @@ if($tuto['missions'] != ""){ // initialisation du tableau des missions
                             ajouter($res,'ressources',$mission['atomes'],$_SESSION['login']);
                         }
                     }
+                    if(array_key_exists("tout",$mission)){
+                         foreach($nomsRes as $num1 => $res){
+                            ajouter($res,'ressources',$mission['tout'],$_SESSION['login']);
+                        }
+                    }
                     foreach($nomsRes as $num1 => $res){
                         if(array_key_exists($res,$mission)){
                             ajouter($res,'ressources',$mission[$res],$_SESSION['login']);
