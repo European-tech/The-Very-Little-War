@@ -172,50 +172,49 @@ if(isset($_POST['claimMission'])) {
 
         // Verify the condition is actually met
         if($mission['condition']) {
-            // Check if already claimed - we store claimed tutorial missions
-            // in a dedicated field. We'll reuse the existing 'niveaututo' mechanism.
-            // For simplicity, we'll track via a session-based approach and
-            // store completed tutorial missions as a bitmask.
-            //
-            // Actually, let's use the existing missions string in 'autre'.
-            // The $listeMissions in cardsprivate.php has 19 entries.
-            // We'll store our 7 tutorial missions starting at index 19 (offset).
-            // This avoids touching other files.
+            // Wrap in transaction to prevent double-claim race condition
+            $tutoResult = null;
+            try {
+                withTransaction($base, function() use ($base, $missionIndex, $mission, $tutorielMissions, &$tutoResult) {
+                    $autreRow = dbFetchOne($base, 'SELECT missions FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                    $missionsData = $autreRow['missions'];
+                    if($missionsData == "") {
+                        $missionsData = str_repeat("0;", 19 + count($tutorielMissions));
+                    }
 
-            $missionsData = $autre['missions'];
-            if($missionsData == "") {
-                // Initialize - shouldn't happen since cardsprivate.php does it
-                $missionsData = str_repeat("0;", 19 + count($tutorielMissions));
+                    $missionsArr = explode(";", $missionsData);
+                    $tutoOffset = 19;
+                    while(count($missionsArr) < $tutoOffset + count($tutorielMissions) + 1) {
+                        $missionsArr[] = "0";
+                    }
+
+                    $claimIdx = $tutoOffset + $missionIndex;
+
+                    if(isset($missionsArr[$claimIdx]) && $missionsArr[$claimIdx] == "0") {
+                        $missionsArr[$claimIdx] = "1";
+                        $chaineM = implode(";", $missionsArr);
+                        dbExecute($base, 'UPDATE autre SET missions=? WHERE login=?', 'ss', $chaineM, $_SESSION['login']);
+
+                        // Give energy reward atomically
+                        dbExecute($base, 'UPDATE ressources SET energie = energie + ? WHERE login=?', 'ds', $mission['recompense_energie'], $_SESSION['login']);
+
+                        $tutoResult = 'ok';
+                    } else {
+                        $tutoResult = 'already';
+                    }
+                });
+            } catch (\Exception $e) {
+                $tutoResult = 'error';
             }
 
-            $missionsArr = explode(";", $missionsData);
-
-            // Ensure array is large enough for our tutorial missions
-            $tutoOffset = 19; // after the 19 cardsprivate missions
-            while(count($missionsArr) < $tutoOffset + count($tutorielMissions) + 1) {
-                $missionsArr[] = "0";
-            }
-
-            $claimIdx = $tutoOffset + $missionIndex;
-
-            if(isset($missionsArr[$claimIdx]) && $missionsArr[$claimIdx] == "0") {
-                // Mark as completed
-                $missionsArr[$claimIdx] = "1";
-
-                // Give energy reward
-                ajouter('energie', 'ressources', $mission['recompense_energie'], $_SESSION['login']);
-
-                // Save back
-                $chaineM = implode(";", $missionsArr);
-                dbExecute($base, 'UPDATE autre SET missions=? WHERE login=?', 'ss', $chaineM, $_SESSION['login']);
-
-                // Refresh autre data
+            if ($tutoResult === 'ok') {
                 $autre = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $_SESSION['login']);
                 $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $_SESSION['login']);
-
                 $information = "Mission terminee ! +" . $mission['recompense_energie'] . " energie";
-            } else {
+            } elseif ($tutoResult === 'already') {
                 $erreur = "Cette mission a deja ete validee.";
+            } else {
+                $erreur = "Erreur lors de la validation.";
             }
         } else {
             $erreur = "Les conditions de cette mission ne sont pas encore remplies.";

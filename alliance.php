@@ -159,20 +159,24 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
             $erreur = "Cette invitation n'existe pas.";
         } else {
 
-        $joueurRows = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
-        $nombreJoueurs = count($joueurRows);
-        if ($nombreJoueurs < $joueursEquipe) {
-            if ($_POST['actioninvitation'] == "Accepter") {
-                withTransaction($base, function() use ($base, $idalliance) {
+        if ($_POST['actioninvitation'] == "Accepter") {
+            try {
+                withTransaction($base, function() use ($base, $idalliance, $joueursEquipe) {
+                    // Count members inside transaction to prevent race condition
+                    $count = dbCount($base, 'SELECT COUNT(*) AS nb FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
+                    if ($count >= $joueursEquipe) {
+                        throw new \RuntimeException('FULL');
+                    }
                     dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
                     dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
                 });
                 $information = "Vous avez accepté l'invitation.";
                 header("Location: alliance.php"); exit;
+            } catch (\RuntimeException $e) {
+                $erreur = "Le nombre maximal de joueurs dans l'équipe est atteint.";
             }
-            dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
         } else {
-            $erreur = "Le nombre maximal de joueurs dans l'équipe est atteint.";
+            dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
         }
         } // end invitation ownership check
     }

@@ -106,9 +106,10 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
         $nombreMolecules = $_POST['nombremolecules'];
         $emplacementFormer = $_POST['emplacementmoleculeformer'];
         $login = $_SESSION['login'];
-        // V4: Fetch lieur level for tempsFormation covalent formula
-        $lieurDataArmee = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $login);
-        $nivLieurArmee = ($lieurDataArmee && isset($lieurDataArmee['lieur'])) ? $lieurDataArmee['lieur'] : 0;
+        // V4: Fetch lieur level and azote (nitrogen) level for tempsFormation
+        $buildingsArmee = dbFetchOne($base, 'SELECT lieur, azote FROM constructions WHERE login=?', 's', $login);
+        $nivLieurArmee = ($buildingsArmee && isset($buildingsArmee['lieur'])) ? $buildingsArmee['lieur'] : 0;
+        $niveauazote = ($buildingsArmee && isset($buildingsArmee['azote'])) ? $buildingsArmee['azote'] : 0;
         try {
             $formuleAffichage = withTransaction($base, function() use ($base, $nombreMolecules, $emplacementFormer, $login, $nomsRes, $nbRes, $niveauazote, $nivLieurArmee) {
                 $donneesFormer = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $login, $emplacementFormer);

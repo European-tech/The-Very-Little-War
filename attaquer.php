@@ -23,7 +23,13 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
         $_POST['joueurAEspionner'] = trim($_POST['joueurAEspionner']);
         $_POST['nombreneutrinos'] = intval($_POST['nombreneutrinos']);
         if ($_POST['joueurAEspionner'] != $_SESSION['login']) {
-            if (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
+            // Check vacation mode + beginner protection for espionage target
+            $espTarget = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
+            if ($espTarget && $espTarget['vacance']) {
+                $erreur = "Vous ne pouvez pas espionner un joueur en vacances.";
+            } elseif ($espTarget && time() - $espTarget['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
+                $erreur = "Le joueur est encore sous protection des débutants.";
+            } elseif (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
                 $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
                 updateRessources($_POST['joueurAEspionner']);
                 updateActions($_POST['joueurAEspionner']);
@@ -67,7 +73,14 @@ if (isset($_POST['joueurAAttaquer'])) {
 
             $enVac = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
 
-            if ($enVac['vacance']) {
+            // Prevent attacking alliance members
+            $attackerAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+            $defenderAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_POST['joueurAAttaquer']);
+            if ($attackerAlliance && $defenderAlliance
+                && $attackerAlliance['idalliance'] > 0
+                && $attackerAlliance['idalliance'] == $defenderAlliance['idalliance']) {
+                $erreur = "Vous ne pouvez pas attaquer un membre de votre alliance.";
+            } elseif ($enVac['vacance']) {
                 $erreur = "Vous ne pouvez pas attaquer un joueur en vacances";
             } elseif (time() - $enVac['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
                 $erreur = "Le joueur est encore sous protection des débutants.";

@@ -20,10 +20,16 @@ try {
 $status = $db_ok ? 'ok' : 'error';
 http_response_code($db_ok ? 200 : 503);
 
-echo json_encode([
-    'status'       => $status,
-    'db'           => $db_ok,
-    'disk_free_gb' => round(disk_free_space('/') / 1073741824, 1),
-    'php'          => PHP_VERSION,
-    'ts'           => time(),
-]);
+$response = [
+    'status' => $status,
+    'ts'     => time(),
+];
+
+// Only expose detailed info to localhost
+if (in_array($_SERVER['REMOTE_ADDR'], ['127.0.0.1', '::1'], true)) {
+    $response['db'] = $db_ok;
+    $response['disk_free_gb'] = round(disk_free_space('/') / 1073741824, 1);
+    $response['php'] = PHP_VERSION;
+}
+
+echo json_encode($response);

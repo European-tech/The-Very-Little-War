@@ -172,8 +172,12 @@ function purchasePrestigeUnlock($login, $unlockKey) {
         $unlocks[] = $unlockKey;
         $newUnlocks = implode(',', $unlocks);
 
-        dbExecute($base, 'UPDATE prestige SET unlocks=?, total_pp = total_pp - ? WHERE login=? AND total_pp >= ?', 'sisi', $newUnlocks, $unlock['cost'], $login, $unlock['cost']);
+        $affected = dbExecute($base, 'UPDATE prestige SET unlocks=?, total_pp = total_pp - ? WHERE login=? AND total_pp >= ?', 'sisi', $newUnlocks, $unlock['cost'], $login, $unlock['cost']);
 
+        if ($affected === 0) {
+            $result = 'Erreur lors de l\'achat. Veuillez réessayer.';
+            return;
+        }
         $result = true;
     });
 
