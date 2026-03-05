@@ -60,7 +60,7 @@ debutCarte("Inscription");
 echo '<form action="inscription.php" method="post" name="inscription">';
 echo csrfField();
 debutListe();
-item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/player.png" class="w32"/>', 'titre' => 'Login', 'input' => '<input type="text" name="login" id="login" maxlength="<?php echo LOGIN_MAX_LENGTH; ?>" value="Login">', 'after' => submit(['link' => '#', 'titre' => 'G&eacute;n&eacute;rer', 'id' => 'btn-generate'])]);
+item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/player.png" class="w32"/>', 'titre' => 'Login', 'input' => '<input type="text" name="login" id="login" maxlength="' . LOGIN_MAX_LENGTH . '" value="Login">', 'after' => submit(['link' => '#', 'titre' => 'G&eacute;n&eacute;rer', 'id' => 'btn-generate'])]);
 item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'titre' => 'E-mail', 'input' => '<input type="text" name="email" id="email" maxlength="100" class="form-control">', 'after' => popover('popover-mail', 'images/question.png')]);
 item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Mot de passe', 'input' => '<input type="password" name="pass" id="pass" class="form-control">']);
 item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Confirmation', 'input' => '<input type="password" name="pass_confirm" id="pass_confirm" class="form-control">']);
