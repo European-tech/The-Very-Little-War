@@ -7,12 +7,12 @@ if (isset($_SESSION['login'])) {
 }
 require_once("includes/csrf.php");
 
-if(!isset($_GET['id'])
-	or intval(trim($_GET['id'])) == 0
-	or $_GET['id'] < 1
-	or $_GET['id'] > 8
-	or !preg_match("#^[0-9]*$#", $_GET['id'])
-	) {
+if (!isset($_GET['id']) || !preg_match("#^[0-9]+$#", $_GET['id'])) {
+	header('Location: forum.php');
+	exit();
+}
+$getId = (int)$_GET['id'];
+if ($getId < 1 || !dbFetchOne($base, 'SELECT id FROM forums WHERE id = ?', 'i', $getId)) {
 	header('Location: forum.php');
 	exit();
 }
@@ -20,7 +20,6 @@ if(!isset($_GET['id'])
 include("includes/bbcode.php");
 
 $_GET['id'] = trim($_GET['id']);
-$getId = (int)$_GET['id'];
 
 if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 	csrfCheck();
