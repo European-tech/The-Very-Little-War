@@ -139,26 +139,18 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
                 dbExecute($base, 'INSERT INTO actionsformation VALUES(default,?,?,?,?,?,?,?,?)', 'issiiisis',
                     $donneesFormer['id'], $login, $tempsDebut, $finTemps, $nombreMolecules, $nombreMolecules, $donneesFormer['formule'], $tempsForm);
 
-                // Build dynamic UPDATE for ressources - computed from server data
-                $chaine = "";
+                // Build dynamic UPDATE for ressources with parameterized values
+                $setClauses = [];
+                $paramTypes = '';
+                $paramValues = [];
                 foreach ($nomsRes as $num => $ressource) {
-                    $plus = "";
-                    if ($num < $nbRes) {
-                        $plus = ",";
-                    }
-                    $chaine = $chaine . '' . $ressource . '=' . ($ressources[$ressource] - ($nombreMolecules * $donneesFormer[$ressource])) . '' . $plus;
+                    $setClauses[] = $ressource . '=?';
+                    $paramTypes .= 'd';
+                    $paramValues[] = $ressources[$ressource] - ($nombreMolecules * $donneesFormer[$ressource]);
                 }
-                // $chaine is built from server-side computed numeric values
-                $stmt = mysqli_prepare($base, 'UPDATE ressources SET ' . $chaine . ' WHERE login=?');
-                if (!$stmt) {
-                    error_log("SQL Prepare Error: " . mysqli_error($base));
-                } else {
-                    mysqli_stmt_bind_param($stmt, 's', $login);
-                    if (!mysqli_stmt_execute($stmt)) {
-                        error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
-                    }
-                    mysqli_stmt_close($stmt);
-                }
+                $paramTypes .= 's';
+                $paramValues[] = $login;
+                dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setClauses) . ' WHERE login=?', $paramTypes, ...$paramValues);
 
                 return $donneesFormer['formule'];
             });

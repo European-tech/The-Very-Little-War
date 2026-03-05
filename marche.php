@@ -110,26 +110,19 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
                                 $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
 
-                            // Build dynamic UPDATE for ressources
-                            $chaine = "";
-                            foreach ($nomsRes as $num => $ressource) {
-                                if (!in_array($ressource, $nomsRes, true)) {
-                                    throw new \RuntimeException("Invalid column: $ressource");
-                                }
-                                $plus = "";
-                                if ($num < $nbRes) {
-                                    $plus = ",";
-                                }
-                                $chaine = $chaine . '' . $ressource . '=' . ($ressources[$ressource] - $_POST[$ressource . 'Envoyee']) . '' . $plus;
-                            }
+                            // Build parameterized UPDATE for ressources
                             $newEnergie = $ressources['energie'] - $_POST['energieEnvoyee'];
-                            $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?,' . $chaine . ' WHERE login=?');
-                            if ($stmt) {
-                                $login = $_SESSION['login'];
-                                mysqli_stmt_bind_param($stmt, 'ds', $newEnergie, $login);
-                                mysqli_stmt_execute($stmt);
-                                mysqli_stmt_close($stmt);
+                            $setClauses = ['energie=?'];
+                            $paramTypes = 'd';
+                            $paramValues = [$newEnergie];
+                            foreach ($nomsRes as $num => $ressource) {
+                                $setClauses[] = $ressource . '=?';
+                                $paramTypes .= 'd';
+                                $paramValues[] = $ressources[$ressource] - $_POST[$ressource . 'Envoyee'];
                             }
+                            $paramTypes .= 's';
+                            $paramValues[] = $_SESSION['login'];
+                            dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setClauses) . ' WHERE login=?', $paramTypes, ...$paramValues);
 
                             // Build info string for display
                             $infoChaine = "";
@@ -207,14 +200,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             if ($newResVal > $placeDepot) {
                                 throw new Exception('NOT_ENOUGH_STORAGE');
                             }
-                            // $nomsRes[$numRes] is a server-side resource name, not user input
-                            $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
-                            if ($stmt) {
-                                $login = $_SESSION['login'];
-                                mysqli_stmt_bind_param($stmt, 'dds', $diffEnergieAchat, $newResVal, $login);
-                                mysqli_stmt_execute($stmt);
-                                mysqli_stmt_close($stmt);
-                            }
+                            dbExecute($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?', 'dds', $diffEnergieAchat, $newResVal, $_SESSION['login']);
 
                             $chaine = '';
                             foreach ($tabCours as $num => $cours) {
@@ -328,14 +314,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         if ($newEnergie > $placeDepot) {
                             $newEnergie = $placeDepot;
                         }
-                        // $nomsRes[$numRes] is a server-side resource name
-                        $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?');
-                        if ($stmt) {
-                            $login = $_SESSION['login'];
-                            mysqli_stmt_bind_param($stmt, 'dds', $newEnergie, $newResVal, $login);
-                            mysqli_stmt_execute($stmt);
-                            mysqli_stmt_close($stmt);
-                        }
+                        dbExecute($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?', 'dds', $newEnergie, $newResVal, $_SESSION['login']);
 
                         $chaine = '';
                         foreach ($tabCours as $num => $cours) {

@@ -292,31 +292,18 @@ function traitementConstructions($liste)
 
                     // Build dynamic UPDATE for ressources - these are computed values, not user input
                     $chaine = "";
-                    foreach ($nomsRes as $num => $ressource) {
-                        if (!in_array($ressource, $nomsRes, true)) {
-                            throw new \RuntimeException("Invalid column: $ressource");
-                        }
-                        $plus = "";
-                        if ($num < $nbRes) {
-                            $plus = ",";
-                        }
-                        $chaine = $chaine . $ressource . '=' . ($ressources[$ressource] - $liste['cout' . ucfirst($ressource)]) . $plus;
-                    }
-
                     $newEnergie = $ressources['energie'] - $liste['coutEnergie'];
-                    // Note: $chaine contains computed numeric values from server-side data, not user input
-                    $sql2 = 'UPDATE ressources SET energie=?,' . $chaine . ' WHERE login=?';
-                    $stmt = mysqli_prepare($base, $sql2);
-                    if (!$stmt) {
-                        error_log("SQL Prepare Error: " . mysqli_error($base));
-                        $erreur = "Une erreur est survenue."; return;
+                    $setClauses = ['energie=?'];
+                    $paramTypes = 'd';
+                    $paramValues = [$newEnergie];
+                    foreach ($nomsRes as $num => $ressource) {
+                        $setClauses[] = $ressource . '=?';
+                        $paramTypes .= 'd';
+                        $paramValues[] = $ressources[$ressource] - $liste['cout' . ucfirst($ressource)];
                     }
-                    mysqli_stmt_bind_param($stmt, 'ds', $newEnergie, $_SESSION['login']);
-                    if (!mysqli_stmt_execute($stmt)) {
-                        error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
-                        $erreur = "Une erreur est survenue."; return;
-                    }
-                    mysqli_stmt_close($stmt);
+                    $paramTypes .= 's';
+                    $paramValues[] = $_SESSION['login'];
+                    dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setClauses) . ' WHERE login=?', $paramTypes, ...$paramValues);
 
                     $lastConstruction = dbFetchOne($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
                     if ($lastConstruction) {
