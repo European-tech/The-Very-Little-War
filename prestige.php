@@ -39,7 +39,6 @@ debutCarte("Points de Prestige");
 finCarte();
 
 // ------- Section 1b: Login Streak -------
-<?php
 $streakRow = dbFetchOne($base, 'SELECT streak_days, streak_last_date FROM autre WHERE login = ?', 's', $_SESSION['login']);
 $currentStreak = $streakRow ? (int)$streakRow['streak_days'] : 0;
 $nextMilestone = null;
