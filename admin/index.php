@@ -2,7 +2,7 @@
 include("../includes/connexion.php");
 
 session_name('TVLW_ADMIN');
-session_start();
+require_once(__DIR__ . '/../includes/session_init.php');
 include("../includes/constantesBase.php");
 include("../includes/fonctions.php");
 require_once(__DIR__ . '/../includes/logger.php');

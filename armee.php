@@ -225,26 +225,25 @@ if (isset($_POST['emplacementmoleculecreer1']) and !empty($_POST['emplacementmol
                         $newNiveauClasse = $cout['niveauclasse'] + 1;
                         dbExecute($base, 'UPDATE ressources SET niveauclasse=? WHERE login=?', 'is', $newNiveauClasse, $login);
 
-                        // Build dynamic UPDATE for molecules - computed from validated integer values
-                        $chaine = "";
+                        // Build dynamic UPDATE for molecules with fully parameterized values
+                        $setClauses = [];
+                        $paramTypes = '';
+                        $paramValues = [];
                         foreach ($nomsRes as $num => $ressource) {
-                            $plus = "";
-                            if ($num < $nbRes) {
-                                $plus = ",";
-                            }
-                            $chaine = $chaine . '' . $ressource . '=' . $atomValues[$ressource] . '' . $plus;
+                            $setClauses[] = $ressource . '=?';
+                            $paramTypes .= 'i';
+                            $paramValues[] = $atomValues[$ressource];
                         }
-                        // $chaine has validated integers, formule and login are parameterized
-                        $stmt = mysqli_prepare($base, 'UPDATE molecules SET ' . $chaine . ', formule=?, isotope=' . $isotope . ' WHERE proprietaire=? AND numeroclasse=?');
-                        if (!$stmt) {
-                            error_log("SQL Prepare Error: " . mysqli_error($base));
-                        } else {
-                            mysqli_stmt_bind_param($stmt, 'ssi', $formule, $login, $numClasse);
-                            if (!mysqli_stmt_execute($stmt)) {
-                                error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
-                            }
-                            mysqli_stmt_close($stmt);
-                        }
+                        $setClauses[] = 'formule=?';
+                        $paramTypes .= 's';
+                        $paramValues[] = $formule;
+                        $setClauses[] = 'isotope=?';
+                        $paramTypes .= 'i';
+                        $paramValues[] = $isotope;
+                        $paramTypes .= 'si';
+                        $paramValues[] = $login;
+                        $paramValues[] = $numClasse;
+                        dbExecute($base, 'UPDATE molecules SET ' . implode(', ', $setClauses) . ' WHERE proprietaire=? AND numeroclasse=?', $paramTypes, ...$paramValues);
 
                         $newEnergie = max(0, $cout['energie'] - coutClasse($cout['niveauclasse']));
                         dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $newEnergie, $login);
