@@ -2,7 +2,7 @@
 // Récupération des variables d'attaque, de défense, de coup critiques et de capacité de pillage pour chaque classe
 // Pour l'attaquant
 
-$rowsDefenseur = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
+$rowsDefenseur = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $actions['defenseur']);
 
 $c = 1;
 foreach ($rowsDefenseur as $classeDefenseur) {
@@ -12,7 +12,7 @@ foreach ($rowsDefenseur as $classeDefenseur) {
 	$c++;
 }
 
-$rowsAttaquant = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
+$rowsAttaquant = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $actions['attaquant']);
 
 $c = 1;
 $chaineExplosee = explode(";", $actions['troupes']);
@@ -25,7 +25,7 @@ foreach ($rowsAttaquant as $classeAttaquant) {
 
 // recupération des niveaux des atomes
 
-$niveauxAttaquant = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $actions['attaquant']);
+$niveauxAttaquant = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
 if (!$niveauxAttaquant) {
 	logError("Combat: missing attacker constructions for " . $actions['attaquant'] . " at line " . __LINE__);
 	throw new Exception('Missing attacker constructions');
@@ -35,7 +35,7 @@ foreach ($nomsRes as $num => $ressource) {
 	$niveauxAtt[$ressource] = $niveauxAttaquant[$num];
 }
 
-$niveauxDefenseur = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $actions['defenseur']);
+$niveauxDefenseur = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
 if (!$niveauxDefenseur) {
 	logError("Combat: missing defender constructions for " . $actions['defenseur'] . " at line " . __LINE__);
 	throw new Exception('Missing defender constructions');
@@ -46,13 +46,13 @@ foreach ($nomsRes as $num => $ressource) {
 }
 
 
-$ionisateur = dbFetchOne($base, 'SELECT ionisateur FROM constructions WHERE login=?', 's', $actions['attaquant']);
+$ionisateur = dbFetchOne($base, 'SELECT ionisateur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
 if (!$ionisateur) {
 	logError("Combat: missing attacker constructions (ionisateur) for " . $actions['attaquant']);
 	throw new Exception('Missing attacker constructions');
 }
 
-$champdeforce = dbFetchOne($base, 'SELECT champdeforce FROM constructions WHERE login=?', 's', $actions['defenseur']);
+$champdeforce = dbFetchOne($base, 'SELECT champdeforce FROM constructions WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
 if (!$champdeforce) {
 	logError("Combat: missing defender constructions (champdeforce) for " . $actions['defenseur']);
 	throw new Exception('Missing defender constructions');
