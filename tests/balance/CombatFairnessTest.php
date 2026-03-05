@@ -235,13 +235,26 @@ class CombatFairnessTest extends TestCase
      */
     public function testDefenseRewards(): void
     {
-        // 20% resource bonus on successful defense
-        $this->assertEqualsWithDelta(0.20, DEFENSE_REWARD_RATIO, 0.01);
+        // 30% resource bonus on successful defense (P1-D4-027)
+        $this->assertEqualsWithDelta(0.30, DEFENSE_REWARD_RATIO, 0.01);
 
         // 1.5x combat points for defensive victories
         $this->assertEqualsWithDelta(1.5, DEFENSE_POINTS_MULTIPLIER_BONUS, 0.01);
 
         // Defense multiplier > 1.0 (defense rewarded more than attack)
         $this->assertGreaterThan(1.0, DEFENSE_POINTS_MULTIPLIER_BONUS);
+    }
+
+    public function testDefenseRewardRatioSufficient(): void
+    {
+        $this->assertGreaterThanOrEqual(0.30, DEFENSE_REWARD_RATIO,
+            'Defense reward should be >= 30% to make defending worthwhile');
+    }
+
+    public function testPillageTaxExists(): void
+    {
+        $this->assertTrue(defined('PILLAGE_TAX_RATE'), 'PILLAGE_TAX_RATE must be defined');
+        $this->assertGreaterThan(0, PILLAGE_TAX_RATE);
+        $this->assertLessThanOrEqual(0.30, PILLAGE_TAX_RATE);
     }
 }

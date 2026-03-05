@@ -41,6 +41,12 @@ class IsotopeSpecializationTest extends TestCase
             "Reactif decay should be < 50% faster (was nerfed from 50% to 20%)");
     }
 
+    public function testStableIsotopeHPBuffSufficient(): void
+    {
+        $this->assertGreaterThanOrEqual(0.40, ISOTOPE_STABLE_HP_MOD,
+            'Stable isotope HP bonus should be >= 40%');
+    }
+
     /**
      * Specializations are genuine either-or choices with trade-offs.
      */

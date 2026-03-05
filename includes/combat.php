@@ -159,7 +159,7 @@ if ($defenderFormation == FORMATION_EMBUSCADE) {
 		$totalDefenderMols += ${'classeDefenseur' . $c}['nombre'];
 	}
 	if ($totalDefenderMols > $totalAttackerMols) {
-		$embuscadeDefBoost = 1.0 + FORMATION_AMBUSH_ATTACK_BONUS; // +15% to defender's effective damage
+		$embuscadeDefBoost = 1.0 + FORMATION_AMBUSH_ATTACK_BONUS; // P1-D4-022: +40% to defender's effective damage
 	}
 }
 
@@ -220,7 +220,7 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 $defenseursRestants = 0;
 
 if ($defenderFormation == FORMATION_PHALANGE) {
-	// Phalange: Class 1 absorbs 70% with defense bonus; overkill carries to classes 2-4
+	// Phalange: Class 1 absorbs FORMATION_PHALANX_ABSORB% with defense bonus; overkill carries to classes 2-4
 	$phalanxDamage = $degatsAttaquant * FORMATION_PHALANX_ABSORB;
 	$otherDamage = $degatsAttaquant - $phalanxDamage;
 
@@ -410,6 +410,9 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 		if ($bouclierReduction > 0) {
 			$ressourcesAPiller = round($ressourcesAPiller * (1 - $bouclierReduction));
 		}
+
+		// P1-D4-031: Pillage tax — reduces wealth concentration
+		$ressourcesAPiller = round($ressourcesAPiller * (1 - PILLAGE_TAX_RATE));
 
 		// Calcul du pourcentage de chaque ressource pillable (above vault protection)
 		foreach ($nomsRes as $num => $ressource) {

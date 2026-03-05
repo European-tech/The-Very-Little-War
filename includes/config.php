@@ -23,7 +23,7 @@ define('MAX_CONCURRENT_CONSTRUCTIONS', 2);
 define('MAX_MOLECULE_CLASSES', 4);       // 4 classes per player
 define('MAX_ATOMS_PER_ELEMENT', 200);    // max atoms of one type in a molecule
 define('MAX_ALLIANCE_MEMBERS', 20);      // $joueursEquipe
-define('BEGINNER_PROTECTION_SECONDS', 3 * SECONDS_PER_DAY); // V4: 3 days
+define('BEGINNER_PROTECTION_SECONDS', 5 * SECONDS_PER_DAY); // P1-D4-029: extended from 3 to 5 days
 define('ABSENCE_REPORT_THRESHOLD_HOURS', 6); // hours offline before loss report
 define('ONLINE_TIMEOUT_SECONDS', 300);   // 60 * 5 = 5 minutes for online status
 define('VICTORY_POINTS_TOTAL', 1000);    // $nbPointsVictoire
@@ -108,7 +108,7 @@ define('IONISATEUR_HP_BASE', 50);
 
 // --- V4 STORAGE / VAULT / ECONOMY / COMBAT ---
 define('BASE_STORAGE_INITIAL', 1000);
-define('VAULT_PCT_PER_LEVEL', 0.02);
+define('VAULT_PCT_PER_LEVEL', 0.03);             // P1-D4-030: buffed from 2% to 3% per level
 define('VAULT_MAX_PROTECTION_PCT', 0.50);
 define('MARKET_GLOBAL_ECONOMY_DIVISOR', 10000);
 define('COMBAT_MASS_DIVISOR', 100);
@@ -257,7 +257,8 @@ define('ATTACK_POINTS_MULTIPLIER', 5.0);
 define('DEFENSE_POINTS_MULTIPLIER', 5.0);
 
 // Defensive rewards — incentivize defense as a viable playstyle
-define('DEFENSE_REWARD_RATIO', 0.20);         // 20% resource bonus on successful defense
+define('DEFENSE_REWARD_RATIO', 0.30);         // P1-D4-027: buffed from 20% to 30%
+define('PILLAGE_TAX_RATE', 0.15);             // P1-D4-031: 15% pillage tax to reduce wealth concentration
 define('DEFENSE_POINTS_MULTIPLIER_BONUS', 1.5); // 1.5x combat points for defensive victories
 define('ATTACK_COOLDOWN_SECONDS', 4 * SECONDS_PER_HOUR);  // 4 hours on loss/draw
 // BAL-CROSS C4: Prevents chain-attack bullying — winners wait 1h before same target
@@ -271,26 +272,26 @@ define('FORMATION_DISPERSEE', 0);
 define('FORMATION_PHALANGE', 1);
 define('FORMATION_EMBUSCADE', 2);
 // BAL-CROSS C7: Reduces empty-class-1 exploit (60% free damage discard, not 70%)
-define('FORMATION_PHALANX_ABSORB', 0.60);        // class 1 absorbs this % of damage
+define('FORMATION_PHALANX_ABSORB', 0.50);        // P1-D4-021: nerfed from 60% to 50%
 define('FORMATION_PHALANX_DEFENSE_BONUS', 0.20);  // +20% defense for phalanx class 1
 // BAL-SIM: Embuscade was never optimal (0% "Best In"). Buffed 15%→25%.
-define('FORMATION_AMBUSH_ATTACK_BONUS', 0.25);    // +25% attack when outnumbering attacker
+define('FORMATION_AMBUSH_ATTACK_BONUS', 0.40);    // P1-D4-022: buffed from 25% to 40%
 $FORMATIONS = [
     FORMATION_DISPERSEE => ['name' => 'Dispersée', 'desc' => 'Les dégâts sont répartis également entre vos 4 classes (25% chacune). Efficace contre les attaques concentrées.'],
-    FORMATION_PHALANGE => ['name' => 'Phalange', 'desc' => 'Votre classe 1 absorbe 60% des dégâts et gagne +20% de défense. Idéal si votre classe 1 est très résistante.'],
-    FORMATION_EMBUSCADE => ['name' => 'Embuscade', 'desc' => 'Si vous avez plus de molécules que l\'attaquant, vous gagnez +25% d\'attaque. Idéal pour les armées nombreuses.'],
+    FORMATION_PHALANGE => ['name' => 'Phalange', 'desc' => 'Votre classe 1 absorbe 50% des dégâts et gagne +20% de défense. Idéal si votre classe 1 est très résistante.'],
+    FORMATION_EMBUSCADE => ['name' => 'Embuscade', 'desc' => 'Si vous avez plus de molécules que l\'attaquant, vous gagnez +40% d\'attaque. Idéal pour les armées nombreuses.'],
 ];
 
 // =============================================================================
 // ISOTOPE VARIANTS — molecule specializations chosen at creation
 // =============================================================================
 define('ISOTOPE_NORMAL', 0);
-define('ISOTOPE_STABLE', 1);     // Tank: -5% attack, +30% HP, -30% decay
+define('ISOTOPE_STABLE', 1);     // Tank: -5% attack, +40% HP, -30% decay
 define('ISOTOPE_REACTIF', 2);    // Glass cannon: +20% attack, -10% HP, +50% decay
 define('ISOTOPE_CATALYTIQUE', 3); // Support: -10% attack, -10% HP, +15% to other classes
 
 define('ISOTOPE_STABLE_ATTACK_MOD', -0.05);  // -5% attack (was -10%)
-define('ISOTOPE_STABLE_HP_MOD', 0.30);       // +30% HP (was +20%)
+define('ISOTOPE_STABLE_HP_MOD', 0.40);       // P1-D4-023: buffed from +30% to +40% HP
 define('ISOTOPE_STABLE_DECAY_MOD', -0.30);      // negative = slower decay
 define('ISOTOPE_REACTIF_ATTACK_MOD', 0.20);
 define('ISOTOPE_REACTIF_HP_MOD', -0.10);
@@ -302,7 +303,7 @@ define('ISOTOPE_CATALYTIQUE_ALLY_BONUS', 0.15);  // +15% to all stats of other c
 
 $ISOTOPES = [
     ISOTOPE_NORMAL => ['name' => 'Normal', 'desc' => 'Pas de modification.'],
-    ISOTOPE_STABLE => ['name' => 'Stable', 'desc' => '-5% attaque, +30% points de vie, -30% vitesse de disparition. Rôle : tank/défenseur.'],
+    ISOTOPE_STABLE => ['name' => 'Stable', 'desc' => '-5% attaque, +40% points de vie, -30% vitesse de disparition. Rôle : tank/défenseur.'],
     ISOTOPE_REACTIF => ['name' => 'Réactif', 'desc' => '+20% attaque, -10% points de vie, +20% vitesse de disparition. Rôle : canon de verre.'],
     ISOTOPE_CATALYTIQUE => ['name' => 'Catalytique', 'desc' => '-10% attaque et PV, mais +15% à toutes les stats des AUTRES classes. Rôle : support.'],
 ];

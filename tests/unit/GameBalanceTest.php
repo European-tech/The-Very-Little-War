@@ -320,6 +320,12 @@ class GameBalanceTest extends TestCase
         $this->assertGreaterThan(placeDepot(1), placeDepot(10));
     }
 
+    public function testBeginnerProtectionAtLeastFiveDays(): void
+    {
+        $this->assertGreaterThanOrEqual(5 * 86400, BEGINNER_PROTECTION_SECONDS,
+            'Beginner protection should be at least 5 days');
+    }
+
     public function testPointsPillageCapsTanhAsymptote(): void
     {
         // pointsPillage uses tanh which asymptotes to PILLAGE_POINTS_MULTIPLIER (80)

@@ -261,6 +261,18 @@ class StrategyViabilityTest extends TestCase
             "A fleet of 100 iode molecules should outproduce a single generateur level 10");
     }
 
+    public function testPhalanxAbsorbNotOverpowered(): void
+    {
+        $this->assertLessThanOrEqual(0.55, FORMATION_PHALANX_ABSORB,
+            'Phalanx absorb should be <= 55%');
+    }
+
+    public function testAmbushBonusViable(): void
+    {
+        $this->assertGreaterThanOrEqual(0.35, FORMATION_AMBUSH_ATTACK_BONUS,
+            'Ambush bonus should be >= 35%');
+    }
+
     /**
      * Test molecule minimum HP prevents zero-brome insta-wipe.
      */

@@ -87,16 +87,22 @@ class EconomyProgressionTest extends TestCase
      */
     public function testVaultProtection(): void
     {
-        // Level 10: 20% protection
+        // Level 10: 30% protection (P1-D4-030: 3% per level)
         $prot10 = min(VAULT_MAX_PROTECTION_PCT, 10 * VAULT_PCT_PER_LEVEL);
-        $this->assertEqualsWithDelta(0.20, $prot10, 0.001);
+        $this->assertEqualsWithDelta(0.30, $prot10, 0.001);
 
-        // Max vault (level 25): 50%
+        // Max vault (level 17+): 50% cap
         $protMax = min(VAULT_MAX_PROTECTION_PCT, 25 * VAULT_PCT_PER_LEVEL);
         $this->assertEqualsWithDelta(0.50, $protMax, 0.001);
 
         // At least 50% protected at max
         $this->assertGreaterThanOrEqual(0.50, VAULT_MAX_PROTECTION_PCT);
+    }
+
+    public function testVaultProtectionPerLevelReasonable(): void
+    {
+        $this->assertGreaterThanOrEqual(0.03, VAULT_PCT_PER_LEVEL,
+            'Vault should give >= 3% per level');
     }
 
     /**
@@ -120,12 +126,12 @@ class EconomyProgressionTest extends TestCase
      */
     public function testBeginnerProtection(): void
     {
-        $this->assertEquals(3 * SECONDS_PER_DAY, BEGINNER_PROTECTION_SECONDS);
+        $this->assertEquals(5 * SECONDS_PER_DAY, BEGINNER_PROTECTION_SECONDS);
 
-        // In 3 days at gen level 5: meaningful accumulation
-        $energyIn3Days = BASE_ENERGY_PER_LEVEL * 5 * 72; // 72 hours
-        $this->assertGreaterThan(10000, $energyIn3Days,
-            "3 days of protection should yield > 10k energy at gen 5");
+        // In 5 days at gen level 5: meaningful accumulation
+        $energyIn5Days = BASE_ENERGY_PER_LEVEL * 5 * 120; // 120 hours
+        $this->assertGreaterThan(10000, $energyIn5Days,
+            "5 days of protection should yield > 10k energy at gen 5");
     }
 
     /**
