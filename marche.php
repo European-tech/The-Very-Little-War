@@ -478,6 +478,15 @@ if ($_GET['sub'] == 1) {
 }
 
 if ($_GET['sub'] == 0) {
+    $joueurConstr = dbFetchOne($base, 'SELECT generateur FROM constructions WHERE login = ?', 's', $_SESSION['login']);
+    if ($joueurConstr && (int)$joueurConstr['generateur'] < 10) {
+        echo '<div class="card" style="background:#e8f5e9;border-left:4px solid #4caf50;margin-bottom:12px;">';
+        echo '<div class="card-content card-content-padding">';
+        echo '<p><strong>Conseil marché :</strong> Les prix fluctuent ! Achetez quand le cours est bas ';
+        echo '(près de ' . MARKET_PRICE_FLOOR . '), vendez quand il monte. Regardez le graphique ';
+        echo 'pour repérer les tendances.</p>';
+        echo '</div></div>';
+    }
     debutCarte("Cours");
     echo '<div class="table-responsive" style="overflow-y:hidden"><div id="curve_chart" style="width: 100%; height: 400px"></div></div>';
     finCarte();

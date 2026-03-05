@@ -608,6 +608,18 @@ if ($gagnant == 1) { // DEFENSEUR wins — enhanced defense points
 }
 // Draw ($gagnant == 0): both stay at 0
 
+// Catchup weekend multiplier (P1-D8-043)
+if (CATCHUP_WEEKEND_ENABLED) {
+    $dayOfWeek = (int)date('N'); // 1=Mon ... 6=Sat, 7=Sun
+    if ($dayOfWeek >= 6) {
+        $dayOfMonth = (int)date('j');
+        if ($dayOfMonth >= CATCHUP_WEEKEND_START_DAY && $dayOfMonth <= CATCHUP_WEEKEND_END_DAY) {
+            $pointsAttaquant = (int)floor($pointsAttaquant * CATCHUP_WEEKEND_MULTIPLIER);
+            $pointsDefenseur = (int)floor($pointsDefenseur * CATCHUP_WEEKEND_MULTIPLIER);
+        }
+    }
+}
+
 $totalPille = 0;
 foreach ($nomsRes as $num => $ressource) {
 	$totalPille += ${$ressource . 'Pille'};

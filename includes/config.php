@@ -582,6 +582,12 @@ define('COMEBACK_ENERGY_BONUS', 500);           // Energy granted on return
 define('COMEBACK_ATOMS_BONUS', 100);            // Each atom type granted on return
 define('COMEBACK_COOLDOWN_DAYS', 7);            // Min days between comeback bonuses
 
+// === CATCHUP WEEKENDS (P1-D8-043) ===
+define('CATCHUP_WEEKEND_ENABLED', true);
+define('CATCHUP_WEEKEND_MULTIPLIER', 2.0);  // 2x combat points on weekends weeks 2-3
+define('CATCHUP_WEEKEND_START_DAY', 7);     // Season day 7 = start of week 2
+define('CATCHUP_WEEKEND_END_DAY', 21);      // Season day 21 = end of week 3
+
 // =============================================================================
 // SESSION & SECURITY
 // =============================================================================
