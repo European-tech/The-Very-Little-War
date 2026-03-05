@@ -1,6 +1,21 @@
-<?php 
+<?php
 include("includes/basicprivatephp.php");
 include("includes/layout.php");
+
+/**
+ * Calculate medal progress toward the next tier (P1-D8-053)
+ */
+function medalProgress($currentValue, $thresholds) {
+    for ($i = 0; $i < count($thresholds); $i++) {
+        if ($currentValue < $thresholds[$i]) {
+            $prevThreshold = $i > 0 ? $thresholds[$i - 1] : 0;
+            $range = $thresholds[$i] - $prevThreshold;
+            $pct = $range > 0 ? round(($currentValue - $prevThreshold) / $range * 100) : 0;
+            return ['next_tier' => $i, 'pct' => min(100, max(0, $pct)), 'remaining' => $thresholds[$i] - $currentValue];
+        }
+    }
+    return ['next_tier' => -1, 'pct' => 100, 'remaining' => 0];
+}
 
 if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login']))  {
 	if(isset($_GET['login']) AND $_GET['login'] != $_SESSION['login']) {
@@ -71,7 +86,18 @@ if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login'
                     }
                 }
                 
-                item(['accordion' => important('Bonus actuel').$bonusActuel.'<br/><br/>'.important('Bonus au prochain niveau').$bonusSuivant, 'titre' => $objetProgression, 'media' => $imageMedaille,'soustitre' => $progression]);
+                // Progress bar toward next tier (P1-D8-053)
+                $prog = medalProgress($infos[1], $infos[2]);
+                $progressBarHtml = '';
+                if ($prog['next_tier'] >= 0) {
+                    $progressBarHtml = '<br/><br/>' . important('Progression vers le prochain palier')
+                        . '<div style="background:#e0e0e0;border-radius:8px;height:10px;overflow:hidden;margin:6px 0 4px 0;">'
+                        . '<div style="background:linear-gradient(90deg,#42a5f5,#1e88e5);height:100%;width:' . $prog['pct'] . '%;border-radius:8px;transition:width 0.5s;"></div>'
+                        . '</div>'
+                        . '<small style="color:#757575;">Encore ' . number_format($prog['remaining'], 0, ',', ' ') . ' pour ' . htmlspecialchars($paliersMedailles[$prog['next_tier']]) . '</small>';
+                }
+
+                item(['accordion' => important('Bonus actuel').$bonusActuel.'<br/><br/>'.important('Bonus au prochain niveau').$bonusSuivant.$progressBarHtml, 'titre' => $objetProgression, 'media' => $imageMedaille,'soustitre' => $progression]);
             }
         finListe();
         finCarte();

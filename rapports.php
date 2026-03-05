@@ -35,6 +35,23 @@ if(isset($_GET['rapport'])) {
 		echo $content;
         finContent();
         finCarte('<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="imageSousMenu"> Supprimer</button></form>');
+
+		// Post-defeat recovery card (P1-D8-045)
+		if (strpos($rapports['titre'], 'perdez') !== false) {
+?>
+<div class="card" style="background:#fff3e0;border-left:4px solid #ff9800;">
+    <div class="card-content card-content-padding">
+        <p><strong>Ne baissez pas les bras !</strong></p>
+        <p>Votre armee peut etre reformee rapidement.</p>
+        <ul>
+            <li><a href="molecules.php">Reformer vos molecules</a></li>
+            <li><a href="regles.php#formations">Apprendre les formations defensives</a></li>
+            <li>Pensez a espionner avant d'attaquer : <a href="attaquer.php">Espionnage</a></li>
+        </ul>
+    </div>
+</div>
+<?php
+		}
 	}
 	else {
 		header('Location: rapports.php');

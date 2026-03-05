@@ -389,6 +389,18 @@ foreach($tutorielMissions as $idx => $mission) {
 }
 
 // ============================================================
+// Prestige hint card (P1-D8-048)
+// ============================================================
+?>
+<div class="card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+    <div class="card-content card-content-padding">
+        <p><strong>Astuce :</strong> Gagnez des medailles pour debloquer des bonus PERMANENTS pour la saison suivante !
+        <a href="prestige.php">Voir le systeme de prestige</a></p>
+    </div>
+</div>
+<?php
+
+// ============================================================
 // Help Section - "Comprendre le jeu"
 // ============================================================
 debutCarte("Comprendre le jeu");
