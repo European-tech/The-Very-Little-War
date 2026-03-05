@@ -100,7 +100,7 @@ function dbCount($base, $sql, $types = "", ...$params) {
 
 /**
  * Execute a callable inside a database transaction.
- * Automatically commits on success or rolls back on Exception.
+ * Automatically commits on success or rolls back on Throwable (includes Error + Exception).
  *
  * Usage:
  *   $result = withTransaction($base, function() use ($base, ...) {
@@ -114,7 +114,7 @@ function withTransaction($base, callable $fn) {
         $result = $fn();
         mysqli_commit($base);
         return $result;
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         mysqli_rollback($base);
         throw $e;
     }

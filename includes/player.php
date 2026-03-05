@@ -321,7 +321,9 @@ function initPlayer($joueur)
             'niveau' => $constructions['generateur'],
             'revenu' => '<span title="Revenu : ' . BASE_ENERGY_PER_LEVEL . ' × niveau × duplicateur × médaille × iode × prestige − drainage">' . nombreEnergie('<span style="color:green" >+' . chiffrePetit(revenuEnergie($constructions['generateur'], $joueur, 4)) . '/h</span>') . '</span>',
             'revenu1' => '<span title="Revenu : ' . BASE_ENERGY_PER_LEVEL . ' × niveau × duplicateur × médaille × iode × prestige − drainage">' . nombreEnergie('<span style="color:green" >+' . chiffrePetit(revenuEnergie($niveauActuel['niveau'] + 1, $joueur, 4)) . '/h</span>') . '</span>',
-            'effetSup' => '<br/><br/><strong>Stockage plein : </strong>' . date('d/m/Y', time() + SECONDS_PER_HOUR * ($placeDepot - $ressources['energie']) / $revenu['energie']) . ' à ' . date('H\hi', time() + SECONDS_PER_HOUR * ($placeDepot - $ressources['energie']) / $revenuEnergie),
+            'effetSup' => ($revenuEnergie > 0
+                ? '<br/><br/><strong>Stockage plein : </strong>' . date('d/m/Y', time() + SECONDS_PER_HOUR * ($placeDepot - $ressources['energie']) / $revenuEnergie) . ' à ' . date('H\hi', time() + SECONDS_PER_HOUR * ($placeDepot - $ressources['energie']) / $revenuEnergie)
+                : '<br/><br/><strong>Stockage plein : </strong>Jamais (production insuffisante)'),
             'description' => 'Le générateur <strong>produit de l\'énergie</strong>.',
             'coutEnergie' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['generateur']['cost_energy_base'] * pow($BUILDING_CONFIG['generateur']['cost_growth_base'], $niveauActuel['niveau'])),
             'coutAtomes' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['generateur']['cost_atoms_base'] * pow($BUILDING_CONFIG['generateur']['cost_growth_base'], $niveauActuel['niveau'])),
@@ -505,6 +507,11 @@ function augmenterBatiment($nom, $joueur)
     initPlayer($joueur);
 
     $batiments = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
+
+    // Hard cap on building levels (P4-ADV-004)
+    if (($batiments[$nom] ?? 0) >= MAX_BUILDING_LEVEL) {
+        return;
+    }
 
     if ($nom == 'producteur') {
         dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=? WHERE login=?', 'is', ($batiments['pointsProducteurRestants'] + $points['producteur']), $joueur);

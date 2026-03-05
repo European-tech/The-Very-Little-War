@@ -86,13 +86,6 @@ function updateActions($joueur)
     foreach ($rows as $actions) {
         if ($actions['attaqueFaite'] == 0 && $actions['tempsAttaque'] < time()) { // on fait l'attaque
             if ($actions['troupes'] != 'Espionnage') {
-                // CAS guard: only proceed if this request is the first to claim the action
-                $casAffected = dbExecute($base, 'UPDATE actionsattaques SET attaqueFaite=1 WHERE id=? AND attaqueFaite=0', 'i', $actions['id']);
-                if ($casAffected === 0 || $casAffected === false) {
-                    // Another concurrent request already resolved this combat — skip it
-                    continue;
-                }
-
                 if ($actions['attaquant'] == $joueur) {
                     $enFace = $actions['defenseur'];
                     updateRessources($actions['defenseur']);
@@ -108,6 +101,14 @@ function updateActions($joueur)
 
                 mysqli_begin_transaction($base);
                 try {
+
+                // CAS guard INSIDE transaction: prevents data loss on rollback (P2-D7-002)
+                $casAffected = dbExecute($base, 'UPDATE actionsattaques SET attaqueFaite=1 WHERE id=? AND attaqueFaite=0', 'i', $actions['id']);
+                if ($casAffected === 0 || $casAffected === false) {
+                    // Another concurrent request already resolved this combat — skip it
+                    mysqli_rollback($base);
+                    continue;
+                }
 
                 // Decay loop now inside the transaction
                 $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
@@ -354,7 +355,7 @@ function updateActions($joueur)
                 require_once(__DIR__ . '/multiaccount.php');
                 checkCoordinatedAttacks($base, $actions['attaquant'], $actions['defenseur'], $actions['tempsAttaque']);
 
-                } catch (Exception $combatException) {
+                } catch (\Throwable $combatException) {
                     mysqli_rollback($base);
                     error_log('Combat transaction rolled back for action ' . $actions['id'] . ': ' . $combatException->getMessage());
                 }

@@ -6,8 +6,8 @@
 require_once('includes/basicprivatephp.php');
 require_once('includes/csrf.php');
 
-// Require admin password
-if (empty($_SESSION['motdepasseadmin'])) {
+// Require game owner account (runs in player session, not admin session)
+if ($_SESSION['login'] !== 'Guortates') {
 	header('Location: index.php');
 	exit();
 }

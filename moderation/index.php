@@ -95,7 +95,11 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 							$bool = 0;
 						}
 					}
-					if (preg_match("#^[0-9]*$#", $_POST['energieEnvoyee']) and $bool == 1) {
+					// Cap resource grants to prevent abuse (P5-GAP-007)
+					$maxGrant = 1000000;
+					if ((int)$_POST['energieEnvoyee'] > $maxGrant) {
+						$erreur = "Le montant d'énergie dépasse le maximum autorisé ($maxGrant).";
+					} elseif (preg_match("#^[0-9]*$#", $_POST['energieEnvoyee']) and $bool == 1) {
 
 						$verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login = ?', 's', $_POST['destinataire']);
 						if ($verification['joueurOuPas'] == 1) {

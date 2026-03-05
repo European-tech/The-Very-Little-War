@@ -16,14 +16,13 @@ if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !ha
     exit(json_encode(["erreur" => true]));
 }
 
-// Accept both GET (legacy) and POST, require CSRF on POST
+// POST only with CSRF — GET vote support removed (P5-GAP-009)
 $reponse = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrfCheck();
     $reponse = intval($_POST['reponse'] ?? 0);
-} elseif (isset($_GET['reponse'])) {
-    // Legacy GET support — will be removed in future
-    $reponse = intval($_GET['reponse']);
+} else {
+    exit(json_encode(["erreur" => true]));
 }
 
 if (!empty($reponse)) {
@@ -43,7 +42,7 @@ if (!empty($reponse)) {
         dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, ?, ?)', 'sis', $login, $sondageId, $reponse);
         exit(json_encode(["erreur" => false, "dejaRepondu" => false]));
     } else {
-        $pasDeVote = $_POST['pasDeVote'] ?? $_GET['pasDeVote'] ?? null;
+        $pasDeVote = $_POST['pasDeVote'] ?? null;
         if (!$pasDeVote) {
             dbExecute($base, 'UPDATE reponses SET reponse = ? WHERE login = ? AND sondage = ?', 'ssi', $reponse, $login, $sondageId);
         }

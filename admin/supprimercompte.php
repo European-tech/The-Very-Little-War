@@ -8,14 +8,19 @@ $joueurExiste = 0;
 
 if (isset($_POST['supprimercompte'])) {
     csrfCheck();
-    $joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['supprimer']);
-
-if($joueurExiste > 0 ) {
-		supprimerJoueur($_POST['supprimer']);
-	}
-	else {
-		echo "Ce joueur n'existe pas.";
-	}
+    // Validate login input (P5-GAP-006)
+    $loginToDelete = trim($_POST['supprimer'] ?? '');
+    if (empty($loginToDelete) || strlen($loginToDelete) > 20 || !preg_match('/^[a-zA-Z0-9_-]+$/', $loginToDelete)) {
+        echo "Login invalide.";
+    } else {
+        $joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $loginToDelete);
+        if ($joueurExiste > 0) {
+            logError('ADMIN', 'Account deletion: ' . $loginToDelete . ' by admin');
+            supprimerJoueur($loginToDelete);
+        } else {
+            echo "Ce joueur n'existe pas.";
+        }
+    }
 }
 ?>
 

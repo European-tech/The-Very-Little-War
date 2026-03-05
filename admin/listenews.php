@@ -36,8 +36,10 @@ require_once(__DIR__ . '/../includes/database.php');
     <?php
     include("../includes/connexion.php");
 
-    // CSRF check for all POST actions
-    csrfCheck();
+    // CSRF check for POST actions only (GET loads the page)
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        csrfCheck();
+    }
 
     //-----------------------------------------------------
     // Vérification 1 : est-ce qu'on veut poster une news ?

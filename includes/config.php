@@ -27,6 +27,7 @@ define('BEGINNER_PROTECTION_SECONDS', 3 * SECONDS_PER_DAY); // V4: 3 days
 define('ABSENCE_REPORT_THRESHOLD_HOURS', 6); // hours offline before loss report
 define('ONLINE_TIMEOUT_SECONDS', 300);   // 60 * 5 = 5 minutes for online status
 define('VICTORY_POINTS_TOTAL', 1000);    // $nbPointsVictoire
+define('MAX_BUILDING_LEVEL', 50);        // Hard cap on building upgrades (defense-in-depth)
 
 // --- V4 ECONOMIC GROWTH BASES ---
 define('ECO_GROWTH_BASE', 1.15); // Standard building cost/storage growth

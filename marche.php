@@ -52,94 +52,113 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
             if (preg_match("#^[0-9]*$#", $_POST['energieEnvoyee']) and $bool == 1) {
                 $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=?', 's', $_POST['destinataire']);
                 if ($verification['joueurOuPas'] == 1) {
-                    $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $_SESSION['login']);
+                    // Self-transfer check (P4-ADV-003)
+                    if ($_POST['destinataire'] === $_SESSION['login']) {
+                        $erreur = "Vous ne pouvez pas vous envoyer des ressources.";
+                    } else {
+                    try {
+                        $transferInfo = '';
+                        withTransaction($base, function() use ($base, $nomsRes, $nbRes, $membre, &$transferInfo, &$revenuEnergie, &$revenu, &$vitesseMarchands) {
+                            // Lock sender resources to prevent race condition (P5-GAP-002)
+                            $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
 
-                    $bool = 1;
-                    foreach ($nomsRes as $num => $ressource) {
-                        if ($ressources[$ressource] < $_POST[$ressource . 'Envoyee']) {
-                            $bool = 0;
-                        }
-                    }
-                    if ($ressources['energie'] >= $_POST['energieEnvoyee'] and $bool == 1) {
-                        $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $_POST['destinataire']);
-
-                        // V4: Invert ratio — penalize alt→main feeding, allow big→small charity
-                        $receiverEnergyRev = revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire']);
-                        if ($receiverEnergyRev > $revenuEnergie) {
-                            $rapportEnergie = min(1.0, $revenuEnergie / max(1, $receiverEnergyRev));
-                        } else {
-                            $rapportEnergie = 1;
-                        }
-
-                        foreach ($nomsRes as $num => $ressource) {
-                            $receiverAtomRev = revenuAtome($num, $_POST['destinataire']);
-                            if ($receiverAtomRev > $revenu[$ressource]) {
-                                ${'rapport' . $ressource} = min(1.0, $revenu[$ressource] / max(1, $receiverAtomRev));
-                            } else {
-                                ${'rapport' . $ressource} = 1;
+                            $bool = 1;
+                            foreach ($nomsRes as $num => $ressource) {
+                                if ($ressources[$ressource] < $_POST[$ressource . 'Envoyee']) {
+                                    $bool = 0;
+                                }
                             }
-                        }
+                            if (!($ressources['energie'] >= $_POST['energieEnvoyee'] and $bool == 1)) {
+                                throw new \RuntimeException('NOT_ENOUGH_RESOURCES');
+                            }
 
+                            $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $_POST['destinataire']);
 
-                        $ressourcesEnvoyees = '';
-                        $ressourcesRecues = '';
+                            // V4: Invert ratio — penalize alt→main feeding, allow big→small charity
+                            $receiverEnergyRev = revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire']);
+                            if ($receiverEnergyRev > $revenuEnergie) {
+                                $rapportEnergie = min(1.0, $revenuEnergie / max(1, $receiverEnergyRev));
+                            } else {
+                                $rapportEnergie = 1;
+                            }
 
-                        foreach ($nomsRes as $num => $ressource) {
-                            $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST[$ressource . 'Envoyee'] . ";";
-                            $ressourcesRecues = $ressourcesRecues . (${'rapport' . $ressource} * $_POST[$ressource . 'Envoyee']) . ";";
-                        }
+                            foreach ($nomsRes as $num => $ressource) {
+                                $receiverAtomRev = revenuAtome($num, $_POST['destinataire']);
+                                if ($receiverAtomRev > $revenu[$ressource]) {
+                                    ${'rapport' . $ressource} = min(1.0, $revenu[$ressource] / max(1, $receiverAtomRev));
+                                } else {
+                                    ${'rapport' . $ressource} = 1;
+                                }
+                            }
 
+                            $ressourcesEnvoyees = '';
+                            $ressourcesRecues = '';
 
-                        $joueur = dbFetchOne($base, 'SELECT x,y FROM membre WHERE login=?', 's', $_POST['destinataire']);
+                            foreach ($nomsRes as $num => $ressource) {
+                                $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST[$ressource . 'Envoyee'] . ";";
+                                $ressourcesRecues = $ressourcesRecues . (${'rapport' . $ressource} * $_POST[$ressource . 'Envoyee']) . ";";
+                            }
 
-                        $distance = pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5);
+                            $joueur = dbFetchOne($base, 'SELECT x,y FROM membre WHERE login=?', 's', $_POST['destinataire']);
 
-                        $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST['energieEnvoyee'];
-                        $ressourcesRecues = $ressourcesRecues . $rapportEnergie * $_POST['energieEnvoyee'];
+                            $distance = pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5);
 
-                        $tempsArrivee = time() + round(SECONDS_PER_HOUR * $distance / $vitesseMarchands);
-                        dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
-                            $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
+                            $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST['energieEnvoyee'];
+                            $ressourcesRecues = $ressourcesRecues . $rapportEnergie * $_POST['energieEnvoyee'];
 
-                        // Multi-account: check for suspicious transfer patterns
+                            $tempsArrivee = time() + round(SECONDS_PER_HOUR * $distance / $vitesseMarchands);
+                            dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
+                                $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
+
+                            // Build dynamic UPDATE for ressources
+                            $chaine = "";
+                            foreach ($nomsRes as $num => $ressource) {
+                                if (!in_array($ressource, $nomsRes, true)) {
+                                    throw new \RuntimeException("Invalid column: $ressource");
+                                }
+                                $plus = "";
+                                if ($num < $nbRes) {
+                                    $plus = ",";
+                                }
+                                $chaine = $chaine . '' . $ressource . '=' . ($ressources[$ressource] - $_POST[$ressource . 'Envoyee']) . '' . $plus;
+                            }
+                            $newEnergie = $ressources['energie'] - $_POST['energieEnvoyee'];
+                            $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?,' . $chaine . ' WHERE login=?');
+                            if ($stmt) {
+                                $login = $_SESSION['login'];
+                                mysqli_stmt_bind_param($stmt, 'ds', $newEnergie, $login);
+                                mysqli_stmt_execute($stmt);
+                                mysqli_stmt_close($stmt);
+                            }
+
+                            // Build info string for display
+                            $infoChaine = "";
+                            foreach ($nomsRes as $num => $ressource) {
+                                if ($_POST[$ressource . 'Envoyee'] > 0) {
+                                    $infoChaine = $infoChaine . ' ' . number_format($_POST[$ressource . 'Envoyee'], 0, ' ', ' ') . ' <img class="imageAide" src="images/' . $ressource . '.png" alt="' . $ressource . '"/>';
+                                }
+                            }
+                            if ($_POST['energieEnvoyee'] > 0) {
+                                $transferInfo = "Vous avez envoyé " . number_format($_POST['energieEnvoyee'], 0, ' ', ' ') . "<img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/> " . $infoChaine . ' à ' . $_POST['destinataire'];
+                            } else {
+                                $transferInfo = "Vous avez envoyé " . $infoChaine . " à " . $_POST['destinataire'];
+                            }
+                        });
+
+                        // Multi-account: check for suspicious transfer patterns (after commit)
                         require_once('includes/multiaccount.php');
                         checkTransferPatterns($base, $_SESSION['login'], $_POST['destinataire'], time());
 
-                        // Build dynamic UPDATE for ressources
-                        $chaine = "";
-                        foreach ($nomsRes as $num => $ressource) {
-                            if (!in_array($ressource, $nomsRes, true)) {
-                                throw new \RuntimeException("Invalid column: $ressource");
-                            }
-                            $plus = "";
-                            if ($num < $nbRes) {
-                                $plus = ",";
-                            }
-                            $chaine = $chaine . '' . $ressource . '=' . ($ressources[$ressource] - $_POST[$ressource . 'Envoyee']) . '' . $plus;
-                        }
-                        $newEnergie = $ressources['energie'] - $_POST['energieEnvoyee'];
-                        // $chaine contains computed numeric values from server data
-                        $stmt = mysqli_prepare($base, 'UPDATE ressources SET energie=?,' . $chaine . ' WHERE login=?');
-                        if ($stmt) {
-                            mysqli_stmt_bind_param($stmt, 'ds', $newEnergie, $_SESSION['login']);
-                            mysqli_stmt_execute($stmt);
-                            mysqli_stmt_close($stmt);
-                        }
-
-                        $chaine = "";
-                        foreach ($nomsRes as $num => $ressource) {
-                            if ($_POST[$ressource . 'Envoyee'] > 0) {
-                                $chaine = $chaine . ' ' . number_format($_POST[$ressource . 'Envoyee'], 0, ' ', ' ') . ' <img class="imageAide" src="images/' . $ressource . '.png" alt="' . $ressource . '"/>';
-                            }
-                        }
-                        if ($_POST['energieEnvoyee'] > 0) {
-                            $information = "Vous avez envoyé " . number_format($_POST['energieEnvoyee'], 0, ' ', ' ') . "<img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/> " . $chaine . ' à ' . $_POST['destinataire'];
+                        $information = $transferInfo;
+                    } catch (\RuntimeException $e) {
+                        if ($e->getMessage() === 'NOT_ENOUGH_RESOURCES') {
+                            $erreur = "Vous n'avez pas assez de ressources.";
                         } else {
-                            $information = "Vous avez envoyé " . $chaine . " à " . $_POST['destinataire'];
+                            $erreur = "Erreur lors du transfert.";
+                            error_log('Transfer failed: ' . $e->getMessage());
                         }
-                    } else {
-                        $erreur = "Vous n'avez pas assez de ressources.";
                     }
+                    } // end self-transfer check
                 } else {
                     $erreur = "Le destinataire n'existe pas.";
                 }

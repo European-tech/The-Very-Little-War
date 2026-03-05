@@ -19,23 +19,29 @@ if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulai
     }
 
 
-    if ($bool && $somme <= $constructions['pointsProducteurRestants']) {
-        $chaine = "";
-        foreach ($nomsRes as $num => $ressource) {
-            $plus = "";
-            if ($num - 1 < sizeof($nomsRes)) {
-                $plus = ";";
-            }
-
-            $chaine = $chaine . ($_POST['nbPoints' . $ressource] + ${'points' . $ressource}) . $plus;
+    if ($bool) {
+        try {
+            withTransaction($base, function() use ($base, $nomsRes, $somme) {
+                // Re-read with lock to prevent race condition (P5-GAP-011)
+                $locked = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                if ($somme > $locked['pointsProducteurRestants']) {
+                    throw new \RuntimeException('NOT_ENOUGH_POINTS');
+                }
+                $existingPoints = explode(';', $locked['pointsProducteur']);
+                $chaine = "";
+                foreach ($nomsRes as $num => $ressource) {
+                    $plus = ($num - 1 < sizeof($nomsRes)) ? ";" : "";
+                    $chaine = $chaine . ($_POST['nbPoints' . $ressource] + ($existingPoints[$num] ?? 0)) . $plus;
+                }
+                $newPoints = $locked['pointsProducteurRestants'] - $somme;
+                dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=?, pointsProducteur=? WHERE login=?', 'iss', $newPoints, $chaine, $_SESSION['login']);
+            });
+            $information = "Les points du producteur ont été sauvegardés.";
+            header('Location: constructions.php?information=' . urlencode($information));
+            exit();
+        } catch (\RuntimeException $e) {
+            $erreur = "Le nombre de points n'est pas valide.";
         }
-
-        $newPoints = $constructions['pointsProducteurRestants'] - $somme;
-        dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=?, pointsProducteur=? WHERE login=?', 'iss', $newPoints, $chaine, $_SESSION['login']);
-
-        $information = "Les points du producteur ont été sauvegardés.";
-        header('Location: constructions.php?information=' . urlencode($information));
-        exit();
     } else {
         $erreur = "Le nombre de points n'est pas valide.";
     }
@@ -57,23 +63,29 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
     }
 
 
-    if ($bool && $somme <= $constructions['pointsCondenseurRestants']) {
-        $chaine = "";
-        foreach ($nomsRes as $num => $ressource) {
-            $plus = "";
-            if ($num - 1 < sizeof($nomsRes)) {
-                $plus = ";";
-            }
-
-            $chaine = $chaine . ($_POST['nbPointsCondenseur' . $ressource] + ${'niveau' . $ressource}) . $plus;
+    if ($bool) {
+        try {
+            withTransaction($base, function() use ($base, $nomsRes, $somme) {
+                // Re-read with lock to prevent race condition (P5-GAP-011)
+                $locked = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                if ($somme > $locked['pointsCondenseurRestants']) {
+                    throw new \RuntimeException('NOT_ENOUGH_POINTS');
+                }
+                $existingPoints = explode(';', $locked['pointsCondenseur']);
+                $chaine = "";
+                foreach ($nomsRes as $num => $ressource) {
+                    $plus = ($num - 1 < sizeof($nomsRes)) ? ";" : "";
+                    $chaine = $chaine . ($_POST['nbPointsCondenseur' . $ressource] + ($existingPoints[$num] ?? 0)) . $plus;
+                }
+                $newPoints = $locked['pointsCondenseurRestants'] - $somme;
+                dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=?, pointsCondenseur=? WHERE login=?', 'iss', $newPoints, $chaine, $_SESSION['login']);
+            });
+            $information = "Les points du condenseur ont été sauvegardés.";
+            header('Location: constructions.php?information=' . urlencode($information));
+            exit();
+        } catch (\RuntimeException $e) {
+            $erreur = "Le nombre de points n'est pas valide.";
         }
-
-        $newPoints = $constructions['pointsCondenseurRestants'] - $somme;
-        dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=?, pointsCondenseur=? WHERE login=?', 'iss', $newPoints, $chaine, $_SESSION['login']);
-
-        $information = "Les points du condenseur ont été sauvegardés.";
-        header('Location: constructions.php?information=' . urlencode($information));
-        exit();
     } else {
         $erreur = "Le nombre de points n'est pas valide.";
     }

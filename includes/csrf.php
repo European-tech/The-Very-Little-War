@@ -37,8 +37,12 @@ function csrfCheck() {
                 echo json_encode(['error' => 'Jeton CSRF invalide']);
                 exit();
             }
-            // For regular requests, redirect to previous page or index
+            // For regular requests, redirect to previous page or index (same-origin only, P2-D1-001)
             $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+            $parsed = parse_url($referer);
+            if (!empty($parsed['host']) && $parsed['host'] !== ($_SERVER['HTTP_HOST'] ?? '')) {
+                $referer = 'index.php';
+            }
             header('Location: ' . $referer . (strpos($referer, '?') !== false ? '&' : '?') . 'erreur=' . urlencode('Erreur de securite : jeton CSRF invalide. Veuillez rafraichir la page.'));
             exit();
         }

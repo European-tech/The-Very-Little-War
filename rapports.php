@@ -28,7 +28,10 @@ if(isset($_GET['rapport'])) {
 		// Sanitize any residual user-controlled data (player names, alliance tags)
 		$allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><table><tr><td><th><ul><ol><li><hr>';
 		$content = strip_tags($rapports['contenu'], $allowedTags);
+		// Strip event handlers, style attributes, and dangerous href values (P5-GAP-010)
 		$content = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $content);
+		$content = preg_replace('/\s+style\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $content);
+		$content = preg_replace('/href\s*=\s*["\']?\s*javascript\s*:/i', 'href="', $content);
 		echo $content;
         finContent();
         finCarte('<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="imageSousMenu"> Supprimer</button></form>');

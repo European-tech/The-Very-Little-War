@@ -15,6 +15,11 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 		if (isset($_SESSION['login'])) {
 			if (!empty($_POST['contenu']) && mb_strlen($_POST['contenu']) <= 10000) {
 				$getId = (int)$_GET['id'];
+				// Check topic is not locked (P5-GAP-023)
+				$topicStatus = dbFetchOne($base, 'SELECT statut FROM sujets WHERE id = ?', 'i', $getId);
+				if ($topicStatus && $topicStatus['statut'] == 1) {
+					$erreur = "Ce sujet est verrouillé.";
+				} else {
 				$timestamp = time();
 				dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, "1", ?, ?, ?)', 'issi', $getId, $_POST['contenu'], $_SESSION['login'], $timestamp);
 				//
@@ -22,6 +27,7 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 				$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $_SESSION['login']);
 				dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', ($nbMessages['nbMessages'] + 1), $_SESSION['login']);
 				$information = "Votre réponse a été créée.";
+				} // end locked topic check
 			} else {
 				$erreur = "Tous les champs ne sont pas remplis.";
 			}
@@ -215,7 +221,7 @@ if (isset($_GET['id'])) {
 } else {
 	echo "<p>Bravo, t'es un vrai hackeur maintenant que tu sais modifier la barre URL !</p>";
 }
-
+?>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 <?php include("includes/copyright.php"); ?>

@@ -206,7 +206,7 @@ function tempsFormation($ntotal, $azote, $iode, $nivCondN, $nivLieur, $joueur = 
         $vitesse_form *= $catalystSpeedBonus * $allianceCatalyseurBonus * (1 + $specFormationMod);
     }
 
-    return ceil(($ntotal / $vitesse_form) * 100) / 100;
+    return ceil(($ntotal / max(0.01, $vitesse_form)) * 100) / 100;
 }
 
 
