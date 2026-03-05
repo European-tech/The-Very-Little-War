@@ -55,14 +55,16 @@ if ($gradeChef) {
 		csrfCheck();
 		if (!empty($_POST['changernom'])) {
 			$_POST['changernom'] = trim($_POST['changernom']);
-			$nballiance = dbCount($base, 'SELECT count(*) as nb FROM alliances WHERE nom=?', 's', $_POST['changernom']);
-
-			if ($nballiance == 0) {
-				dbExecute($base, 'UPDATE alliances SET nom=? WHERE id=?', 'si', $_POST['changernom'], $currentAlliance['idalliance']);
-
-				$information = 'Le nom de l\'équipe a bien été changé et est devenu ' . htmlspecialchars($_POST['changernom'], ENT_QUOTES, 'UTF-8') . '.';
+			if (mb_strlen($_POST['changernom']) > 50) {
+				$erreur = "Le nom de l'alliance ne peut pas dépasser 50 caractères.";
 			} else {
-				$erreur = "Une équipe avec ce nom existe déjà.";
+				$nballiance = dbCount($base, 'SELECT count(*) as nb FROM alliances WHERE nom=?', 's', $_POST['changernom']);
+				if ($nballiance == 0) {
+					dbExecute($base, 'UPDATE alliances SET nom=? WHERE id=?', 'si', $_POST['changernom'], $currentAlliance['idalliance']);
+					$information = 'Le nom de l\'équipe a bien été changé et est devenu ' . htmlspecialchars($_POST['changernom'], ENT_QUOTES, 'UTF-8') . '.';
+				} else {
+					$erreur = "Une équipe avec ce nom existe déjà.";
+				}
 			}
 		} else {
 			$erreur = "Le nom de votre équipe doit au moins comporter un caractère.";
@@ -77,7 +79,8 @@ if ($gradeChef) {
 			$gradee = dbCount($base, 'SELECT count(*) as nb FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
 			if ($_POST['personnegrade'] != $chef['chef'] and $gradee < 1) {
 				$existe = dbCount($base, 'SELECT count(*) as nb FROM membre WHERE login=?', 's', $_POST['personnegrade']);
-				if ($existe >= 1) {
+				$inAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
+				if ($existe >= 1 && $inAlliance >= 1) {
 					if (isset($_POST['inviterDroit']) and $_POST['inviterDroit']) $droit_inviter = 1;
 					else $droit_inviter = 0;
 					if (isset($_POST['guerreDroit']) and $_POST['guerreDroit']) $droit_guerre = 1;
@@ -93,7 +96,7 @@ if ($gradeChef) {
 					dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $_POST['personnegrade'], $gradeStr, $chef['id'], $_POST['nomgrade']);
 					$information = "" . htmlspecialchars($_POST['personnegrade'], ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($_POST['nomgrade'], ENT_QUOTES, 'UTF-8') . ".";
 				} else {
-					$erreur = "Cette personne n'existe pas";
+					$erreur = "Cette personne n'existe pas ou n'est pas dans votre alliance.";
 				}
 			} else {
 				$erreur = "Cette personne est déjà gradée.";
@@ -235,7 +238,7 @@ if ($pacte) {
 	if (isset($_POST['allie']) and !empty($_POST['allie'])) {
 		csrfCheck();
 		$_POST['allie'] = intval($_POST['allie']);
-		$pacteExiste = dbCount($base, 'SELECT count(*) AS pacteExiste FROM declarations WHERE (alliance1=? OR alliance2=?) AND type=1', 'ii', $_POST['allie'], $_POST['allie']);
+		$pacteExiste = dbCount($base, 'SELECT count(*) AS pacteExiste FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=1 AND valide!=0', 'iiii', $chef['id'], $_POST['allie'], $chef['id'], $_POST['allie']);
 
 		if ($pacteExiste > 0) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $_POST['allie']);

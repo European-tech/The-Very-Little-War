@@ -75,26 +75,31 @@ function ajouterPoints($nb, $joueur, $type = 0)
         return 0;
     }
 
-    $points = dbFetchOne($base, 'SELECT * FROM autre WHERE login=? FOR UPDATE', 's', $joueur);
+    $result = 0;
+    withTransaction($base, function() use ($base, $joueur, $type, $nb, &$result) {
+        $points = dbFetchOne($base, 'SELECT * FROM autre WHERE login=? FOR UPDATE', 's', $joueur);
+        if (!$points) return;
 
-    if ($type == 1) {
-        $newPoints = max(0, $points['pointsAttaque'] + $nb);
-        dbExecute($base, 'UPDATE autre SET pointsAttaque=? WHERE login=?', 'ds', $newPoints, $joueur);
-        recalculerTotalPointsJoueur($base, $joueur);
-        return -pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints);
-    }
-    if ($type == 2) {
-        $newPoints = max(0, $points['pointsDefense'] + $nb);
-        dbExecute($base, 'UPDATE autre SET pointsDefense=? WHERE login=?', 'ds', $newPoints, $joueur);
-        recalculerTotalPointsJoueur($base, $joueur);
-        return -pointsDefense($points['pointsDefense']) + pointsDefense($newPoints);
-    }
-    if ($type == 3) {
-        $newPillage = $points['ressourcesPillees'] + $nb;
-        dbExecute($base, 'UPDATE autre SET ressourcesPillees=? WHERE login=?', 'ds', $newPillage, $joueur);
-        recalculerTotalPointsJoueur($base, $joueur);
-        return chiffrePetit($nb, 0);
-    }
+        if ($type == 1) {
+            $newPoints = max(0, $points['pointsAttaque'] + $nb);
+            dbExecute($base, 'UPDATE autre SET pointsAttaque=? WHERE login=?', 'ds', $newPoints, $joueur);
+            recalculerTotalPointsJoueur($base, $joueur);
+            $result = -pointsAttaque($points['pointsAttaque']) + pointsAttaque($newPoints);
+        }
+        if ($type == 2) {
+            $newPoints = max(0, $points['pointsDefense'] + $nb);
+            dbExecute($base, 'UPDATE autre SET pointsDefense=? WHERE login=?', 'ds', $newPoints, $joueur);
+            recalculerTotalPointsJoueur($base, $joueur);
+            $result = -pointsDefense($points['pointsDefense']) + pointsDefense($newPoints);
+        }
+        if ($type == 3) {
+            $newPillage = $points['ressourcesPillees'] + $nb;
+            dbExecute($base, 'UPDATE autre SET ressourcesPillees=? WHERE login=?', 'ds', $newPillage, $joueur);
+            recalculerTotalPointsJoueur($base, $joueur);
+            $result = chiffrePetit($nb, 0);
+        }
+    });
+    return $result;
 }
 
 function initPlayer($joueur)

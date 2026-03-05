@@ -50,7 +50,7 @@ if (!empty($reponse)) {
     } else {
         $pasDeVote = $_POST['pasDeVote'] ?? null;
         if (!$pasDeVote) {
-            dbExecute($base, 'UPDATE reponses_sondage SET reponse = ? WHERE login = ? AND sondage = ?', 'ssi', $reponse, $login, $sondageId);
+            dbExecute($base, 'UPDATE reponses_sondage SET reponse = ? WHERE login = ? AND sondage = ?', 'isi', $reponse, $login, $sondageId);
         }
         exit(json_encode(["erreur" => false, "dejaRepondu" => true]));
     }

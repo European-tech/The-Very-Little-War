@@ -11,7 +11,9 @@ if (!defined('RATE_LIMIT_DIR')) {
 function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
     $dir = RATE_LIMIT_DIR;
     if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+        if (!@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return false; // Fail-safe: deny rather than bypass rate limiting
+        }
     }
 
     $file = $dir . '/' . md5($identifier . '_' . $action) . '.json';

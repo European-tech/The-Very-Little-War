@@ -7,7 +7,7 @@ debutCarte("Messages envoyés");
 ?>
 <div class="table-responsive">
 <?php
-$messageRows = dbFetchAll($base, 'SELECT * FROM messages WHERE expeditaire = ? ORDER BY timestamp DESC', 's', $_SESSION['login']);
+$messageRows = dbFetchAll($base, 'SELECT * FROM messages WHERE expeditaire = ? ORDER BY timestamp DESC LIMIT 200', 's', $_SESSION['login']);
 $nb_messages = count($messageRows);
 if($nb_messages > 0) {
 	echo '<table class="table table-striped table-bordered">

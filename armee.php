@@ -110,10 +110,14 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
         if (empty($erreur)) {
         $emplacementFormer = $_POST['emplacementmoleculeformer'];
         $login = $_SESSION['login'];
-        // V4: Fetch lieur level and azote (nitrogen) level for tempsFormation
-        $buildingsArmee = dbFetchOne($base, 'SELECT lieur, azote FROM constructions WHERE login=?', 's', $login);
+        // V4: Fetch lieur level and azote condenseur level for tempsFormation
+        $buildingsArmee = dbFetchOne($base, 'SELECT lieur, pointsCondenseur FROM constructions WHERE login=?', 's', $login);
         $nivLieurArmee = ($buildingsArmee && isset($buildingsArmee['lieur'])) ? $buildingsArmee['lieur'] : 0;
-        $niveauazote = ($buildingsArmee && isset($buildingsArmee['azote'])) ? $buildingsArmee['azote'] : 0;
+        $niveauazote = 0;
+        if ($buildingsArmee && isset($buildingsArmee['pointsCondenseur'])) {
+            $niveaux = explode(';', $buildingsArmee['pointsCondenseur']);
+            $niveauazote = isset($niveaux[1]) ? (int)$niveaux[1] : 0; // azote is index 1 in $nomsRes
+        }
         try {
             $formuleAffichage = withTransaction($base, function() use ($base, $nombreMolecules, $emplacementFormer, $login, $nomsRes, $nbRes, $niveauazote, $nivLieurArmee) {
                 $donneesFormer = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $login, $emplacementFormer);
