@@ -1,0 +1,151 @@
+================================================================================
+PASS 1 AUDIT — DOMAIN 4.2 — COMBAT BALANCE & STRATEGY DIVERSITY
+EXECUTIVE SUMMARY FOR QUICK REFERENCE
+================================================================================
+
+Date: 2026-03-05
+Scope: Combat formulas, formations, isotopes, army composition
+Files: includes/combat.php, includes/config.php, includes/formulas.php
+Format: IDs P1-D4-020 through P1-D4-039 (20 findings)
+
+================================================================================
+HEADLINE FINDINGS
+================================================================================
+
+OVERALL VERDICT: Code is well-implemented, but game balance is STRATEGICALLY
+DEGENERATE. One dominant army composition (glass cannon + meat shield) outperforms
+all alternatives. Strategic diversity is illusory.
+
+KEY STATISTICS:
+- 18 confirmed issues (HIGH/MEDIUM/LOW severity)
+- 2 observations (working as intended)
+- HIGH severity findings: 1 (dominant composition)
+- MEDIUM severity findings: 7 (formations, isotopes, asymmetry, beginner, vault, pillage, cooldown)
+- LOW severity findings: 10 (speed, building targeting, etc.)
+
+================================================================================
+CRITICAL FINDINGS (REQUIRE ACTION)
+================================================================================
+
+1. P1-D4-020: DOMINANT ARMY COMPOSITION [HIGH SEVERITY]
+   Issue: One composition always wins (Class 1: Br/C tank, Class 2-4: O damage)
+   Impact: No strategy diversity, game solved
+   Fix: Add counter-mechanics (special formations, molecule diversity bonuses)
+
+2. P1-D4-027: ATTACK > DEFENSE ASYMMETRY [MEDIUM SEVERITY]
+   Issue: Attacker EV (+325) is 2.6x higher than defender EV (+125)
+   Impact: Everyone attacks, no one defends, aggressive play always wins
+   Fix: Increase defense reward from 20% to 30% of pillage capacity
+
+3. P1-D4-029: BEGINNER PROTECTION TOO SHORT [MEDIUM-HIGH SEVERITY]
+   Issue: 3-day protection insufficient, new players unprotected 92% of season
+   Impact: New players can't catch up, immediate victim pool for established players
+   Fix: Extend to 5-7 days AND add 2x production boost for first week
+
+4. P1-D4-031: SOUFRE PILLAGE OVERLY PROFITABLE [MEDIUM SEVERITY]
+   Issue: Single attack can yield 20 months of victim production
+   Impact: Exponential wealth concentration, early winners dominate forever
+   Fix: Add 10% pillage tax OR defensive building OR formula rebalance
+
+================================================================================
+FORMATION BALANCE ISSUES
+================================================================================
+
+5. P1-D4-021: PHALANGE OVERPOWERED [MEDIUM SEVERITY]
+   - Class 1 absorbs 60% + gets +20% bonus (unfair vs. Dispersée/Embuscade)
+   - Recommendation: Reduce absorb from 60% to 50%
+
+6. P1-D4-022: EMBUSCADE UNDERWHELMING [MEDIUM SEVERITY]
+   - Only +25% bonus, only when outnumbering, defender-only advantage
+   - Recommendation: Increase bonus to +40% OR add secondary effect
+
+================================================================================
+ISOTOPE & ATOM BALANCE ISSUES
+================================================================================
+
+7. P1-D4-023: RÉACTIF OFTEN SUPERIOR [MEDIUM SEVERITY]
+   - Decay irrelevant in 30-day season, so high attack >> tank HP
+   - Recommendation: Buff Stable (increase HP bonus from +30% to +40%)
+
+8. P1-D4-032: CHLORE SPEED RARELY IMPACTFUL [LOW SEVERITY]
+   - 31x speed bonus but travel times are minutes vs. hours cooldown
+   - Recommendation: Make speed affect cooldown (reduce by 5% per 20 Cl)
+
+9. P1-D4-030: VAULT PROTECTION INSUFFICIENT [MEDIUM SEVERITY]
+   - Max 50% protection but costs 160k+ energy (3-4x monthly production)
+   - Recommendation: Reduce cost scaling OR increase protection rate
+
+================================================================================
+ECONOMY & GAME BALANCE ISSUES
+================================================================================
+
+10. P1-D4-026: BUILDING DAMAGE TARGETING [LOW SEVERITY]
+    - Weighted random always focuses highest-level building (95%)
+    - Recommendation: Use equal-probability targeting instead
+
+11. P1-D4-028: ATTACK COOLDOWN [MEDIUM SEVERITY]
+    - 4h loss / 1h win prevents chain attacks but allows repeated targeting
+    - Status: Working as intended, minor design note
+
+================================================================================
+OBSERVATIONS (NO ACTION NEEDED)
+================================================================================
+
+- P1-D4-024: Catalytique isotope (situational but working)
+- P1-D4-025: Overkill cascade (correct implementation)
+- P1-D4-033: Ionisateur vs. Champdeforce (symmetric + secondary bonuses)
+- P1-D4-034: Prestige combat bonus (correct application)
+- P1-D4-035: Compound synthesis (correct application)
+- P1-D4-036: Specialization modifiers (correct application)
+- P1-D4-037: Catalyst effects (correct application)
+- P1-D4-039: Alliance pillage defense (ally-dependent, working)
+
+================================================================================
+ACTION ITEMS FOR PASS 2
+================================================================================
+
+IMMEDIATE (Next sprint):
+[ ] Increase defense reward ratio from 20% to 30%
+[ ] Extend beginner protection from 3 to 5-7 days
+[ ] Reduce Phalange absorb from 60% to 50%
+
+HIGH PRIORITY:
+[ ] Add counter-mechanics to glass-cannon dominance
+[ ] Buff Stable isotope (HP bonus +30% → +40%)
+[ ] Add pillage tax (10%) OR defensive building
+
+MEDIUM PRIORITY:
+[ ] Increase Embuscade bonus from 25% to 40%
+[ ] Reduce Vault cost scaling
+[ ] Make speed affect cooldown
+
+TESTING REQUIRED:
+[ ] Rebalance tests for formation matchups
+[ ] New player catch-up simulation
+[ ] Wealth concentration analysis (10-season projection)
+
+================================================================================
+MATHEMATICAL VALIDATION
+================================================================================
+
+All calculations in PASS1-DOMAIN4-COMBAT-BALANCE.md verified:
+- Attack/Defense formula symmetry (identical pow(stat, 1.2) + stat)
+- Overkill cascade (sequential damage with overflow carry—correct)
+- Formation damage distributions (Phalange 60% absorb, Dispersée equal split)
+- Isotope modifiers (±10-30% applied multiplicatively—correct)
+- Cooldown system (1-4 hours per outcome—permissive)
+
+================================================================================
+SEVERITY LEGEND
+================================================================================
+
+HIGH:      Game-breaking, affects all players equally, removes player agency
+MEDIUM:    Affects certain playstyles disproportionately, creates imbalance
+LOW:       Affects minority of players, quality-of-life issue, trap choices
+MEDIUM-HIGH: High impact on new player experience, critical for retention
+
+================================================================================
+END OF SUMMARY
+================================================================================
+Full audit report: PASS1-DOMAIN4-COMBAT-BALANCE.md (60 KB)
+All findings use standardized ID format: P1-D4-020 through P1-D4-039
