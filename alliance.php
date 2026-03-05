@@ -34,23 +34,28 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
             $_POST['tagalliance'] = trim($_POST['tagalliance']);
 
             if (preg_match("#^[a-zA-Z0-9_]{3,16}$#", $_POST['tagalliance'])) {
-
-                $allianceCheckRows = dbFetchAll($base, 'SELECT nom FROM alliances WHERE tag=? OR nom=?', 'ss', $_POST['tagalliance'], $_POST['nomalliance']);
-                $nballiance = count($allianceCheckRows);
-
-                if ($nballiance == 0) {
-                    withTransaction($base, function() use ($base) {
-                        dbExecute($base, 'INSERT INTO alliances VALUES (default, ?, ?, ?, default, ?, default, default, default, default, default, default, default, default)', 'ssss',
-                            $_POST['nomalliance'], $_POST['tagalliance'], '', $_SESSION['login']);
-                        $allianceId = mysqli_insert_id($base);
-                        dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $allianceId, $_SESSION['login']);
-                    });
-
-                    logInfo('ALLIANCE', 'Alliance created', ['name' => $_POST['nomalliance'], 'tag' => $_POST['tagalliance'], 'creator' => $_SESSION['login']]);
-                    $information = "Votre équipe a été créée.";
-                    header("Location: alliance.php"); exit;
+                if (mb_strlen($_POST['nomalliance'], 'UTF-8') > 50) {
+                    $erreur = "Le nom de l'alliance est trop long (50 caractères max).";
                 } else {
-                    $erreur = "Une équipe avec ce nom ou ce tag existe déja.";
+                    try {
+                        withTransaction($base, function() use ($base) {
+                            // Re-check inside transaction to prevent race condition
+                            $allianceCheckRows = dbFetchAll($base, 'SELECT nom FROM alliances WHERE tag=? OR nom=?', 'ss', $_POST['tagalliance'], $_POST['nomalliance']);
+                            if (count($allianceCheckRows) > 0) {
+                                throw new \RuntimeException('DUPLICATE');
+                            }
+                            dbExecute($base, 'INSERT INTO alliances VALUES (default, ?, ?, ?, default, ?, default, default, default, default, default, default, default, default)', 'ssss',
+                                $_POST['nomalliance'], $_POST['tagalliance'], '', $_SESSION['login']);
+                            $allianceId = mysqli_insert_id($base);
+                            dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $allianceId, $_SESSION['login']);
+                        });
+
+                        logInfo('ALLIANCE', 'Alliance created', ['name' => $_POST['nomalliance'], 'tag' => $_POST['tagalliance'], 'creator' => $_SESSION['login']]);
+                        $information = "Votre équipe a été créée.";
+                        header("Location: alliance.php"); exit;
+                    } catch (\RuntimeException $e) {
+                        $erreur = "Une équipe avec ce nom ou ce tag existe déja.";
+                    }
                 }
             } else {
                 $erreur = "Le TAG de l'alliance ne peut être composé que de lettres, nombres, \"_\", entre 3 et 16 caractères.";
