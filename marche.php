@@ -328,7 +328,9 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                             }
 
                             if ($numRes == $num) {
-                                $ajout = 1 / (1 / $tabCours[$num] + $volatilite * $actualSold / MARKET_GLOBAL_ECONOMY_DIVISOR);
+                                // Guard against division by zero if price is 0
+                                $currentPrice = max(MARKET_PRICE_FLOOR, $tabCours[$num]);
+                                $ajout = 1 / (1 / $currentPrice + $volatilite * $actualSold / MARKET_GLOBAL_ECONOMY_DIVISOR);
                                 // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
                                 $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
                                 $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;

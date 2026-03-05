@@ -10,6 +10,12 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 		$_POST['titre'] = trim($_POST['titre']);
 		$_POST['destinataire'] = ucfirst(trim($_POST['destinataire']));
 		$_POST['contenu'] = trim($_POST['contenu']);
+		// Length validation to prevent storage abuse
+		if (mb_strlen($_POST['titre'], 'UTF-8') > 200) {
+			$erreur = "Le titre est trop long (200 caractères max).";
+		} elseif (mb_strlen($_POST['contenu'], 'UTF-8') > 10000) {
+			$erreur = "Le message est trop long (10000 caractères max).";
+		} else
 		if ($_POST['destinataire'] == "[alliance]") {
 			// Rate limit: 3 alliance broadcasts per 5 minutes (P5-GAP-022)
 			if (!rateLimitCheck($_SESSION['login'], 'broadcast_alliance', 3, 300)) {

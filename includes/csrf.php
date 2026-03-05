@@ -41,9 +41,13 @@ function csrfCheck() {
             $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
             $parsed = parse_url($referer);
             if (!empty($parsed['host']) && $parsed['host'] !== ($_SERVER['HTTP_HOST'] ?? '')) {
-                $referer = 'index.php';
+                $redirectTo = 'index.php';
+            } else {
+                // Only use the path component, sanitize to a known PHP page
+                $path = basename($parsed['path'] ?? 'index.php');
+                $redirectTo = preg_match('/^[a-zA-Z0-9_-]+\.php$/', $path) ? $path : 'index.php';
             }
-            header('Location: ' . $referer . (strpos($referer, '?') !== false ? '&' : '?') . 'erreur=' . urlencode('Erreur de securite : jeton CSRF invalide. Veuillez rafraichir la page.'));
+            header('Location: ' . $redirectTo . '?erreur=' . urlencode('Erreur de securite : jeton CSRF invalide. Veuillez rafraichir la page.'));
             exit();
         }
     }

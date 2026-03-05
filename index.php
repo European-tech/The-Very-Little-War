@@ -118,7 +118,7 @@ if (!$donnees) {
 
 debutCarte();
 debutAccordion();
-itemAccordion($donnees['titre'], '<img src="images/accueil/newspaper.png" width="44">', $contenuNews);
+itemAccordion(htmlspecialchars($donnees['titre'], ENT_QUOTES, 'UTF-8'), '<img src="images/accueil/newspaper.png" width="44">', $contenuNews);
 finAccordion();
 finCarte();
 
