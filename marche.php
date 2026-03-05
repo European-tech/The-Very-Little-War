@@ -302,7 +302,10 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                             throw new Exception('ENERGY_FULL');
                         }
                         $pricePerAtom = $tabCours[$numRes] * $sellTaxRate;
-                        $maxSellable = floor($energySpace / $pricePerAtom);
+                        if ($pricePerAtom <= 0) {
+                            throw new Exception('INVALID_PRICE');
+                        }
+                        $maxSellable = (int)min(PHP_INT_MAX, floor($energySpace / $pricePerAtom));
                         $actualSold = min($_POST['nombreRessourceAVendre'], $maxSellable, $locked['res']);
                         if ($actualSold <= 0) {
                             throw new Exception('ENERGY_FULL');
