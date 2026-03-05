@@ -3,6 +3,7 @@ include("../includes/connexion.php");
 include("redirectionmotdepasse.php");
 include("../includes/fonctions.php");
 require_once(__DIR__ . '/../includes/csrf.php');
+require_once(__DIR__ . '/../includes/logger.php');
 
 $joueurExiste = 0;
 

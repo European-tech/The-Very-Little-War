@@ -352,6 +352,11 @@ function updateActions($joueur)
                 }
             } else {
                 $nDef = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $actions['defenseur']);
+                if (!$nDef) {
+                    // Defender was deleted — cancel espionage silently
+                    dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                    continue;
+                }
                 // Radar research reduces the neutrino threshold for successful espionage
                 $radarDiscount = 1 - allianceResearchBonus($actions['attaquant'], 'espionage_cost');
                 $espionageThreshold = ($nDef['neutrinos'] * ESPIONAGE_SUCCESS_RATIO) * $radarDiscount;

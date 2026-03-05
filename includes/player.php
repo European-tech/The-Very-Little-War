@@ -1032,44 +1032,50 @@ function remiseAZero()
 function updateLoginStreak($base, $login) {
     global $STREAK_MILESTONES;
     $today = date('Y-m-d');
+    $result = ['streak' => 0, 'pp_earned' => 0, 'milestone' => false];
 
-    $row = dbFetchOne($base, 'SELECT streak_days, streak_last_date FROM autre WHERE login = ?', 's', $login);
-    if (!$row) return ['streak' => 0, 'pp_earned' => 0, 'milestone' => false];
+    withTransaction($base, function() use ($base, $login, $today, $STREAK_MILESTONES, &$result) {
+        $row = dbFetchOne($base, 'SELECT streak_days, streak_last_date FROM autre WHERE login = ? FOR UPDATE', 's', $login);
+        if (!$row) return;
 
-    $lastDate = $row['streak_last_date'];
-    $currentStreak = (int)$row['streak_days'];
+        $lastDate = $row['streak_last_date'];
+        $currentStreak = (int)$row['streak_days'];
 
-    // Already logged in today
-    if ($lastDate === $today) {
-        return ['streak' => $currentStreak, 'pp_earned' => 0, 'milestone' => false];
-    }
+        // Already logged in today
+        if ($lastDate === $today) {
+            $result = ['streak' => $currentStreak, 'pp_earned' => 0, 'milestone' => false];
+            return;
+        }
 
-    $yesterday = date('Y-m-d', strtotime('-1 day'));
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
 
-    if ($lastDate === $yesterday) {
-        $currentStreak++;
-    } else {
-        $currentStreak = 1;
-    }
+        if ($lastDate === $yesterday) {
+            $currentStreak++;
+        } else {
+            $currentStreak = 1;
+        }
 
-    dbExecute($base, 'UPDATE autre SET streak_days = ?, streak_last_date = ? WHERE login = ?',
-        'iss', $currentStreak, $today, $login);
+        dbExecute($base, 'UPDATE autre SET streak_days = ?, streak_last_date = ? WHERE login = ?',
+            'iss', $currentStreak, $today, $login);
 
-    // Calculate PP earned
-    $ppEarned = 0;
-    $isMilestone = false;
-    if (isset($STREAK_MILESTONES[$currentStreak])) {
-        $ppEarned = $STREAK_MILESTONES[$currentStreak];
-        $isMilestone = true;
-    } elseif ($currentStreak >= 1) {
-        $ppEarned = STREAK_REWARD_DAY_1;
-    }
+        // Calculate PP earned
+        $ppEarned = 0;
+        $isMilestone = false;
+        if (isset($STREAK_MILESTONES[$currentStreak])) {
+            $ppEarned = $STREAK_MILESTONES[$currentStreak];
+            $isMilestone = true;
+        } elseif ($currentStreak >= 1) {
+            $ppEarned = STREAK_REWARD_DAY_1;
+        }
 
-    if ($ppEarned > 0) {
-        dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $login, $ppEarned, $ppEarned);
-    }
+        if ($ppEarned > 0) {
+            dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $login, $ppEarned, $ppEarned);
+        }
 
-    return ['streak' => $currentStreak, 'pp_earned' => $ppEarned, 'milestone' => $isMilestone];
+        $result = ['streak' => $currentStreak, 'pp_earned' => $ppEarned, 'milestone' => $isMilestone];
+    });
+
+    return $result;
 }
 
 /**

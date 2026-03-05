@@ -74,7 +74,9 @@ if (isset($_POST['joueurAAttaquer'])) {
         if ($_POST['joueurAAttaquer'] != $_SESSION['login']) {
 
             $enVac = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
-
+            if (!$enVac) {
+                $erreur = "Ce joueur n'existe pas.";
+            } else {
             // Prevent attacking alliance members
             $attackerAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
             $defenderAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_POST['joueurAAttaquer']);
@@ -209,6 +211,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                 }
                 } // end cooldown else
             }
+            } // end $enVac null check
         } else {
             $erreur = "Vous ne pouvez pas vous attaquer.";
         }

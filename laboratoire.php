@@ -1,5 +1,6 @@
 <?php
 include("includes/basicprivatephp.php");
+include("includes/redirectionVacance.php");
 require_once("includes/compounds.php");
 
 // Handle synthesis

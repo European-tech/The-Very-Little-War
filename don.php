@@ -1,5 +1,6 @@
 <?php
 include("includes/basicprivatephp.php");
+include("includes/redirectionVacance.php");
 
 if(isset($_POST['energieEnvoyee'])) {
 	csrfCheck();

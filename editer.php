@@ -103,7 +103,7 @@ if ($id > 0 AND $type > 0) {
 	// Modification du sujet ou d'un message
 	$reponse = dbFetchOne($base, $type == 1 ? 'SELECT * FROM sujets WHERE id = ?' : 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
 	$nbReponses = $reponse ? 1 : 0;
-	if ($id != 1 && $type == 2) { // si c'est un message il n'y a pas de titre
+	if ($type == 2) { // si c'est un message (reply) il n'y a pas de titre
 		$reponse['titre'] = "";
 	}
 

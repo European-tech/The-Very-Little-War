@@ -30,7 +30,7 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
 
             dbExecute($base, 'DELETE FROM actionsformation WHERE login=? AND idclasse=?', 'si', $login, $moleculeId);
             $nvxDebut = time();
-            $actuActionsRows = dbFetchAll($base, 'SELECT * FROM actionsformation WHERE login=?', 's', $login);
+            $actuActionsRows = dbFetchAll($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY debut ASC', 's', $login);
             foreach ($actuActionsRows as $actionsformation) {
                 if (time() < $actionsformation['debut']) {
                     $newFin = $nvxDebut + $actionsformation['nombreRestant'] * $actionsformation['tempsPourUn'];

@@ -64,9 +64,11 @@ if (isset($_GET['id'])) {
 	$_POST['id'] = (int)$_POST['id'];
 	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=?', 'i', $_POST['id']);
 } else {
-	$message['contenu'] = "";
-	$message['expeditaire'] = "";
-	$message['destinataire'] = $_SESSION['login'];
+	$message = null;
+}
+
+if (!$message) {
+	$message = ['contenu' => '', 'expeditaire' => '', 'destinataire' => $_SESSION['login']];
 }
 
 if ($message['destinataire'] != $_SESSION['login']) {
