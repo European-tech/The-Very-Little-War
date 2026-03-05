@@ -33,7 +33,7 @@ if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 // Si on souhaite masquer un message - moderator only (P5-GAP-014)
 if ($type == 5 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
-	if ($moderateur && $moderateur['moderateur'] == '0') {
+	if ($moderateur && $moderateur['moderateur'] != '0') {
 		dbExecute($base, 'UPDATE reponses SET visibilite = 0 WHERE id = ?', 'i', $id);
 		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
 		header("Location: sujet.php?id=" . (int)$sujetId); exit;
@@ -42,7 +42,7 @@ if ($type == 5 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 // Si on souhaite afficher un message - moderator only (P5-GAP-014)
 if ($type == 4 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
-	if ($moderateur && $moderateur['moderateur'] == '0') {
+	if ($moderateur && $moderateur['moderateur'] != '0') {
 		dbExecute($base, 'UPDATE reponses SET visibilite = 1 WHERE id = ?', 'i', $id);
 		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
 		header("Location: sujet.php?id=" . (int)$sujetId); exit;

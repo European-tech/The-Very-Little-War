@@ -50,8 +50,9 @@ function calculatePrestigePoints($login) {
     $pp = 0;
 
     // Check if player was active in the final week (logged in within last 7 days)
-    $lastActive = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login=?', 's', $login);
-    if ($lastActive && (time() - $lastActive['timestamp']) < SECONDS_PER_WEEK) {
+    // Note: 'derniereConnexion' is updated on each page load; 'timestamp' is only set at registration/reset
+    $lastActive = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login=?', 's', $login);
+    if ($lastActive && (time() - $lastActive['derniereConnexion']) < SECONDS_PER_WEEK) {
         $pp += PRESTIGE_PP_ACTIVE_FINAL_WEEK;
     }
 

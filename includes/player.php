@@ -57,6 +57,7 @@ function inscrire($pseudo, $mdp, $mail)
 	(default, default, default, default, default, default,default, default, default, default, 3, ?, default),
 	(default , default, default, default, default, default,default, default, default, default, 4, ?, default)', 'ssss', $safePseudo, $safePseudo, $safePseudo, $safePseudo);
         dbExecute($base, 'INSERT INTO constructions VALUES(?, default, default, default, default, default, default, default, default, ?, ?, ?,?,default,default,default,default)', 'sdddd', $safePseudo, $vieGen, $vieCDF, $vieGen, $vieGen);
+        dbExecute($base, 'INSERT IGNORE INTO prestige (login) VALUES(?)', 's', $safePseudo);
     });
 }
 
