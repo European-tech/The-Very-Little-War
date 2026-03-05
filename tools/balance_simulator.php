@@ -1,4 +1,8 @@
 <?php
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('CLI only');
+}
 /**
  * TVLW Balance Simulator v1.0
  * Explores game formula parameter space to identify balance issues.
