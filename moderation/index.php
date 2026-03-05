@@ -103,41 +103,44 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 
 						$verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login = ?', 's', $_POST['destinataire']);
 						if ($verification['joueurOuPas'] == 1) {
-							$ressourcesDestinataire = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ?', 's', $_POST['destinataire']);
+							// Wrap resource grant + audit log in transaction (P5-GAP-027)
+							withTransaction($base, function() use ($base, $nomsRes) {
+								$ressourcesDestinataire = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ? FOR UPDATE', 's', $_POST['destinataire']);
 
-							// Build dynamic UPDATE for ressources using prepared statements
-							$setParts = ['energie = ?'];
-							$types = 'd';
-							$params = [round($ressourcesDestinataire['energie'] + (int)$_POST['energieEnvoyee'])];
+								// Build dynamic UPDATE for ressources using prepared statements
+								$setParts = ['energie = ?'];
+								$types = 'd';
+								$params = [round($ressourcesDestinataire['energie'] + (int)$_POST['energieEnvoyee'])];
 
-							foreach ($nomsRes as $num => $ressource) {
-								$setParts[] = $ressource . ' = ?';
-								$types .= 'd';
-								$params[] = round($ressourcesDestinataire[$ressource] + (int)$_POST[$ressource . 'Envoyee']);
-							}
+								foreach ($nomsRes as $num => $ressource) {
+									$setParts[] = $ressource . ' = ?';
+									$types .= 'd';
+									$params[] = round($ressourcesDestinataire[$ressource] + (int)$_POST[$ressource . 'Envoyee']);
+								}
 
-							$types .= 's';
-							$params[] = $_POST['destinataire'];
+								$types .= 's';
+								$params[] = $_POST['destinataire'];
 
-							dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setParts) . ' WHERE login = ?', $types, ...$params);
+								dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setParts) . ' WHERE login = ?', $types, ...$params);
 
-							// Build INSERT for moderation log using prepared statements
-							$insertCols = 'default, ?, ?';
-							$insertTypes = 'si';
-							$insertParams = [$_POST['destinataire'], (int)$_POST['energieEnvoyee']];
+								// Build INSERT for moderation log using prepared statements
+								$insertCols = 'default, ?, ?';
+								$insertTypes = 'si';
+								$insertParams = [$_POST['destinataire'], (int)$_POST['energieEnvoyee']];
 
-							foreach ($nomsRes as $num => $ressource) {
+								foreach ($nomsRes as $num => $ressource) {
+									$insertCols .= ', ?';
+									$insertTypes .= 'i';
+									$insertParams[] = (int)$_POST[$ressource . 'Envoyee'];
+								}
+
 								$insertCols .= ', ?';
-								$insertTypes .= 'i';
-								$insertParams[] = (int)$_POST[$ressource . 'Envoyee'];
-							}
+								$insertTypes .= 's';
+								$justification = htmlentities(trim($_POST['justification']), ENT_QUOTES, 'UTF-8');
+								$insertParams[] = $justification;
 
-							$insertCols .= ', ?';
-							$insertTypes .= 's';
-							$justification = htmlentities(trim($_POST['justification']), ENT_QUOTES, 'UTF-8');
-							$insertParams[] = $justification;
-
-							dbExecute($base, 'INSERT INTO moderation VALUES(' . $insertCols . ')', $insertTypes, ...$insertParams);
+								dbExecute($base, 'INSERT INTO moderation VALUES(' . $insertCols . ')', $insertTypes, ...$insertParams);
+							}); // end withTransaction
 
 							$chaine = "";
 							foreach ($nomsRes as $num => $ressource) {
