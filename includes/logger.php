@@ -27,7 +27,9 @@ function gameLog($level, $category, $message, $context = []) {
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
     $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
-    $line = "[$timestamp] [$levelName] [$category] [$login@$ip] $message$contextStr\n";
+    $safeCategory = str_replace(["\r", "\n"], ' ', $category);
+    $safeMessage = str_replace(["\r", "\n"], ' ', $message);
+    $line = "[$timestamp] [$levelName] [$safeCategory] [$login@$ip] $safeMessage$contextStr\n";
 
     $filename = LOG_DIR . '/' . date('Y-m-d') . '.log';
     file_put_contents($filename, $line, FILE_APPEND | LOCK_EX);

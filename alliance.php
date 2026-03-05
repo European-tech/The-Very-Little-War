@@ -89,13 +89,15 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
         csrfCheck();
         $allianceId = $idalliance['idalliance'];
         try {
-            $newLevel = withTransaction($base, function() use ($base, $allianceId, $cout) {
+            $newLevel = withTransaction($base, function() use ($base, $allianceId) {
                 $row = dbFetchOne($base, 'SELECT duplicateur, energieAlliance FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceId);
-                if (!$row || $row['energieAlliance'] < $cout) {
+                if (!$row) throw new \RuntimeException('Insufficient energy');
+                $lockedCout = round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, ($row['duplicateur'] + 1)) * (1 - catalystEffect('duplicateur_discount')));
+                if ($row['energieAlliance'] < $lockedCout) {
                     throw new \RuntimeException('Insufficient energy');
                 }
                 $newDup = $row['duplicateur'] + 1;
-                $newEnergie = $row['energieAlliance'] - $cout;
+                $newEnergie = $row['energieAlliance'] - $lockedCout;
                 dbExecute($base, 'UPDATE alliances SET duplicateur=?, energieAlliance=? WHERE id=?', 'idi', $newDup, $newEnergie, $allianceId);
                 return $newDup;
             });

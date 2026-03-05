@@ -332,13 +332,13 @@ function creerBBcode($nomTextArea, $interieur = NULL, $reponse = 0)
 
 function transformInt($nombre)
 {
-    $nombre = preg_replace('#K#i', '000', $nombre);
-    $nombre = preg_replace('#M#i', '000000', $nombre);
-    $nombre = preg_replace('#G#i', '000000000', $nombre);
-    $nombre = preg_replace('#T#i', '000000000000', $nombre);
-    $nombre = preg_replace('#P#i', '000000000000000', $nombre);
-    $nombre = preg_replace('#E#i', '000000000000000000', $nombre);
-    $nombre = preg_replace('#Z#i', '000000000000000000000', $nombre);
-    $nombre = preg_replace('#Y#i', '000000000000000000000000', $nombre);
+    $nombre = preg_replace('#K$#i', '000', $nombre);
+    $nombre = preg_replace('#M$#i', '000000', $nombre);
+    $nombre = preg_replace('#G$#i', '000000000', $nombre);
+    $nombre = preg_replace('#T$#i', '000000000000', $nombre);
+    $nombre = preg_replace('#P$#i', '000000000000000', $nombre);
+    $nombre = preg_replace('#E$#i', '000000000000000000', $nombre);
+    $nombre = preg_replace('#Z$#i', '000000000000000000000', $nombre);
+    $nombre = preg_replace('#Y$#i', '000000000000000000000000', $nombre);
     return $nombre;
 }

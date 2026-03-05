@@ -27,6 +27,10 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
     if (!empty($_POST['destinataire'])) {
         $_POST['destinataire'] = trim($_POST['destinataire']);
 
+        $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=?', 's', $_POST['destinataire']);
+        if (!$verification || $verification['joueurOuPas'] != 1) {
+            $erreur = "Le destinataire n'existe pas.";
+        } else {
         $ipdd = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_POST['destinataire']);
         $ipmm = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
 
@@ -168,6 +172,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
         } else {
             $erreur = "Impossible d'envoyer des ressources à ce joueur. Même adresse IP.";
         }
+        } // end recipient exists check
     } else {
         $erreur = "Vous n'avez pas entré de destinataire.";
     }

@@ -24,7 +24,17 @@ $_GET['id'] = trim($_GET['id']);
 if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 	csrfCheck();
 	if (isset($_SESSION['login'])) {
-		if (!empty($_POST['titre']) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= 10000 and mb_strlen($_POST['titre']) <= 200) {
+		// Check if poster is banned from forum
+		$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+		if ($banCheck) {
+			$diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $banCheck['dateFin']);
+			if ($diff['d'] >= 0) {
+				dbExecute($base, 'DELETE FROM sanctions WHERE id = ?', 'i', $banCheck['id']);
+			} else {
+				$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
+			}
+		}
+		if (empty($erreur) && !empty($_POST['titre']) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= 10000 and mb_strlen($_POST['titre']) <= 200) {
 			$timestamp = time();
 			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $timestamp);
 			$sujetId = mysqli_insert_id($base);

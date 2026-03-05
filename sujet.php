@@ -87,6 +87,10 @@ if (isset($_GET['id'])) {
 	//
 
 	$sujet = dbFetchOne($base, 'SELECT * FROM sujets WHERE id = ?', 'i', $getId);
+	if (!$sujet) {
+		header('Location: forum.php');
+		exit();
+	}
 
 	$javascript = false;
 	if ($sujet['idforum'] == 8) {

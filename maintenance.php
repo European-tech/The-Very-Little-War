@@ -1,5 +1,7 @@
 <?php include("includes/connexion.php");
 include("includes/fonctions.php");
+require_once("includes/csp.php");
+require_once("includes/session_init.php");
 
 include("includes/layout.php");
 debutCarte("Maintenance");

@@ -45,7 +45,7 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                     if ($autreRow['neutrinos'] < $_POST['nombreneutrinos']) {
                         throw new \RuntimeException('NOT_ENOUGH_NEUTRINOS');
                     }
-                    dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,?,?)', 'ssiiiisi',
+                    dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,?,?)', 'ssiiisii',
                         $_SESSION['login'], $_POST['joueurAEspionner'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), "Espionnage", 0, $_POST['nombreneutrinos']);
                     $newNeutrinos = $autreRow['neutrinos'] - $_POST['nombreneutrinos'];
                     dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $_SESSION['login']);

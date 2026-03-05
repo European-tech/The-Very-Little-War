@@ -40,7 +40,7 @@ if (isset($_GET['id'])) {
 		?>
 		<br/>
 		<img style="margin-right: 20px; float: right; border-radius: 10px;width:80px;" alt="profil" src="images/profil/<?php echo htmlspecialchars($donnees1['image'], ENT_QUOTES, 'UTF-8'); ?>"/>
-       <?php if($donnees3['idalliance'] > 0) { $alliance = alliance($donnees2['tag']); } else { $alliance = "Pas d'alliance";}
+       <?php if($donnees3['idalliance'] > 0 && $donnees2) { $alliance = alliance($donnees2['tag']); } else { $alliance = "Pas d'alliance";}
         
         $playerPoints = dbFetchOne($base, 'SELECT totalPoints FROM autre WHERE login=?', 's', $membre['login']);
         $rangData = dbFetchOne($base, 'SELECT COUNT(*) + 1 AS rang FROM autre WHERE totalPoints > ?', 'd', $playerPoints['totalPoints']);

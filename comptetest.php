@@ -37,7 +37,7 @@ if (isset($_GET['inscription'])) {
 	}
 } else {
 	// Must be logged in as a visitor to rename
-	if (!isset($_SESSION['login'])) {
+	if (!isset($_SESSION['login']) || !preg_match('/^Visiteur[0-9]+$/i', $_SESSION['login'])) {
 		header('Location: index.php');
 		exit();
 	}
