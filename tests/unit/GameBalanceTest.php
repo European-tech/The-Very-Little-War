@@ -326,6 +326,22 @@ class GameBalanceTest extends TestCase
             'Beginner protection should be at least 5 days');
     }
 
+    public function testStreakMilestonesAreDefined(): void
+    {
+        global $STREAK_MILESTONES;
+        $this->assertNotEmpty($STREAK_MILESTONES);
+        $this->assertArrayHasKey(1, $STREAK_MILESTONES);
+        $this->assertArrayHasKey(7, $STREAK_MILESTONES);
+        $this->assertArrayHasKey(28, $STREAK_MILESTONES);
+    }
+
+    public function testStreakRewardsEscalate(): void
+    {
+        $this->assertLessThan(STREAK_REWARD_DAY_7, STREAK_REWARD_DAY_3);
+        $this->assertLessThan(STREAK_REWARD_DAY_14, STREAK_REWARD_DAY_7);
+        $this->assertLessThan(STREAK_REWARD_DAY_28, STREAK_REWARD_DAY_14);
+    }
+
     public function testPointsPillageCapsTanhAsymptote(): void
     {
         // pointsPillage uses tanh which asymptotes to PILLAGE_POINTS_MULTIPLIER (80)

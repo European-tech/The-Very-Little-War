@@ -114,6 +114,14 @@ else {
     }
 }
 
+// Daily login streak (P1-D8-041)
+if (isset($_SESSION['login'])) {
+    $streakResult = updateLoginStreak($base, $_SESSION['login']);
+    if ($streakResult['milestone']) {
+        $_SESSION['streak_milestone'] = $streakResult;
+    }
+}
+
 //////////////////////////////////////////////////////////// Gestion des ressources
 //Vérification si nouveau mois le lendemain
 $debutRow = dbFetchOne($base, 'SELECT debut FROM statistiques');

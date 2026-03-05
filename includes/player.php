@@ -976,3 +976,50 @@ function remiseAZero()
         dbExecute($base, 'DELETE FROM attack_cooldowns');
     });
 }
+
+/**
+ * Update daily login streak. Call once per page load (guarded by date check).
+ * Returns array ['streak' => int, 'pp_earned' => int, 'milestone' => bool]
+ */
+function updateLoginStreak($base, $login) {
+    global $STREAK_MILESTONES;
+    $today = date('Y-m-d');
+
+    $row = dbFetchOne($base, 'SELECT streak_days, streak_last_date FROM autre WHERE login = ?', 's', $login);
+    if (!$row) return ['streak' => 0, 'pp_earned' => 0, 'milestone' => false];
+
+    $lastDate = $row['streak_last_date'];
+    $currentStreak = (int)$row['streak_days'];
+
+    // Already logged in today
+    if ($lastDate === $today) {
+        return ['streak' => $currentStreak, 'pp_earned' => 0, 'milestone' => false];
+    }
+
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+
+    if ($lastDate === $yesterday) {
+        $currentStreak++;
+    } else {
+        $currentStreak = 1;
+    }
+
+    dbExecute($base, 'UPDATE autre SET streak_days = ?, streak_last_date = ? WHERE login = ?',
+        'iss', $currentStreak, $today, $login);
+
+    // Calculate PP earned
+    $ppEarned = 0;
+    $isMilestone = false;
+    if (isset($STREAK_MILESTONES[$currentStreak])) {
+        $ppEarned = $STREAK_MILESTONES[$currentStreak];
+        $isMilestone = true;
+    } elseif ($currentStreak >= 1) {
+        $ppEarned = STREAK_REWARD_DAY_1;
+    }
+
+    if ($ppEarned > 0) {
+        dbExecute($base, 'UPDATE autre SET points = points + ? WHERE login = ?', 'is', $ppEarned, $login);
+    }
+
+    return ['streak' => $currentStreak, 'pp_earned' => $ppEarned, 'milestone' => $isMilestone];
+}

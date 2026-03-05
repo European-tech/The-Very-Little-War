@@ -38,6 +38,41 @@ debutCarte("Points de Prestige");
     finContent();
 finCarte();
 
+// ------- Section 1b: Login Streak -------
+<?php
+$streakRow = dbFetchOne($base, 'SELECT streak_days, streak_last_date FROM autre WHERE login = ?', 's', $_SESSION['login']);
+$currentStreak = $streakRow ? (int)$streakRow['streak_days'] : 0;
+$nextMilestone = null;
+$nextReward = 0;
+foreach ($STREAK_MILESTONES as $day => $reward) {
+    if ($day > $currentStreak) {
+        $nextMilestone = $day;
+        $nextReward = $reward;
+        break;
+    }
+}
+?>
+<div class="card">
+    <div class="card-header">Connexion quotidienne</div>
+    <div class="card-content card-content-padding">
+        <p><strong>Serie actuelle :</strong> <?= $currentStreak ?> jour<?= $currentStreak > 1 ? 's' : '' ?></p>
+        <?php if ($nextMilestone): ?>
+        <p>Prochain palier : <strong><?= $nextMilestone ?> jours</strong> (+<?= $nextReward ?> PP)</p>
+        <div class="progressbar" data-progress="<?= min(100, round($currentStreak / $nextMilestone * 100)) ?>">
+            <span></span>
+        </div>
+        <?php else: ?>
+        <p>Tous les paliers atteints !</p>
+        <?php endif; ?>
+        <p class="text-color-gray" style="margin-top:8px;font-size:12px;">
+            Connectez-vous chaque jour pour accumuler des PP bonus.
+            Paliers : 3j (+<?= STREAK_REWARD_DAY_3 ?>PP), 7j (+<?= STREAK_REWARD_DAY_7 ?>PP),
+            14j (+<?= STREAK_REWARD_DAY_14 ?>PP), 21j (+<?= STREAK_REWARD_DAY_21 ?>PP),
+            28j (+<?= STREAK_REWARD_DAY_28 ?>PP)
+        </p>
+    </div>
+</div>
+<?php
 // ------- Section 2: Active Bonuses -------
 debutCarte("Bonus actifs");
     debutListe();

@@ -559,6 +559,22 @@ $PRESTIGE_RANK_BONUSES = [
     50 => 10,  // Top 50
 ];
 
+// === DAILY LOGIN STREAK (P1-D8-041) ===
+define('STREAK_REWARD_DAY_1', 1);    // PP for logging in (any day)
+define('STREAK_REWARD_DAY_3', 2);    // PP bonus at 3-day streak
+define('STREAK_REWARD_DAY_7', 5);    // PP bonus at 7-day streak
+define('STREAK_REWARD_DAY_14', 10);  // PP bonus at 14-day streak
+define('STREAK_REWARD_DAY_21', 15);  // PP bonus at 21-day streak
+define('STREAK_REWARD_DAY_28', 25);  // PP bonus at full month streak
+$STREAK_MILESTONES = [
+    1  => STREAK_REWARD_DAY_1,
+    3  => STREAK_REWARD_DAY_3,
+    7  => STREAK_REWARD_DAY_7,
+    14 => STREAK_REWARD_DAY_14,
+    21 => STREAK_REWARD_DAY_21,
+    28 => STREAK_REWARD_DAY_28,
+];
+
 // =============================================================================
 // SESSION & SECURITY
 // =============================================================================
