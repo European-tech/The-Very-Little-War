@@ -104,6 +104,10 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
     if (isset($_POST['nombremolecules']) and !empty($_POST['nombremolecules']) and preg_match("#^[0-9]*$#", $_POST['nombremolecules'])) {
         $_POST['nombremolecules'] = intval($_POST['nombremolecules']);
         $nombreMolecules = $_POST['nombremolecules'];
+        if ($nombreMolecules > 1000000) {
+            $erreur = "Le nombre de molécules demandé est trop élevé.";
+            $nombreMolecules = 0;
+        }
         $emplacementFormer = $_POST['emplacementmoleculeformer'];
         $login = $_SESSION['login'];
         // V4: Fetch lieur level and azote (nitrogen) level for tempsFormation
@@ -126,7 +130,7 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
                     $total = $total + $donneesFormer[$ressource];
                 }
 
-                $actionsformationRow = dbFetchOne($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY fin DESC', 's', $login);
+                $actionsformationRow = dbFetchOne($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY fin DESC FOR UPDATE', 's', $login);
                 $nb = $actionsformationRow ? 1 : 0;
                 if ($nb > 0) {
                     $actionsformation = $actionsformationRow;

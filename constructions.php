@@ -319,6 +319,9 @@ function traitementConstructions($liste)
                     }
 
                     $newNiveau = $niveauActuel['niveau'] + 1;
+                    if ($newNiveau > MAX_BUILDING_LEVEL) {
+                        $erreur = "Niveau maximum atteint (" . MAX_BUILDING_LEVEL . ")."; return;
+                    }
                     $adjustedConstructionTime = round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')));
                     $finTemps = $tempsDebut + $adjustedConstructionTime;
                     dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siissii',

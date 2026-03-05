@@ -54,16 +54,18 @@ function synthesizeCompound($base, $login, $compoundKey)
         return "Composé inconnu.";
     }
 
-    if (countStoredCompounds($base, $login) >= COMPOUND_MAX_STORED) {
-        return "Stock plein (maximum " . COMPOUND_MAX_STORED . " composés).";
-    }
-
     $compound = $COMPOUNDS[$compoundKey];
     $recipe = $compound['recipe'];
 
-    // All resource checks and deductions inside transaction to prevent TOCTOU race
+    // All checks and deductions inside transaction to prevent TOCTOU race
     try {
         withTransaction($base, function() use ($base, $login, $recipe, $compoundKey) {
+            // Check storage limit inside transaction to prevent TOCTOU race
+            $storedCount = countStoredCompounds($base, $login);
+            if ($storedCount >= COMPOUND_MAX_STORED) {
+                throw new \RuntimeException('STORAGE_FULL');
+            }
+
             // Lock resources row to prevent concurrent double-spend
             $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ? FOR UPDATE', 's', $login);
             if (!$ressources) {
@@ -91,6 +93,9 @@ function synthesizeCompound($base, $login, $compoundKey)
         $msg = $e->getMessage();
         if ($msg === 'PLAYER_NOT_FOUND') {
             return "Joueur introuvable.";
+        }
+        if ($msg === 'STORAGE_FULL') {
+            return "Stock plein (maximum " . COMPOUND_MAX_STORED . " composés).";
         }
         if (str_starts_with($msg, 'INSUFFICIENT_')) {
             $parts = explode(':', $msg);

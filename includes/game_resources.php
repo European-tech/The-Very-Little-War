@@ -225,12 +225,12 @@ function updateRessources($joueur)
     $totalMoleculesPerdues = 0;
     foreach ($moleculesRows as $molecules) {
 
-        $moleculesRestantes = (pow(coefDisparition($joueur, $compteur + 1), $nbsecondes) * $molecules['nombre']);
+        $moleculesRestantes = max(0, floor(pow(coefDisparition($joueur, $compteur + 1), $nbsecondes) * $molecules['nombre']));
         ${'nombre' . ($compteur + 1)} = $molecules['nombre'];
 
         dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $moleculesRestantes, $molecules['id']);
 
-        $totalMoleculesPerdues += ($molecules['nombre'] - $moleculesRestantes);
+        $totalMoleculesPerdues += max(0, $molecules['nombre'] - $moleculesRestantes);
 
         $compteur++;
     }

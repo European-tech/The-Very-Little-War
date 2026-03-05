@@ -230,8 +230,9 @@ if ($pacte) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $_POST['allie']);
 			dbExecute($base, 'DELETE FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=1', 'iiii', $chef['id'], $allianceAdverse['id'], $chef['id'], $allianceAdverse['id']);
 			$now = time();
-			$rapportTitre = 'L\'alliance ' . $chef['tag'] . ' met fin au pacte qui vous alliait.';
-			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chef['tag'] . '">' . $chef['tag'] . '</a> met fin au pacte qui vous alliait.';
+			$safePacteTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
+			$rapportTitre = 'L\'alliance ' . $safePacteTag . ' met fin au pacte qui vous alliait.';
+			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safePacteTag . '</a> met fin au pacte qui vous alliait.';
 			dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
 			$information = "Le pacte avec " . $allianceAdverse['tag'] . " est bien rompu.";
 		} else {
@@ -288,8 +289,9 @@ if ($guerre) {
 
 			$now = time();
 			dbExecute($base, 'UPDATE declarations SET fin=? WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND fin=0 AND type=0', 'iiiii', $now, $chef['id'], $allianceAdverse['id'], $chef['id'], $allianceAdverse['id']);
-			$rapportTitre = 'L\'alliance ' . $chef['tag'] . ' met fin à la guerre qui vous opposait.';
-			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . $chef['tag'] . '">' . $chef['tag'] . '</a> met fin à la guerre qui vous opposait.';
+			$safeWarTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
+			$rapportTitre = 'L\'alliance ' . $safeWarTag . ' met fin à la guerre qui vous opposait.';
+			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeWarTag . '</a> met fin à la guerre qui vous opposait.';
 			dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
 			$information = "La guerre contre " . $allianceAdverse['tag'] . " a pris fin.";
 		} else {
