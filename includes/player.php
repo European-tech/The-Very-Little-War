@@ -830,21 +830,23 @@ function archiveSeasonData($base)
          ORDER BY a.totalPoints DESC', '', '');
 
     $rank = 0;
-    foreach ($allPlayers as $p) {
-        $rank++;
-        dbExecute($base,
-            'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
-             points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
-             molecules_perdues, alliance_name, streak_max) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-            'isiiiidiiidsi',
-            $nextSeason, $p['login'], $rank, (int)$p['totalPoints'],
-            (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
-            (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
-            (int)$p['nbattaques'], (int)$p['victoires'],
-            (float)$p['moleculesPerdues'], $p['alliance_name'] ?? '',
-            (int)($p['streak_days'] ?? 0)
-        );
-    }
+    withTransaction($base, function() use ($base, $allPlayers, &$rank, $nextSeason) {
+        foreach ($allPlayers as $p) {
+            $rank++;
+            dbExecute($base,
+                'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
+                 points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
+                 molecules_perdues, alliance_name, streak_max) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                'isiiiidiiidsi',
+                $nextSeason, $p['login'], $rank, (int)$p['totalPoints'],
+                (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
+                (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
+                (int)$p['nbattaques'], (int)$p['victoires'],
+                (float)$p['moleculesPerdues'], $p['alliance_name'] ?? '',
+                (int)($p['streak_days'] ?? 0)
+            );
+        }
+    });
 
     logInfo('SEASON', 'Season data archived', ['season' => $nextSeason, 'players' => $rank]);
     return $nextSeason;

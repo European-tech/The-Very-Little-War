@@ -337,7 +337,7 @@ function traitementConstructions($liste)
                     }
                     $adjustedConstructionTime = round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')));
                     $finTemps = $tempsDebut + $adjustedConstructionTime;
-                    dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siissii',
+                    dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siisisi',
                         $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
 
                     dbExecute($base, 'UPDATE autre SET energieDepensee = energieDepensee + ? WHERE login=?', 'ds', $liste['coutEnergie'], $_SESSION['login']);

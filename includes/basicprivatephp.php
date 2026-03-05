@@ -167,12 +167,13 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     try {
     // Full season-end flow: archive, VP, prestige, reset, news
     $vainqueurManche = performSeasonEnd();
-
-    // Reset complete, disable maintenance mode BEFORE emails
-    // so game stays accessible even if email loop hangs or times out
-    dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
+    } catch (Exception $e) {
+    // Season reset failed — clear maintenance so game isn't permanently locked
+    logError('SEASON', 'performSeasonEnd() failed: ' . $e->getMessage());
     } finally {
-    // Always release the advisory lock, even if performSeasonEnd() throws
+    // Always clear maintenance and release lock, even on failure
+    // A failed reset is better than a permanently locked game
+    dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
     dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
     }
 

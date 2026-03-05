@@ -69,15 +69,15 @@ function updateActions($joueur)
                 $derniereFormation = ($actions['nombreDebut'] - $actions['nombreRestant']) * $actions['tempsPourUn'] + $actions['debut'];
                 $formed = floor((time() - $derniereFormation) / $actions['tempsPourUn']);
                 if ($actions['idclasse'] != 'neutrino') {
-                    dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ds', ($molecule['nombre'] + $formed), $actions['idclasse']);
+                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ds', $formed, $actions['idclasse']);
                 } else {
                     dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'ds', $formed, $joueur);
                 }
-                dbExecute($base, 'UPDATE actionsformation SET nombreRestant=? WHERE id=?', 'di', ($actions['nombreRestant'] - $formed), $actions['id']);
+                dbExecute($base, 'UPDATE actionsformation SET nombreRestant = nombreRestant - ? WHERE id=?', 'di', $formed, $actions['id']);
             } else {
                 dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
                 if ($actions['idclasse'] != 'neutrino') {
-                    dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ds', ($molecule['nombre'] + $actions['nombreRestant']), $actions['idclasse']);
+                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ds', $actions['nombreRestant'], $actions['idclasse']);
                 } else {
                     dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'ds', $actions['nombreRestant'], $joueur);
                 }
