@@ -603,6 +603,7 @@ define('RESOURCE_NODE_MAX_COUNT', 25);
 define('RESOURCE_NODE_DEFAULT_BONUS_PCT', 10.0);  // % production bonus
 define('RESOURCE_NODE_DEFAULT_RADIUS', 5);         // effect radius in map tiles
 define('RESOURCE_NODE_MIN_DISTANCE', 3);           // minimum distance between nodes
+define('RESOURCE_NODE_MAX_BONUS_PCT', 50.0);       // max stacked node bonus (50%)
 
 // =============================================================================
 // TUTORIAL

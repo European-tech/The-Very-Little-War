@@ -105,7 +105,7 @@ function getResourceNodeBonus($base, $px, $py, $resourceName)
         }
     }
 
-    return $totalBonus;
+    return min($totalBonus, RESOURCE_NODE_MAX_BONUS_PCT / 100.0);
 }
 
 /**
