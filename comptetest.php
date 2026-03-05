@@ -64,6 +64,11 @@ if (isset($_GET['inscription'])) {
 
 						// Wrap all 15 table renames in a transaction for atomicity
 						withTransaction($base, function() use ($base, $newLogin, $oldLogin, $hashedPassword, $email) {
+							// Lock source row to prevent concurrent renames (GAP-013)
+							$locked = dbFetchOne($base, 'SELECT login FROM membre WHERE login = ? FOR UPDATE', 's', $oldLogin);
+							if (!$locked) {
+								throw new \RuntimeException('Source account not found');
+							}
 							dbExecute($base, 'UPDATE autre SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE grade SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE constructions SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
