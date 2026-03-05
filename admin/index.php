@@ -23,7 +23,14 @@ if (isset($_POST['motdepasseadmin'])) {
 		logWarn('ADMIN', 'Admin login failed');
 	}
 }
+// Admin idle timeout — expire session after inactivity
+if (isset($_SESSION['motdepasseadmin']) && isset($_SESSION['admin_last_activity'])
+    && (time() - $_SESSION['admin_last_activity']) > SESSION_IDLE_TIMEOUT) {
+	unset($_SESSION['motdepasseadmin']);
+	unset($_SESSION['admin_last_activity']);
+}
 if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === true) {
+	$_SESSION['admin_last_activity'] = time();
 	// CSRF check for admin actions (not the login form itself)
 	if (isset($_POST['supprimercompte']) || isset($_POST['maintenance']) || isset($_POST['plusmaintenance']) || isset($_POST['miseazero'])) {
 		csrfCheck();

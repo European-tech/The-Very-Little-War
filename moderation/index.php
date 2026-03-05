@@ -22,6 +22,12 @@ if (isset($_POST['motdepasseadmin'])) {
 		logWarn('MODERATION', 'Moderation login failed');
 	}
 }
+// Moderation idle timeout
+if (isset($_SESSION['motdepasseadmin']) && isset($_SESSION['mod_last_activity'])
+    && (time() - $_SESSION['mod_last_activity']) > SESSION_IDLE_TIMEOUT) {
+	unset($_SESSION['motdepasseadmin']);
+	unset($_SESSION['mod_last_activity']);
+}
 if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== true) {
 ?>
 	<?php if (!empty($rateLimitError)): ?>
@@ -34,6 +40,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 		<input type="submit" name="valider" value="Valider" />
 	</form> <?php
 		} else {
+			$_SESSION['mod_last_activity'] = time();
 
 			if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				csrfCheck();
