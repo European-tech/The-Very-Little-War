@@ -36,15 +36,15 @@ if (!empty($reponse)) {
 
     $sondageId = $data['id'];
 
-    $existing = dbFetchOne($base, 'SELECT count(*) AS nb FROM reponses WHERE login = ? AND sondage = ?', 'si', $login, $sondageId);
+    $existing = dbFetchOne($base, 'SELECT count(*) AS nb FROM reponses_sondage WHERE login = ? AND sondage = ?', 'si', $login, $sondageId);
 
     if ($existing['nb'] == 0) {
-        dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, ?, ?)', 'sis', $login, $sondageId, $reponse);
+        dbExecute($base, 'INSERT INTO reponses_sondage VALUES(default, ?, ?, ?)', 'sis', $login, $sondageId, $reponse);
         exit(json_encode(["erreur" => false, "dejaRepondu" => false]));
     } else {
         $pasDeVote = $_POST['pasDeVote'] ?? null;
         if (!$pasDeVote) {
-            dbExecute($base, 'UPDATE reponses SET reponse = ? WHERE login = ? AND sondage = ?', 'ssi', $reponse, $login, $sondageId);
+            dbExecute($base, 'UPDATE reponses_sondage SET reponse = ? WHERE login = ? AND sondage = ?', 'ssi', $reponse, $login, $sondageId);
         }
         exit(json_encode(["erreur" => false, "dejaRepondu" => true]));
     }

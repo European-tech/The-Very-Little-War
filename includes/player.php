@@ -748,7 +748,7 @@ function supprimerAlliance($alliance)
         // Clean up attack cooldowns for all alliance members before dissolution
         $members = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $alliance);
         foreach ($members as $member) {
-            dbExecute($base, 'DELETE FROM attack_cooldowns WHERE login = ?', 's', $member['login']);
+            dbExecute($base, 'DELETE FROM attack_cooldowns WHERE attacker = ? OR defender = ?', 'ss', $member['login'], $member['login']);
         }
         dbExecute($base, 'UPDATE autre SET energieDonnee=0 WHERE idalliance=?', 'i', $alliance);
         dbExecute($base, 'DELETE FROM alliances WHERE id=?', 'i', $alliance);
@@ -766,6 +766,7 @@ function supprimerJoueur($joueur)
         logInfo('ACCOUNT', 'Account deleted', ['deleted_player' => $joueur]);
     }
     withTransaction($base, function() use ($base, $joueur) {
+        dbExecute($base, 'DELETE FROM connectes WHERE ip IN (SELECT ip FROM membre WHERE login=?)', 's', $joueur);
         dbExecute($base, 'DELETE FROM vacances WHERE idJoueur IN (SELECT id FROM membre WHERE login=?)', 's', $joueur);
         dbExecute($base, 'DELETE FROM autre WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM membre WHERE login=?', 's', $joueur);
@@ -781,10 +782,9 @@ function supprimerJoueur($joueur)
         dbExecute($base, 'DELETE FROM actionsenvoi WHERE envoyeur=? OR receveur=?', 'ss', $joueur, $joueur);
         dbExecute($base, 'DELETE FROM statutforum WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM prestige WHERE login=?', 's', $joueur);
-        dbExecute($base, 'DELETE FROM attack_cooldowns WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM attack_cooldowns WHERE attacker=? OR defender=?', 'ss', $joueur, $joueur);
         dbExecute($base, 'DELETE FROM sanctions WHERE joueur=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM actionsconstruction WHERE login=?', 's', $joueur);
-        dbExecute($base, 'DELETE FROM connectes WHERE ip IN (SELECT ip FROM membre WHERE login=?)', 's', $joueur);
 
         $donnees = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
         $nbinscrits = $donnees['inscrits'] - 1;

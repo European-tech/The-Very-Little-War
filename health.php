@@ -10,10 +10,23 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 $db_ok = false;
 
 try {
-    require_once __DIR__ . '/includes/connexion.php';
-    $result = mysqli_query($base, 'SELECT 1');
-    $db_ok = ($result !== false);
-} catch (Exception $e) {
+    require_once __DIR__ . '/includes/env.php';
+    loadEnv(__DIR__ . '/.env');
+
+    $db_host = getenv('DB_HOST') ?: 'localhost';
+    $db_user = getenv('DB_USER');
+    $db_pass = getenv('DB_PASS');
+    $db_name = getenv('DB_NAME');
+
+    if ($db_user && $db_name !== false) {
+        $conn = @mysqli_connect($db_host, $db_user, $db_pass, $db_name);
+        if ($conn) {
+            $result = mysqli_query($conn, 'SELECT 1');
+            $db_ok = ($result !== false);
+            mysqli_close($conn);
+        }
+    }
+} catch (\Throwable $e) {
     $db_ok = false;
 }
 

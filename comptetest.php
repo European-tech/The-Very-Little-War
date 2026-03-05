@@ -50,10 +50,15 @@ if (isset($_GET['inscription'])) {
 	//Si les champs sont vides
 	if ((isset($_POST['login']) && !empty($_POST['login'])) && (isset($_POST['pass']) && !empty($_POST['pass'])) && (isset($_POST['pass_confirm']) && !empty($_POST['pass_confirm'])) && (isset($_POST['email']) && !empty($_POST['email']))) {
 		//Si les deux mots de passe sont différents
-		if ($_POST['pass'] != $_POST['pass_confirm']) {
+		if (mb_strlen($_POST['pass']) < PASSWORD_MIN_LENGTH) {
+			$erreur = 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caractères.';
+		} elseif ($_POST['pass'] != $_POST['pass_confirm']) {
 			$erreur = 'Les deux mots de passe sont différents.';
 		} else {
-			if (preg_match("#^[A-Za-z0-9]*$#", $_POST['login'])) {
+			$loginError = validateLogin($_POST['login']);
+			if ($loginError) {
+				$erreur = $loginError;
+			} elseif (preg_match("#^[A-Za-z0-9]*$#", $_POST['login'])) {
 				if (preg_match("#^[a-z0-9._-]+@[a-z0-9._-]{2,}\.[a-z]{2,4}$#", $_POST['email'])) {
 					$_POST['login'] = ucfirst(mb_strtolower($_POST['login']));
 					$loginClean = $_POST['login'];
@@ -119,5 +124,7 @@ if (isset($_GET['inscription'])) {
 	} else {
 		$erreur = 'Un ou plusieurs champs sont vides.';
 	}
-    header("Location: comptetest.php?erreur=" . urlencode($erreur)); exit;
+    if (!empty($erreur)) {
+        header("Location: tutoriel.php?erreur=" . urlencode($erreur)); exit;
+    }
 }

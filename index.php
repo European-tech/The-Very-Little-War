@@ -113,7 +113,11 @@ if (!$donnees) {
     $contenuNews = 'Aucune news pour l\'instant.';
 } else {
     $allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><hr>';
-    $contenuNews = nl2br(strip_tags($donnees['contenu'], $allowedTags));
+    $contenuNews = strip_tags($donnees['contenu'], $allowedTags);
+    $contenuNews = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $contenuNews);
+    $contenuNews = preg_replace('/\s+style\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $contenuNews);
+    $contenuNews = preg_replace('/href\s*=\s*["\']?\s*javascript\s*:/i', 'href="', $contenuNews);
+    $contenuNews = nl2br($contenuNews);
 }
 
 debutCarte();

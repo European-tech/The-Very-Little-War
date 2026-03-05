@@ -44,7 +44,7 @@ if(isset($_GET['rapport'])) {
         <p><strong>Ne baissez pas les bras !</strong></p>
         <p>Votre armee peut etre reformee rapidement.</p>
         <ul>
-            <li><a href="molecules.php">Reformer vos molecules</a></li>
+            <li><a href="armee.php">Reformer vos molecules</a></li>
             <li><a href="regles.php#formations">Apprendre les formations defensives</a></li>
             <li>Pensez a espionner avant d'attaquer : <a href="attaquer.php">Espionnage</a></li>
         </ul>
