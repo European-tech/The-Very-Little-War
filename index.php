@@ -137,6 +137,33 @@ if (isset($_SESSION['login'])) {
     echo htmlspecialchars($countdownText, ENT_QUOTES, 'UTF-8');
     echo '</span>';
     echo '</div>';
+
+    // Forum latest threads widget
+    $latestThreads = dbFetchAll($base, 'SELECT id, titre, auteur, timestamp FROM sujets WHERE statut = 0 ORDER BY timestamp DESC LIMIT 3', '', '');
+    if (!empty($latestThreads)):
+?>
+<div class="card">
+    <div class="card-header">Dernieres discussions</div>
+    <div class="card-content">
+        <div class="list">
+            <ul>
+                <?php foreach ($latestThreads as $thread): ?>
+                <li>
+                    <a href="sujet.php?id=<?= (int)$thread['id'] ?>" class="item-link item-content">
+                        <div class="item-inner">
+                            <div class="item-title"><?= htmlspecialchars($thread['titre'], ENT_QUOTES, 'UTF-8') ?></div>
+                            <div class="item-after"><?= htmlspecialchars($thread['auteur'], ENT_QUOTES, 'UTF-8') ?></div>
+                        </div>
+                    </a>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    </div>
+    <div class="card-footer"><a href="forum.php">Voir tout le forum</a></div>
+</div>
+<?php
+    endif;
 }
 
 debutCarte("The Very Little War", "", 'images/accueil/wallpaper.jpg');

@@ -47,6 +47,25 @@ if (isset($_GET['id'])) {
         $rang = $rangData['rang'];
         echo chipInfo('<span class="important">Rang : </span>'.imageClassement($rang),'images/alliance/up.png').'<br/>';
         echo chip('<span class="important">Nom : </span>'.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8'),'<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
+
+        // Last seen indicator
+        $lastConn = isset($membre['derniereConnexion']) ? (int)$membre['derniereConnexion'] : 0;
+        $diff = time() - $lastConn;
+        if ($diff < 300) {
+            $lastSeenText = 'En ligne';
+            $lastSeenColor = '#4caf50';
+        } elseif ($diff < SECONDS_PER_HOUR) {
+            $lastSeenText = 'Il y a ' . floor($diff / 60) . ' min';
+            $lastSeenColor = '#8bc34a';
+        } elseif ($diff < SECONDS_PER_DAY) {
+            $lastSeenText = 'Il y a ' . floor($diff / SECONDS_PER_HOUR) . 'h';
+            $lastSeenColor = '#ff9800';
+        } else {
+            $lastSeenText = 'Il y a ' . floor($diff / SECONDS_PER_DAY) . ' jour' . (floor($diff / SECONDS_PER_DAY) > 1 ? 's' : '');
+            $lastSeenColor = '#9e9e9e';
+        }
+        echo '<p><span style="color:' . htmlspecialchars($lastSeenColor, ENT_QUOTES, 'UTF-8') . ';">&#9679;</span> ' . htmlspecialchars($lastSeenText) . '</p>';
+
         echo chip('<span class="important">Equipe : </span>'.$alliance,'<img alt="coupe" src="images/classement/alliance.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
         echo nombrePoints('<span class="important">Points : </span>'.$donnees1['totalPoints']).'<br/>';
 		echo chip('<span class="important">Victoires : </span>'.$donnees1['victoires'],'<img alt="coupe" src="images/classement/victoires.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';

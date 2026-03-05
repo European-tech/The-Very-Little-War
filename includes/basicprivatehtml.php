@@ -254,6 +254,7 @@ else { // si cela n'a pas été initialisé à la première connexion
 				$alliancePlus = '<span class="badge bg-red" >'.$invitations.'</span>';
 			}
         item(['media' => '<img src="images/menu/alliance.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Equipe '.$alliancePlus, 'link' => 'alliance.php', 'style' => 'color:black']);
+        item(['media' => '<img src="images/menu/alliance.png" alt="chercher" style="width:25px;height:25px;">', 'titre' => 'Trouver une alliance', 'link' => 'alliance_discovery.php', 'style' => 'color:black']);
         item(['media' => '<img src="images/menu/classement.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Classement', 'link' => 'classement.php?sub=0', 'style' => 'color:black']);
 
       $nb_messages_nonlus = dbCount($base, 'SELECT COUNT(*) AS cnt FROM messages WHERE destinataire = ? AND statut = 0', 's', $_SESSION['login']);
