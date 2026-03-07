@@ -78,6 +78,14 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
         } else {
             dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_SESSION['login']);
             dbExecute($base, 'DELETE FROM grades WHERE login=?', 's', $_SESSION['login']);
+            // PASS1-MEDIUM-016: Clean up pending invitations when a player quits their alliance
+            dbExecute($base, 'DELETE FROM invitations WHERE invite=?', 's', $_SESSION['login']);
+            // Record leave timestamp for rejoin cooldown (column added by migration 0030)
+            try {
+                dbExecute($base, 'UPDATE autre SET alliance_left_at=UNIX_TIMESTAMP() WHERE login=?', 's', $_SESSION['login']);
+            } catch (\Exception $e) {
+                // Column not yet present — migration pending, skip silently
+            }
         }
     }
 
@@ -113,6 +121,19 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
     $allowedResearchColumns = array_keys($ALLIANCE_RESEARCH);
     if (isset($_POST['upgradeResearch']) && isset($ALLIANCE_RESEARCH[$_POST['upgradeResearch']])) {
         csrfCheck();
+        // PASS1-MEDIUM-014: Only chef or grade-holding officers may trigger research upgrades
+        $researchAllianceId = $idalliance['idalliance'] ?? 0;
+        $researchAllianceInfo = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=?', 'i', $researchAllianceId);
+        $isResearchChef = ($researchAllianceInfo && $researchAllianceInfo['chef'] === $_SESSION['login']);
+        $hasResearchGrade = false;
+        if (!$isResearchChef) {
+            $gradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $researchAllianceId);
+            $hasResearchGrade = ($gradeRow !== false && $gradeRow !== null);
+        }
+        if (!$isResearchChef && !$hasResearchGrade) {
+            $erreur = "Permission insuffisante : seul le chef ou un officier gradé peut améliorer les recherches.";
+        }
+        if (!isset($erreur)) :
         $techName = $_POST['upgradeResearch'];
         if (!in_array($techName, $allowedResearchColumns, true)) {
             throw new \RuntimeException("Invalid research column: $techName");
@@ -149,6 +170,7 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
                 $erreur = "Vous n'avez pas assez d'énergie d'alliance.";
             }
         }
+        endif; // end permission check for upgradeResearch
     }
 }
 
@@ -162,7 +184,20 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
         } else {
 
         if ($_POST['actioninvitation'] == "Accepter") {
+            // Check rejoin cooldown (column added by migration 0030)
             try {
+                $leftAtRow = dbFetchOne($base, 'SELECT alliance_left_at FROM autre WHERE login=?', 's', $_SESSION['login']);
+                if ($leftAtRow && !empty($leftAtRow['alliance_left_at'])) {
+                    $cooldown = defined('ALLIANCE_REJOIN_COOLDOWN_SECONDS') ? ALLIANCE_REJOIN_COOLDOWN_SECONDS : SECONDS_PER_DAY;
+                    if ((time() - (int)$leftAtRow['alliance_left_at']) < $cooldown) {
+                        $heuresRestantes = ceil(($cooldown - (time() - (int)$leftAtRow['alliance_left_at'])) / 3600);
+                        $erreur = "Vous devez attendre encore " . $heuresRestantes . "h avant de rejoindre une alliance.";
+                    }
+                }
+            } catch (\Exception $e) {
+                // Column not yet present — migration pending, skip cooldown check
+            }
+            if (!isset($erreur)) try {
                 withTransaction($base, function() use ($base, $idalliance, $joueursEquipe) {
                     // Count members inside transaction to prevent race condition
                     $count = dbCount($base, 'SELECT COUNT(*) AS nb FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);

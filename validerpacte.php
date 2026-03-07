@@ -10,7 +10,22 @@ if(isset($_POST['idDeclaration'])) {
 		if (!$declaration) return;
 
 		$targetAlliance = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=?', 'i', $declaration['alliance2']);
-		if (!$targetAlliance || $targetAlliance['chef'] !== $_SESSION['login']) {
+		if (!$targetAlliance) return;
+
+		$isChef = ($targetAlliance['chef'] === $_SESSION['login']);
+
+		// PASS1-MEDIUM-015: Also allow grade-holding officers with the pact permission bit
+		// Grade string format: "inviter.guerre.pacte.bannir.description" (index 2 = pacte)
+		$hasPactPerm = false;
+		if (!$isChef) {
+			$gradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $declaration['alliance2']);
+			if ($gradeRow && !empty($gradeRow['grade'])) {
+				$bits = explode('.', $gradeRow['grade']);
+				$hasPactPerm = (isset($bits[2]) && $bits[2] === '1');
+			}
+		}
+
+		if (!$isChef && !$hasPactPerm) {
 			return; // Not authorized
 		}
 
