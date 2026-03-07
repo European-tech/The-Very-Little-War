@@ -290,8 +290,9 @@ function item($options)
         } else {
             $options["select"]["hauteur"] = '';
         }
+        $safeSelectName = htmlspecialchars($options["select"][0], ENT_QUOTES, 'UTF-8');
         $select = '<a href="#" class="item-link smart-select" data-picker-close-text="Fermer" ' . $options["select"]['hauteur'] . '>
-                    <select name="' . $options["select"][0] . '" id="' . $options["select"][0] . '" class="form-control" ' . $js . '>
+                    <select name="' . $safeSelectName . '" id="' . $safeSelectName . '" class="form-control" ' . htmlspecialchars($js, ENT_QUOTES, 'UTF-8') . '>
                         ' . $options["select"][1] . '
                     </select>';
         $finSelect = '</a>';
@@ -479,7 +480,7 @@ function chip($label, $image, $couleurImage = "black", $couleur = "", $circle = 
     }
 
     if ($id) {
-        $id = 'id="' . $id . '"';
+        $id = 'id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"';
     } else {
         $id = "";
     }
@@ -569,7 +570,7 @@ function submit($options)
     }
 
     if (array_key_exists("id", $options) && $options["id"]) {
-        $id = 'id="' . $options["id"] . '"';
+        $id = 'id="' . htmlspecialchars($options["id"], ENT_QUOTES, 'UTF-8') . '"';
     } else {
         $id = '';
     }
@@ -641,7 +642,7 @@ function carteForum($avatar, $login, $date, $titre, $contenu, $grade, $sujet = f
     <div class="card facebook-card">
       <div class="card-header no-border">
         <div class="facebook-avatar">' . $avatar . '</div>
-        <div class="facebook-grade">' . $login . '<br/><span style="color:' . $grade['couleur'] . '">' . $grade['nom'] . '</span></div>
+        <div class="facebook-grade">' . $login . '<br/><span style="color:' . preg_replace('/[^a-zA-Z0-9#(),.% ]/', '', $grade['couleur'] ?? '') . '">' . $grade['nom'] . '</span></div>
         <div class="facebook-name">' . $titre . '</div><br/>
         <div class="facebook-date">' . $date . '</div>
       </div>

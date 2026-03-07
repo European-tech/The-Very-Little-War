@@ -113,9 +113,10 @@ if (!$donnees) {
     $contenuNews = 'Aucune news pour l\'instant.';
 } else {
     // News entries created by admins only (admin/redigernews.php behind redirectionmotdepasse.php).
-    // Use a conservative tag allowlist — no attributes are permitted on retained tags
-    // so event handlers and javascript: hrefs are impossible.
-    $contenuNews = strip_tags($donnees['contenu'], '<b><i><u><br><p><a>');
+    // Use a conservative tag allowlist. Strip javascript: and data: URIs from href attributes
+    // to prevent XSS via anchor tags that survive strip_tags().
+    $contenuNews = strip_tags($donnees['contenu'], '<b><i><u><br><p><a><strong><em>');
+    $contenuNews = preg_replace('/href\s*=\s*["\']?\s*(javascript|data):[^"\'>\s]*/i', 'href="#"', $contenuNews);
     $contenuNews = nl2br($contenuNews);
 }
 
