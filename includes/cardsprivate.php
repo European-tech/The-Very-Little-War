@@ -105,7 +105,7 @@ if($tuto['niveaututo'] < 10) {
                 csrfField().
                 debutListe(true).
                     item(['retour' => true, 'floating' => true, 'media' => '<img alt="login" src="images/accueil/player.png" class="w32"/>', 'titre' => 'Login', 'input' => '<input type="text" name="login" id="login" maxlength="'.LOGIN_MAX_LENGTH.'" value="Login">', 'after' => submit(['link' => '#', 'titre' => 'Générer', 'id' => 'btn-generate'])]).
-                    item(['retour' => true,'floating' => true, 'media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'titre' => 'E-mail', 'input' => '<input type="text" name="email" id="email" maxlength="25" class="form-control">']).
+                    item(['retour' => true,'floating' => true, 'media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'titre' => 'E-mail', 'input' => '<input type="text" name="email" id="email" maxlength="'.EMAIL_MAX_LENGTH.'" class="form-control">']).
                     item(['retour' => true,'floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Mot de passe', 'input' => '<input type="password" name="pass" id="pass" class="form-control">']).
                     item(['retour' => true,'floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Confirmation', 'input' => '<input type="password" name="pass_confirm" id="pass_confirm" class="form-control">']).
                     '<p style="margin-left:5px">En vous inscrivant vous acceptez nos <a href="regles.php" class="external lien">Conditions Générales d\'Utilisation</a></p>'.

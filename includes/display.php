@@ -161,7 +161,7 @@ function scriptAffichageTemps()
 
 function nombreMolecules($nombre)
 {
-    return chip($nombre, '<img src="images/molecule.png" alt="molecule" title="Population" style="width:20px;height;20px;border-radius:0px"/>', "white", "", true);
+    return chip($nombre, '<img src="images/molecule.png" alt="molecule" title="Population" style="width:20px;height:20px;border-radius:0px"/>', "white", "", true);
 }
 
 function nombrePoints($nombre)

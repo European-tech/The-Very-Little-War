@@ -1,6 +1,7 @@
 <?php
 $nonce = cspNonce();
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https://www.theverylittlewar.com; font-src 'self' https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
+// TODO: remove remaining inline style="" attributes to eliminate 'unsafe-inline' entirely
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'nonce-$nonce' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https://www.theverylittlewar.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
 ?>
 <!DOCTYPE html>
 <html lang="fr">

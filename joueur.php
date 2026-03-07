@@ -31,7 +31,7 @@ if (isset($_GET['id'])) {
 			$nb_molecules = $nb_molecules + $donnees4['nombre'];
 		}
 
-        debutCarte($membre['login']);
+        debutCarte(htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8'));
         $titre = 'Joueur';
         if(statut($membre['login']) == 0){
             $titre = $titre." <span style=\"color:darkgray\">Inactif</span>";

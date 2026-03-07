@@ -1,6 +1,6 @@
-<style>
+<style<?php if (isset($nonce)) { echo ' nonce="' . htmlspecialchars($nonce, ENT_QUOTES, 'UTF-8') . '"'; } ?>>
 
-    
+
     .page-content {
         padding-right:5px;
         padding-left:5px;      
@@ -257,7 +257,7 @@
     
     .imageClassement{
         width: 32px;
-        height; 32px;
+        height: 32px;
     }
 
     .titreAide {

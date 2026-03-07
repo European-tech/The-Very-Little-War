@@ -4,6 +4,17 @@
  * Framework7-style UI rendering helpers (cards, lists, accordions, forms, etc.)
  */
 
+/**
+ * Renders the opening markup for a Framework7 card component.
+ *
+ * @param string|false $titre  Card header text or HTML. Pass pre-escaped HTML or plain text.
+ *                             Callers are responsible for escaping untrusted user content
+ *                             (e.g. player names, alliance tags) before passing to $titre.
+ * @param string       $style  Additional CSS for the card header (e.g. background-color).
+ * @param string|false $image  URL for a background image on the card header.
+ * @param string|false $overflow  HTML id for the inner content div; enables scroll overflow when set.
+ *                               Value is HTML-escaped internally. Pass a plain identifier string.
+ */
 function debutCarte($titre = false, $style = "", $image = false, $overflow = false)
 {
     if ($image) {
@@ -24,7 +35,7 @@ function debutCarte($titre = false, $style = "", $image = false, $overflow = fal
     }
 
     if ($overflow) {
-        $overflow = 'id="' . $overflow . '" style="overflow-x:scroll;overflow-y:scroll;"';
+        $overflow = 'id="' . htmlspecialchars($overflow, ENT_QUOTES, 'UTF-8') . '" style="overflow-x:scroll;overflow-y:scroll;"';
     } else {
         $overflow = "";
     }

@@ -89,6 +89,8 @@ if (isset($_POST['changermail'])) {
         $membreData = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
         if (!$membreData || !password_verify($_POST['mot_de_passe_actuel'], $membreData['pass_md5'])) {
             $erreur = "Mot de passe incorrect.";
+        } elseif (mb_strlen($_POST['changermail']) > EMAIL_MAX_LENGTH) {
+            $erreur = "Email trop long.";
         } elseif (!validateEmail($_POST['changermail'])) {
             // Use validateEmail() (FILTER_VALIDATE_EMAIL) for consistency with inscription.php (PASS1-MEDIUM-005)
             $erreur = "Votre email n'est pas correct.";
