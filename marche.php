@@ -143,7 +143,10 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST['energieEnvoyee'];
                             $ressourcesRecues = $ressourcesRecues . $rapportEnergie * $_POST['energieEnvoyee'];
 
-                            $tempsArrivee = time() + round(SECONDS_PER_HOUR * $distance / $vitesseMarchands);
+                            require_once('includes/compounds.php');
+                            $speedBoost = getCompoundBonus($base, $_SESSION['login'], 'speed_boost');
+                            $effectiveSpeed = $vitesseMarchands * (1 + $speedBoost);
+                            $tempsArrivee = time() + round(SECONDS_PER_HOUR * $distance / $effectiveSpeed);
                             dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
                                 $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
 

@@ -22,9 +22,10 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
         ${'niveau' . $ressource} = $niveauxAtomes[$num];
     }
 
-    $producteur = dbFetchOne($base, 'SELECT producteur FROM constructions WHERE login=?', 's', $joueur);
+    $producteur = $constructions; // reuse $constructions — already has producteur column
 
-    $idalliance = dbFetchOne($base, 'SELECT idalliance,totalPoints FROM autre WHERE login=?', 's', $joueur);
+    $autreRow = dbFetchOne($base, 'SELECT idalliance, totalPoints, energieDepensee FROM autre WHERE login=?', 's', $joueur);
+    $idalliance = $autreRow; // single query replaces two separate autre queries
     $bonusDuplicateur = 1;
     if ($idalliance['idalliance'] > 0) {
         $duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
@@ -41,7 +42,7 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     }
     $iodeCatalystBonus = 1.0 + min(IODE_CATALYST_MAX_BONUS, $totalIodeAtoms / IODE_CATALYST_DIVISOR);
 
-    $donneesMedaille = dbFetchOne($base, 'SELECT energieDepensee FROM autre WHERE login=?', 's', $joueur);
+    $donneesMedaille = $autreRow; // reuse cached autre row — has energieDepensee
     $bonus = 0;
 
     foreach ($paliersEnergievore as $num => $palier) {
@@ -91,7 +92,7 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
 }
 
 
-function revenuAtome($num, $joueur)
+function revenuAtome($num, $joueur, $constructions = null)
 {
     static $cache = [];
     $cacheKey = $joueur . '-' . $num;
@@ -100,9 +101,11 @@ function revenuAtome($num, $joueur)
     global $base;
     global $nomsRes;
 
-    $pointsProducteur = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $joueur);
+    if ($constructions === null) {
+        $constructions = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=?', 's', $joueur);
+    }
 
-    $niveau = explode(';', $pointsProducteur['pointsProducteur'])[$num];
+    $niveau = explode(';', $constructions['pointsProducteur'])[$num];
 
     $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $joueur);
     $bonusDuplicateur = 1;
@@ -299,8 +302,8 @@ function updateRessources($joueur)
         }
     }
 
-    // Probabilistic garbage collection (~1% of requests)
-    if (mt_rand(1, 100) === 1) {
+    // Probabilistic garbage collection (COMPOUND_GC_PROBABILITY chance per call)
+    if (mt_rand(1, 1000) <= (int)(COMPOUND_GC_PROBABILITY * 1000)) {
         // Trim market history to MARKET_HISTORY_LIMIT rows
         $keepId = dbFetchOne($base, 'SELECT id FROM cours ORDER BY id DESC LIMIT 1 OFFSET ' . MARKET_HISTORY_LIMIT);
         if ($keepId) {

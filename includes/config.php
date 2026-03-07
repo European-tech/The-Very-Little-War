@@ -740,6 +740,7 @@ define('ACTIVE_PLAYER_THRESHOLD', SECONDS_PER_MONTH); // 2678400 = 31 days
 // Effects are temporary buffs (duration in seconds).
 define('COMPOUND_ATOM_MULTIPLIER', 100); // each recipe unit costs this many atoms
 define('COMPOUND_MAX_STORED', 3);        // max compounds stored per player
+define('COMPOUND_GC_PROBABILITY', 0.05); // probability (0–1) of GC cleanup per updateRessources call (~5%)
 
 $COMPOUNDS = [
     'H2O' => [

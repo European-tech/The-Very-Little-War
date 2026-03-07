@@ -18,6 +18,7 @@ if(isset($_GET['id']) AND !empty($_GET['id'])) {
 		$mx = max($mx,$molecule[$ressource]);
         $totalAtomes += $molecule[$ressource];
 	}
+	$img = 'carbone'; // default fallback if all atom counts are 0
 	foreach($nomsRes as $num => $ressource) {
 		if($mx == $molecule[$ressource]) {
 			$img = $ressource;

@@ -65,7 +65,7 @@ header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
                     $secondsLeft = max(0, $seasonEndTimestamp - time());
                     $daysLeft = floor($secondsLeft / SECONDS_PER_DAY);
                     ?>
-                    <span id="season-countdown" data-end="<?php echo (int)$seasonEndTimestamp; ?>"
+                    <span id="season-countdown-navbar" data-end="<?php echo (int)$seasonEndTimestamp; ?>"
                           style="font-size:10px;color:#aaa;cursor:pointer;"
                           title="Fin de manche"><?php echo $daysLeft; ?>j</span>
                 </div>

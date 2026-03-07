@@ -193,7 +193,7 @@ function item($options)
 
     if (array_key_exists("after", $options) && $options["after"]) {
         $after = '
-        <div class="item-after" style="' . $style . '">
+        <div class="item-after" style="' . htmlspecialchars($style, ENT_QUOTES, 'UTF-8') . '">
             ' . $options["after"] . '
         </div>';
     } else {
@@ -483,8 +483,8 @@ function chip($label, $image, $couleurImage = "black", $couleur = "", $circle = 
     } else {
         $id = "";
     }
-    return '<div class="chip bg-' . $couleur . '" style="margin-right:3px;margin-left:3px;">
-                <div class="chip-media bg-' . $couleurImage . '" style="' . $style . '">' . $image . '</div>
+    return '<div class="chip bg-' . htmlspecialchars($couleur, ENT_QUOTES, 'UTF-8') . '" style="margin-right:3px;margin-left:3px;">
+                <div class="chip-media bg-' . htmlspecialchars($couleurImage, ENT_QUOTES, 'UTF-8') . '" style="' . $style . '">' . $image . '</div>
                 <div class="chip-label" ' . $id . '>' . $label . '</div>
             </div>';
 }
