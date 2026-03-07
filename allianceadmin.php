@@ -466,7 +466,7 @@ if ($gradeChef) {
 	<form method="post" action="allianceadmin.php" name="creerGrade">
 		<?php echo csrfField(); ?>
 		<?php
-		item(['floating' => true, 'titre' => "Nom du grade", 'input' => '<input type="text" name="nomgrade" id="nomgrade" class="form-control"/>']);
+		item(['floating' => true, 'titre' => "Nom du grade", 'input' => '<input type="text" name="nomgrade" id="nomgrade" maxlength="' . ALLIANCE_GRADE_MAX_LENGTH . '" class="form-control"/>']);
 
 		$options = '';
 		$gradeMembreRows = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
