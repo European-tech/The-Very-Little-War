@@ -14,6 +14,7 @@ INSERT INTO connectes (ip, timestamp) SELECT ip, timestamp FROM connectes_dedup;
 DROP TEMPORARY TABLE connectes_dedup;
 
 -- Step 2: Drop the redundant index (PK will cover ip lookups)
+-- Note: For idempotency, use "DROP INDEX IF EXISTS" syntax (supported MariaDB 10.1.4+)
 DROP INDEX idx_connectes_ip ON connectes;
 
 -- Step 3: Add primary key on ip

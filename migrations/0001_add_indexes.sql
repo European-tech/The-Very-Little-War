@@ -1,5 +1,6 @@
 -- Add indexes for frequently queried columns
 -- These dramatically improve query performance
+-- Note: For idempotency on re-run, use "ADD INDEX IF NOT EXISTS" syntax (supported MariaDB 10.1.4+)
 
 -- Primary lookup columns
 ALTER TABLE `autre` ADD INDEX `idx_autre_login` (`login`);
