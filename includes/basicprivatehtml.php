@@ -111,7 +111,13 @@ if($autre['niveaututo'] == 3 and $depot['producteur'] >= 2){
     }
 }
 
-if($autre['niveaututo'] == 4 and $constructions['pointsProducteur'] != '1;1;1;1;1;1;1;1'){
+// MED-038: Stage 4 condition hardened. Previously checked fragile player-state string
+// ($constructions['pointsProducteur'] != '1;1;1;1;1;1;1;1') which could be bypassed
+// or misfire if the default value changes. Now aligned with the actual prerequisite:
+// the player must have upgraded the producteur to level >= 2 (the verified stage 3
+// requirement recorded in DB), mirroring the server-side mission completion check used
+// by the new tutorial system.
+if($autre['niveaututo'] == 4 and $depot['producteur'] >= 2){
     $tutoRedirect = null;
     withTransaction($base, function() use ($base, &$tutoRedirect) {
         $autreRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
@@ -228,6 +234,10 @@ if($tuto['missions'] != ""){ // initialisation du tableau des missions
     $c = 0;
     $chaine = '';
 
+    // MED-041: Pre-compute storage cap for capping all reward paths below.
+    $missionDepotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $_SESSION['login']);
+    $missionStorageCap = placeDepot($missionDepotRow ? intval($missionDepotRow['depot']) : 0);
+
     foreach($listeMissions as $num => $mission){
         $temp = $missions[$num].';'; // par défaut on ne change pas le statut de la mission
         if($c < 3){ // on vérifie que les trois premires missions non réalisées
@@ -236,22 +246,23 @@ if($tuto['missions'] != ""){ // initialisation du tableau des missions
                     $information = "Mission ".$mission['titre']." réussie";
                     $temp = '1;'; // mission réussie dans la base de données
 
+                    // MED-041: Use LEAST() to cap energy and atom rewards at storage max.
                     if(array_key_exists("energie",$mission)){
-                         ajouter('energie','ressources',$mission['energie'],$_SESSION['login']);
+                        dbExecute($base, 'UPDATE ressources SET energie = LEAST(energie + ?, ?) WHERE login = ?', 'ids', $mission['energie'], $missionStorageCap, $_SESSION['login']);
                     }
                     if(array_key_exists("atomes",$mission)){
-                         foreach($nomsRes as $num1 => $res){
-                            ajouter($res,'ressources',$mission['atomes'],$_SESSION['login']);
+                        foreach($nomsRes as $num1 => $res){
+                            dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission['atomes'], $missionStorageCap, $_SESSION['login']);
                         }
                     }
                     if(array_key_exists("tout",$mission)){
-                         foreach($nomsRes as $num1 => $res){
-                            ajouter($res,'ressources',$mission['tout'],$_SESSION['login']);
+                        foreach($nomsRes as $num1 => $res){
+                            dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission['tout'], $missionStorageCap, $_SESSION['login']);
                         }
                     }
                     foreach($nomsRes as $num1 => $res){
                         if(array_key_exists($res,$mission)){
-                            ajouter($res,'ressources',$mission[$res],$_SESSION['login']);
+                            dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission[$res], $missionStorageCap, $_SESSION['login']);
                         }
                     }
 

@@ -102,7 +102,7 @@ $tutorielMissions[] = [
     'lien_texte'  => 'Mon compte',
     'icone'       => 'images/menu/compte.png',
     'recompense_energie' => TUTORIAL_REWARDS[4],
-    'condition'   => ($autre['description'] != "" && $autre['description'] != "Pas de description"),
+    'condition'   => (mb_strlen(trim($autre['description'] ?? ''), 'UTF-8') >= 10 && $autre['description'] != "Pas de description"),
 ];
 
 // --- Mission 6: Scout a nearby player (use espionage) ---
@@ -170,6 +170,9 @@ if(isset($_POST['claimMission'])) {
         $mission = $tutorielMissions[$missionIndex];
 
         // Fix PASS1-MEDIUM-037: sequential enforcement — all prior missions must be claimed first
+        // MED-040: Pre-check uses $autre (may be stale). Real enforcement is re-done inside
+        // the transaction with a fresh FOR UPDATE read (see below). This pre-check is only
+        // a fast early-exit to avoid unnecessary transactions.
         $sequenceOk = true;
         if($missionIndex > 0) {
             $prevMissionsData = $autre['missions'];
@@ -194,8 +197,26 @@ if(isset($_POST['claimMission'])) {
             $tutoResult = null;
             try {
                 withTransaction($base, function() use ($base, $missionIndex, $mission, $tutorielMissions, &$tutoResult) {
+                    // MED-040: Re-read mission state with FOR UPDATE to get fresh data
+                    // and re-enforce sequential constraint atomically inside the transaction.
                     $autreRow = dbFetchOne($base, 'SELECT missions FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                     $missionsData = $autreRow['missions'];
+
+                    // Re-enforce sequential prerequisite with fresh DB data
+                    if($missionIndex > 0) {
+                        $freshMissionsArr = ($missionsData != "") ? explode(";", $missionsData) : [];
+                        $freshTutoOffset = 19;
+                        while(count($freshMissionsArr) < $freshTutoOffset + $missionIndex) {
+                            $freshMissionsArr[] = "0";
+                        }
+                        for($fi = 0; $fi < $missionIndex; $fi++) {
+                            $freshClaimIdx = $freshTutoOffset + $fi;
+                            if(!isset($freshMissionsArr[$freshClaimIdx]) || $freshMissionsArr[$freshClaimIdx] != "1") {
+                                $tutoResult = 'sequence_fail';
+                                return;
+                            }
+                        }
+                    }
                     if($missionsData == "") {
                         $missionsData = str_repeat("0;", 19 + count($tutorielMissions));
                     }
@@ -233,6 +254,9 @@ if(isset($_POST['claimMission'])) {
                 $information = "Mission terminee ! +" . $mission['recompense_energie'] . " energie";
             } elseif ($tutoResult === 'already') {
                 $erreur = "Cette mission a deja ete validee.";
+            } elseif ($tutoResult === 'sequence_fail') {
+                // MED-040: Fresh DB read confirmed prerequisite not met (concurrent claim race)
+                $erreur = "Vous devez d'abord completer les missions precedentes.";
             } else {
                 $erreur = "Erreur lors de la validation.";
             }

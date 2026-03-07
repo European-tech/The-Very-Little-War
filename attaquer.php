@@ -29,12 +29,14 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                 $erreur = "Ce joueur n'existe pas.";
             } elseif ($espTarget['vacance']) {
                 $erreur = "Vous ne pouvez pas espionner un joueur en vacances.";
-            } elseif (time() - $espTarget['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
+            } elseif (time() - $espTarget['timestamp'] < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_POST['joueurAEspionner'], 'veteran') ? SECONDS_PER_DAY : 0)) {
+                // MED-042: Apply same prestige veteran extension as combat beginner protection.
                 $erreur = "Le joueur est encore sous protection des débutants.";
             } elseif (hasActiveShield($base, $_POST['joueurAEspionner'])) {
                 // Comeback shield blocks espionage as well as direct attacks (P2-HIGH-013)
                 $erreur = "Ce joueur est sous protection de retour. Revenez plus tard.";
-            } elseif (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
+            } elseif (preg_match("#^[0-9]*$#", (string)$_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
+                // MED-043: Cast to string before preg_match to avoid PHP 8.2 deprecation on integer subject.
                 $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
                 updateRessources($_POST['joueurAEspionner']);
                 updateActions($_POST['joueurAEspionner']);
