@@ -39,17 +39,24 @@ foreach ($files as $file) {
     echo "Applying: $filename... ";
     $sql = file_get_contents($file);
 
-    // Execute each statement
+    // Execute each statement; detect errors per-statement inside the drain loop
+    // so that a failure mid-file is caught immediately rather than silently skipped.
     if (mysqli_multi_query($base, $sql)) {
         do {
             if ($result = mysqli_store_result($base)) {
                 mysqli_free_result($result);
             }
+            // Check for an error produced by the statement just consumed
+            if (mysqli_errno($base)) {
+                echo "ERROR in migration $filename: " . mysqli_error($base) . "\n";
+                exit(1);
+            }
         } while (mysqli_next_result($base));
     }
 
+    // Check for any error that prevented mysqli_multi_query from starting
     if (mysqli_errno($base)) {
-        echo "ERROR: " . mysqli_error($base) . "\n";
+        echo "ERROR in migration $filename: " . mysqli_error($base) . "\n";
         exit(1);
     }
 

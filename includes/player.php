@@ -48,15 +48,57 @@ function inscrire($pseudo, $mdp, $mail)
     $vieCDF = vieChampDeForce(0);
 
     withTransaction($base, function() use ($base, $safePseudo, $hashedPassword, $now, $timestamps, $alea, $safeMail, $nbinscrits, $vieGen, $vieCDF) {
-        dbExecute($base, 'INSERT INTO membre VALUES(default, ?, ?, ?, ?, ?, 0, ?, 0, 0, ?,-1000,-1000)', 'sssisis', $safePseudo, $hashedPassword, $now, $_SERVER['REMOTE_ADDR'], $now, $alea, $safeMail);
-        dbExecute($base, 'INSERT INTO autre VALUES(?, default, default, "Pas de description", ?, default, default, default, default, default, default, default, default,default,default,?,default,default,default,default,"",default)', 'sis', $safePseudo, $now, $timestamps);
-        dbExecute($base, 'INSERT INTO ressources VALUES(default,?, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default, default)', 's', $safePseudo);
+        // Explicit column lists guard against positional mismatches after schema migrations.
+        // Only non-auto-increment, non-defaulted columns are listed; everything else uses DB defaults.
+
+        // membre: id=auto_increment, session_token=NULL default, vacance/moderateur/codeur have defaults
+        dbExecute(
+            $base,
+            'INSERT INTO membre (login, pass_md5, timestamp, ip, derniereConnexion, troll, email, x, y)
+             VALUES (?, ?, ?, ?, ?, ?, ?, -1000, -1000)',
+            'ssssiis',
+            $safePseudo, $hashedPassword, $now, $_SERVER['REMOTE_ADDR'], $now, $alea, $safeMail
+        );
+
+        // autre: login is PK; tempsPrecedent must be set now; timeMolecule needs initial timestamps;
+        // all other columns (points, idalliance, nbattaques, etc.) use DB defaults (0 or NULL)
+        dbExecute(
+            $base,
+            'INSERT INTO autre (login, tempsPrecedent, timeMolecule)
+             VALUES (?, ?, ?)',
+            'sis',
+            $safePseudo, $now, $timestamps
+        );
+
+        // ressources: id=auto_increment; all resource/revenue columns default to their start values
+        dbExecute(
+            $base,
+            'INSERT INTO ressources (login) VALUES (?)',
+            's',
+            $safePseudo
+        );
+
         dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
-        dbExecute($base, 'INSERT INTO molecules VALUES(default, default, default, default, default, default,default, default, default, default, 1, ?, default),
-	(default, default, default, default, default, default,default, default, default, default, 2, ?, default),
-	(default, default, default, default, default, default,default, default, default, default, 3, ?, default),
-	(default , default, default, default, default, default,default, default, default, default, 4, ?, default)', 'ssss', $safePseudo, $safePseudo, $safePseudo, $safePseudo);
-        dbExecute($base, 'INSERT INTO constructions VALUES(?, default, default, default, default, default, default, default, default, ?, ?, ?,?,default,default,default,default)', 'sdddd', $safePseudo, $vieGen, $vieCDF, $vieGen, $vieGen);
+
+        // molecules: 4 rows, one per numeroclasse; remaining columns (atoms, nombre, isotope) default to 0
+        dbExecute(
+            $base,
+            'INSERT INTO molecules (numeroclasse, proprietaire)
+             VALUES (1, ?), (2, ?), (3, ?), (4, ?)',
+            'ssss',
+            $safePseudo, $safePseudo, $safePseudo, $safePseudo
+        );
+
+        // constructions: login is PK; vieGenerateur/vieChampdeforce/vieProducteur/vieDepot need
+        // computed starting HP; building levels and other vie columns default to 0
+        dbExecute(
+            $base,
+            'INSERT INTO constructions (login, vieGenerateur, vieChampdeforce, vieProducteur, vieDepot)
+             VALUES (?, ?, ?, ?, ?)',
+            'sdddd',
+            $safePseudo, $vieGen, $vieCDF, $vieGen, $vieGen
+        );
+
         dbExecute($base, 'INSERT IGNORE INTO prestige (login) VALUES(?)', 's', $safePseudo);
     });
 }

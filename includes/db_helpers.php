@@ -15,12 +15,25 @@ function ajouter($champ, $bdd, $nombre, $joueur)
     if ($allowedColumns === null) {
         global $nomsRes;
         $allowedColumns = array_merge(
-            // 'autre' table stat columns
-            ['victoires', 'energieDonnee', 'energieDepensee', 'neutrinos', 'moleculesPerdues',
-             'totalPoints', 'pointsAttaque', 'pointsDefense', 'pointsPillage', 'pointsEspionnage',
-             'pointsMolecule', 'pointsBatiment', 'pointsNbMolecule', 'tradeVolume',
-             'nbattaques', 'nbdefenses', 'nbespionnages'],
-            // 'ressources' table columns: 8 resource names + energie
+            // 'autre' table stat columns that callers legitimately increment/decrement via ajouter().
+            // Verified against `DESCRIBE autre` on 2026-03-07 — only real columns are listed.
+            // Removed phantom columns that never existed in the schema:
+            //   nbdefenses, nbespionnages, pointsPillage, pointsEspionnage,
+            //   pointsMolecule, pointsBatiment, pointsNbMolecule
+            [
+                'victoires',        // number of PvP victories
+                'energieDonnee',    // total energy donated to allies
+                'energieDepensee',  // total energy spent on actions
+                'neutrinos',        // prestige currency earned from combat
+                'moleculesPerdues', // molecules lost in combat (tracking)
+                'totalPoints',      // sqrt-weighted aggregate score (classement)
+                'pointsAttaque',    // raw attack score (before sqrt transform)
+                'pointsDefense',    // raw defense score (before sqrt transform)
+                'ressourcesPillees',// raw pillage score (before sqrt transform)
+                'tradeVolume',      // cumulative market trade volume
+                'nbattaques',       // number of attacks launched
+            ],
+            // 'ressources' table columns: 8 element names + energie (injected via $nomsRes global)
             ['energie'],
             is_array($nomsRes) ? $nomsRes : []
         );
