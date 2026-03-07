@@ -246,7 +246,7 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
     if ($type == 0) {
         $nbAtomes = 0;
         foreach ($nomsRes as $num => $ressource) {
-            $nbAtomes = $nbAtomes + $donnees[$ressource];
+            $nbAtomes = $nbAtomes + ($donnees[$ressource] ?? 0);
         }
     } else {
         $nbAtomes = $classeOuNbTotal;

@@ -14,11 +14,20 @@ require_once(__DIR__ . '/database.php');
  * Clears existing nodes and creates RESOURCE_NODE_MIN_COUNT..MAX_COUNT new ones.
  *
  * @param mysqli $base  Database connection
- * @param int $mapSize  Current map size (tailleCarte)
+ * @param int|null $mapSize  Map boundary to scatter nodes within. Defaults to MAP_INITIAL_SIZE
+ *                           from config.php so nodes always span the full configured map area
+ *                           even if the caller does not pass an explicit size.
  */
-function generateResourceNodes($base, $mapSize)
+function generateResourceNodes($base, $mapSize = null)
 {
     global $nomsRes;
+
+    // Default to the config-defined initial map size so hardcoded boundaries are never used.
+    // Callers may pass a larger value if the map has grown, but MAP_INITIAL_SIZE is the
+    // authoritative minimum (HIGH-023).
+    if ($mapSize === null || $mapSize < 2) {
+        $mapSize = MAP_INITIAL_SIZE;
+    }
 
     // Pre-generate node placement data before the transaction to avoid rand calls inside
     $count = mt_rand(RESOURCE_NODE_MIN_COUNT, RESOURCE_NODE_MAX_COUNT);
