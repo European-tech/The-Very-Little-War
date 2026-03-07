@@ -53,9 +53,9 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 	if($recherche['joueurExiste'] == 1) {
 		// Count players ranked above the searched player to find their rank (single query instead of full scan)
 		$searchLogin = $_POST['joueurRecherche'];
-		$playerScore = dbFetchOne($base, 'SELECT ' . $order . ' AS score FROM autre WHERE login=?', 's', $searchLogin);
+		$playerScore = dbFetchOne($base, 'SELECT a.' . $order . ' AS score FROM autre a JOIN membre m ON m.login = a.login WHERE a.login=? AND m.x != -1000', 's', $searchLogin);
 		if ($playerScore) {
-			$rankRow = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'd', $playerScore['score']);
+			$rankRow = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $playerScore['score']);
 			$place = ($rankRow['rank'] ?? 0) + 1;
 			$pageParDefaut = ceil($place / LEADERBOARD_PAGE_SIZE);
 		}
@@ -163,9 +163,9 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			}
 			else {
 				// Find logged-in player's rank with a count query instead of full table scan
-				$myScore = dbFetchOne($base, 'SELECT ' . $order . ' AS score FROM autre WHERE login=?', 's', $_SESSION['login']);
+				$myScore = dbFetchOne($base, 'SELECT a.' . $order . ' AS score FROM autre a JOIN membre m ON m.login = a.login WHERE a.login=? AND m.x != -1000', 's', $_SESSION['login']);
 				if ($myScore) {
-					$myRank = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre WHERE ' . $order . ' > ?', 'd', $myScore['score']);
+					$myRank = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $myScore['score']);
 					$place = ($myRank['rank'] ?? 0) + 1;
 					$pageParDefaut = ceil($place / $nombreDeJoueursParPage);
 				} else {
@@ -179,7 +179,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 
 
 
-	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_joueurs FROM autre');
+	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_joueurs FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != -1000');
 	$donnees = $retour;
 	$totalDesJoueurs = $donnees['nb_joueurs'];
 	$nombreDePages  = ceil($totalDesJoueurs / $nombreDeJoueursParPage); // Calcul du nombre de pages créées
@@ -192,7 +192,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	$premierJoueurAafficher = ($page - 1) * $nombreDeJoueursParPage;
 
 	// $order is whitelisted, $premierJoueurAafficher and $nombreDeJoueursParPage are integers
-	$classementRows = dbFetchAll($base, 'SELECT * FROM autre ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierJoueurAafficher, $nombreDeJoueursParPage);
+	$classementRows = dbFetchAll($base, 'SELECT a.* FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != -1000 ORDER BY a.' . $order . ' DESC LIMIT ?, ?', 'ii', $premierJoueurAafficher, $nombreDeJoueursParPage);
 	$compteur = $nombreDeJoueursParPage*($page-1)+1;
 
 	if(isset($_SESSION['login'])) {

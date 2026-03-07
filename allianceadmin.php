@@ -123,8 +123,8 @@ if ($gradeChef) {
 		csrfCheck();
 		if (!empty($_POST['changertag'])) {
 			$_POST['changertag'] = trim($_POST['changertag']);
-			if (!preg_match('#^[a-zA-Z0-9_]{1,' . ALLIANCE_TAG_MAX_LENGTH . '}$#', $_POST['changertag'])) {
-				$erreur = "Le tag ne peut contenir que des lettres, chiffres et underscores (" . ALLIANCE_TAG_MAX_LENGTH . " max).";
+			if (!preg_match('#^[a-zA-Z0-9_]{' . ALLIANCE_TAG_MIN_LENGTH . ',' . ALLIANCE_TAG_MAX_LENGTH . '}$#', $_POST['changertag'])) {
+				$erreur = "Le tag ne peut contenir que des lettres, chiffres et underscores (" . ALLIANCE_TAG_MIN_LENGTH . " min, " . ALLIANCE_TAG_MAX_LENGTH . " max).";
 			} else {
 			$nballiance = dbCount($base, 'SELECT count(*) as nb FROM alliances WHERE tag=?', 's', $_POST['changertag']);
 

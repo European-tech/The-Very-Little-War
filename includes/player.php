@@ -791,6 +791,7 @@ function supprimerJoueur($joueur)
         dbExecute($base, 'DELETE FROM attack_cooldowns WHERE attacker=? OR defender=?', 'ss', $joueur, $joueur);
         dbExecute($base, 'DELETE FROM sanctions WHERE joueur=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM actionsconstruction WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM player_compounds WHERE login=?', 's', $joueur);
 
         $donnees = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
         $nbinscrits = $donnees['inscrits'] - 1;
@@ -1117,7 +1118,7 @@ function checkComebackBonus($base, $login, $prevConnexion = null) {
         }
 
         // Cap bonuses at storage limit to prevent exceeding depot capacity
-        $depotData = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $login);
+        $depotData = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ? FOR UPDATE', 's', $login);
         $storageMax = placeDepot($depotData ? $depotData['depot'] : 1);
         dbExecute($base, 'UPDATE ressources SET
             energie = LEAST(energie + ?, ?),
