@@ -37,9 +37,6 @@ function inscrire($pseudo, $mdp, $mail)
 {
     global $base;
     global $REGISTRATION_ELEMENT_THRESHOLDS;
-    $data1 = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
-    $nbinscrits = $data1['inscrits'] + 1;
-
     $alea = mt_rand(1, REGISTRATION_RANDOM_MAX);
     foreach ($REGISTRATION_ELEMENT_THRESHOLDS as $index => $threshold) {
         if ($alea <= $threshold) {
@@ -57,7 +54,7 @@ function inscrire($pseudo, $mdp, $mail)
     $vieCDF = vieChampDeForce(0);
 
     try {
-        withTransaction($base, function() use ($base, $safePseudo, $hashedPassword, $now, $timestamps, $alea, $safeMail, $nbinscrits, $vieGen, $vieCDF) {
+        withTransaction($base, function() use ($base, $safePseudo, $hashedPassword, $now, $timestamps, $alea, $safeMail, $vieGen, $vieCDF) {
             // Explicit column lists guard against positional mismatches after schema migrations.
             // Only non-auto-increment, non-defaulted columns are listed; everything else uses DB defaults.
 
@@ -105,7 +102,8 @@ function inscrire($pseudo, $mdp, $mail)
                 $safePseudo
             );
 
-            dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
+            // Atomic increment: avoids TOCTOU race when two registrations happen concurrently.
+            dbExecute($base, 'UPDATE statistiques SET inscrits = inscrits + 1');
 
             // molecules: 4 rows, one per numeroclasse; remaining columns (atoms, nombre, isotope) default to 0
             dbExecute(
@@ -596,16 +594,17 @@ function augmenterBatiment($nom, $joueur)
     invalidatePlayerCache($joueur);
     initPlayer($joueur);
 
-    $batiments = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
+    // MED-004: Wrap all DB reads and writes in a transaction so the SELECT
+    // is not stale by the time we write (reads were previously outside the transaction).
+    withTransaction($base, function() use ($base, $nom, $joueur, $listeConstructions, $points) {
+        // Lock the row with FOR UPDATE so concurrent requests cannot read stale data.
+        $batiments = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $joueur);
 
-    // Hard cap on building levels (P4-ADV-004)
-    if (($batiments[$nom] ?? 0) >= MAX_BUILDING_LEVEL) {
-        return;
-    }
+        // Hard cap on building levels (P4-ADV-004)
+        if (($batiments[$nom] ?? 0) >= MAX_BUILDING_LEVEL) {
+            return;
+        }
 
-    // MED-004: Wrap all DB writes in a transaction so a partial failure
-    // (e.g. ajouterPoints failing after the constructions UPDATE) leaves no inconsistent state.
-    withTransaction($base, function() use ($base, $nom, $joueur, $batiments, $listeConstructions, $points) {
         if ($nom == 'producteur') {
             dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=? WHERE login=?', 'is', ($batiments['pointsProducteurRestants'] + $points['producteur']), $joueur);
         }
@@ -649,69 +648,75 @@ function diminuerBatiment($nom, $joueur)
     initPlayer($joueur);
 
     global $base;
-    $batiments = dbFetchOne($base, "SELECT $nom FROM constructions WHERE login=?", 's', $joueur);
 
-    if ($batiments[$nom] > 1) {
-        if ($nom == 'producteur') {
-            if ($constructions['pointsProducteurRestants'] >= $points['producteur']) {
-                dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=? WHERE login=?', 'is', ($constructions['pointsProducteurRestants'] - $points['producteur']), $joueur);
-            } else {
-                $pointsAEnlever = $points['producteur'] - $constructions['pointsProducteurRestants'];
-                dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=0 WHERE login=?', 's', $joueur);
+    // Wrap entire function body in a transaction to prevent race conditions
+    // between the SELECT and the subsequent UPDATE statements.
+    withTransaction($base, function() use ($base, $nom, $joueur, $nomsRes, $points, $constructions, $listeConstructions) {
+        // FOR UPDATE locks the row so concurrent requests wait rather than reading stale data.
+        $batiments = dbFetchOne($base, "SELECT $nom, pointsProducteurRestants, pointsProducteur, pointsCondenseurRestants, pointsCondenseur FROM constructions WHERE login=? FOR UPDATE", 's', $joueur);
 
-                // FIX FINDING-GAME-025: minimum is 0 (not 1) to avoid granting free production
-                $chaine = "";
-                foreach ($nomsRes as $num => $ressource) {
-                    if ($pointsAEnlever <= ${'points' . $ressource}) {
-                        $chaine = $chaine . (${'points' . $ressource} - $pointsAEnlever) . ";";
-                        $pointsAEnlever = 0;
-                    } else {
-                        $chaine = $chaine . "0;";
-                        $pointsAEnlever = $pointsAEnlever - ${'points' . $ressource};
+        if ($batiments[$nom] > 1) {
+            if ($nom == 'producteur') {
+                if ($batiments['pointsProducteurRestants'] >= $points['producteur']) {
+                    dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=? WHERE login=?', 'is', ($batiments['pointsProducteurRestants'] - $points['producteur']), $joueur);
+                } else {
+                    $pointsAEnlever = $points['producteur'] - $batiments['pointsProducteurRestants'];
+                    dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=0 WHERE login=?', 's', $joueur);
+
+                    // FIX FINDING-GAME-025: minimum is 0 (not 1) to avoid granting free production
+                    $chaine = "";
+                    foreach ($nomsRes as $num => $ressource) {
+                        if ($pointsAEnlever <= ${'points' . $ressource}) {
+                            $chaine = $chaine . (${'points' . $ressource} - $pointsAEnlever) . ";";
+                            $pointsAEnlever = 0;
+                        } else {
+                            $chaine = $chaine . "0;";
+                            $pointsAEnlever = $pointsAEnlever - ${'points' . $ressource};
+                        }
                     }
+
+                    dbExecute($base, 'UPDATE constructions SET pointsProducteur=? WHERE login=?', 'ss', $chaine, $joueur);
                 }
-
-                dbExecute($base, 'UPDATE constructions SET pointsProducteur=? WHERE login=?', 'ss', $chaine, $joueur);
             }
-        }
-        if ($nom == 'condenseur') {
-            if ($constructions['pointsCondenseurRestants'] >= $points['condenseur']) {
-                dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=? WHERE login=?', 'is', ($constructions['pointsCondenseurRestants'] - $points['condenseur']), $joueur);
-            } else {
-                dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=0 WHERE login=?', 's', $joueur);
-                $pointsAEnlever = $points['condenseur'] - $constructions['pointsCondenseurRestants'];
+            if ($nom == 'condenseur') {
+                if ($batiments['pointsCondenseurRestants'] >= $points['condenseur']) {
+                    dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=? WHERE login=?', 'is', ($batiments['pointsCondenseurRestants'] - $points['condenseur']), $joueur);
+                } else {
+                    dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=0 WHERE login=?', 's', $joueur);
+                    $pointsAEnlever = $points['condenseur'] - $batiments['pointsCondenseurRestants'];
 
-                $chaine = "";
-                foreach ($nomsRes as $num => $ressource) {
-                    $currentLevel = ${'niveau' . $ressource};
-                    if ($pointsAEnlever > 0 && $currentLevel > 0) {
-                        $canRemove = min($pointsAEnlever, $currentLevel);
-                        $chaine = $chaine . ($currentLevel - $canRemove) . ";";
-                        $pointsAEnlever -= $canRemove;
-                    } else {
-                        $chaine = $chaine . $currentLevel . ";";
+                    $chaine = "";
+                    foreach ($nomsRes as $num => $ressource) {
+                        $currentLevel = ${'niveau' . $ressource};
+                        if ($pointsAEnlever > 0 && $currentLevel > 0) {
+                            $canRemove = min($pointsAEnlever, $currentLevel);
+                            $chaine = $chaine . ($currentLevel - $canRemove) . ";";
+                            $pointsAEnlever -= $canRemove;
+                        } else {
+                            $chaine = $chaine . $currentLevel . ";";
+                        }
                     }
+
+                    dbExecute($base, 'UPDATE constructions SET pointsCondenseur=? WHERE login=?', 'ss', $chaine, $joueur);
                 }
-
-                dbExecute($base, 'UPDATE constructions SET pointsCondenseur=? WHERE login=?', 'ss', $chaine, $joueur);
             }
-        }
 
-        if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
-            $vieCol = 'vie' . ucfirst($nom);
-            if ($nom == "champdeforce") {
-                $vieVal = vieChampDeForce($batiments[$nom] - 1);
-            } elseif ($nom == "ionisateur") {
-                $vieVal = vieIonisateur($batiments[$nom] - 1);
+            if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
+                $vieCol = 'vie' . ucfirst($nom);
+                if ($nom == "champdeforce") {
+                    $vieVal = vieChampDeForce($batiments[$nom] - 1);
+                } elseif ($nom == "ionisateur") {
+                    $vieVal = vieIonisateur($batiments[$nom] - 1);
+                } else {
+                    $vieVal = pointsDeVie($batiments[$nom] - 1);
+                }
+                dbExecute($base, "UPDATE constructions SET $nom=?, $vieCol=? WHERE login=?", 'ids', ($batiments[$nom] - 1), $vieVal, $joueur);
             } else {
-                $vieVal = pointsDeVie($batiments[$nom] - 1);
+                dbExecute($base, "UPDATE constructions SET $nom=? WHERE login=?", 'is', ($batiments[$nom] - 1), $joueur);
             }
-            dbExecute($base, "UPDATE constructions SET $nom=?, $vieCol=? WHERE login=?", 'ids', ($batiments[$nom] - 1), $vieVal, $joueur);
-        } else {
-            dbExecute($base, "UPDATE constructions SET $nom=? WHERE login=?", 'is', ($batiments[$nom] - 1), $joueur);
+            ajouterPoints(-$listeConstructions[$nom]['points'], $joueur);
         }
-        ajouterPoints(-$listeConstructions[$nom]['points'], $joueur);
-    }
+    });
 
     // FIX H-007: invalidate target player's cache, not necessarily current session
     invalidatePlayerCache($joueur);
@@ -817,7 +822,7 @@ function recalculerStatsAlliances()
 
     $alliancesRows = dbFetchAll($base, 'SELECT id FROM alliances', '');
     foreach ($alliancesRows as $donnees) {
-        $membresRows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=?', 'i', $donnees['id']);
+        $membresRows = dbFetchAll($base, 'SELECT login, totalPoints, points, pointsAttaque, pointsDefense, ressourcesPillees FROM autre WHERE idalliance=?', 'i', $donnees['id']);
         $pointstotaux = 0;
         $cTotal = 0;
         $aTotal = 0;
@@ -881,9 +886,8 @@ function supprimerJoueur($joueur)
         dbExecute($base, 'DELETE FROM player_compounds WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM season_recap WHERE login=?', 's', $joueur);
 
-        $donnees = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
-        $nbinscrits = $donnees['inscrits'] - 1;
-        dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
+        // Atomic decrement: avoids TOCTOU race; floor at 0 to prevent negative counts.
+        dbExecute($base, 'UPDATE statistiques SET inscrits = GREATEST(0, inscrits - 1)');
     });
 }
 
