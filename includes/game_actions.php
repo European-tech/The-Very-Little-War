@@ -140,6 +140,16 @@ function updateActions($joueur)
                 $actions['troupes'] = $chaine;
                 include("includes/combat.php"); // Les pertes sont calculées, le gagnant est désigné et les troupes sont mises à jour dans la BD, les ressources sont pillées
 
+                // Map array casualties to flat vars expected by report template
+                $classe1AttaquantMort = $attaquantMort[1] ?? 0;
+                $classe2AttaquantMort = $attaquantMort[2] ?? 0;
+                $classe3AttaquantMort = $attaquantMort[3] ?? 0;
+                $classe4AttaquantMort = $attaquantMort[4] ?? 0;
+                $classe1DefenseurMort = $defenseurMort[1] ?? 0;
+                $classe2DefenseurMort = $defenseurMort[2] ?? 0;
+                $classe3DefenseurMort = $defenseurMort[3] ?? 0;
+                $classe4DefenseurMort = $defenseurMort[4] ?? 0;
+
                 // Map combat.php output variables to report template variables
                 $attaquePts = number_format($pointsAttaquant, 0, ' ', ' ');
                 $defensePts = number_format($pointsDefenseur, 0, ' ', ' ');
@@ -159,11 +169,12 @@ function updateActions($joueur)
 
                 $chaine = "Aucune";
                 foreach ($nomsRes as $num => $ressource) {
-                    if (${$ressource . 'Pille'} > 0) {
+                    $pilleAmount = $ressourcePille[$ressource] ?? 0;
+                    if ($pilleAmount > 0) {
                         if ($chaine == "Aucune") {
-                            $chaine = nombreAtome($num, ${$ressource . 'Pille'});
+                            $chaine = nombreAtome($num, $pilleAmount);
                         } else {
-                            $chaine = $chaine . nombreAtome($num, ${$ressource . 'Pille'});
+                            $chaine = $chaine . nombreAtome($num, $pilleAmount);
                         }
                     }
                 }
