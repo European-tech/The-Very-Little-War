@@ -14,6 +14,7 @@ ALTER TABLE autre ADD INDEX IF NOT EXISTS idx_totalPoints (totalPoints);
 -- Note: connectes uses ip as identifier, ensure no duplicates first
 -- ALTER TABLE connectes ADD PRIMARY KEY (ip); -- Uncomment after verifying no duplicates
 
--- Track migration
-INSERT INTO migrations (version, description, applied_at) VALUES (15, 'Fix schema issues: idclasse type, prestige login, totalPoints index', NOW())
-ON DUPLICATE KEY UPDATE applied_at = NOW();
+-- Runner inserts migration record; do not duplicate here.
+-- The migrations table only has (id, filename, applied_at) columns.
+-- The original INSERT INTO migrations (version, description, applied_at) was invalid
+-- and would have caused a column-not-found error. Removed per PASS1-HIGH-010.
