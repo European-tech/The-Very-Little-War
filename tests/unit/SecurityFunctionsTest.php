@@ -132,8 +132,9 @@ class SecurityFunctionsTest extends TestCase
 
     public function testTransformIntNegativeNumber(): void
     {
-        // Negative numbers should pass through unchanged (no suffix)
-        $this->assertEquals('-5', transformInt('-5'));
+        // Negative numbers are clamped to '0' — transformInt is for display of
+        // non-negative resource values only (intentional fix, commit 7590cae).
+        $this->assertEquals('0', transformInt('-5'));
     }
 
     public function testTransformIntZeroK(): void
