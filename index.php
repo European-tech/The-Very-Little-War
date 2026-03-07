@@ -113,13 +113,9 @@ if (!$donnees) {
     $contenuNews = 'Aucune news pour l\'instant.';
 } else {
     // News entries created by admins only (admin/redigernews.php behind redirectionmotdepasse.php).
-    // This regex sanitisation is acceptable for admin-controlled content.
-    // If non-admins can ever post news, switch to HTML Purifier.
-    $allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><hr>';
-    $contenuNews = strip_tags($donnees['contenu'], $allowedTags);
-    $contenuNews = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $contenuNews);
-    $contenuNews = preg_replace('/\s+style\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $contenuNews);
-    $contenuNews = preg_replace('/href\s*=\s*["\']?\s*javascript\s*:/i', 'href="', $contenuNews);
+    // Use a conservative tag allowlist — no attributes are permitted on retained tags
+    // so event handlers and javascript: hrefs are impossible.
+    $contenuNews = strip_tags($donnees['contenu'], '<b><i><u><br><p><a>');
     $contenuNews = nl2br($contenuNews);
 }
 

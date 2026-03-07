@@ -17,8 +17,8 @@ finCarte();
 
     <script type="text/javascript" src="js/framework7.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2ez9n99UvfBIHzE0ImftZXN7Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script type="text/javascript" src="js/loader.js"></script>
-    <script type="text/javascript" src="js/countdown.js"></script>
+    <script type="text/javascript" src="js/loader.js" nonce="<?= htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8') ?>"></script>
+    <script type="text/javascript" src="js/countdown.js" nonce="<?= htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8') ?>"></script>
     
 <script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
     document.getElementById('titre').style.marginLeft = window.innerWidth*0.32-105+"px";
@@ -44,14 +44,11 @@ finCarte();
     
     // Autocomplete
     <?php if(isset($_SESSION['login'])){ ?>
-    var joueurs = [
-        <?php
+    <?php
         $nomsRows = dbFetchAll($base, 'SELECT login FROM membre WHERE login!=?', 's', $_SESSION['login']);
-        foreach($nomsRows as $noms){
-            echo '"'.htmlspecialchars($noms['login'], ENT_QUOTES, 'UTF-8').'",';
-        }
-        ?>
-    ];
+        $joueursList = array_column($nomsRows, 'login');
+    ?>
+    var joueurs = <?= json_encode($joueursList, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     <?php } ?>
     var autocompleteStandalonePopup = myApp.autocomplete({
         openIn: 'popup', //open in popup

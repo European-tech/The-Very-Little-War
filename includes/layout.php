@@ -1,6 +1,15 @@
 <?php
 $nonce = cspNonce();
-// TODO: remove remaining inline style="" attributes to eliminate 'unsafe-inline' entirely
+// NOTE (MED-059): 'unsafe-inline' is intentionally kept in style-src.
+// Reason: Framework7 injects inline styles at runtime via JS (impossible to nonce/hash),
+// and the codebase has ~50+ inline style="" attributes across layout, game pages, and
+// PHP-generated HTML. Removing unsafe-inline would require either:
+//   a) Moving all style="" attrs to CSS classes (large refactor), or
+//   b) SHA-256 hashing every inline style value (brittle — breaks on any change).
+// The <style nonce="$nonce"> block in includes/style.php IS nonce-protected (so the
+// nonce in style-src is still meaningful for that block). Inline style="" attrs remain
+// covered by unsafe-inline until the refactor is completed.
+// TODO: progressively replace inline style="" attrs with CSS classes, then drop unsafe-inline.
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'nonce-$nonce' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https://www.theverylittlewar.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
 ?>
 <!DOCTYPE html>
