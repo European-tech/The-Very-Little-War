@@ -85,13 +85,14 @@ function inscrire($pseudo, $mdp, $mail)
             mysqli_stmt_close($stmt);
 
             // autre: login is PK; tempsPrecedent must be set now; timeMolecule needs initial timestamps;
+            // description and missions are NOT NULL with no DB default — supply explicit values.
             // all other columns (points, idalliance, nbattaques, etc.) use DB defaults (0 or NULL)
             dbExecute(
                 $base,
-                'INSERT INTO autre (login, tempsPrecedent, timeMolecule)
-                 VALUES (?, ?, ?)',
-                'sis',
-                $safePseudo, $now, $timestamps
+                'INSERT INTO autre (login, tempsPrecedent, timeMolecule, description, missions)
+                 VALUES (?, ?, ?, ?, ?)',
+                'sisss',
+                $safePseudo, $now, $timestamps, 'Pas de description', ''
             );
 
             // ressources: id=auto_increment; all resource/revenue columns default to their start values
