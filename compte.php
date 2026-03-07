@@ -84,13 +84,23 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
 }
 
 if (isset($_POST['changermail'])) {
-    if (!empty($_POST['changermail'])) {
-        if (preg_match("#^[a-z0-9._-]+@[a-z0-9._-]{2,}\.[a-z]{2,4}$#", $_POST['changermail'])) {
-            $newEmail = $_POST['changermail'];
-            dbExecute($base, 'UPDATE membre SET email = ? WHERE login = ?', 'ss', $newEmail, $_SESSION['login']);
-            $information = "Votre adresse e-mail a été changée.";
-        } else {
+    if (!empty($_POST['changermail']) && !empty($_POST['mot_de_passe_actuel'])) {
+        // Require current password before changing email (PASS1-MEDIUM-004)
+        $membreData = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
+        if (!$membreData || !password_verify($_POST['mot_de_passe_actuel'], $membreData['pass_md5'])) {
+            $erreur = "Mot de passe incorrect.";
+        } elseif (!validateEmail($_POST['changermail'])) {
+            // Use validateEmail() (FILTER_VALIDATE_EMAIL) for consistency with inscription.php (PASS1-MEDIUM-005)
             $erreur = "Votre email n'est pas correct.";
+        } else {
+            $newEmail = $_POST['changermail'];
+            $existingCount = dbCount($base, 'SELECT COUNT(*) AS nb FROM membre WHERE email = ? AND login != ?', 'ss', $newEmail, $_SESSION['login']);
+            if ($existingCount > 0) {
+                $erreur = "Cette adresse e-mail est déjà utilisée.";
+            } else {
+                dbExecute($base, 'UPDATE membre SET email = ? WHERE login = ?', 'ss', $newEmail, $_SESSION['login']);
+                $information = "Votre adresse e-mail a été changée.";
+            }
         }
     } else {
         $erreur = "Tous les champs ne sont pas remplis.";
@@ -173,6 +183,7 @@ if (!isset($_POST['supprimercompte'])) {
     echo '<form action="compte.php" method="post" name="formChangerMail">';
     echo csrfField();
     item(['media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'floating' => true, 'titre' => 'Mail', 'input' => '<input type="text" name="changermail" id="changermail" class="form-control" value="' . htmlspecialchars($mailValue, ENT_QUOTES, 'UTF-8') . '"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Mot de passe actuel', 'input' => '<input type="password" name="mot_de_passe_actuel" id="mot_de_passe_actuel_mail" class="form-control" autocomplete="current-password"/>']);
     item(['input' => submit(['titre' => 'Changer', 'form' => 'formChangerMail'])]);
     echo '</form><br/>';
     finListe();

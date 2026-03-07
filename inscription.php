@@ -5,14 +5,14 @@ require_once("includes/validation.php");
 
 //Si le bouton inscription a ete clique
 if (isset($_POST['login'])) {
+	// CSRF check must come before rate limit to prevent forged requests from exhausting limits
+	csrfCheck();
+
 	// Rate limit: 3 registrations per hour per IP
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'register', RATE_LIMIT_REGISTER_MAX, RATE_LIMIT_REGISTER_WINDOW)) {
 		logWarn('REGISTER', 'Registration rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
 		$erreur = 'Trop d\'inscriptions depuis cette adresse. R&eacute;essayez plus tard.';
 	} else {
-
-	// CSRF check
-	csrfCheck();
 
 	//Si les champs sont vides
 	if ((isset($_POST['login']) && !empty($_POST['login'])) && (isset($_POST['pass']) && !empty($_POST['pass'])) && (isset($_POST['pass_confirm']) && !empty($_POST['pass_confirm'])) && (isset($_POST['email']) && !empty($_POST['email']))) {
@@ -40,7 +40,7 @@ if (isset($_POST['login'])) {
 					//Si le login est deja utilise
 					if ($nbLogin == 0) {
 						inscrire($loginInput, $passInput, $emailInput);
-						logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'email' => $emailInput]);
+						logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'ip' => $_SERVER['REMOTE_ADDR']]);
 						require_once('includes/multiaccount.php');
 						logLoginEvent($base, $loginInput, 'register');
 						header("Location: index.php?inscrit=1"); exit;

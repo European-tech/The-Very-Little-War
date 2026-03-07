@@ -9,6 +9,17 @@ if(isset($_POST['verification']) AND isset($_POST['oui'])) {
 	supprimerJoueur($_SESSION['login']);
 }
 
+// Validate session token before any destructive action to prevent CSRF-triggered logouts
+if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
+	$tokenDb = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
+	if (!$tokenDb || $tokenDb['session_token'] !== $_SESSION['session_token']) {
+		session_unset();
+		session_destroy();
+		header('Location: index.php');
+		exit;
+	}
+}
+
 // Clear session token from DB to prevent reuse
 if (isset($_SESSION['login'])) {
 	dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE login = ?', 's', $_SESSION['login']);
