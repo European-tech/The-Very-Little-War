@@ -8,7 +8,8 @@ SELECT ip, MAX(timestamp) AS timestamp FROM connectes GROUP BY ip;
 
 DELETE FROM connectes;
 
-INSERT INTO connectes SELECT * FROM connectes_dedup;
+-- Explicit column names to avoid column-order-dependent INSERT (see PASS1-LOW-037).
+INSERT INTO connectes (ip, timestamp) SELECT ip, timestamp FROM connectes_dedup;
 
 DROP TEMPORARY TABLE connectes_dedup;
 
