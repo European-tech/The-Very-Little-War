@@ -106,10 +106,9 @@ $tutorielMissions[] = [
 ];
 
 // --- Mission 6: Scout a nearby player (use espionage) ---
-// FRAGILE: This checks for espionage completion by matching report title via LIKE.
-// If report title format changes, this mission will break.
-// TODO: add rapport_type column to rapports table and check rapport_type = 'espionage' instead.
-$exEspionnage = dbFetchOne($base, 'SELECT count(*) AS nb FROM rapports WHERE destinataire=? AND titre LIKE ? AND titre NOT LIKE ?', 'sss', $_SESSION['login'], '%spionnage%', 'Tentative%');
+// MED-067: Use the rapport type column for reliable espionage completion detection.
+// The type='espionage' value is set when the espionage report is created in game_actions.php.
+$exEspionnage = dbFetchOne($base, "SELECT count(*) AS nb FROM rapports WHERE destinataire=? AND type='espionage'", 's', $_SESSION['login']);
 $aEspionne = ($exEspionnage && intval($exEspionnage['nb']) > 0);
 
 $tutorielMissions[] = [

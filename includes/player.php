@@ -1227,6 +1227,13 @@ function remiseAZero()
         dbExecute($base, 'DELETE FROM attack_cooldowns');
         dbExecute($base, 'DELETE FROM player_compounds');
         dbExecute($base, 'DELETE FROM resource_nodes');
+
+        // MED-071: Remove temporary and expired sanctions on season reset.
+        // Permanent bans (type != 'temp' and fin = 0 or future) are preserved.
+        dbExecute($base, "DELETE FROM sanctions WHERE type='temp' OR (fin > 0 AND fin < NOW())", []);
+
+        // MED-072: Clear season-specific news on season reset.
+        dbExecute($base, 'DELETE FROM news WHERE 1', []);
     });
 
     // Forum data (sujets, reponses, statutforum) intentionally persists across seasons for community continuity

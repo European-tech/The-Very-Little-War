@@ -23,7 +23,7 @@ $text = preg_replace('!\[sup\](.+)\[/sup\]!isU', '<sup>$1</sup>', $text);
 $text = preg_replace('!\[sub\](.+)\[/sub\]!isU', '<sub>$1</sub>', $text);
 $text = preg_replace('!\[center\](.+)\[/center\]!isU', '<div style="text-align: center;">$1</div>', $text);
 $text = preg_replace('!\[title\](.+)\[/title\]!isU', '<span style="font-size: 130%;">$1</span>', $text);
-$text = preg_replace('!\[joueur=([a-z0-9_-]{3,16})/\]!isU', '<a href="joueur.php?id=$1">$1</a>', $text);
+$text = preg_replace('!\[joueur=([a-z0-9_-]{3,20})/\]!isU', '<a href="joueur.php?id=$1">$1</a>', $text);
 $text = preg_replace('!\[alliance=([a-z0-9_-]{3,16})/\]!isU', '<a href="alliance.php?id=$1">$1</a>', $text);
 $text = preg_replace('!\[url=(https?://[^\]]+)\](.+?)\[/url\]!isU', '<a href="$1" rel="nofollow noopener noreferrer" target="_blank">$2</a>', $text);
 $text = preg_replace_callback('!\[img=([^\]]+)\]!isU', function($matches) {

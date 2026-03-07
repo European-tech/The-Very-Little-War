@@ -470,16 +470,20 @@ function updateActions($joueur)
                 }
 
 
-                dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $actions['attaquant'], '<img alt="attaque" src="images/rapports/binoculars.png"/ class="imageAide">');
+                // MED-068: Wrap espionage report creation and action deletion in a transaction
+                // to prevent partial writes (report created but action not deleted, or vice versa).
+                withTransaction($base, function() use ($base, $actions, $titreRapportJoueur, $contenuRapportJoueur, $espionageThreshold) {
+                    dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $actions['attaquant'], 'espionage');
 
-                // Notify defender they were spied on (anonymous — doesn't reveal spy identity)
-                if ($espionageThreshold < $actions['nombreneutrinos']) {
-                    $titreRapportEspionDef = 'Tentative d\'espionnage détectée';
-                    $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
-                    dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $actions['defenseur'], '<img alt="spy" src="images/rapports/binoculars.png" class="imageAide"/>');
-                }
+                    // Notify defender they were spied on (anonymous — doesn't reveal spy identity)
+                    if ($espionageThreshold < $actions['nombreneutrinos']) {
+                        $titreRapportEspionDef = 'Tentative d\'espionnage détectée';
+                        $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
+                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $actions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $actions['defenseur'], 'defense');
+                    }
 
-                dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                    dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                });
             }
         }
 
