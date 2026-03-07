@@ -1,5 +1,6 @@
 <?php
 include("includes/basicprivatephp.php");
+$pageTitle = 'Prestige — The Very Little War';
 include("includes/layout.php");
 
 // Handle purchase POST

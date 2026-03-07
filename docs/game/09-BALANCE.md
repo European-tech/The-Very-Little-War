@@ -644,6 +644,8 @@ At level 10: +10% combat bonus.
 | 1 | Phalange | Class 1 absorbs 60% of damage, gets +20% defense |
 | 2 | Embuscade | If defender has more total molecules, +15% effective damage |
 
+**Dispersée:** Overkill damage is not redistributed. Choose Dispersée against large numbers of equal-HP units for best efficiency.
+
 | Constant | Value |
 |----------|-------|
 | `FORMATION_PHALANX_ABSORB` | 0.60 |
@@ -1303,3 +1305,9 @@ sellImpact            = 1 / (1/oldPrice + volatility × qty / 10000)
 prestigeProd          = 1.05 if 'experimente', else 1.0
 prestigeCombat        = 1.05 if 'maitre_chimiste', else 1.0
 ```
+
+---
+
+## Schema Design Notes
+
+- **membre table primary key:** MariaDB/InnoDB uses `login` VARCHAR(50) as the effective clustered key (first UNIQUE NOT NULL column). This is intentional for a login-keyed game. If `id`-based FK performance becomes an issue, consider migrating FKs to INT ids.

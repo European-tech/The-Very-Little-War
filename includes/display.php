@@ -332,6 +332,10 @@ function creerBBcode($nomTextArea, $interieur = NULL, $reponse = 0)
 
 function transformInt($nombre)
 {
+    // Clamp negative numeric input immediately
+    if (is_numeric($nombre) && (float)$nombre < 0) {
+        return '0';
+    }
     // Apply suffix replacements iteratively to support chained suffixes like "1KK" → "1000000"
     // Pattern matches suffix followed by any trailing digits (from prior expansions)
     $patterns = ['K' => '000', 'M' => '000000', 'G' => '000000000', 'T' => '000000000000',

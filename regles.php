@@ -258,6 +258,8 @@ Les noeuds sont visibles sur la carte sous forme de losanges colorés. Survolez 
 
 <em>Astuce :</em> Positionnez-vous stratégiquement à proximité des noeuds correspondant aux ressources dont vous avez besoin. Les noeuds changent à chaque nouvelle saison !<br/><br/>
 
+<em>Note :</em> Le bonus de nœud est un bonus fixe à l'intérieur du rayon — pas de dégradation par distance. Cela peut être revu selon l'équilibre observé.<br/><br/>
+
 <?php
 finContent();
 finCarte();

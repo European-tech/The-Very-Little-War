@@ -486,11 +486,12 @@ function chipInfo($label, $image, $id = false)
 
 function progressBar($vie, $vieMax, $couleur)
 {
+    $pct = $vieMax > 0 ? min(100, round(($vie / $vieMax) * 100)) : 0;
     return '
         <br/><br/><br/>
         <div class="item-content" style="margin:0;padding:0;">
             <div class="item-inner" style="width: 80px;padding-right:0px;">
-              <div data-progress="' . ($vie / $vieMax * 100) . '" class="progressbar color-' . $couleur . '" style="height:6px;border:2px solid black;"></div>
+              <div data-progress="' . $pct . '" class="progressbar color-' . $couleur . '" style="height:6px;border:2px solid black;"></div>
               <center><strong style="font-size:13px">' . $vie . '/' . $vieMax . '</strong></center>
         </div>
         </div>';

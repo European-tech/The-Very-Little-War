@@ -12,7 +12,13 @@ else
 include("includes/layout.php");
 
 debutCarte("Historique des versions");
-echo important('Version 2.0.1.0'); ?>
+$gitHash = '';
+if (function_exists('shell_exec')) {
+    $raw = shell_exec('cd ' . escapeshellarg(__DIR__) . ' && git rev-parse --short HEAD 2>/dev/null');
+    $gitHash = trim($raw ?? '');
+}
+$versionLabel = defined('GAME_VERSION') ? GAME_VERSION : 'V4.0';
+echo important($versionLabel . ($gitHash ? " ({$gitHash})" : '')); ?>
 <p>
 - ajout des points d'attaque, de défense et de pillage<br/>
 - ajustement des caractéristiques des atomes<br/> 

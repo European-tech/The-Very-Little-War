@@ -208,9 +208,13 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 
 if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAcheter'])) {
     csrfCheck();
+    // PASS1-LOW-023: Rate limit market buys to prevent automated trading exploits
+    rateLimitCheck($_SESSION['login'], 'market_buy', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW);
     $_POST['nombreRessourceAAcheter'] = intval(transformInt($_POST['nombreRessourceAAcheter']));
     $_POST['typeRessourceAAcheter'] = trim($_POST['typeRessourceAAcheter']);
-    if (!empty($_POST['nombreRessourceAAcheter']) and preg_match("#^[0-9]*$#", $_POST['nombreRessourceAAcheter'])) {
+    if ($_POST['nombreRessourceAAcheter'] <= 0) {
+        $erreur = "Quantité invalide (doit être > 0)";
+    } elseif (!empty($_POST['nombreRessourceAAcheter']) and preg_match("#^[0-9]*$#", $_POST['nombreRessourceAAcheter'])) {
         $bool = 1;
         $numRes = -1;
         foreach ($nomsRes as $num => $ressource) {
@@ -312,9 +316,13 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
 if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVendre'])) {
     csrfCheck();
+    // PASS1-LOW-023: Rate limit market sells to prevent automated trading exploits
+    rateLimitCheck($_SESSION['login'], 'market_sell', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW);
     $_POST['nombreRessourceAVendre'] = intval(transformInt($_POST['nombreRessourceAVendre']));
     $_POST['typeRessourceAVendre'] = trim($_POST['typeRessourceAVendre']);
-    if (!empty($_POST['nombreRessourceAVendre']) and preg_match("#^[0-9]*$#", $_POST['nombreRessourceAVendre'])) {
+    if ($_POST['nombreRessourceAVendre'] <= 0) {
+        $erreur = "Quantité invalide (doit être > 0)";
+    } elseif (!empty($_POST['nombreRessourceAVendre']) and preg_match("#^[0-9]*$#", $_POST['nombreRessourceAVendre'])) {
         $bool = 1;
         $numRes = -1;
         foreach ($nomsRes as $num => $ressource) {
@@ -433,6 +441,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
     }
 }
 
+$pageTitle = 'Marché — The Very Little War';
 include("includes/layout.php");
 
 if (!isset($_GET['sub'])) {
@@ -668,6 +677,7 @@ if ($_GET['sub'] == 0) {
                     } ?>
                 ],
                 <?php
+                // PASS1-LOW-024: Timezone for chart timestamps is Europe/Paris, set globally in includes/config.php
                 $tot = '';
                 $coursRows = dbFetchAll($base, "SELECT * FROM cours ORDER BY timestamp DESC LIMIT " . MARKET_HISTORY_LIMIT);
                 $c = 1;

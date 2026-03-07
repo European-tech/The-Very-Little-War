@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="The Very Little War" />
 <link rel="icon" type="image/x-icon" href="images/icone.png"/>
 <!-- Your app title -->
-<title>The Very Little War</title>
+<title><?= htmlspecialchars($pageTitle ?? 'The Very Little War', ENT_QUOTES, 'UTF-8') ?></title>
 <!-- Path to Framework7 Library CSS, Material Theme -->
 <link rel="stylesheet" href="css/framework7.material.min.css">
 <!-- Path to Framework7 color related styles, Material Theme -->

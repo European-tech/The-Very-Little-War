@@ -55,7 +55,9 @@ if ($gradeChef) {
 		csrfCheck();
 		if (!empty($_POST['changernom'])) {
 			$_POST['changernom'] = trim($_POST['changernom']);
-			if (mb_strlen($_POST['changernom']) > 50) {
+			if (!preg_match('/^[\w\s\-\.\']{3,50}$/u', $_POST['changernom'])) {
+				$erreur = "Le nom d'alliance ne peut contenir que des lettres, chiffres, espaces, tirets et apostrophes (3-50 caractères).";
+			} elseif (mb_strlen($_POST['changernom']) > 50) {
 				$erreur = "Le nom de l'alliance ne peut pas dépasser 50 caractères.";
 			} else {
 				// PASS1-MEDIUM-017: Wrap uniqueness check + UPDATE in a transaction to prevent race conditions
@@ -294,17 +296,20 @@ if ($guerre) {
 		$existeAlliance = count($existeAllianceRows);
 		if ($existeAlliance > 0) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['guerre']);
-			$nbDeclarations = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance1=? AND alliance2=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0))', 'ii', $allianceAdverse['id'], $chef['id']);
+			$allianceAdverseId = $allianceAdverse['id'];
+			$allianceAdverseChef = $allianceAdverse['chef'];
+			$chefId = $chef['id'];
+			$chefTag = $chef['tag'];
 
-			$nbDeclarations1 = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance2=? AND alliance1=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0))', 'ii', $allianceAdverse['id'], $chef['id']);
-
-			if ($nbDeclarations['nbDeclarations'] == 0 and $nbDeclarations1['nbDeclarations'] == 0) {
-				$allianceAdverseId = $allianceAdverse['id'];
-				$allianceAdverseChef = $allianceAdverse['chef'];
-				$chefId = $chef['id'];
-				$chefTag = $chef['tag'];
-
+			// PASS1-LOW-022: Duplicate check + INSERT in a single transaction with FOR UPDATE to prevent race conditions
+			try {
 				withTransaction($base, function() use ($base, $allianceAdverseId, $allianceAdverseChef, $chefId, $chefTag) {
+					// Authoritative duplicate check inside transaction with row lock
+					$dup1 = dbCount($base, 'SELECT COUNT(*) FROM declarations WHERE alliance1=? AND alliance2=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0)) FOR UPDATE', 'ii', $allianceAdverseId, $chefId);
+					$dup2 = dbCount($base, 'SELECT COUNT(*) FROM declarations WHERE alliance2=? AND alliance1=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0)) FOR UPDATE', 'ii', $allianceAdverseId, $chefId);
+					if ($dup1 > 0 || $dup2 > 0) {
+						throw new \RuntimeException('DUPLICATE');
+					}
 					dbExecute($base, 'DELETE FROM declarations WHERE alliance1=? AND alliance2=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
 					dbExecute($base, 'DELETE FROM declarations WHERE alliance2=? AND alliance1=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
 					$now = time();
@@ -314,9 +319,8 @@ if ($guerre) {
 					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chefTag) . '">' . $safeChefTag . '</a> vous déclare la guerre.';
 					dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverseChef);
 				});
-
 				$information = "Vous avez déclaré la guerre à l'équipe " . htmlspecialchars($_POST['guerre'], ENT_QUOTES, 'UTF-8') . ".";
-			} else {
+			} catch (\RuntimeException $e) {
 				$erreur = "Soit une guerre est déjà déclarée contre cette équipe, soit vous êtes alliés avec elle.";
 			}
 		} else {
@@ -377,6 +381,7 @@ if ($inviter) {
 // On actualise les informations qui ont pu être changées
 $chef = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $currentAlliance['idalliance']);
 
+$pageTitle = 'Administration Alliance — The Very Little War';
 include("includes/layout.php");
 debutCarte('Paramètres de l\'équipe');
 debutListe();

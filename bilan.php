@@ -1,5 +1,6 @@
 <?php
 include("includes/basicprivatephp.php");
+$pageTitle = 'Bilan des Bonus — The Very Little War';
 include("includes/layout.php");
 
 // =============================================================================

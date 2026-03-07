@@ -13,6 +13,11 @@
 date_default_timezone_set('Europe/Paris');
 
 // =============================================================================
+// GAME VERSION
+// =============================================================================
+define('GAME_VERSION', 'V4.0');
+
+// =============================================================================
 // TIME CONSTANTS
 // =============================================================================
 define('SECONDS_PER_HOUR', 3600);
@@ -612,11 +617,14 @@ define('RATE_LIMIT_LOGIN_MAX', 10);           // Max login attempts per window
 define('RATE_LIMIT_LOGIN_WINDOW', 300);       // 5 minutes
 define('RATE_LIMIT_REGISTER_MAX', 3);         // Max registrations per window
 define('RATE_LIMIT_REGISTER_WINDOW', SECONDS_PER_HOUR); // 1 hour
+define('RATE_LIMIT_MARKET_MAX', 30);          // Max buy/sell actions per window (PASS1-LOW-023)
+define('RATE_LIMIT_MARKET_WINDOW', 60);       // 1 minute
 
 // =============================================================================
 // USER INPUT VALIDATION
 // =============================================================================
 define('PASSWORD_MIN_LENGTH', 8);
+define('PASSWORD_BCRYPT_MAX_LENGTH', 72); // bcrypt silently truncates beyond 72 bytes
 define('LOGIN_MIN_LENGTH', 3);
 define('LOGIN_MAX_LENGTH', 20);
 define('EMAIL_MAX_LENGTH', 100); // RFC 5321 practical limit

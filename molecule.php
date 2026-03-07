@@ -13,7 +13,7 @@ if(isset($_GET['id']) AND !empty($_GET['id'])) {
 	if($nb_resultats > 0){
 
     $totalAtomes = 0;
-	$mx = $molecule['oxygene'];
+	$mx = 0;
 	foreach($nomsRes as $num => $ressource) {
 		$mx = max($mx,$molecule[$ressource]);
         $totalAtomes += $molecule[$ressource];

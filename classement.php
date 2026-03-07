@@ -67,6 +67,7 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 	}
 }
 
+$pageTitle = 'Classement — The Very Little War';
 include("includes/layout.php");
 
 $_GET['sub'] = isset($_GET['sub']) ? (int)$_GET['sub'] : 0;
