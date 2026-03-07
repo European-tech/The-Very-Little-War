@@ -672,6 +672,7 @@ if ($_GET['sub'] == 0) {
 }
     ?>
 
+    <!-- Google Charts loader - only loaded on this page to avoid CSP issues (loader.js uses eval()) -->
     <!-- SRI hash may break if Google updates loader.js; remove integrity attr if chart stops loading -->
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"
             integrity="sha384-Q4nTc23a1YNtnl17XDjJkYn/j5Ksb7rsGG1NTcIxbz6sTGfGXZJ8WdvzALeeuafr"

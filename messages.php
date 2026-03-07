@@ -86,7 +86,7 @@ else {
 		}
 		echo '</tbody></table></div>';
         // LOW-032: require JS confirmation before deleting all messages
-        $supprimer = '<form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer_tout" value="1"><button type="submit" onclick="return confirm(\'Supprimer tous les messages ? Cette action est irréversible.\')" style="background:none;border:none;cursor:pointer;text-decoration:underline;">Supprimer tous les messages</button></form>';
+        $supprimer = '<form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer_tout" value="1"><button type="submit" data-confirm="Supprimer tous les messages ? Cette action est irréversible." style="background:none;border:none;cursor:pointer;text-decoration:underline;">Supprimer tous les messages</button></form>';
 		$adresse = "messages.php?";
         $premier = '';
         if($page > 2){

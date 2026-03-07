@@ -1,8 +1,8 @@
 # Security headers
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set X-XSS-Protection "1; mode=block"
+    # X-Frame-Options and X-XSS-Protection are set in includes/layout.php via PHP header()
+    # to avoid duplicate headers with conflicting values (layout.php sets DENY and 0 respectively)
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     # CSP is now set via PHP header() in includes/layout.php with per-request nonces
     # See includes/csp.php for nonce generation
