@@ -834,6 +834,7 @@ function supprimerJoueur($joueur)
         dbExecute($base, 'DELETE FROM sanctions WHERE joueur=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM actionsconstruction WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM player_compounds WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM season_recap WHERE login=?', 's', $joueur);
 
         $donnees = dbFetchOne($base, 'SELECT inscrits FROM statistiques');
         $nbinscrits = $donnees['inscrits'] - 1;

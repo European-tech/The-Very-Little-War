@@ -2,6 +2,9 @@
 -- Source: V4-19 (sqrt ranking system)
 -- Must be run AFTER deploying the PHP code changes.
 -- This is a one-time recalculation for existing players.
+--
+-- IMPORTANT: Apply ONLY after deploying updated PHP code. This UPDATE uses new formula.
+-- MANUAL STEP: Verify PHP deployed before running.
 
 -- The PHP formula is:
 -- totalPoints = round(
