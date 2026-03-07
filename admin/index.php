@@ -49,7 +49,11 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	}
 
 	if (isset($_POST['maintenance'])) {
-		dbExecute($base, 'UPDATE statistiques SET maintenance = ?', 'i', 1);
+		$now = time();
+		// MED-015: Also update debut timestamp so the 24h maintenance window starts now.
+		// Without this, the automatic reset check compares against stale debut and may
+		// immediately skip to Phase 2 (season reset) or never trigger the countdown.
+		dbExecute($base, 'UPDATE statistiques SET maintenance = ?, debut = ?', 'ii', 1, $now);
 	}
 
 	if (isset($_POST['plusmaintenance'])) {

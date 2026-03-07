@@ -24,6 +24,15 @@ function compterActifs()
     return $nb['nb'];
 }
 
+/**
+ * Register a new player.
+ *
+ * Returns true on success.
+ * Returns 'login_taken'  when the login is already in use (TOCTOU-safe:
+ *                         detected via DB UNIQUE constraint errno 1062).
+ * Returns 'email_taken'  when the email is already in use (same guarantee).
+ * Returns false          on any other DB error.
+ */
 function inscrire($pseudo, $mdp, $mail)
 {
     global $base;
@@ -47,60 +56,92 @@ function inscrire($pseudo, $mdp, $mail)
     $vieGen = pointsDeVie(1);
     $vieCDF = vieChampDeForce(0);
 
-    withTransaction($base, function() use ($base, $safePseudo, $hashedPassword, $now, $timestamps, $alea, $safeMail, $nbinscrits, $vieGen, $vieCDF) {
-        // Explicit column lists guard against positional mismatches after schema migrations.
-        // Only non-auto-increment, non-defaulted columns are listed; everything else uses DB defaults.
+    try {
+        withTransaction($base, function() use ($base, $safePseudo, $hashedPassword, $now, $timestamps, $alea, $safeMail, $nbinscrits, $vieGen, $vieCDF) {
+            // Explicit column lists guard against positional mismatches after schema migrations.
+            // Only non-auto-increment, non-defaulted columns are listed; everything else uses DB defaults.
 
-        // membre: id=auto_increment, session_token=NULL default, vacance/moderateur/codeur have defaults
-        dbExecute(
-            $base,
-            'INSERT INTO membre (login, pass_md5, timestamp, ip, derniereConnexion, troll, email, x, y)
-             VALUES (?, ?, ?, ?, ?, ?, ?, -1000, -1000)',
-            'ssssiis',
-            $safePseudo, $hashedPassword, $now, $_SERVER['REMOTE_ADDR'], $now, $alea, $safeMail
-        );
+            // membre: id=auto_increment, session_token=NULL default, vacance/moderateur/codeur have defaults.
+            // Use a raw prepared statement so we can read errno on UNIQUE constraint violation (1062)
+            // before the connection state resets — gives TOCTOU-safe duplicate detection.
+            $stmt = mysqli_prepare($base,
+                'INSERT INTO membre (login, pass_md5, timestamp, ip, derniereConnexion, troll, email, x, y)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, -1000, -1000)'
+            );
+            if (!$stmt) {
+                throw new \RuntimeException('prepare:membre:' . mysqli_error($base));
+            }
+            mysqli_stmt_bind_param($stmt, 'ssssiis',
+                $safePseudo, $hashedPassword, $now, $_SERVER['REMOTE_ADDR'], $now, $alea, $safeMail
+            );
+            if (!mysqli_stmt_execute($stmt)) {
+                $errno  = mysqli_stmt_errno($stmt);
+                $errmsg = mysqli_stmt_error($stmt);
+                mysqli_stmt_close($stmt);
+                if ($errno === 1062) {
+                    // MariaDB error text includes key name, e.g.:
+                    // "Duplicate entry 'foo@bar.com' for key 'uq_membre_email'"
+                    throw new \RuntimeException('duplicate:' . $errmsg);
+                }
+                throw new \RuntimeException('insert:membre:' . $errmsg);
+            }
+            mysqli_stmt_close($stmt);
 
-        // autre: login is PK; tempsPrecedent must be set now; timeMolecule needs initial timestamps;
-        // all other columns (points, idalliance, nbattaques, etc.) use DB defaults (0 or NULL)
-        dbExecute(
-            $base,
-            'INSERT INTO autre (login, tempsPrecedent, timeMolecule)
-             VALUES (?, ?, ?)',
-            'sis',
-            $safePseudo, $now, $timestamps
-        );
+            // autre: login is PK; tempsPrecedent must be set now; timeMolecule needs initial timestamps;
+            // all other columns (points, idalliance, nbattaques, etc.) use DB defaults (0 or NULL)
+            dbExecute(
+                $base,
+                'INSERT INTO autre (login, tempsPrecedent, timeMolecule)
+                 VALUES (?, ?, ?)',
+                'sis',
+                $safePseudo, $now, $timestamps
+            );
 
-        // ressources: id=auto_increment; all resource/revenue columns default to their start values
-        dbExecute(
-            $base,
-            'INSERT INTO ressources (login) VALUES (?)',
-            's',
-            $safePseudo
-        );
+            // ressources: id=auto_increment; all resource/revenue columns default to their start values
+            dbExecute(
+                $base,
+                'INSERT INTO ressources (login) VALUES (?)',
+                's',
+                $safePseudo
+            );
 
-        dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
+            dbExecute($base, 'UPDATE statistiques SET inscrits=?', 'i', $nbinscrits);
 
-        // molecules: 4 rows, one per numeroclasse; remaining columns (atoms, nombre, isotope) default to 0
-        dbExecute(
-            $base,
-            'INSERT INTO molecules (numeroclasse, proprietaire)
-             VALUES (1, ?), (2, ?), (3, ?), (4, ?)',
-            'ssss',
-            $safePseudo, $safePseudo, $safePseudo, $safePseudo
-        );
+            // molecules: 4 rows, one per numeroclasse; remaining columns (atoms, nombre, isotope) default to 0
+            dbExecute(
+                $base,
+                'INSERT INTO molecules (numeroclasse, proprietaire)
+                 VALUES (1, ?), (2, ?), (3, ?), (4, ?)',
+                'ssss',
+                $safePseudo, $safePseudo, $safePseudo, $safePseudo
+            );
 
-        // constructions: login is PK; vieGenerateur/vieChampdeforce/vieProducteur/vieDepot need
-        // computed starting HP; building levels and other vie columns default to 0
-        dbExecute(
-            $base,
-            'INSERT INTO constructions (login, vieGenerateur, vieChampdeforce, vieProducteur, vieDepot)
-             VALUES (?, ?, ?, ?, ?)',
-            'sdddd',
-            $safePseudo, $vieGen, $vieCDF, $vieGen, $vieGen
-        );
+            // constructions: login is PK; vieGenerateur/vieChampdeforce/vieProducteur/vieDepot need
+            // computed starting HP; building levels and other vie columns default to 0
+            dbExecute(
+                $base,
+                'INSERT INTO constructions (login, vieGenerateur, vieChampdeforce, vieProducteur, vieDepot)
+                 VALUES (?, ?, ?, ?, ?)',
+                'sdddd',
+                $safePseudo, $vieGen, $vieCDF, $vieGen, $vieGen
+            );
 
-        dbExecute($base, 'INSERT IGNORE INTO prestige (login) VALUES(?)', 's', $safePseudo);
-    });
+            dbExecute($base, 'INSERT IGNORE INTO prestige (login) VALUES(?)', 's', $safePseudo);
+        });
+    } catch (\RuntimeException $e) {
+        $msg = $e->getMessage();
+        if (str_starts_with($msg, 'duplicate:')) {
+            // Identify which unique key was violated from the MariaDB error text.
+            if (stripos($msg, 'email') !== false) {
+                return 'email_taken';
+            }
+            return 'login_taken';
+        }
+        error_log('inscrire() DB error: ' . $msg);
+        return false;
+    }
+
+    return true;
 }
 
 function ajouterPoints($nb, $joueur, $type = 0)
@@ -1117,7 +1158,7 @@ function remiseAZero()
     withTransaction($base, function() use ($nomsRes, $nbRes) {
         global $base;
 
-        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0');
+        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'\', image=NULL, timeMolecule=0');
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'ddddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1), vieIonisateur(0));
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0');
         dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0, isotope=0');
@@ -1159,6 +1200,14 @@ function remiseAZero()
         dbExecute($base, 'DELETE FROM player_compounds');
         dbExecute($base, 'DELETE FROM resource_nodes');
     });
+
+    // MED-011: Truncate forum tables for a fresh start each season.
+    // TRUNCATE issues an implicit commit, so it must run outside the transaction above.
+    // Using direct mysqli queries because dbExecute wraps in prepared statements and
+    // TRUNCATE cannot be used as a prepared statement on all MariaDB versions.
+    mysqli_query($base, 'TRUNCATE TABLE sujets');
+    mysqli_query($base, 'TRUNCATE TABLE reponses');
+    mysqli_query($base, 'TRUNCATE TABLE statutforum');
 }
 
 /**

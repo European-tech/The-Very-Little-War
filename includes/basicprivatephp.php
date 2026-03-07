@@ -194,16 +194,21 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     } else {
 
     $vainqueurManche = null;
+    $seasonResetOk = false;
     try {
     // Full season-end flow: archive, VP, prestige, reset, news
     $vainqueurManche = performSeasonEnd();
+    $seasonResetOk = true;
     } catch (Exception $e) {
-    // Season reset failed — clear maintenance so game isn't permanently locked
+    // Season reset failed — keep maintenance=1 so admin can investigate and retry (MED-017)
     logError('SEASON', 'performSeasonEnd() failed: ' . $e->getMessage());
     } finally {
-    // Always clear maintenance and release lock, even on failure
-    // A failed reset is better than a permanently locked game
-    dbExecute($base, 'UPDATE statistiques SET maintenance = 0');
+    // MED-017: Only release the advisory lock here. maintenance=0 is cleared
+    // by performSeasonEnd() itself on success (MED-016). On failure, maintenance
+    // stays at 1 so the admin can diagnose and retry without the game unlocking.
+    if (!$seasonResetOk) {
+        logError('SEASON', 'Season reset failed — maintenance flag kept at 1 for admin review');
+    }
     dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
     }
 
@@ -239,24 +244,56 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     } // end admin gate else block
 
 } elseif (date('n', time()) != date('n', $debut["debut"]) && $maintenance['maintenance'] == 0) {
-    // Phase 1: New month detected, enable maintenance and start 24h countdown
+    // Phase 1: New month detected, enable maintenance and start 24h countdown.
+    // MED-012: Use an advisory lock so only one concurrent request sets maintenance=1.
+    // GET_LOCK(..., 0) returns 1 if the lock was acquired, 0 if already held by another
+    // connection, NULL on error. If we cannot acquire it, another request beat us here —
+    // skip the UPDATE and fall through to the maintenance message shown below.
+    $phase1Lock = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_phase1', 0) as locked", '');
+    if ($phase1Lock && $phase1Lock['locked'] == 1) {
+        // Double-check maintenance is still 0 now that we hold the lock (avoid re-entry)
+        $maintenanceRecheck = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
+        if ($maintenanceRecheck && $maintenanceRecheck['maintenance'] == 0) {
+            dbExecute($base, 'UPDATE statistiques SET maintenance = 1');
+            $now = time();
+            dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
+            logInfo('SEASON', 'Phase 1 maintenance triggered', ['login' => $_SESSION['login'] ?? 'unknown']);
+        }
+        dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_phase1')");
+    }
     $erreur = "Une nouvelle partie recommencera dans 24 heures.";
-    dbExecute($base, 'UPDATE statistiques SET maintenance = 1');
-    $now = time();
-    dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
-    // Block POST actions during maintenance
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Le jeu est en maintenance']);
-        exit;
+    // MED-013: Block ALL requests (GET and POST) for non-admin players during maintenance
+    if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Le jeu est en maintenance']);
+            exit;
+        }
+        // For GET requests: set error message (already set above) and allow page to render
+        // so the user sees the maintenance notice via the layout's error display
     }
 } elseif ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) < SEASON_MAINTENANCE_PAUSE_SECONDS) {
     // Still in maintenance period, 24h have not yet passed
-    $erreur = "Une nouvelle partie recommencera dans 24 heures.";
-    // Block POST actions during maintenance
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Le jeu est en maintenance']);
+    // MED-013: Block ALL requests (GET and POST) for non-admin players during maintenance
+    if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Le jeu est en maintenance']);
+            exit;
+        }
+        // For GET requests: output a self-contained maintenance page and halt.
+        // Avoids loading the full game layout (which requires DB-initialised player data).
+        http_response_code(503);
+        header('Retry-After: 3600');
+        echo '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
+            . '<title>Maintenance — The Very Little War</title>'
+            . '<meta name="robots" content="noindex">'
+            . '<style>body{font-family:sans-serif;text-align:center;padding:3em;background:#1a1a2e;color:#e0e0e0}'
+            . 'h1{color:#f5a623}p{font-size:1.1em}</style></head><body>'
+            . '<h1>Maintenance en cours</h1>'
+            . '<p>Une nouvelle partie recommencera dans moins de 24&nbsp;heures.</p>'
+            . '<p><a href="index.php" style="color:#f5a623;">Retour à l\'accueil</a></p>'
+            . '</body></html>';
         exit;
     }
 }
