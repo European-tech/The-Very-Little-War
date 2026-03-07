@@ -25,38 +25,33 @@ foreach ($rowsAttaquant as $classeAttaquant) {
 
 // recupération des niveaux des atomes
 
-$niveauxAttaquant = dbFetchOne($base, 'SELECT pointsCondenseur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
-if (!$niveauxAttaquant) {
+// MED-024: Hoist all constructions queries to 2 FOR UPDATE at the top of the transaction.
+// Previously there were up to 10 individual SELECT queries against constructions for the same
+// two logins. Now we do exactly one per player with FOR UPDATE and reuse the row throughout.
+$constructionsAtt = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
+if (!$constructionsAtt) {
 	logError("Combat: missing attacker constructions for " . $actions['attaquant'] . " at line " . __LINE__);
 	throw new Exception('Missing attacker constructions');
 }
-$niveauxAttaquant = explode(";", $niveauxAttaquant['pointsCondenseur']);
+$constructionsDef = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
+if (!$constructionsDef) {
+	logError("Combat: missing defender constructions for " . $actions['defenseur'] . " at line " . __LINE__);
+	throw new Exception('Missing defender constructions');
+}
+
+// Derive the individual values previously fetched by separate queries
+$niveauxAttaquant = explode(";", $constructionsAtt['pointsCondenseur']);
 foreach ($nomsRes as $num => $ressource) {
 	$niveauxAtt[$ressource] = $niveauxAttaquant[$num];
 }
 
-$niveauxDefenseur = dbFetchOne($base, 'SELECT pointsCondenseur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
-if (!$niveauxDefenseur) {
-	logError("Combat: missing defender constructions for " . $actions['defenseur'] . " at line " . __LINE__);
-	throw new Exception('Missing defender constructions');
-}
-$niveauxDefenseur = explode(";", $niveauxDefenseur['pointsCondenseur']);
+$niveauxDefenseur = explode(";", $constructionsDef['pointsCondenseur']);
 foreach ($nomsRes as $num => $ressource) {
 	$niveauxDef[$ressource] = $niveauxDefenseur[$num];
 }
 
-
-$ionisateur = dbFetchOne($base, 'SELECT ionisateur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
-if (!$ionisateur) {
-	logError("Combat: missing attacker constructions (ionisateur) for " . $actions['attaquant']);
-	throw new Exception('Missing attacker constructions');
-}
-
-$champdeforce = dbFetchOne($base, 'SELECT champdeforce FROM constructions WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
-if (!$champdeforce) {
-	logError("Combat: missing defender constructions (champdeforce) for " . $actions['defenseur']);
-	throw new Exception('Missing defender constructions');
-}
+$ionisateur  = $constructionsAtt; // alias — ['ionisateur'] column available
+$champdeforce = $constructionsDef; // alias — ['champdeforce'] column available
 
 $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
 $bonusDuplicateurAttaque = 1;
@@ -141,9 +136,8 @@ if ($defHasCatalytique) {
 	}
 }
 
-// Defensive Formation — read defender's chosen formation
-$formationData = dbFetchOne($base, 'SELECT formation FROM constructions WHERE login=?', 's', $actions['defenseur']);
-$defenderFormation = ($formationData && isset($formationData['formation'])) ? intval($formationData['formation']) : FORMATION_DISPERSEE;
+// Defensive Formation — use hoisted $constructionsDef (MED-024)
+$defenderFormation = isset($constructionsDef['formation']) ? intval($constructionsDef['formation']) : FORMATION_DISPERSEE;
 
 // Formation bonuses — Embuscade now applied as $embuscadeDefBoost after damage calc (FIX FINDING-GAME-018)
 
@@ -395,17 +389,9 @@ if (!$ressourcesJoueur) {
 	throw new Exception('Missing attacker resources');
 }
 
-// Vault protection — defender's coffrefort protects resources from pillage
-$vaultLevel = 0;
-$vaultData = dbFetchOne($base, 'SELECT coffrefort FROM constructions WHERE login=?', 's', $actions['defenseur']);
-if ($vaultData && isset($vaultData['coffrefort'])) {
-	$vaultLevel = $vaultData['coffrefort'];
-}
-$depotDefLevel = 1;
-$depotDefData = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['defenseur']);
-if ($depotDefData && isset($depotDefData['depot'])) {
-	$depotDefLevel = $depotDefData['depot'];
-}
+// Vault protection — use hoisted $constructionsDef (MED-024)
+$vaultLevel   = isset($constructionsDef['coffrefort']) ? (int)$constructionsDef['coffrefort'] : 0;
+$depotDefLevel = isset($constructionsDef['depot'])     ? (int)$constructionsDef['depot']      : 1;
 $vaultProtection = capaciteCoffreFort($vaultLevel, $depotDefLevel);
 
 if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
@@ -475,11 +461,8 @@ $destructionchampdeforce = "Non endommagé";
 $destructionDepot = "Non endommagé";
 $destructionIonisateur = "Non endommagé";
 
-$constructions = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $actions['defenseur']);
-if (!$constructions) {
-	logError("Combat: missing defender constructions for building damage, " . $actions['defenseur']);
-	throw new Exception('Missing defender constructions for damage phase');
-}
+// MED-024: Use the hoisted $constructionsDef — no additional query needed
+$constructions = $constructionsDef;
 
 if ($gagnant == 2) { // Only damage buildings when attacker WINS
 	// Calculate hydrogeneTotal from SURVIVING attackers
@@ -500,23 +483,27 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 	];
 	$totalWeight = array_sum($buildingTargets);
 
+	// MED-023: Roll per unit (chunk size = 1) so damage is spread across buildings
+	// rather than one bad roll concentrating an entire class's damage on a single building.
 	for ($i = 1; $i <= $nbClasses; $i++) {
 		$surviving = ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};
 		if (${'classeAttaquant' . $i}['hydrogene'] > 0 && $surviving > 0) {
-			$degatsAMettre = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], ${'classeAttaquant' . $i}['oxygene'], $niveauxAtt['hydrogene']) * $surviving;
-			$roll = mt_rand(1, $totalWeight);
-			$cumul = 0;
-			foreach ($buildingTargets as $building => $weight) {
-				$cumul += $weight;
-				if ($roll <= $cumul) {
-					switch ($building) {
-						case 'generateur': $degatsGenEnergie += $degatsAMettre; break;
-						case 'champdeforce': $degatschampdeforce += $degatsAMettre; break;
-						case 'producteur': $degatsProducteur += $degatsAMettre; break;
-						case 'depot': $degatsDepot += $degatsAMettre; break;
-						case 'ionisateur': $degatsIonisateur += $degatsAMettre; break;
+			$degatsParUnite = potentielDestruction(${'classeAttaquant' . $i}['hydrogene'], ${'classeAttaquant' . $i}['oxygene'], $niveauxAtt['hydrogene']);
+			for ($u = 0; $u < $surviving; $u++) {
+				$roll = mt_rand(1, $totalWeight);
+				$cumul = 0;
+				foreach ($buildingTargets as $building => $weight) {
+					$cumul += $weight;
+					if ($roll <= $cumul) {
+						switch ($building) {
+							case 'generateur':  $degatsGenEnergie    += $degatsParUnite; break;
+							case 'champdeforce': $degatschampdeforce  += $degatsParUnite; break;
+							case 'producteur':  $degatsProducteur    += $degatsParUnite; break;
+							case 'depot':       $degatsDepot         += $degatsParUnite; break;
+							case 'ionisateur':  $degatsIonisateur    += $degatsParUnite; break;
+						}
+						break;
 					}
-					break;
 				}
 			}
 		}
@@ -682,8 +669,8 @@ dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pe
 // On met à jour les ressources
 // Build the SET clause and parameters dynamically for attacker
 // FIX FINDING-GAME-008: Cap pillaged resources at attacker's storage limit
-$depotAtt = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['attaquant']);
-$maxStorageAtt = placeDepot($depotAtt ? $depotAtt['depot'] : 1);
+// MED-024: Use hoisted $constructionsAtt instead of re-querying
+$maxStorageAtt = placeDepot(isset($constructionsAtt['depot']) ? (int)$constructionsAtt['depot'] : 1);
 $setClauses = [];
 $setTypes = '';
 $setParams = [];
@@ -716,8 +703,8 @@ foreach ($nomsRes as $num => $ressource) {
 if ($defenseRewardEnergy > 0) {
 	$setClauses[] = "energie=?";
 	$setTypes .= 'd';
-	$depotDef = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['defenseur']);
-	$maxEnergy = placeDepot($depotDef ? $depotDef['depot'] : 1);
+	// MED-024: Use hoisted $constructionsDef instead of re-querying
+	$maxEnergy = placeDepot(isset($constructionsDef['depot']) ? (int)$constructionsDef['depot'] : 1);
 	$setParams[] = min($maxEnergy, $ressourcesDefenseur['energie'] + $defenseRewardEnergy);
 }
 $setParams[] = $actions['defenseur'];

@@ -79,7 +79,13 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
 // Attaque
 if (isset($_POST['joueurAAttaquer'])) {
     csrfCheck();
-    if (!empty($_POST['joueurAAttaquer'])) { // Vérification que la variable n'est pas vide
+    // MED-025: Re-check attacker vacation in POST handler (TOCTOU guard).
+    // redirectionVacance.php covers most cases, but an explicit error here
+    // ensures a proper $erreur message rather than a silent redirect.
+    $attackerVacCheck = dbFetchOne($base, 'SELECT vacance FROM membre WHERE login=?', 's', $_SESSION['login']);
+    if ($attackerVacCheck && $attackerVacCheck['vacance'] == 1) {
+        $erreur = "Vous ne pouvez pas attaquer en mode vacances.";
+    } elseif (!empty($_POST['joueurAAttaquer'])) { // Vérification que la variable n'est pas vide
 
         $_POST['joueurAAttaquer'] = trim($_POST['joueurAAttaquer']);
         if ($_POST['joueurAAttaquer'] != $_SESSION['login']) {

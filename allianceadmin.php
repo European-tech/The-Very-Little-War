@@ -86,31 +86,40 @@ if ($gradeChef) {
 		$_POST['nomgrade'] = trim($_POST['nomgrade']);
 		$_POST['personnegrade'] = ucfirst(trim($_POST['personnegrade']));
 		if (!empty($_POST['nomgrade']) and !empty($_POST['personnegrade'])) {
-			$gradee = dbCount($base, 'SELECT count(*) as nb FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
-			if ($_POST['personnegrade'] != $chef['chef'] and $gradee < 1) {
-				$existe = dbCount($base, 'SELECT count(*) as nb FROM membre WHERE login=?', 's', $_POST['personnegrade']);
-				$inAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
-				if ($existe >= 1 && $inAlliance >= 1) {
-					if (isset($_POST['inviterDroit']) and $_POST['inviterDroit']) $droit_inviter = 1;
-					else $droit_inviter = 0;
-					if (isset($_POST['guerreDroit']) and $_POST['guerreDroit']) $droit_guerre = 1;
-					else $droit_guerre = 0;
-					if (isset($_POST['pacteDroit']) and $_POST['pacteDroit']) $droit_pacte = 1;
-					else $droit_pacte = 0;
-					if (isset($_POST['bannirDroit']) and $_POST['bannirDroit']) $droit_bannir = 1;
-					else $droit_bannir = 0;
-					if (isset($_POST['descriptionDroit']) and $_POST['descriptionDroit']) $droit_description = 1;
-					else $droit_description = 0;
-
-					$gradeStr = $droit_inviter . '.' . $droit_guerre . '.' . $droit_pacte . '.' . $droit_bannir . '.' . $droit_description;
-					dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $_POST['personnegrade'], $gradeStr, $chef['id'], $_POST['nomgrade']);
-					$information = "" . htmlspecialchars($_POST['personnegrade'], ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($_POST['nomgrade'], ENT_QUOTES, 'UTF-8') . ".";
-				} else {
-					$erreur = "Cette personne n'existe pas ou n'est pas dans votre alliance.";
-				}
+			// MED-026: Validate grade name — length, charset, uniqueness
+			if (mb_strlen($_POST['nomgrade']) > ALLIANCE_GRADE_MAX_LENGTH) {
+				$erreur = "Le nom du grade ne peut pas dépasser " . ALLIANCE_GRADE_MAX_LENGTH . " caractères.";
+			} elseif (!preg_match('/^[a-zA-Z0-9 _\-]+$/', $_POST['nomgrade'])) {
+				$erreur = "Le nom du grade ne peut contenir que des lettres, chiffres, espaces, tirets et underscores.";
+			} elseif (dbCount($base, 'SELECT COUNT(*) FROM grades WHERE idalliance=? AND nom=?', 'is', $chef['id'], $_POST['nomgrade']) > 0) {
+				$erreur = "Un grade avec ce nom existe déjà dans votre alliance.";
 			} else {
-				$erreur = "Cette personne est déjà gradée.";
-			}
+				$gradee = dbCount($base, 'SELECT count(*) as nb FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
+				if ($_POST['personnegrade'] != $chef['chef'] and $gradee < 1) {
+					$existe = dbCount($base, 'SELECT count(*) as nb FROM membre WHERE login=?', 's', $_POST['personnegrade']);
+					$inAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
+					if ($existe >= 1 && $inAlliance >= 1) {
+						if (isset($_POST['inviterDroit']) and $_POST['inviterDroit']) $droit_inviter = 1;
+						else $droit_inviter = 0;
+						if (isset($_POST['guerreDroit']) and $_POST['guerreDroit']) $droit_guerre = 1;
+						else $droit_guerre = 0;
+						if (isset($_POST['pacteDroit']) and $_POST['pacteDroit']) $droit_pacte = 1;
+						else $droit_pacte = 0;
+						if (isset($_POST['bannirDroit']) and $_POST['bannirDroit']) $droit_bannir = 1;
+						else $droit_bannir = 0;
+						if (isset($_POST['descriptionDroit']) and $_POST['descriptionDroit']) $droit_description = 1;
+						else $droit_description = 0;
+
+						$gradeStr = $droit_inviter . '.' . $droit_guerre . '.' . $droit_pacte . '.' . $droit_bannir . '.' . $droit_description;
+						dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $_POST['personnegrade'], $gradeStr, $chef['id'], $_POST['nomgrade']);
+						$information = "" . htmlspecialchars($_POST['personnegrade'], ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($_POST['nomgrade'], ENT_QUOTES, 'UTF-8') . ".";
+					} else {
+						$erreur = "Cette personne n'existe pas ou n'est pas dans votre alliance.";
+					}
+				} else {
+					$erreur = "Cette personne est déjà gradée.";
+				}
+			} // end MED-026 validation
 		} else {
 			$erreur = "Tout les champs ne sont pas remplis";
 		}
