@@ -298,7 +298,8 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                         });
                         logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
                         $safeResName = $nomsRes[$numRes]; // server-side validated resource name
-                        $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . ".png\" alt=\"" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . "\"/> pour " . number_format(round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']), 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
+                        // Use $coutAchat (authoritative price from inside transaction) not stale pre-tx price
+                        $information = "Vous avez acheté " . number_format($_POST['nombreRessourceAAcheter'], 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . ".png\" alt=\"" . htmlspecialchars($safeResName, ENT_QUOTES, 'UTF-8') . "\"/> pour " . number_format($coutAchat, 0, ' ', ' ') . " <img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/>";
 
                         $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                         $tabCours = explode(",", $val['tableauCours']);

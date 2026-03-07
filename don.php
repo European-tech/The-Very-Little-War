@@ -17,7 +17,7 @@ if(isset($_POST['energieEnvoyee'])) {
 	// per-transaction ceiling; MAX_DONATION is a legacy absolute ceiling kept as belt-and-suspenders.
 	if ($_POST['energieEnvoyee'] > ALLIANCE_DONATION_MAX) {
 		$erreur = "Montant invalide (maximum " . number_format(ALLIANCE_DONATION_MAX, 0, ' ', ' ') . " énergie par don).";
-	} elseif(preg_match("#^[0-9]+$#", $_POST['energieEnvoyee']) && $_POST['energieEnvoyee'] > 0) {
+	} elseif($_POST['energieEnvoyee'] > 0) { // value already cast to int; preg_match on int is dead code
 		$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 
 		if($idalliance['idalliance'] > 0) {

@@ -105,6 +105,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 					}
 					// Cap resource grants to prevent abuse (P5-GAP-007)
 					$maxGrant = 1000000;
+					$maxAtomGrant = 50000; // per-action atom cap for moderators
 					if ((int)$_POST['energieEnvoyee'] > $maxGrant) {
 						$erreur = "Le montant d'énergie dépasse le maximum autorisé ($maxGrant).";
 					} elseif (preg_match("#^[0-9]*$#", $_POST['energieEnvoyee']) and $bool == 1) {
@@ -112,18 +113,19 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 						$verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login = ?', 's', $_POST['destinataire']);
 						if ($verification['joueurOuPas'] == 1) {
 							// Wrap resource grant + audit log in transaction (P5-GAP-027)
-							withTransaction($base, function() use ($base, $nomsRes) {
+							withTransaction($base, function() use ($base, $nomsRes, $maxAtomGrant) {
 								$ressourcesDestinataire = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ? FOR UPDATE', 's', $_POST['destinataire']);
 
 								// Build dynamic UPDATE for ressources using prepared statements
 								$setParts = ['energie = ?'];
 								$types = 'd';
-								$params = [round($ressourcesDestinataire['energie'] + (int)$_POST['energieEnvoyee'])];
+								$params = [min($ressourcesDestinataire['energie'] + (int)$_POST['energieEnvoyee'], 100000)];
 
 								foreach ($nomsRes as $num => $ressource) {
 									$setParts[] = $ressource . ' = ?';
 									$types .= 'd';
-									$params[] = round($ressourcesDestinataire[$ressource] + (int)$_POST[$ressource . 'Envoyee']);
+									$atomAmount = min((int)$_POST[$ressource . 'Envoyee'], $maxAtomGrant);
+									$params[] = min($ressourcesDestinataire[$ressource] + $atomAmount, 100000);
 								}
 
 								$types .= 's';
