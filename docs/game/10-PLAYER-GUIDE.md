@@ -266,8 +266,8 @@ A la creation d'une molecule, vous choisissez un **variant isotopique** :
 Pas de modification. Le choix par defaut, equilibre.
 
 ### Stable (Tank/Defenseur)
-- -10% attaque
-- **+20% points de vie**
+- -5% attaque
+- **+40% points de vie**
 - **-30% vitesse de disparition**
 
 Ideal pour les classes defensives (C+Br). La reduction de disparition en fait le meilleur choix pour les armees long terme.
@@ -356,12 +356,12 @@ Avant d'etre attaque, vous pouvez choisir une **formation defensive** qui modifi
 Les degats sont repartis **a 25% sur chaque classe**. Equilibre, efficace contre les attaques concentrees.
 
 ### Phalange
-Votre **classe 1 absorbe 60% de tous les degats** et gagne **+20% defense**. Ideal si votre classe 1 est un tank ultra-resistant (Carbone+Brome en isotope Stable).
+Votre **classe 1 absorbe 50% de tous les degats** et gagne **+20% defense**. Ideal si votre classe 1 est un tank ultra-resistant (Carbone+Brome en isotope Stable).
 
-> **Attention :** Si votre classe 1 est faible ou vide, la Phalange est desastreuse car 60% des degats sont "absorbes" par une classe qui ne peut rien encaisser.
+> **Attention :** Si votre classe 1 est faible ou vide, la Phalange est desastreuse car 50% des degats sont "absorbes" par une classe qui ne peut rien encaisser.
 
 ### Embuscade
-Si vous avez **plus de molecules en nombre total** que l'attaquant, toutes vos molecules gagnent **+15% d'attaque**. Ideal pour les joueurs avec beaucoup de petites molecules rapides.
+Si vous avez **plus de molecules en nombre total** que l'attaquant, toutes vos molecules gagnent **+40% d'attaque**. Ideal pour les joueurs avec beaucoup de petites molecules rapides.
 
 ### Quand utiliser quelle formation ?
 

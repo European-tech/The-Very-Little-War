@@ -263,7 +263,8 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
             $baseDecay = pow($baseDecay, 1.0 + ISOTOPE_STABLE_DECAY_MOD); // -30% = 0.7 exponent = slower
         } elseif ($isotope == ISOTOPE_REACTIF) {
             // Increase decay rate (move coefficient further from 1.0)
-            $baseDecay = pow($baseDecay, 1.0 + ISOTOPE_REACTIF_DECAY_MOD); // +50% = 1.5 exponent = faster
+            // ISOTOPE_REACTIF_DECAY_MOD = 0.20, so exponent = 1.20 = +20% faster decay
+            $baseDecay = pow($baseDecay, 1.0 + ISOTOPE_REACTIF_DECAY_MOD);
         }
     }
 

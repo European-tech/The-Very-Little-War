@@ -29,11 +29,16 @@ $text = preg_replace_callback('!\[img=([^\]]+)\]!isU', function($matches) {
 }, $text);
 $text = preg_replace('!\[color=(blue|red|green|white|black|beige|brown|cyan|yellow|orange|gray|purple|maroon)\](.+)\[/color\]!isU', '<span style="color:$1;">$2</span>', $text);
 
-$text = preg_replace_callback('!\[latex\](.+)\[/latex\]!isU', function($m) {
-    // Strip dangerous MathJax commands (\href, \url, \unicode, \cssId, \class) to prevent XSS
-    $latex = preg_replace('/\\\\(href|url|unicode|cssId|class)\b/i', '\\text{blocked}', $m[1]);
-    return '$$' . $latex . '$$';
-}, $text);
+if ($javascript) {
+    $text = preg_replace_callback('!\[latex\](.+)\[/latex\]!isU', function($m) {
+        // Strip dangerous MathJax commands (\href, \url, \unicode, \cssId, \class) to prevent XSS
+        $latex = preg_replace('/\\\\(href|url|unicode|cssId|class)\b/i', '\\text{blocked}', $m[1]);
+        return '$$' . $latex . '$$';
+    }, $text);
+} else {
+    // [latex] tag only renders when MathJax is loaded (forum section 8); strip it elsewhere
+    $text = preg_replace('!\[latex\](.+)\[/latex\]!isU', '[formule]', $text);
+}
 
 $text = preg_replace('!:arrow:!isU', '→', $text);
 $text = preg_replace('!:(-)?D!isU', '😃', $text);

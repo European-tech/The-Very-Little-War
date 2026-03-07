@@ -200,12 +200,12 @@ if (isset($_GET['id'])) {
 				}
 				if (isset($_SESSION['login']) and $_SESSION['login'] == $reponse['auteur'] and $donnees4['moderateur'] == 0) {
 					$editer = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> '
-						. '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=3" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;" onclick="return confirm(\'Supprimer cette réponse ?\')">Supprimer</button></form>';
+						. '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=3" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;" data-confirm="Supprimer cette réponse ?">Supprimer</button></form>';
 				}
 				// Si l'utilisateur est un modérateur
 				elseif (isset($_SESSION['login']) and $donnees4['moderateur'] == 1) {
 					$editLink = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> ';
-					$deleteForm = '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=3" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;" onclick="return confirm(\'Supprimer cette réponse ?\')">Supprimer</button></form> ';
+					$deleteForm = '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=3" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;" data-confirm="Supprimer cette réponse ?">Supprimer</button></form> ';
 					// Si le message est masqué, on propose de l'afficher
 					if (!$reponse['visibilite']) {
 						$editer = $editLink . $deleteForm
@@ -253,5 +253,13 @@ if (isset($_GET['id'])) {
 }
 ?>
 
+<?php if (isset($javascript) && $javascript): ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<?php endif; ?>
+<?php echo cspScriptTag(); ?>
+document.addEventListener('click', function(e) {
+    var el = e.target.closest('[data-confirm]');
+    if (el && !confirm(el.dataset.confirm)) e.preventDefault();
+});
+</script>
 <?php include("includes/copyright.php"); ?>

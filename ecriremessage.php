@@ -31,13 +31,20 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				}
 				$information = "Le message a bien été envoyé à toute l'alliance.";
 			}
-		} elseif ($_POST['destinataire'] == "[all]" && $_SESSION['login'] == "Guortates") {
-			$allDestinataires = dbFetchAll($base, 'SELECT * FROM autre');
-			foreach ($allDestinataires as $destinataire) {
-				$now = time();
-				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
+		} elseif ($_POST['destinataire'] == "[all]") {
+			$isAdmin = (dbCount($base, "SELECT COUNT(*) FROM membre WHERE login = ? AND role = 'admin'", 's', $_SESSION['login']) > 0);
+			if (!$isAdmin) {
+				$erreur = "Accès refusé.";
+			} elseif (!rateLimitCheck($_SESSION['login'], 'broadcast_all', 2, 3600)) {
+				$erreur = "Vous envoyez trop de messages de masse. Veuillez patienter.";
+			} else {
+				$allDestinataires = dbFetchAll($base, 'SELECT login FROM autre');
+				foreach ($allDestinataires as $destinataire) {
+					$now = time();
+					dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
+				}
+				$information = "Le message a bien été envoyé à tous les joueurs.";
 			}
-			$information = "Le message a bien été à tous les joueurs.";
 		} else {
 			$joueurExiste = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=?', 's', $_POST['destinataire']);
 			if ($joueurExiste > 0) {
@@ -59,10 +66,10 @@ include("includes/layout.php");
 
 if (isset($_GET['id'])) {
 	$_GET['id'] = (int)$_GET['id'];
-	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=?', 'i', $_GET['id']);
+	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=? AND (destinataire=? OR expeditaire=?)', 'iss', $_GET['id'], $_SESSION['login'], $_SESSION['login']);
 } elseif (isset($_POST['id'])) {
 	$_POST['id'] = (int)$_POST['id'];
-	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=?', 'i', $_POST['id']);
+	$message = dbFetchOne($base, 'SELECT expeditaire, contenu, destinataire FROM messages WHERE id=? AND (destinataire=? OR expeditaire=?)', 'iss', $_POST['id'], $_SESSION['login'], $_SESSION['login']);
 } else {
 	$message = null;
 }

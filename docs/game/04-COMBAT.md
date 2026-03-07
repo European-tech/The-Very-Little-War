@@ -67,7 +67,7 @@ irreversible specialization that modifies combat and decay performance.
 | Isotope | Attack Mod | HP Mod | Decay Mod | Special |
 |---------|-----------|--------|-----------|---------|
 | Normal (0) | -- | -- | -- | No modification |
-| Stable (1) | -10% | +20% | -30% (slower) | Tank/defender role |
+| Stable (1) | -5% | +40% | -30% (slower) | Tank/defender role |
 | Reactif (2) | +20% | -10% | +20% (faster) | Glass cannon role |
 | Catalytique (3) | -10% | -10% | -- | +15% attack and HP to all OTHER classes |
 
@@ -295,7 +295,7 @@ Load condenseur-allocated levels for both attacker and defender from
 - **Medal bonuses (V4):** Pre-computed via `computeMedalBonus()` with
   `MAX_CROSS_SEASON_MEDAL_BONUS = 10` cap (`combat.php:76-81`)
 - **Isotope modifiers (V4):** Per-class attack/HP multipliers based on isotope variant
-  (Stable: -10% atk/+20% HP, Reactif: +20% atk/-10% HP, Catalytique: -10% both but
+  (Stable: -5% atk/+40% HP, Reactif: +20% atk/-10% HP, Catalytique: -10% both but
   +15% to other classes) (`combat.php:83-142`)
 - **Defensive formation:** Defender's pre-selected formation affects damage distribution
   and defense bonuses (`combat.php:144-164`)

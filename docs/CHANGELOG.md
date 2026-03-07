@@ -37,7 +37,7 @@ Comprehensive security and code quality pass across all PHP files.
 
 ### Game Balance (Batch N)
 
-- Isotope Stable buffed: -10% attack/+20% HP → -5% attack/+30% HP
+- Isotope Stable buffed: -10% attack/+20% HP → -5% attack/+40% HP (P1-D4-023)
 - Medal thresholds rebalanced for 31-day seasons (upper tiers were unreachable)
 - Medal thresholds in both config.php and constantesBase.php aligned
 

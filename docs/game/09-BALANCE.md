@@ -659,14 +659,14 @@ Chosen at molecule creation. Irreversible.
 | ID | Name | Attack Mod | HP Mod | Decay Mod | Special |
 |----|------|-----------|--------|-----------|---------|
 | 0 | Normal | 0% | 0% | 0% | — |
-| 1 | Stable | -10% | +20% | -30% (slower) | Tank/defender |
+| 1 | Stable | -5% | +40% | -30% (slower) | Tank/defender |
 | 2 | Réactif | +20% | -10% | +20% (faster) | Glass cannon |
 | 3 | Catalytique | -10% | -10% | 0% | +15% all stats to OTHER classes |
 
 | Constant | Value |
 |----------|-------|
-| `ISOTOPE_STABLE_ATTACK_MOD` | -0.10 |
-| `ISOTOPE_STABLE_HP_MOD` | +0.20 |
+| `ISOTOPE_STABLE_ATTACK_MOD` | -0.05 |
+| `ISOTOPE_STABLE_HP_MOD` | +0.40 |
 | `ISOTOPE_STABLE_DECAY_MOD` | -0.30 |
 | `ISOTOPE_REACTIF_ATTACK_MOD` | +0.20 |
 | `ISOTOPE_REACTIF_HP_MOD` | -0.10 |
