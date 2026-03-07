@@ -1023,6 +1023,73 @@ function performSeasonEnd()
     return $vainqueurManche;
 }
 
+/**
+ * HIGH-017: Async email queue processor.
+ *
+ * Fetches up to $limit unsent emails from email_queue (rows where sent_at IS NULL),
+ * sends each via mail(), and marks successful sends with a sent_at timestamp.
+ * Failed sends are left in the queue and retried on the next invocation.
+ *
+ * This function is called probabilistically (1% of page requests) from
+ * basicprivatephp.php so that emails drain without blocking any single user request.
+ * The email_queue table is created by migrations/0038_create_email_queue.sql.
+ *
+ * @param \mysqli $base   Active database connection
+ * @param int     $limit  Maximum emails to send per invocation (default: 20)
+ */
+function processEmailQueue(\mysqli $base, int $limit = 20): void
+{
+    $rows = dbFetchAll($base,
+        'SELECT id, recipient_email, subject, body_html FROM email_queue WHERE sent_at IS NULL ORDER BY id ASC LIMIT ?',
+        'i', $limit
+    );
+
+    if (empty($rows)) {
+        return;
+    }
+
+    foreach ($rows as $row) {
+        $recipient = $row['recipient_email'];
+        $subject   = $row['subject'];
+        $bodyHtml  = $row['body_html'];
+        $id        = (int)$row['id'];
+
+        // Determine line-ending style based on recipient domain (hotmail/live/msn quirk)
+        if (preg_match("#^[a-z0-9._-]+@(hotmail|live|msn)\.[a-z]{2,4}$#", $recipient)) {
+            $eol = "\n";
+        } else {
+            $eol = "\r\n";
+        }
+
+        $boundary = "-----=" . md5((string)$id . (string)time());
+
+        // Plain-text fallback: strip HTML tags for the text part
+        $bodyTxt = strip_tags(str_replace(['<br/>', '<br>', '<br />'], "\n", $bodyHtml));
+
+        $header  = "From: \"The Very Little War\"<noreply@theverylittlewar.com>" . $eol;
+        $header .= "Reply-to: \"The Very Little War\" <theverylittlewar@gmail.com>" . $eol;
+        $header .= "MIME-Version: 1.0" . $eol;
+        $header .= "Content-Type: multipart/alternative;" . $eol . " boundary=\"$boundary\"" . $eol;
+
+        $message  = $eol . "--" . $boundary . $eol;
+        $message .= "Content-Type: text/plain; charset=\"UTF-8\"" . $eol;
+        $message .= "Content-Transfer-Encoding: 8bit" . $eol;
+        $message .= $eol . $bodyTxt . $eol;
+        $message .= $eol . "--" . $boundary . $eol;
+        $message .= "Content-Type: text/html; charset=\"UTF-8\"" . $eol;
+        $message .= "Content-Transfer-Encoding: 8bit" . $eol;
+        $message .= $eol . $bodyHtml . $eol;
+        $message .= $eol . "--" . $boundary . "--" . $eol;
+
+        $sent = @mail($recipient, $subject, $message, $header);
+        if ($sent) {
+            dbExecute($base, 'UPDATE email_queue SET sent_at = ? WHERE id = ?', 'ii', time(), $id);
+        } else {
+            logWarn('EMAIL_QUEUE', 'mail() failed for queued email', ['id' => $id, 'recipient' => $recipient]);
+        }
+    }
+}
+
 function remiseAZero()
 {
     global $base;

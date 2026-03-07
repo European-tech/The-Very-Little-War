@@ -63,51 +63,81 @@ if(isset($_GET['suivreTuto']) and $autre['niveaututo'] == 1){ // si on a commenc
 	dbExecute($base, 'UPDATE autre SET niveaututo = 2 WHERE login = ?', 's', $_SESSION['login']);
 }
 
+// HIGH-014 + HIGH-015: Each niveaututo reward block is wrapped in a transaction with
+// a FOR UPDATE re-read to prevent double-grants. Energy rewards are capped with LEAST()
+// to prevent bypassing storage limits. Atom rewards are also capped at storage max.
+
 if($autre['niveaututo'] == 2 and in_array("classement.php",explode("/",$_SERVER['PHP_SELF']))){
-	dbExecute($base, 'UPDATE autre SET niveaututo = 3 WHERE login = ?', 's', $_SESSION['login']);
-	$newEnergie = $ressources['energie'] + 50;
-	dbExecute($base, 'UPDATE ressources SET energie = ? WHERE login = ?', 'ds', $newEnergie, $_SESSION['login']);
-
-    $information = "Bien, voyons la suite !";
-    echo cspScriptTag() . 'document.location.href="classement.php?sub=0&deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
-
+    $tutoRedirect = null;
+    withTransaction($base, function() use ($base, $nomsRes, &$tutoRedirect) {
+        $autreRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
+        if (!$autreRow || $autreRow['niveaututo'] != 2) return;
+        $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $_SESSION['login']);
+        $energyCap = placeDepot($depotRow ? intval($depotRow['depot']) : 0);
+        dbExecute($base, 'UPDATE ressources SET energie = LEAST(energie + ?, ?) WHERE login = ?', 'ids', 50, $energyCap, $_SESSION['login']);
+        dbExecute($base, 'UPDATE autre SET niveaututo = 3 WHERE login = ?', 's', $_SESSION['login']);
+        $tutoRedirect = "classement.php?sub=0&deployer=true&information=" . urlencode("Bien, voyons la suite !");
+    });
+    if ($tutoRedirect !== null) {
+        echo cspScriptTag() . 'document.location.href="' . htmlspecialchars($tutoRedirect, ENT_QUOTES, 'UTF-8') . '";</script>';
+    }
 }
 
 if($autre['niveaututo'] == 3 and $depot['producteur'] >= 2){
-	dbExecute($base, 'UPDATE autre SET niveaututo = 4 WHERE login = ?', 's', $_SESSION['login']);
-    $chaine = '';
-    $updateParts = [];
-    $updateTypes = '';
-    $updateParams = [];
-    foreach($nomsRes as $num => $res){
-        $updateParts[] = $res . ' = ?';
-        $updateTypes .= 'd';
-        $updateParams[] = $ressources[$res] + 20;
+    $tutoRedirect = null;
+    withTransaction($base, function() use ($base, $nomsRes, &$tutoRedirect) {
+        $autreRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
+        if (!$autreRow || $autreRow['niveaututo'] != 3) return;
+        $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $_SESSION['login']);
+        $storageCap = placeDepot($depotRow ? intval($depotRow['depot']) : 0);
+        // Cap each atom type at storage max
+        $updateParts = [];
+        $updateTypes = '';
+        $updateParams = [];
+        foreach($nomsRes as $num => $res){
+            $updateParts[] = $res . ' = LEAST(' . $res . ' + ?, ?)';
+            $updateTypes .= 'dd';
+            $updateParams[] = 20;
+            $updateParams[] = $storageCap;
+        }
+        $updateTypes .= 's';
+        $updateParams[] = $_SESSION['login'];
+        dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $updateParts) . ' WHERE login = ?', $updateTypes, ...$updateParams);
+        dbExecute($base, 'UPDATE autre SET niveaututo = 4 WHERE login = ?', 's', $_SESSION['login']);
+        $tutoRedirect = "constructions.php?deployer=true&information=" . urlencode('Félicitations pour votre première construction !');
+    });
+    if ($tutoRedirect !== null) {
+        echo cspScriptTag() . 'document.location.href="' . htmlspecialchars($tutoRedirect, ENT_QUOTES, 'UTF-8') . '";</script>';
     }
-    $updateTypes .= 's';
-    $updateParams[] = $_SESSION['login'];
-
-	dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $updateParts) . ' WHERE login = ?', $updateTypes, ...$updateParams);
-
-    $information = 'Félicitations pour votre première construction !';
-    echo cspScriptTag() . 'document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
 }
 
 if($autre['niveaututo'] == 4 and $constructions['pointsProducteur'] != '1;1;1;1;1;1;1;1'){
-	dbExecute($base, 'UPDATE autre SET niveaututo = 5 WHERE login = ?', 's', $_SESSION['login']);
-	$newEnergie = $ressources['energie'] + 80;
-	dbExecute($base, 'UPDATE ressources SET energie = ? WHERE login = ?', 'ds', $newEnergie, $_SESSION['login']);
-
-    $information = "Bravo, votre production augmente !";
-    echo cspScriptTag() . 'document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
-
+    $tutoRedirect = null;
+    withTransaction($base, function() use ($base, &$tutoRedirect) {
+        $autreRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
+        if (!$autreRow || $autreRow['niveaututo'] != 4) return;
+        $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $_SESSION['login']);
+        $energyCap = placeDepot($depotRow ? intval($depotRow['depot']) : 0);
+        dbExecute($base, 'UPDATE ressources SET energie = LEAST(energie + ?, ?) WHERE login = ?', 'ids', 80, $energyCap, $_SESSION['login']);
+        dbExecute($base, 'UPDATE autre SET niveaututo = 5 WHERE login = ?', 's', $_SESSION['login']);
+        $tutoRedirect = "constructions.php?deployer=true&information=" . urlencode("Bravo, votre production augmente !");
+    });
+    if ($tutoRedirect !== null) {
+        echo cspScriptTag() . 'document.location.href="' . htmlspecialchars($tutoRedirect, ENT_QUOTES, 'UTF-8') . '";</script>';
+    }
 }
 
 if($autre['niveaututo'] == 5 and in_array("armee.php",explode("/",$_SERVER['PHP_SELF']))){
-	dbExecute($base, 'UPDATE autre SET niveaututo = 6 WHERE login = ?', 's', $_SESSION['login']);
-
-    $information = 'Bien !';
-    echo cspScriptTag() . 'document.location.href="armee.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    $tutoRedirect = null;
+    withTransaction($base, function() use ($base, &$tutoRedirect) {
+        $autreRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
+        if (!$autreRow || $autreRow['niveaututo'] != 5) return;
+        dbExecute($base, 'UPDATE autre SET niveaututo = 6 WHERE login = ?', 's', $_SESSION['login']);
+        $tutoRedirect = "armee.php?deployer=true&information=" . urlencode('Bien !');
+    });
+    if ($tutoRedirect !== null) {
+        echo cspScriptTag() . 'document.location.href="' . htmlspecialchars($tutoRedirect, ENT_QUOTES, 'UTF-8') . '";</script>';
+    }
 }
 
 $molRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire = ?', 's', $_SESSION['login']);
@@ -128,35 +158,61 @@ foreach($molRows as $data){
 	}
 }
 if($autre['niveaututo'] == 6 and $numClasse!= -1){
-	$newNombre = $nombre + $aAjouter;
-	dbExecute($base, 'UPDATE molecules SET nombre = ? WHERE proprietaire = ? AND numeroclasse = ?', 'isi', $newNombre, $_SESSION['login'], $numClasse);
-	dbExecute($base, 'UPDATE autre SET niveaututo = 7 WHERE login = ?', 's', $_SESSION['login']);
-	$newEnergie = $ressources['energie'] + 50;
-	dbExecute($base, 'UPDATE ressources SET energie = ? WHERE login = ?', 'ds', $newEnergie, $_SESSION['login']);
-
-    $information = 'Bravo, votre armée augmente !';
-    echo cspScriptTag() . 'document.location.href="attaquer.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    $tutoRedirect = null;
+    $capturedNumClasse = $numClasse;
+    $capturedNombre = $nombre;
+    $capturedAAjouter = $aAjouter;
+    withTransaction($base, function() use ($base, $capturedNumClasse, $capturedNombre, $capturedAAjouter, &$tutoRedirect) {
+        $autreRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
+        if (!$autreRow || $autreRow['niveaututo'] != 6) return;
+        $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $_SESSION['login']);
+        $energyCap = placeDepot($depotRow ? intval($depotRow['depot']) : 0);
+        $newNombre = $capturedNombre + $capturedAAjouter;
+        dbExecute($base, 'UPDATE molecules SET nombre = ? WHERE proprietaire = ? AND numeroclasse = ?', 'isi', $newNombre, $_SESSION['login'], $capturedNumClasse);
+        dbExecute($base, 'UPDATE ressources SET energie = LEAST(energie + ?, ?) WHERE login = ?', 'ids', 50, $energyCap, $_SESSION['login']);
+        dbExecute($base, 'UPDATE autre SET niveaututo = 7 WHERE login = ?', 's', $_SESSION['login']);
+        $tutoRedirect = "attaquer.php?deployer=true&information=" . urlencode('Bravo, votre armée augmente !');
+    });
+    if ($tutoRedirect !== null) {
+        echo cspScriptTag() . 'document.location.href="' . htmlspecialchars($tutoRedirect, ENT_QUOTES, 'UTF-8') . '";</script>';
+    }
 }
 
 if($autre['niveaututo'] == 7 and $numClasse != -1 and in_array("joueur.php",explode("/",$_SERVER['PHP_SELF']))){
-	$newNombre = $nombre + $aAjouter;
-	dbExecute($base, 'UPDATE molecules SET nombre = ? WHERE proprietaire = ? AND numeroclasse = ?', 'isi', $newNombre, $_SESSION['login'], $numClasse);
-    dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $_SESSION['login']);
-
-    $information = 'Parfait, passons à la suite !';
-    echo cspScriptTag() . 'document.location.href="alliance.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    $tutoRedirect = null;
+    $capturedNumClasse = $numClasse;
+    $capturedNombre = $nombre;
+    $capturedAAjouter = $aAjouter;
+    withTransaction($base, function() use ($base, $capturedNumClasse, $capturedNombre, $capturedAAjouter, &$tutoRedirect) {
+        $autreRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
+        if (!$autreRow || $autreRow['niveaututo'] != 7) return;
+        $newNombre = $capturedNombre + $capturedAAjouter;
+        dbExecute($base, 'UPDATE molecules SET nombre = ? WHERE proprietaire = ? AND numeroclasse = ?', 'isi', $newNombre, $_SESSION['login'], $capturedNumClasse);
+        dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $_SESSION['login']);
+        $tutoRedirect = "alliance.php?deployer=true&information=" . urlencode('Parfait, passons à la suite !');
+    });
+    if ($tutoRedirect !== null) {
+        echo cspScriptTag() . 'document.location.href="' . htmlspecialchars($tutoRedirect, ENT_QUOTES, 'UTF-8') . '";</script>';
+    }
 }
 
 $idallianceRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
 
 if($autre['niveaututo'] == 8 and $idallianceRow['idalliance']!=0){
-	augmenterBatiment("champdeforce",$_SESSION['login']);
-    $newEnergie = $ressources['energie'] + 50;
-    dbExecute($base, 'UPDATE ressources SET energie = ? WHERE login = ?', 'ds', $newEnergie, $_SESSION['login']);
-	dbExecute($base, 'UPDATE autre SET niveaututo = 9 WHERE login = ?', 's', $_SESSION['login']);
-
-    $information = 'Bien joué, vous serez bien plus en sécurité.';
-    echo cspScriptTag() . 'document.location.href="constructions.php?deployer=true&information='.htmlspecialchars($information, ENT_QUOTES, 'UTF-8').'";</script>';
+    $tutoRedirect = null;
+    withTransaction($base, function() use ($base, &$tutoRedirect) {
+        $autreRow = dbFetchOne($base, 'SELECT niveaututo FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
+        if (!$autreRow || $autreRow['niveaututo'] != 8) return;
+        $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $_SESSION['login']);
+        $energyCap = placeDepot($depotRow ? intval($depotRow['depot']) : 0);
+        augmenterBatiment("champdeforce", $_SESSION['login']);
+        dbExecute($base, 'UPDATE ressources SET energie = LEAST(energie + ?, ?) WHERE login = ?', 'ids', 50, $energyCap, $_SESSION['login']);
+        dbExecute($base, 'UPDATE autre SET niveaututo = 9 WHERE login = ?', 's', $_SESSION['login']);
+        $tutoRedirect = "constructions.php?deployer=true&information=" . urlencode('Bien joué, vous serez bien plus en sécurité.');
+    });
+    if ($tutoRedirect !== null) {
+        echo cspScriptTag() . 'document.location.href="' . htmlspecialchars($tutoRedirect, ENT_QUOTES, 'UTF-8') . '";</script>';
+    }
 }
 if($autre['niveaututo'] == 9 and isset($_POST['finir'])){
 

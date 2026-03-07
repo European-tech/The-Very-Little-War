@@ -174,7 +174,18 @@ $maintenanceRow = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
 $maintenance = $maintenanceRow;
 
 if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAINTENANCE_PAUSE_SECONDS) {
-    // Phase 2: 24h have passed since maintenance was set, proceed with full reset
+    // Phase 2: 24h have passed since maintenance was set, proceed with full reset.
+    //
+    // HIGH-016: Admin gate — only the administrator account (or a cron/CLI context
+    // without a session) may trigger the actual performSeasonEnd() call during a live
+    // page request. Regular players see the maintenance message instead.
+    // This prevents a race where any authenticated player reaching this branch could
+    // inadvertently (or maliciously) trigger the season reset.
+    $isAdminRequest = (!isset($_SESSION['login']) || $_SESSION['login'] === ADMIN_LOGIN);
+    if (!$isAdminRequest) {
+        // Non-admin player: inform them that maintenance is in progress and skip the reset.
+        $erreur = "Une nouvelle partie recommencera dans 24 heures.";
+    } else {
     // Advisory lock prevents concurrent resets when multiple players connect simultaneously
     $lockResult = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_reset', 0) as locked", '');
     if (!$lockResult || $lockResult['locked'] != 1) {
@@ -196,69 +207,36 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
     }
 
-    //envoi des mails (always send — even without winner, notify of reset)
-    // Runs AFTER maintenance cleared — email failures won't lock the game
+    // HIGH-017: Queue season reset emails instead of sending synchronously.
+    // Sending to every player inline in a page request risks HTTP timeouts and
+    // leaves the game in a degraded state if mail() is slow.
+    // Emails are inserted into email_queue and sent by processEmailQueue() which
+    // is called probabilistically (1% of requests) on subsequent page loads.
     $mailRows = dbFetchAll($base, 'SELECT email, login FROM membre', '');
+    $winnerName = $vainqueurManche ?? 'Personne';
+    $resetDate  = date('d/m/Y à H\hi', time());
     foreach ($mailRows as $donnees) {
-        $mail = $donnees['email']; // Déclaration de l'adresse de destination.
-        if (!preg_match("#^[a-z0-9._-]+@(hotmail|live|msn).[a-z]{2,4}$#", $mail)) // On filtre les serveurs qui rencontrent des bogues.
-        {
-            $passage_ligne = "\r\n";
-        } else {
-            $passage_ligne = "\n";
-        }
-        //=====Déclaration des messages au format texte et au format HTML.
-        $winnerName = $vainqueurManche ?? 'Personne';
-        $message_txt = "Bonjour " . $donnees['login'] . " ! " . $winnerName . " vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
-            vous pourrez commencer à rejouer la nouvelle partie à partir du " . date('d/m/Y à H\hi', time()) . " ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite
-            et à bientôt sur The Very Little War !
-            Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur www.theverylittlewar.com dans la partie \"Mon compte\".";
-        $message_html = "<html><head></head><body>Bonjour " . $donnees['login'] . " ! <b>" . $winnerName . "</b> vient de remporter la partie en cours le " . date('d/m/Y à H\hi', time()) . ". Les points de tous les joueurs vont être remis à zéro et
-            vous pourrez commencer à rejouer la nouvelle partie à partir du <b>" . date('d/m/Y à H\hi', time()) . "</b> ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite
-            et à bientôt sur <a href=\"www.theverylittlewar.com\">The Very Little War</a> !<br/><br/><br/><br/>
-            <i>Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur <a href=\"www.theverylittlewar.com\">www.theverylittlewar.com</a> dans la partie \"Mon compte\".</i></body></html>";
-        //==========
+        $recipientEmail = $donnees['email'];
+        $recipientLogin = $donnees['login'];
 
-        //=====Création de la boundary
-        $boundary = "-----=" . md5(rand());
-        //==========
+        $message_html = "<html><head></head><body>Bonjour " . htmlspecialchars($recipientLogin, ENT_QUOTES, 'UTF-8') . " ! <b>" . htmlspecialchars($winnerName, ENT_QUOTES, 'UTF-8') . "</b> vient de remporter la partie en cours le " . $resetDate . ". Les points de tous les joueurs vont être remis à zéro et"
+            . " vous pourrez commencer à rejouer la nouvelle partie à partir du <b>" . $resetDate . "</b> ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite"
+            . " et à bientôt sur <a href=\"https://www.theverylittlewar.com\">The Very Little War</a> !<br/><br/><br/><br/>"
+            . "<i>Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur <a href=\"https://www.theverylittlewar.com\">www.theverylittlewar.com</a> dans la partie \"Mon compte\".</i></body></html>";
 
-        //=====Définition du sujet.
-        $sujet = "Début d'une nouvelle partie";
-        //=========
+        $sujet = "=?UTF-8?B?" . base64_encode("Début d'une nouvelle partie") . "?=";
 
-        //=====Création du header de l'e-mail.
-        $header = "From: \"The Very Little War\"<noreply@theverylittewar.com>" . $passage_ligne;
-        $header .= "Reply-to: \"The Very Little War\" <theverylittewar@gmail.com>" . $passage_ligne;
-        $header .= "MIME-Version: 1.0" . $passage_ligne;
-        $header .= "Content-Type: multipart/alternative;" . $passage_ligne . " boundary=\"$boundary\"" . $passage_ligne;
-        //==========
-
-        //=====Création du message.
-        $message = $passage_ligne . "--" . $boundary . $passage_ligne;
-        //=====Ajout du message au format texte.
-        $message .= "Content-Type: text/plain; charset=\"UTF-8\"" . $passage_ligne;
-        $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-        $message .= $passage_ligne . $message_txt . $passage_ligne;
-        //==========
-        $message .= $passage_ligne . "--" . $boundary . $passage_ligne;
-        //=====Ajout du message au format HTML
-        $message .= "Content-Type: text/html; charset=\"UTF-8\"" . $passage_ligne;
-        $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-        $message .= $passage_ligne . $message_html . $passage_ligne;
-        //==========
-        $message .= $passage_ligne . "--" . $boundary . "--" . $passage_ligne;
-        //==========
-
-        //=====Envoi de l'e-mail.
-        $mailResult = mail($mail, $sujet, $message, $header);
-        if (!$mailResult) {
-            logWarn('SEASON', 'Season reset email failed', ['player' => $donnees['login']]);
-        }
-        //==========
+        dbExecute($base,
+            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, ?)',
+            'sssi', $recipientEmail, $sujet, $message_html, time()
+        );
+    }
+    if (!empty($mailRows)) {
+        logInfo('SEASON', 'Season reset emails queued', ['count' => count($mailRows)]);
     }
 
     } // end advisory lock else block
+    } // end admin gate else block
 
 } elseif (date('n', time()) != date('n', $debut["debut"]) && $maintenance['maintenance'] == 0) {
     // Phase 1: New month detected, enable maintenance and start 24h countdown
@@ -281,4 +259,10 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         echo json_encode(['error' => 'Le jeu est en maintenance']);
         exit;
     }
+}
+
+// HIGH-017: Probabilistic email queue drain (1% of requests).
+// Keeps the queue draining without dedicating a cron job or blocking any single request.
+if (mt_rand(1, 100) === 1) {
+    processEmailQueue($base);
 }
