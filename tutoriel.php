@@ -106,10 +106,9 @@ $tutorielMissions[] = [
 ];
 
 // --- Mission 6: Scout a nearby player (use espionage) ---
-$exNeutrinos = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $_SESSION['login']);
-$nbNeutrinos = $exNeutrinos ? intval($exNeutrinos['neutrinos']) : 0;
-
-// Check if player has ever spied — exclude victim notification ("Tentative d'espionnage détectée")
+// FRAGILE: This checks for espionage completion by matching report title via LIKE.
+// If report title format changes, this mission will break.
+// TODO: add rapport_type column to rapports table and check rapport_type = 'espionage' instead.
 $exEspionnage = dbFetchOne($base, 'SELECT count(*) AS nb FROM rapports WHERE destinataire=? AND titre LIKE ? AND titre NOT LIKE ?', 'sss', $_SESSION['login'], '%spionnage%', 'Tentative%');
 $aEspionne = ($exEspionnage && intval($exEspionnage['nb']) > 0);
 

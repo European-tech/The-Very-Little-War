@@ -32,15 +32,11 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 		if (mb_strlen($titre) > 200) {
 			$erreur = "Le titre est trop long (200 caractères max).";
 		}
-		// Check if poster is banned from forum
-		$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+		// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
+		dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
 		if ($banCheck) {
-			$diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $banCheck['dateFin']);
-			if ($diff['d'] >= 0) {
-				dbExecute($base, 'DELETE FROM sanctions WHERE id = ?', 'i', $banCheck['id']);
-			} else {
-				$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
-			}
+			$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
 		}
 		if (empty($erreur) && !empty($titre) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= 10000 and mb_strlen($titre) <= 200) {
 			$timestamp = time();

@@ -1,4 +1,14 @@
 <?php
+/**
+ * Parse BBCode markup and return HTML-safe output.
+ *
+ * @param string $text       Raw BBCode input (will be htmlspecialchars-escaped internally).
+ * @param bool   $javascript Set true to enable [latex]...[/latex] rendering via MathJax.
+ *                           Only pass true when MathJax is loaded on the page (forum section 8 /
+ *                           sujet.php when $sujet['idforum'] == 8). All other contexts must omit
+ *                           this parameter (defaults to false) so that [latex] tags are stripped
+ *                           safely instead of being emitted as raw $$...$$ markup.
+ */
 function BBCode($text,$javascript=false){
 
 $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');

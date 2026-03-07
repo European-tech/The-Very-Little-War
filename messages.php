@@ -62,10 +62,10 @@ else {
 		</tr></thead><tbody>';
 		foreach($messagesRows as $messages) {
 			if($messages['statut'] != 0){
-				echo '<tr><td><a href="messages.php?message='.$messages['id'].'"><img src="images/message_ouvert.png" alt="ouvert" title="Lu" class="w32"/></td></a>';
+				echo '<tr><td><a href="messages.php?message='.$messages['id'].'"><img src="images/message_ouvert.png" alt="ouvert" title="Lu" class="w32"/></a></td>';
 			}
 			else {
-				echo '<tr><td><a href="messages.php?message='.$messages['id'].'"><img src="images/message_ferme.png" alt="ferme" title="Non lu" class="w32"/></td></a>';
+				echo '<tr><td><a href="messages.php?message='.$messages['id'].'"><img src="images/message_ferme.png" alt="ferme" title="Non lu" class="w32"/></a></td>';
 			}
 			echo '<td><a href="messages.php?message='.$messages['id'].'">'.htmlspecialchars($messages['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 			echo '<td><a href="joueur.php?id='.htmlspecialchars($messages['expeditaire'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($messages['expeditaire'], ENT_QUOTES, 'UTF-8').'</a></td>';

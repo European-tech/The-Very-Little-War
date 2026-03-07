@@ -14,31 +14,22 @@ include("includes/layout.php");
 debutCarte("Forum"); ?>
 <div class="table-responsive">
 <?php
-	// Ajout de Yojim
-	// On vérifie si l'utilisateur n'est pas banni du forum
+	// Vérification du ban forum : requête unique sur dateFin >= CURDATE() (standardisé)
 	$isBanned = false;
 	if(isset($_SESSION['login'])) {
-		$sanction = dbFetchOne($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+		// Clean up any expired bans first, then check for an active one
+		dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		$sanction = dbFetchOne($base, 'SELECT * FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
 		if ($sanction) {
 			$isBanned = true;
 		}
 	}
 	// Si il est banni
 	if ($isBanned) {
-		// On calcul la différence entre la date de fin et la date actuelle
-		$diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $sanction['dateFin']);
-		// Si la date de fin de la sanction est passée, on supprime la sanction
-		if ($diff['d'] >= 0){
-			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
-			header('Location: forum.php');
-			exit();
-		}
-		else {
-			list($annee,$mois,$jour) = explode('-',$sanction['dateFin']);
-			$sanction['dateFin'] = $jour.'/'.$mois.'/'.$annee;
-			echo "Vous ne pouvez plus accéder au forum car vous avez été banni par <a href=\"ecriremessage.php?destinataire=".htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8')."\" >".htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8')."</a> jusqu'au <strong>".htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8')."</strong>.<br/>";
-			echo "Motif de la sanction : ".BBcode($sanction['motif']);
-		}
+		list($annee,$mois,$jour) = explode('-',$sanction['dateFin']);
+		$sanction['dateFin'] = $jour.'/'.$mois.'/'.$annee;
+		echo "Vous ne pouvez plus accéder au forum car vous avez été banni par <a href=\"ecriremessage.php?destinataire=".htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8')."\" >".htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8')."</a> jusqu'au <strong>".htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8')."</strong>.<br/>";
+		echo "Motif de la sanction : ".BBcode($sanction['motif']);
 	}
 	else {
 

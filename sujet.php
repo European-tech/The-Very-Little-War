@@ -17,15 +17,11 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 	$_GET['id'] = trim($_GET['id']);
 	if (preg_match("#^[0-9]+$#", $_GET['id'])) {
 		if (isset($_SESSION['login']) && empty($erreur)) {
-			// Check if poster is banned from forum
-			$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+			// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
+			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+			$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
 			if ($banCheck) {
-				$diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $banCheck['dateFin']);
-				if ($diff['d'] >= 0) {
-					dbExecute($base, 'DELETE FROM sanctions WHERE id = ?', 'i', $banCheck['id']);
-				} else {
-					$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
-				}
+				$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
 			}
 			if (empty($erreur) && !empty($_POST['contenu']) && mb_strlen($_POST['contenu']) <= 10000) {
 				$getId = (int)$_GET['id'];
@@ -112,19 +108,13 @@ if (isset($_GET['id'])) {
 	}
 	$forum = dbFetchOne($base, 'SELECT titre FROM forums WHERE id = ?', 'i', $sujet['idforum']);
 
-	// Ajout de Yojim
-	// On vérifie si l'utilisateur n'est pas banni du forum
+	// Vérification du ban forum : requête unique sur dateFin >= CURDATE() (standardisé)
+	$sanctionRow = null;
 	if (isset($_SESSION['login'])) {
-		$sanctionRow = dbFetchOne($base, 'SELECT * FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
+		dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		$sanctionRow = dbFetchOne($base, 'SELECT * FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
 	}
-
-	// Si il est banni (skip check if not logged in)
-	// Clean up expired bans (same logic as forum.php)
-	if (isset($sanctionRow) && $sanctionRow && strtotime($sanctionRow['dateFin']) < time()) {
-		dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
-		$sanctionRow = null;
-	}
-	$isBanned = isset($sanctionRow) && $sanctionRow;
+	$isBanned = (bool)$sanctionRow;
 	if ($isBanned) {
 		$sanction = $sanctionRow;
 		list($annee, $mois, $jour) = explode('-', $sanction['dateFin']);
@@ -258,7 +248,8 @@ if (isset($_GET['id'])) {
 ?>
 
 <?php if (isset($javascript) && $javascript): ?>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<!-- TODO: add integrity="sha384-..." once hash is confirmed (run: curl -sL https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML | openssl dgst -sha384 -binary | base64) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML" crossorigin="anonymous"></script>
 <?php endif; ?>
 <?php echo cspScriptTag(); ?>
 document.addEventListener('click', function(e) {
