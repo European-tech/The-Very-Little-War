@@ -231,6 +231,10 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                 } else {
                     try {
                         withTransaction($base, function() use ($base, &$diffEnergieAchat, &$newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $coutAchat) {
+                            // PASS1-MEDIUM-020: Re-read depot level inside transaction to get authoritative storage cap
+                            $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                            $placeDepotTx = placeDepot($depotRow ? (int)$depotRow['depot'] : 1);
+
                             // Re-read resources with lock to prevent race condition
                             $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                             $diffEnergieAchat = $locked['energie'] - $coutAchat;
@@ -238,21 +242,25 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                                 throw new Exception('NOT_ENOUGH_ENERGY');
                             }
                             $newResVal = $locked['res'] + $_POST['nombreRessourceAAcheter'];
-                            if ($newResVal > $placeDepot) {
+                            if ($newResVal > $placeDepotTx) {
                                 throw new Exception('NOT_ENOUGH_STORAGE');
                             }
                             dbExecute($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?', 'dds', $diffEnergieAchat, $newResVal, $_SESSION['login']);
 
+                            // PASS1-MEDIUM-018: Re-read current market price with lock to prevent stale-price race
+                            $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
+                            $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
+
                             $chaine = '';
-                            foreach ($tabCours as $num => $cours) {
-                                if ($num < sizeof($tabCours) - 1) {
+                            foreach ($txTabCours as $num => $cours) {
+                                if ($num < sizeof($txTabCours) - 1) {
                                     $fin = ",";
                                 } else {
                                     $fin = "";
                                 }
 
                                 if ($numRes == $num) {
-                                    $ajout = $tabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / MARKET_GLOBAL_ECONOMY_DIVISOR;
+                                    $ajout = $txTabCours[$num] + $volatilite * $_POST['nombreRessourceAAcheter'] / MARKET_GLOBAL_ECONOMY_DIVISOR;
                                     // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
                                     $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
                                     $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
@@ -260,7 +268,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                                     $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
                                     $chaine = $chaine . $ajout . $fin;
                                 } else {
-                                    $chaine = $chaine . $tabCours[$num] . $fin;
+                                    $chaine = $chaine . $txTabCours[$num] . $fin;
                                 }
                             }
 
@@ -269,11 +277,9 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
                             // Award trade points based on energy spent (not atom volume, to prevent buy-sell exploits)
                             $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
-                            $tradeVolume = round($coutAchat * $reseauBonus);
-                            $autreData = dbFetchOne($base, 'SELECT tradeVolume FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
-                            $oldVolume = $autreData['tradeVolume'] ?? 0;
-                            $newVolume = $oldVolume + $tradeVolume;
-                            dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
+                            // PASS1-MEDIUM-019: Atomic tradeVolume increment to prevent read-then-write race
+                            $tradeVolumeDelta = round($coutAchat * $reseauBonus);
+                            dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
                             recalculerTotalPointsJoueur($base, $_SESSION['login']);
                         });
                         logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
@@ -331,6 +337,10 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                 $actualSold = 0; // will be set inside the transaction
                 try {
                     withTransaction($base, function() use ($base, &$newEnergie, &$newResVal, &$energyGained, &$actualSold, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $sellTaxRate) {
+                        // PASS1-MEDIUM-020: Re-read depot level inside transaction to get authoritative storage cap
+                        $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                        $placeDepotTx = placeDepot($depotRow ? (int)$depotRow['depot'] : 1);
+
                         // Re-read resources with lock to prevent race condition
                         $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                         if ($locked['res'] < $_POST['nombreRessourceAVendre']) {
@@ -338,11 +348,14 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         }
 
                         // V4: Overflow fix — only sell atoms that fit in remaining energy space
-                        $energySpace = $placeDepot - $locked['energie'];
+                        // PASS1-MEDIUM-018: Use freshly locked price for sell calculations
+                        $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
+                        $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
+                        $energySpace = $placeDepotTx - $locked['energie'];
                         if ($energySpace <= 0) {
                             throw new Exception('ENERGY_FULL');
                         }
-                        $pricePerAtom = $tabCours[$numRes] * $sellTaxRate;
+                        $pricePerAtom = $txTabCours[$numRes] * $sellTaxRate;
                         if ($pricePerAtom <= 0) {
                             throw new Exception('INVALID_PRICE');
                         }
@@ -353,16 +366,16 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         }
 
                         $newResVal = $locked['res'] - $actualSold;
-                        $energyGained = round($tabCours[$numRes] * $actualSold * $sellTaxRate);
+                        $energyGained = round($txTabCours[$numRes] * $actualSold * $sellTaxRate);
                         $newEnergie = $locked['energie'] + $energyGained;
-                        if ($newEnergie > $placeDepot) {
-                            $newEnergie = $placeDepot;
+                        if ($newEnergie > $placeDepotTx) {
+                            $newEnergie = $placeDepotTx;
                         }
                         dbExecute($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?', 'dds', $newEnergie, $newResVal, $_SESSION['login']);
 
                         $chaine = '';
-                        foreach ($tabCours as $num => $cours) {
-                            if ($num < sizeof($tabCours) - 1) {
+                        foreach ($txTabCours as $num => $cours) {
+                            if ($num < sizeof($txTabCours) - 1) {
                                 $fin = ",";
                             } else {
                                 $fin = "";
@@ -370,7 +383,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
 
                             if ($numRes == $num) {
                                 // Guard against division by zero if price is 0
-                                $currentPrice = max(MARKET_PRICE_FLOOR, $tabCours[$num]);
+                                $currentPrice = max(MARKET_PRICE_FLOOR, $txTabCours[$num]);
                                 $ajout = 1 / (1 / $currentPrice + $volatilite * $actualSold / MARKET_GLOBAL_ECONOMY_DIVISOR);
                                 // Mean-reversion: pull price toward baseline of 1.0 (catalyst Équilibre boosts convergence)
                                 $meanReversion = MARKET_MEAN_REVERSION * (1 + catalystEffect('market_convergence'));
@@ -379,7 +392,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                                 $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
                                 $chaine = $chaine . $ajout . $fin;
                             } else {
-                                $chaine = $chaine . $tabCours[$num] . $fin;
+                                $chaine = $chaine . $txTabCours[$num] . $fin;
                             }
                         }
 
@@ -388,11 +401,9 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
 
                         // Award trade points on sell (mirror buy logic)
                         $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
-                        $tradeVolume = round($energyGained * $reseauBonus);
-                        $autreData = dbFetchOne($base, 'SELECT tradeVolume FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
-                        $oldVolume = $autreData['tradeVolume'] ?? 0;
-                        $newVolume = $oldVolume + $tradeVolume;
-                        dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
+                        // PASS1-MEDIUM-019: Atomic tradeVolume increment to prevent read-then-write race
+                        $tradeVolumeDelta = round($energyGained * $reseauBonus);
+                        dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
                         recalculerTotalPointsJoueur($base, $_SESSION['login']);
                     });
                     logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $actualSold, 'energy_gained' => $energyGained]);
