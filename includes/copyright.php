@@ -258,6 +258,7 @@ if(isset($_GET['deployer'])){
 	}
 	 
 	function genererConsonne(nbChances, totalExperiences) {
+		var lettre;
 		var aleatoire = Math.floor(Math.random()*totalExperiences ) + 1;
 		if(aleatoire <= nbChances) {
 			aleatoire = Math.floor(Math.random()*consonnes.length);

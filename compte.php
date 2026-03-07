@@ -174,9 +174,9 @@ if (!isset($_POST['supprimercompte'])) {
     debutListe();
     echo '<form action="compte.php" method="post" name="formChangerMdp">';
     echo csrfField();
-    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Mot de passe actuel', 'input' => '<input type="password" name="changermdpactuel" id="changermdpactuel" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '"/>']);
-    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Nouveau mot de passe', 'input' => '<input type="password" name="changermdp" id="changermdp" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '"/>']);
-    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Confirmation', 'input' => '<input type="password" name="changermdp1" id="changermdp1" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Mot de passe actuel', 'input' => '<input type="password" name="changermdpactuel" id="changermdpactuel" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '" autocomplete="current-password"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Nouveau mot de passe', 'input' => '<input type="password" name="changermdp" id="changermdp" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '" autocomplete="new-password"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Confirmation', 'input' => '<input type="password" name="changermdp1" id="changermdp1" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '" autocomplete="new-password"/>']);
     item(['input' => submit(['titre' => 'Changer', 'form' => 'formChangerMdp'])]);
     echo '</form><br/>';
     finListe();
