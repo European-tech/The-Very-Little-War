@@ -77,17 +77,19 @@ if(isset($_POST['numeropartie'])) {
 		foreach($tab as $compteur => $chaine){
 			if($compteur > 0){ //on ne prends pas le premier carcatere qui est un delimiteur
 				$valeurs = explode(",",$chaine);
+				// LOW-026: skip rows with missing required fields
+				if (count($valeurs) < 8 || ($valeurs[0] ?? '') === '') { continue; }
 				?>
 				<tr>
 				<td><?php echo imageClassement($compteur) ; ?></td>
 				<td><a href="joueur.php?id=<?php echo urlencode($valeurs[0]);?>"><?php echo htmlspecialchars($valeurs[0], ENT_QUOTES, 'UTF-8'); ?></a></td>
-				<td><?php echo htmlspecialchars($valeurs[1], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo alliance(htmlspecialchars($valeurs[2], ENT_QUOTES, 'UTF-8')); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[3], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[4], ENT_QUOTES, 'UTF-8');?></td>
-				<td><?php echo htmlspecialchars($valeurs[5], ENT_QUOTES, 'UTF-8');?></td>
-				<td><?php echo htmlspecialchars($valeurs[6], ENT_QUOTES, 'UTF-8');?></td>
-				<td><?php echo htmlspecialchars($valeurs[7], ENT_QUOTES, 'UTF-8');?></td>
+				<td><?php echo htmlspecialchars($valeurs[1] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo alliance(htmlspecialchars($valeurs[2] ?? '', ENT_QUOTES, 'UTF-8')); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[3] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[4] ?? '', ENT_QUOTES, 'UTF-8');?></td>
+				<td><?php echo htmlspecialchars($valeurs[5] ?? '', ENT_QUOTES, 'UTF-8');?></td>
+				<td><?php echo htmlspecialchars($valeurs[6] ?? '', ENT_QUOTES, 'UTF-8');?></td>
+				<td><?php echo htmlspecialchars($valeurs[7] ?? '', ENT_QUOTES, 'UTF-8');?></td>
 				</tr>
 			<?php
 			}
@@ -123,18 +125,20 @@ if(isset($_POST['numeropartie'])) {
 		foreach($tab as $compteur => $chaine){
 			if($compteur > 0){ //on ne prends pas le premier carcatere qui est un delimiteur
 				$valeurs = explode(",",$chaine);
+				// LOW-026: skip rows with missing required fields
+				if (count($valeurs) < 9 || ($valeurs[0] ?? '') === '') { continue; }
 				?>
 				<tr>
 				<td><?php echo imageClassement($compteur) ; ?></td>
-				<td><?php echo alliance(htmlspecialchars($valeurs[0], ENT_QUOTES, 'UTF-8')); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[1], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[2], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[3], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[4], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[5], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[6], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[7], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[8], ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo alliance(htmlspecialchars($valeurs[0] ?? '', ENT_QUOTES, 'UTF-8')); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[1] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[2] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[3] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[4] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[5] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[6] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[7] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[8] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
 				</tr>
 				<?php
 			}
@@ -163,13 +167,15 @@ if(isset($_POST['numeropartie'])) {
 		foreach($tab as $compteur => $chaine){
 			if($compteur > 0){ //on ne prends pas le premier carcatere qui est un delimiteur
 				$valeurs = explode(",",$chaine);
+				// LOW-026: skip rows with missing required fields
+				if (count($valeurs) < 4 || ($valeurs[0] ?? '') === '') { continue; }
 				?>
 				<tr>
 				<td><?php echo imageClassement($compteur) ; ?></td>
-				<td><?php echo htmlspecialchars($valeurs[0], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[1], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo htmlspecialchars($valeurs[2], ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo '<a href="guerre.php?id='.intval($valeurs[3]).'" class="lienVisible"><img src="images/classement/details.png" alt="details" title="Détails"/></a>';?></td>
+				<td><?php echo htmlspecialchars($valeurs[0] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[1] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo htmlspecialchars($valeurs[2] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+				<td><?php echo '<a href="guerre.php?id='.intval($valeurs[3] ?? 0).'" class="lienVisible"><img src="images/classement/details.png" alt="details" title="Détails"/></a>';?></td>
 				</tr>
 				<?php
 			}

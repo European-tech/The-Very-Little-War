@@ -19,12 +19,27 @@ debutCarte('Historique des connexions'); ?>
         </thead>
         <tbody>
             <?php
+            // LOW-029: show relative timestamps to non-admins, exact only to admin
+            $isAdmin = (isset($_SESSION['login']) && $_SESSION['login'] === ADMIN_LOGIN);
             $connectesRows = dbFetchAll($base, 'SELECT login, derniereConnexion FROM membre ORDER BY derniereConnexion DESC');
             foreach ($connectesRows as $donnees) {
                 if ($donnees['login'] != "Guortates") {
+                    $lastSeen = (int)$donnees['derniereConnexion'];
+                    if ($isAdmin) {
+                        $displayTime = date('d/m/Y à H\hi', $lastSeen);
+                    } else {
+                        $diff = time() - $lastSeen;
+                        if ($diff < 60) {
+                            $displayTime = "à l'instant";
+                        } elseif ($diff < 3600) {
+                            $displayTime = 'il y a ' . floor($diff / 60) . ' min';
+                        } else {
+                            $displayTime = 'il y a ' . floor($diff / 3600) . 'h';
+                        }
+                    }
                     echo '<tr>
                 <td class="nowrapColumn"><a href="joueur.php?id=' . htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8') . '</a></td>
-                <td class="nowrapColumn">' . date('d/m/Y à H\hi', $donnees['derniereConnexion']) . '</td>
+                <td class="nowrapColumn">' . htmlspecialchars($displayTime, ENT_QUOTES, 'UTF-8') . '</td>
                 </tr>';
                 }
             }

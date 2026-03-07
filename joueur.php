@@ -43,7 +43,8 @@ if (isset($_GET['id'])) {
        <?php if($donnees3['idalliance'] > 0 && $donnees2) { $alliance = alliance($donnees2['tag']); } else { $alliance = "Pas d'alliance";}
         
         $playerPoints = dbFetchOne($base, 'SELECT totalPoints FROM autre WHERE login=?', 's', $membre['login']);
-        $rangData = dbFetchOne($base, 'SELECT COUNT(*) + 1 AS rang FROM autre WHERE totalPoints > ?', 'd', $playerPoints['totalPoints']);
+        $totalPoints = (int) ($playerPoints['totalPoints'] ?? 0); // LOW-027: cast to int
+        $rangData = dbFetchOne($base, 'SELECT COUNT(*) + 1 AS rang FROM autre WHERE totalPoints > ?', 'd', $totalPoints);
         $rang = $rangData['rang'];
         echo chipInfo('<span class="important">Rang : </span>'.imageClassement($rang),'images/alliance/up.png').'<br/>';
         echo chip('<span class="important">Nom : </span>'.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8'),'<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
@@ -70,7 +71,12 @@ if (isset($_GET['id'])) {
         echo nombrePoints('<span class="important">Points : </span>'.$donnees1['totalPoints']).'<br/>';
 		echo chip('<span class="important">Victoires : </span>'.$donnees1['victoires'],'<img alt="coupe" src="images/classement/victoires.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
         if($membre['x'] != -1000){
-            echo chip('<span class="important">Position : </span>'.'<a href="attaquer.php?x='.$membre['x'].'&y='.$membre['y'].'">'.$membre['x'].';'.$membre['y'].'</a>','<img alt="coupe" src="images/attaquer/map.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true);
+            // LOW-028: only show exact coordinates to authenticated users
+            if (isset($_SESSION['login'])) {
+                echo chip('<span class="important">Position : </span>'.'<a href="attaquer.php?x='.$membre['x'].'&y='.$membre['y'].'">'.$membre['x'].';'.$membre['y'].'</a>','<img alt="coupe" src="images/attaquer/map.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true);
+            } else {
+                echo chip('<span class="important">Position : </span><img src="images/attaquer/map.png" alt="carte" style="width:16px;vertical-align:middle;"/> <em>Connectez-vous pour voir</em>','<img alt="coupe" src="images/attaquer/map.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true);
+            }
         }
 
         $fin = false;

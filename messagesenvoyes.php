@@ -7,13 +7,14 @@ debutCarte("Messages envoyés");
 ?>
 <div class="table-responsive">
 <?php
-$totalMessages = dbCount($base, 'SELECT COUNT(*) AS nb FROM messages WHERE expeditaire = ?', 's', $_SESSION['login']);
+// LOW-033: exclude soft-deleted sent messages
+$totalMessages = dbCount($base, 'SELECT COUNT(*) AS nb FROM messages WHERE expeditaire = ? AND deleted_by_sender=0', 's', $_SESSION['login']);
 $nombreDeMessagesParPage = MESSAGES_PER_PAGE;
 $nombreDePages = max(1, (int)ceil($totalMessages / $nombreDeMessagesParPage));
 $page = max(1, min($nombreDePages, intval($_GET['page'] ?? 1)));
 $offset = ($page - 1) * $nombreDeMessagesParPage;
 
-$messageRows = dbFetchAll($base, 'SELECT * FROM messages WHERE expeditaire = ? ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $offset, $nombreDeMessagesParPage);
+$messageRows = dbFetchAll($base, 'SELECT * FROM messages WHERE expeditaire = ? AND deleted_by_sender=0 ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $offset, $nombreDeMessagesParPage);
 $nb_messages = count($messageRows);
 if($nb_messages > 0) {
 	echo '<table class="table table-striped table-bordered">

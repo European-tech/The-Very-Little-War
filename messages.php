@@ -5,18 +5,29 @@ require_once("includes/csrf.php");
 
 if(isset($_POST['supprimer_tout'])) {
 	csrfCheck();
-	dbExecute($base, 'DELETE FROM messages WHERE destinataire = ?', 's', $_SESSION['login']);
+	// LOW-033: soft delete — mark all as deleted by recipient, then purge fully-deleted rows
+	dbExecute($base, 'UPDATE messages SET deleted_by_recipient=1 WHERE destinataire = ?', 's', $_SESSION['login']);
+	dbExecute($base, 'DELETE FROM messages WHERE deleted_by_sender=1 AND deleted_by_recipient=1');
 } elseif(isset($_POST['supprimer']) AND preg_match("#^\d+$#",$_POST['supprimer'])) {
 	csrfCheck();
 	$supprimerId = (int)$_POST['supprimer'];
-	dbExecute($base, 'DELETE FROM messages WHERE id = ? AND destinataire = ?', 'is', $supprimerId, $_SESSION['login']);
+	// LOW-033: soft delete by recipient
+	dbExecute($base, 'UPDATE messages SET deleted_by_recipient=1 WHERE id = ? AND destinataire = ?', 'is', $supprimerId, $_SESSION['login']);
+	dbExecute($base, 'DELETE FROM messages WHERE id = ? AND deleted_by_sender=1 AND deleted_by_recipient=1', 'i', $supprimerId);
 }
 
 include("includes/layout.php");
 
+// LOW-030: display flash message from PM send redirect
+if (isset($_SESSION['flash_message'])) {
+    echo '<div class="toast-text">' . htmlspecialchars($_SESSION['flash_message'], ENT_QUOTES, 'UTF-8') . '</div>';
+    unset($_SESSION['flash_message']);
+}
+
 if(isset($_GET['message'])) {
 	$messageId = (int)$_GET['message'];
-	$messages = dbFetchOne($base, 'SELECT * FROM messages WHERE ( destinataire = ? OR expeditaire = ? ) AND id = ?', 'ssi', $_SESSION['login'], $_SESSION['login'], $messageId);
+	// LOW-033: exclude soft-deleted messages from view
+	$messages = dbFetchOne($base, 'SELECT * FROM messages WHERE ( (destinataire = ? AND deleted_by_recipient=0) OR (expeditaire = ? AND deleted_by_sender=0) ) AND id = ?', 'ssi', $_SESSION['login'], $_SESSION['login'], $messageId);
 	$nb_messages = $messages ? 1 : 0;
 	if($nb_messages > 0) {
 		if($_SESSION['login'] == $messages['destinataire']) {
@@ -35,7 +46,7 @@ if(isset($_GET['message'])) {
 }
 else {
 	$nombreDeMessagesParPage = MESSAGES_PER_PAGE;
-	$totalDesMessages = dbCount($base, 'SELECT COUNT(*) AS nb_messages FROM messages WHERE destinataire = ?', 's', $_SESSION['login']);
+	$totalDesMessages = dbCount($base, 'SELECT COUNT(*) AS nb_messages FROM messages WHERE destinataire = ? AND deleted_by_recipient=0', 's', $_SESSION['login']);
 	$nombreDePages  = ceil($totalDesMessages / $nombreDeMessagesParPage); // Calcul du nombre de pages créées
 	// Puis on fait une boucle pour écrire les liens vers chacune des pages
 
@@ -47,7 +58,8 @@ else {
 	// On calcule le numéro du premier message qu'on prend pour le LIMIT de MySQL
 	$premierMessageAafficher = ($page - 1) * $nombreDeMessagesParPage;
 
-	$messagesRows = dbFetchAll($base, 'SELECT * FROM messages WHERE destinataire = ? ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $premierMessageAafficher, $nombreDeMessagesParPage);
+	// LOW-033: exclude soft-deleted messages
+	$messagesRows = dbFetchAll($base, 'SELECT * FROM messages WHERE destinataire = ? AND deleted_by_recipient=0 ORDER BY timestamp DESC LIMIT ?, ?', 'sii', $_SESSION['login'], $premierMessageAafficher, $nombreDeMessagesParPage);
 	$nb_messages = count($messagesRows);
 	debutCarte("Messages");
 	if($nb_messages > 0) {
@@ -73,7 +85,8 @@ else {
 			echo '<td><form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$messages['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="w32"></button></form></td></tr>';
 		}
 		echo '</tbody></table></div>';
-        $supprimer = '<form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer_tout" value="1"><button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;">Supprimer tous les messages</button></form>';
+        // LOW-032: require JS confirmation before deleting all messages
+        $supprimer = '<form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer_tout" value="1"><button type="submit" onclick="return confirm(\'Supprimer tous les messages ? Cette action est irréversible.\')" style="background:none;border:none;cursor:pointer;text-decoration:underline;">Supprimer tous les messages</button></form>';
 		$adresse = "messages.php?";
         $premier = '';
         if($page > 2){

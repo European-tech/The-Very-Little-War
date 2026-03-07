@@ -8,7 +8,8 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 	csrfCheck();
 	if (!empty($_POST['titre']) and !empty($_POST['destinataire']) and !empty($_POST['contenu'])) {
 		$_POST['titre'] = trim($_POST['titre']);
-		$_POST['destinataire'] = ucfirst(trim($_POST['destinataire']));
+		// LOW-031: resolve canonical login from DB to avoid case mismatch
+	$_POST['destinataire'] = trim($_POST['destinataire']);
 		$_POST['contenu'] = trim($_POST['contenu']);
 		// Length validation to prevent storage abuse
 		if (mb_strlen($_POST['titre'], 'UTF-8') > 200) {
@@ -55,13 +56,16 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 			if (!rateLimitCheck($_SESSION['login'], 'private_msg', 10, 300)) {
 				$erreur = "Vous envoyez trop de messages. Veuillez patienter.";
 			} else {
-			$joueurExiste = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=?', 's', $_POST['destinataire']);
-			if ($joueurExiste > 0) {
+			// LOW-031: resolve canonical login from DB (case-insensitive lookup, use stored form)
+			$canonicalRow = dbFetchOne($base, 'SELECT login FROM autre WHERE LOWER(login)=LOWER(?)', 's', $_POST['destinataire']);
+			if ($canonicalRow) {
+				$canonicalLogin = $canonicalRow['login'];
 				$now = time();
-				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $_POST['destinataire']);
-				$information =  "Le message a bien été envoyé.";
+				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $canonicalLogin);
+				// LOW-030: store flash message before redirect
+				$_SESSION['flash_message'] = 'Message envoyé avec succès.';
 				header('Location: messages.php');
-			exit();
+				exit();
 			} else {
 				$erreur = 'Le joueur ' . htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8') . ' n\'existe pas.';
 			}
