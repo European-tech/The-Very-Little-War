@@ -1,0 +1,27 @@
+-- Migration 0046: Document MED-048 — 0035 PREPARE/EXECUTE compatibility note
+--
+-- MED-048: Migration 0035 uses PREPARE/EXECUTE/DEALLOCATE which is fragile with
+-- some MySQL/MariaDB client configurations and single-statement runners.
+-- The preferred pattern for future conditional DDL migrations is a stored procedure:
+--
+--   DROP PROCEDURE IF EXISTS tvlw_migrate_idempotent;
+--   CREATE PROCEDURE tvlw_migrate_idempotent() ...
+--   CALL tvlw_migrate_idempotent();
+--   DROP PROCEDURE IF EXISTS tvlw_migrate_idempotent;
+--
+-- However, migrate.php uses mysqli_multi_query which splits on ';', making
+-- BEGIN...END blocks inside CREATE PROCEDURE incompatible unless the procedure
+-- body contains no internal semicolons.
+--
+-- Migration 0035 has already been applied to the production database.
+-- The PRIMARY KEY constraints on grades(login, idalliance) and
+-- statutforum(login, idsujet) are confirmed present.
+-- The FKs on attack_cooldowns.defender and reponses_sondage are confirmed present.
+--
+-- This migration is intentionally a no-op comment file to document the audit
+-- finding and close the MED-048 tracking item.
+--
+-- For fresh installs: 0035 will run via PREPARE/EXECUTE which is supported
+-- by MariaDB 10.11 in the default sql_mode. No action required.
+
+SELECT 'MED-048: migration 0035 PREPARE/EXECUTE pattern documented — no schema change needed' AS note;

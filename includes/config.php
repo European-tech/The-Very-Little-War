@@ -633,6 +633,8 @@ define('RATE_LIMIT_REGISTER_MAX', 3);         // Max registrations per window
 define('RATE_LIMIT_REGISTER_WINDOW', SECONDS_PER_HOUR); // 1 hour
 define('RATE_LIMIT_MARKET_MAX', 30);          // Max buy/sell actions per window (PASS1-LOW-023)
 define('RATE_LIMIT_MARKET_WINDOW', 60);       // 1 minute
+define('ESPIONAGE_RATE_LIMIT', 5);            // MED-044: Max espionage launches per window
+define('ESPIONAGE_RATE_WINDOW', 60);          // MED-044: Rate window in seconds (1 minute)
 
 // =============================================================================
 // USER INPUT VALIDATION

@@ -33,13 +33,9 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     }
 
     // V4: Iode is now a generator catalyst — multiplicative bonus instead of additive energy
-    $totalIodeAtoms = 0;
-    for ($i = 1; $i <= 4; $i++) {
-        $molecules = dbFetchOne($base, 'SELECT iode, nombre FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $joueur, $i);
-        if ($molecules) {
-            $totalIodeAtoms += $molecules['iode'] * $molecules['nombre'];
-        }
-    }
+    // MED-045: Single aggregated query replaces 4 per-class DB calls (N+1 eliminated)
+    $iodeSumRow = dbFetchOne($base, 'SELECT SUM(iode * nombre) AS total_iode FROM molecules WHERE proprietaire=?', 's', $joueur);
+    $totalIodeAtoms = ($iodeSumRow && $iodeSumRow['total_iode'] !== null) ? (float)$iodeSumRow['total_iode'] : 0.0;
     $iodeCatalystBonus = 1.0 + min(IODE_CATALYST_MAX_BONUS, $totalIodeAtoms / IODE_CATALYST_DIVISOR);
 
     $donneesMedaille = $autreRow; // reuse cached autre row — has energieDepensee

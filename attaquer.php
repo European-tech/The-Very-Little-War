@@ -19,7 +19,10 @@ $coutPourUnAtome = ATTACK_ENERGY_COST_FACTOR * (1 - $bonus / 100);
 
 if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
     csrfCheck();
-    if (!empty($_POST['joueurAEspionner']) && !empty($_POST['nombreneutrinos'])) { // Vérification que la variable n'est pas vide
+    // MED-044: Rate limit espionage to prevent spam/flooding
+    if (!rateLimitCheck('espionage_' . $_SESSION['login'], 'espionage', ESPIONAGE_RATE_LIMIT, ESPIONAGE_RATE_WINDOW)) {
+        $erreur = "Trop d'espionnages récents. Attendez avant d'en lancer un autre.";
+    } elseif (!empty($_POST['joueurAEspionner']) && !empty($_POST['nombreneutrinos'])) { // Vérification que la variable n'est pas vide
         $_POST['joueurAEspionner'] = trim($_POST['joueurAEspionner']);
         $_POST['nombreneutrinos'] = intval($_POST['nombreneutrinos']);
         if ($_POST['joueurAEspionner'] != $_SESSION['login']) {

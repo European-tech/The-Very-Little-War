@@ -10,40 +10,25 @@ else
 }
 
 
-if(isset($_GET['clas'])) {
-	$_GET['clas'] = (int)$_GET['clas'];
-}
+// MED-046: Use strict integer comparison for $_GET['clas'] to avoid loose switch coercion
+$clas = isset($_GET['clas']) ? (int)$_GET['clas'] : -1;
 
 // Whitelist the order column for player ranking
-if(isset($_GET['clas'])) {
-    switch($_GET['clas']) {
-        case 0:
-            $order = 'batmax';
-            break;
-        case 1:
-            $order = 'victoires';
-            break;
-        case 2:
-            $order = 'pointsAttaque';
-            break;
-        case 3:
-            $order = 'pointsDefense';
-            break;
-        case 4:
-            $order = 'ressourcesPillees';
-            break;
-        case 5:
-            $order = 'points';
-            break;
-        case 6:
-            $order = 'tradeVolume';
-            break;
-        default :
-            $order = 'totalPoints';
-            break;
-    }
-}
-else {
+if ($clas === 0) {
+    $order = 'batmax';
+} elseif ($clas === 1) {
+    $order = 'victoires';
+} elseif ($clas === 2) {
+    $order = 'pointsAttaque';
+} elseif ($clas === 3) {
+    $order = 'pointsDefense';
+} elseif ($clas === 4) {
+    $order = 'ressourcesPillees';
+} elseif ($clas === 5) {
+    $order = 'points';
+} elseif ($clas === 6) {
+    $order = 'tradeVolume';
+} else {
     $order = 'totalPoints';
 }
 
@@ -80,8 +65,8 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	// Total / Daily toggle (P1-D8-058)
 	?>
 	<div class="segmented" style="margin:8px 16px;">
-		<a href="classement.php?sub=0&mode=total<?= isset($_GET['clas']) ? '&clas=' . (int)$_GET['clas'] : '' ?>" class="button <?= $mode === 'total' ? 'button-active' : '' ?>">Total</a>
-		<a href="classement.php?sub=0&mode=daily<?= isset($_GET['clas']) ? '&clas=' . (int)$_GET['clas'] : '' ?>" class="button <?= $mode === 'daily' ? 'button-active' : '' ?>">Aujourd'hui</a>
+		<a href="classement.php?sub=0&mode=total<?= $clas !== -1 ? '&clas=' . $clas : '' ?>" class="button <?= $mode === 'total' ? 'button-active' : '' ?>">Total</a>
+		<a href="classement.php?sub=0&mode=daily<?= $clas !== -1 ? '&clas=' . $clas : '' ?>" class="button <?= $mode === 'daily' ? 'button-active' : '' ?>">Aujourd'hui</a>
 	</div>
 	<?php
 
@@ -299,7 +284,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	</table>
 
 	<?php
-	$adresse = 'classement.php?sub=0&mode=' . urlencode($mode) . (isset($_GET['clas']) ? '&clas=' . (int)$_GET['clas'] : '') . '&';
+	$adresse = 'classement.php?sub=0&mode=' . urlencode($mode) . ($clas !== -1 ? '&clas=' . $clas : '') . '&';
         $premier = '';
         if($page > 2){
             $premier = '<a href="'.$adresse.'page=1">1</a>';
@@ -328,10 +313,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	?></p>
 	<?php
 	if(isset($_SESSION['login'])) {
-	$plus = '';
-	if(isset($_GET['clas'])) {
-		$plus = '&clas='.$_GET['clas'];
-	}
+	$plus = ($clas !== -1) ? '&clas=' . $clas : '';
     debutListe();
         echo important("Rechercher");
         item(['floating' => true, 'form' => ['classement.php?sub=0'.$plus, "rechercher"], 'titre' => 'Nom du joueur', 'input' => '<input type="text" name="joueurRecherche" id="joueurRecherche" class="form-control"/>']);
@@ -388,32 +370,20 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 
 	$premiereAllianceAafficher = ($page - 1) * $nombreDeAlliancesParPage;
 
-    // Whitelist the order column for alliance ranking
-    if(isset($_GET['clas'])) {
-		switch($_GET['clas']) {
-			case 1:
-				$order = 'totalConstructions';
-				break;
-            case 2:
-				$order = 'totalAttaque';
-				break;
-            case 3:
-				$order = 'totalDefense';
-				break;
-            case 4:
-				$order = 'totalPillage';
-				break;
-            case 5 :
-                $order = 'pointsVictoire';
-                break;
-			default :
-				$order = 'pointstotaux';
-				break;
-		}
-	}
-	else {
-		$order = 'pointstotaux';
-	}
+    // Whitelist the order column for alliance ranking (MED-046: strict === comparison)
+    if ($clas === 1) {
+        $order = 'totalConstructions';
+    } elseif ($clas === 2) {
+        $order = 'totalAttaque';
+    } elseif ($clas === 3) {
+        $order = 'totalDefense';
+    } elseif ($clas === 4) {
+        $order = 'totalPillage';
+    } elseif ($clas === 5) {
+        $order = 'pointsVictoire';
+    } else {
+        $order = 'pointstotaux';
+    }
 
 	// $order is whitelisted
 	$classementAllianceRows = dbFetchAll($base, 'SELECT * FROM alliances ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premiereAllianceAafficher, $nombreDeAlliancesParPage);
@@ -636,29 +606,16 @@ else {
 	</thead>
 	<tbody>
 	<?php
-	$plus = '';
-	if(isset($_GET['clas'])) {
-		$plus = '&clas='.$_GET['clas'];
-	}
+	$plus = ($clas !== -1) ? '&clas=' . $clas : '';
 
-	// Whitelist $order and $table for forum ranking
-	if(isset($_GET['clas'])) {
-		switch(intval($_GET['clas'])) {
-			case 0:
-				$order = 'bombe';
-				$table = 'autre';
-				break;
-			case 1:
-				$order = 'troll';
-				$table = 'membre';
-				break;
-			default :
-				$order = 'nbMessages';
-				$table = 'autre';
-				break;
-		}
-	}
-	else {
+	// Whitelist $order and $table for forum ranking (MED-046: strict === comparison)
+	if ($clas === 0) {
+		$order = 'bombe';
+		$table = 'autre';
+	} elseif ($clas === 1) {
+		$order = 'troll';
+		$table = 'membre';
+	} else {
 		$order = 'nbMessages';
 		$table = 'autre';
 	}
