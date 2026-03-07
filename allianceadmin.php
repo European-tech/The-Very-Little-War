@@ -250,7 +250,7 @@ if ($pacte) {
 			$rapportTitre = 'L\'alliance ' . $safePacteTag . ' met fin au pacte qui vous alliait.';
 			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safePacteTag . '</a> met fin au pacte qui vous alliait.';
 			dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
-			$information = "Le pacte avec " . $allianceAdverse['tag'] . " est bien rompu.";
+			$information = "Le pacte avec " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " est bien rompu.";
 		} else {
 			$erreur = "Ce pacte n'existe pas.";
 		}
@@ -309,7 +309,7 @@ if ($guerre) {
 			$rapportTitre = 'L\'alliance ' . $safeWarTag . ' met fin à la guerre qui vous opposait.';
 			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeWarTag . '</a> met fin à la guerre qui vous opposait.';
 			dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
-			$information = "La guerre contre " . $allianceAdverse['tag'] . " a pris fin.";
+			$information = "La guerre contre " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " a pris fin.";
 		} else {
 			$erreur = "Cette guerre n'existe pas.";
 		}
@@ -482,9 +482,9 @@ if ($gradeChef) {
                         </tr></thead><tbody>';
 	foreach ($pacteRows1 as $pacte) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $pacte['alliance2']);
-
+		$safeAllyTag = htmlspecialchars($tagAlliance['tag'], ENT_QUOTES, 'UTF-8');
 		echo '<tr>
-                            <td><a href="alliance.php?id=' . $tagAlliance['tag'] . '">' . $tagAlliance['tag'] . '</a></td>
+                            <td><a href="alliance.php?id=' . urlencode($tagAlliance['tag']) . '">' . $safeAllyTag . '</a></td>
                             <td>' . date('d/m/Y à H\hi', $pacte['timestamp']) . '</td>
                             <td><form action="allianceadmin.php" method="post">' . csrfField() . '
                             <input type="hidden" name="allie" value="' . $pacte['alliance2'] . '"/>
@@ -494,9 +494,9 @@ if ($gradeChef) {
 	$pacteRows2 = dbFetchAll($base, 'SELECT * FROM declarations WHERE alliance2=? AND type=1 AND valide!=0', 'i', $chef['id']);
 	foreach ($pacteRows2 as $pacte) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $pacte['alliance1']);
-
+		$safeAllyTag = htmlspecialchars($tagAlliance['tag'], ENT_QUOTES, 'UTF-8');
 		echo '<tr>
-                            <td><a href="alliance.php?id=' . $tagAlliance['tag'] . '">' . $tagAlliance['tag'] . '</a></td>
+                            <td><a href="alliance.php?id=' . urlencode($tagAlliance['tag']) . '">' . $safeAllyTag . '</a></td>
                             <td>' . date('d/m/Y à H\hi', $pacte['timestamp']) . '</td>
                             <td><form action="allianceadmin.php" method="post">' . csrfField() . '
                             <input type="hidden" name="allie" value="' . $pacte['alliance1'] . '"/>
@@ -530,9 +530,9 @@ if ($guerre) {
                         </tr></thead><tbody>';
 	foreach ($guerreRows1 as $guerre) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance2']);
-
+		$safeWarTag = htmlspecialchars($tagAlliance['tag'], ENT_QUOTES, 'UTF-8');
 		echo '<tr>
-                            <td><a href="alliance.php?id=' . $tagAlliance['tag'] . '">' . $tagAlliance['tag'] . '</a></td>
+                            <td><a href="alliance.php?id=' . urlencode($tagAlliance['tag']) . '">' . $safeWarTag . '</a></td>
                             <td>' . date('d/m/Y à H\hi', $guerre['timestamp']) . '</td>
                             <td>' . $guerre['pertes1'] . '</td>
                             <td><form action="allianceadmin.php" method="post">' . csrfField() . '
@@ -543,12 +543,12 @@ if ($guerre) {
 	$guerreRows2 = dbFetchAll($base, 'SELECT * FROM declarations WHERE alliance2=? AND type=0 AND fin=0', 'i', $chef['id']);
 	foreach ($guerreRows2 as $guerre) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance1']);
-
+		$safeWarTag = htmlspecialchars($tagAlliance['tag'], ENT_QUOTES, 'UTF-8');
 		echo '<tr>
-                            <td><a href="alliance.php?id=' . $tagAlliance['tag'] . '">' . $tagAlliance['tag'] . '</a></td>
+                            <td><a href="alliance.php?id=' . urlencode($tagAlliance['tag']) . '">' . $safeWarTag . '</a></td>
                             <td>' . date('d/m/Y à H\hi', $guerre['timestamp']) . '</td>
                             <td>' . $guerre['pertes2'] . '</td>
-                            <td>Déclarée par ' . $tagAlliance['tag'] . '</td>
+                            <td>Déclarée par ' . $safeWarTag . '</td>
                             </tr>';
 	}
 ?>
