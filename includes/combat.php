@@ -432,10 +432,9 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 }
 
 //Gestion de la destruction des bâtiments ennemis
-$hydrogeneTotal = ($classeAttaquant1['nombre'] - $classe1AttaquantMort) * potentielDestruction($classeAttaquant1['hydrogene'], $classeAttaquant1['oxygene'], $niveauxAtt['hydrogene']) + // Calcul des degats que va faire l'attaquant
-	($classeAttaquant2['nombre'] - $classe2AttaquantMort) * potentielDestruction($classeAttaquant2['hydrogene'], $classeAttaquant2['oxygene'], $niveauxAtt['hydrogene']) +
-	($classeAttaquant3['nombre'] - $classe3AttaquantMort) * potentielDestruction($classeAttaquant3['hydrogene'], $classeAttaquant3['oxygene'], $niveauxAtt['hydrogene']) +
-	($classeAttaquant4['nombre'] - $classe4AttaquantMort) * potentielDestruction($classeAttaquant4['hydrogene'], $classeAttaquant4['oxygene'], $niveauxAtt['hydrogene']);
+// $hydrogeneTotal is recalculated from surviving attackers inside the damage block below;
+// initialise to 0 here so the variable is defined for the guard condition.
+$hydrogeneTotal = 0;
 $degatsGenEnergie = 0;
 $degatschampdeforce = 0;
 $degatsDepot = 0;
@@ -454,8 +453,8 @@ if (!$constructions) {
 	throw new Exception('Missing defender constructions for damage phase');
 }
 
-if ($gagnant == 2 && $hydrogeneTotal > 0) { // Only damage buildings when attacker WINS
-	// Recalculate hydrogeneTotal from SURVIVING attackers (FIX: was using pre-combat count)
+if ($gagnant == 2) { // Only damage buildings when attacker WINS
+	// Calculate hydrogeneTotal from SURVIVING attackers
 	$hydrogeneTotal = 0;
 	for ($i = 1; $i <= $nbClasses; $i++) {
 		$surviving = ${'classeAttaquant' . $i}['nombre'] - ${'classe' . $i . 'AttaquantMort'};

@@ -29,7 +29,8 @@
     var heures = Math.floor((diff % 86400) / 3600);
     var minutes = Math.floor((diff % 3600) / 60);
 
-    el.textContent = jours + "j " + heures + "h " + minutes + "m";
+    el.textContent =
+      jours + "j " + heures + "h " + minutes + "m (heure de Paris)";
   }
 
   var intervalId;

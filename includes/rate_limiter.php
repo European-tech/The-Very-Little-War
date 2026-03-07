@@ -16,6 +16,16 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
         }
     }
 
+    // Probabilistic cleanup of stale rate limit files (~1% of calls)
+    if (mt_rand(1, 100) === 1) {
+        $maxWindow = 3600; // max rate limit window in seconds
+        foreach (glob($dir . '/*.json') ?: [] as $file) {
+            if (filemtime($file) < time() - $maxWindow) {
+                @unlink($file);
+            }
+        }
+    }
+
     $file = $dir . '/' . md5($identifier . '_' . $action) . '.json';
     $now = time();
     $attempts = [];

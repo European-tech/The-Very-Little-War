@@ -29,20 +29,15 @@ if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login'
 	
 	if($donnees['ok'] == 1) {
         
-        $donnees = dbFetchOne($base, 'SELECT nbattaques FROM autre WHERE login=?', 's', $joueur);
-        
         $donnees1 = dbFetchOne($base, 'SELECT count(*) AS nbmessages FROM reponses WHERE auteur=?', 's', $joueur);
-        
+
+        // Single query fetches all needed columns from autre (nbattaques, energieDepensee, bombe, etc.)
         $donnees2 = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $joueur);
-        
-        $donnees3 = dbFetchOne($base, 'SELECT energieDepensee FROM autre WHERE login=?', 's', $joueur);
-        
+
         $donnees4 = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
         $plusHaut = batMax($donnees4['login'],$nomsRes,$nbRes);
-        
+
         $troll = dbFetchOne($base, 'SELECT troll FROM membre WHERE login=?', 's', $joueur);
-        
-        $bombe = dbFetchOne($base, 'SELECT bombe FROM autre WHERE login=?', 's', $joueur);
             
         // Display player name from DB (not from $_GET) to prevent XSS via URL parameter
         $joueurDisplay = isset($donnees2['login'])
@@ -50,15 +45,15 @@ if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login'
             : htmlspecialchars($joueur, ENT_QUOTES, 'UTF-8');
 	    debutCarte("Médailles de " . $joueurDisplay);
         debutListe();
-            $listeMedailles = [['Terreur',$donnees['nbattaques'],$paliersTerreur,'Attaques','% de diminution du coût d\'attaque',$bonusMedailles],
+            $listeMedailles = [['Terreur',$donnees2['nbattaques'],$paliersTerreur,'Attaques','% de diminution du coût d\'attaque',$bonusMedailles],
                                ['Attaquant',floor($donnees2['pointsAttaque']),$paliersAttaque,'Points d\'attaque','% d\'attaque supplémentaire',$bonusMedailles],
                                ['Defenseur',floor($donnees2['pointsDefense']),$paliersDefense,'Points de défense','% de défense supplémentaire',$bonusMedailles],
                                ['Pilleur',floor($donnees2['ressourcesPillees']),$paliersPillage,'Ressources pillées','% de pillage supplémentaire',$bonusMedailles],
                                ['Pertes',floor($donnees2['moleculesPerdues']),$paliersPertes,'Pertes','% de stabilisation des molécules',$bonusMedailles],
-                               ['Energievore',$donnees3['energieDepensee'],$paliersEnergievore,'Energie dépensée','% de production d\'énergie',$bonusMedailles],
+                               ['Energievore',$donnees2['energieDepensee'],$paliersEnergievore,'Energie dépensée','% de production d\'énergie',$bonusMedailles],
                                ['Constructeur',$plusHaut,$paliersConstructeur,'Niveau de bâtiment','% de réduction du coût des bâtiments',$bonusMedailles],
                                ['Pipelette',$donnees1['nbmessages'],$paliersPipelette,'Messages sur le forum','',$bonusForum],
-                               ['Explosif',$bombe['bombe'],$paliersBombe,'Jeu de la bombe','',$bonusTroll],
+                               ['Explosif',$donnees2['bombe'],$paliersBombe,'Jeu de la bombe','',$bonusTroll],
                                ['Aléatoire',$troll['troll'],$paliersTroll,'Aléatoire','',$bonusTroll]];
             foreach($listeMedailles as $nbMedaille => $infos){
                 

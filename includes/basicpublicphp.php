@@ -12,7 +12,6 @@ require_once(__DIR__ . '/csp.php');
 // so that forms (login, registration) can verify their submissions
 if (isset($_SESSION['login'])) {
 	unset($_SESSION['login']);
-	unset($_SESSION['mdp']);
 	unset($_SESSION['session_token']);
 }
 // Note: We do NOT call session_destroy() here because it would wipe

@@ -112,6 +112,9 @@ if (!$donnees) {
     $donnees = ['titre' => 'Aucune news', 'contenu' => ''];
     $contenuNews = 'Aucune news pour l\'instant.';
 } else {
+    // News entries created by admins only (admin/redigernews.php behind redirectionmotdepasse.php).
+    // This regex sanitisation is acceptable for admin-controlled content.
+    // If non-admins can ever post news, switch to HTML Purifier.
     $allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><hr>';
     $contenuNews = strip_tags($donnees['contenu'], $allowedTags);
     $contenuNews = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $contenuNews);

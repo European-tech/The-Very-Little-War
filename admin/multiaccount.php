@@ -5,6 +5,9 @@ require_once("../includes/csrf.php");
 require_once("../includes/database.php");
 require_once("../includes/multiaccount.php");
 require_once("../includes/logger.php");
+require_once(__DIR__ . '/../includes/csp.php');
+$nonce = cspNonce();
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

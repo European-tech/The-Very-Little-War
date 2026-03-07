@@ -82,7 +82,12 @@ else {
 		<table class="table table-striped table-bordered">
         <tbody>';
 		foreach($rapportsRows as $rapports) {
-            echo '<tr><td>'.strip_tags($rapports['image'], '<img>').'</td>';
+            $imageCell = strip_tags($rapports['image'], '<img>');
+            // Strip event handlers from any allowed <img> tags
+            $imageCell = preg_replace('/\s+on\w+\s*=\s*"[^"]*"/i', '', $imageCell);
+            $imageCell = preg_replace('/\s+on\w+\s*=\s*\'[^\']*\'/i', '', $imageCell);
+            $imageCell = preg_replace('/\s+on\w+\s*=[^\s>]*/i', '', $imageCell); // unquoted handlers
+            echo '<tr><td>' . $imageCell . '</td>';
 			if($rapports['statut'] != 0){
 				echo '<td><a href="rapports.php?rapport='.$rapports['id'].'">'.htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 			}

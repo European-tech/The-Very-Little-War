@@ -4,6 +4,9 @@ include("redirectionmotdepasse.php");
 include("../includes/fonctions.php");
 require_once(__DIR__ . '/../includes/csrf.php');
 require_once(__DIR__ . '/../includes/logger.php');
+require_once(__DIR__ . '/../includes/csp.php');
+$nonce = cspNonce();
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
 
 $joueurExiste = 0;
 
