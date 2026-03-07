@@ -953,6 +953,15 @@ function performSeasonEnd()
 {
     global $base;
 
+    // MED-012: Advisory lock prevents double-reset when called concurrently.
+    // GET_LOCK(..., 0) returns 1 if acquired immediately, 0 if already held, NULL on error.
+    $lockResult = dbFetchOne($base, "SELECT GET_LOCK('season_reset', 0) AS locked");
+    if (!$lockResult || !$lockResult['locked']) {
+        return; // another reset in progress
+    }
+
+    try {
+
     require_once(__DIR__ . '/prestige.php');
 
     // Phase 0: Archive per-player stats into season_recap (P1-D8-052)
@@ -1080,6 +1089,10 @@ function performSeasonEnd()
     }
 
     return $vainqueurManche;
+
+    } finally {
+        dbFetchOne($base, "SELECT RELEASE_LOCK('season_reset')");
+    }
 }
 
 /**
@@ -1201,13 +1214,7 @@ function remiseAZero()
         dbExecute($base, 'DELETE FROM resource_nodes');
     });
 
-    // MED-011: Truncate forum tables for a fresh start each season.
-    // TRUNCATE issues an implicit commit, so it must run outside the transaction above.
-    // Using direct mysqli queries because dbExecute wraps in prepared statements and
-    // TRUNCATE cannot be used as a prepared statement on all MariaDB versions.
-    mysqli_query($base, 'TRUNCATE TABLE sujets');
-    mysqli_query($base, 'TRUNCATE TABLE reponses');
-    mysqli_query($base, 'TRUNCATE TABLE statutforum');
+    // Forum data (sujets, reponses, statutforum) intentionally persists across seasons for community continuity
 }
 
 /**
