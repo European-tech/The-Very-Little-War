@@ -205,11 +205,12 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 		$hpPerMol = pointsDeVieMolecule($classeAttaquant[$i]['brome'], $classeAttaquant[$i]['carbone'], $niveauxAtt['brome'])
 					* $bonusDuplicateurAttaque * $attIsotopeHpMod[$i];
 		if ($hpPerMol > 0) {
-			$kills = min($classeAttaquant[$i]['nombre'], intdiv((int)$remainingDamage, (int)$hpPerMol));
+			$kills = min($classeAttaquant[$i]['nombre'], (int)floor($remainingDamage / $hpPerMol));
 			$remainder = fmod($remainingDamage, $hpPerMol);
 			if ($remainder > 0 && lcg_value() < $remainder / $hpPerMol && $kills < $classeAttaquant[$i]['nombre']) $kills++;
 			$attaquantMort[$i] = $kills;
 			$remainingDamage -= $kills * $hpPerMol;
+			$remainingDamage = max(0.0, $remainingDamage); // guard against float underflow
 		} else {
 			$attaquantMort[$i] = $classeAttaquant[$i]['nombre'];
 		}
@@ -230,11 +231,11 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 	$defenseurMort[1] = 0;
 	$phalanxOverflow = 0;
 	if ($classeDefenseur[1]['nombre'] > 0 && $hpPerMol1 > 0) {
-		$kills1 = min($classeDefenseur[1]['nombre'], intdiv((int)$phalanxDamage, (int)$hpPerMol1));
+		$kills1 = min($classeDefenseur[1]['nombre'], (int)floor($phalanxDamage / $hpPerMol1));
 		$remainder1 = fmod($phalanxDamage, $hpPerMol1);
 		if ($remainder1 > 0 && lcg_value() < $remainder1 / $hpPerMol1 && $kills1 < $classeDefenseur[1]['nombre']) $kills1++;
 		$defenseurMort[1] = $kills1;
-		$phalanxOverflow = max(0, $phalanxDamage - $kills1 * $hpPerMol1);
+		$phalanxOverflow = max(0.0, $phalanxDamage - $kills1 * $hpPerMol1);
 	} elseif ($classeDefenseur[1]['nombre'] > 0) {
 		$defenseurMort[1] = $classeDefenseur[1]['nombre'];
 		$phalanxOverflow = $phalanxDamage;
@@ -251,11 +252,12 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 			$hpPerMol = pointsDeVieMolecule($classeDefenseur[$i]['brome'], $classeDefenseur[$i]['carbone'], $niveauxDef['brome'])
 						* $bonusDuplicateurDefense * $defIsotopeHpMod[$i];
 			if ($hpPerMol > 0) {
-				$kills = min($classeDefenseur[$i]['nombre'], intdiv((int)$remainingDamage, (int)$hpPerMol));
+				$kills = min($classeDefenseur[$i]['nombre'], (int)floor($remainingDamage / $hpPerMol));
 				$rem = fmod($remainingDamage, $hpPerMol);
 				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
 				$defenseurMort[$i] = $kills;
 				$remainingDamage -= $kills * $hpPerMol;
+				$remainingDamage = max(0.0, $remainingDamage); // guard against float underflow
 			} else {
 				$defenseurMort[$i] = $classeDefenseur[$i]['nombre'];
 			}
@@ -270,25 +272,34 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 	$sharePerClass = ($activeDefClasses > 0) ? $degatsAttaquant / $activeDefClasses : 0;
 	// Equal split: each active class receives its share; overkill cascades to remaining classes
 	$disperseeOverkill = 0;
-	$remainingActiveClasses = $activeDefClasses;
 	for ($i = 1; $i <= $nbClasses; $i++) {
 		$defenseurMort[$i] = 0;
 		if ($classeDefenseur[$i]['nombre'] > 0 && $sharePerClass > 0) {
+			// Bug 2 fix: recount live classes AHEAD of $i to get the correct denominator
+			// for overkill redistribution — only classes that still have surviving molecules count.
+			$liveClassesAhead = 0;
+			for ($j = $i + 1; $j <= $nbClasses; $j++) {
+				if (($classeDefenseur[$j]['nombre'] - ($defenseurMort[$j] ?? 0)) > 0) $liveClassesAhead++;
+			}
 			$classDamage = $sharePerClass;
-			if ($disperseeOverkill > 0 && $remainingActiveClasses > 0) {
-				$classDamage += $disperseeOverkill / $remainingActiveClasses;
+			if ($disperseeOverkill > 0 && $liveClassesAhead >= 0) {
+				// Spread accumulated overkill across remaining classes including this one
+				// (this class hasn't died yet, so count it as 1 + ahead)
+				$spreadDenominator = 1 + $liveClassesAhead;
+				$classDamage += $disperseeOverkill / $spreadDenominator;
+				$disperseeOverkill -= $disperseeOverkill / $spreadDenominator; // consumed portion
 			}
 			$hpPerMol = pointsDeVieMolecule($classeDefenseur[$i]['brome'], $classeDefenseur[$i]['carbone'], $niveauxDef['brome'])
 						* $bonusDuplicateurDefense * $defIsotopeHpMod[$i];
 			if ($hpPerMol > 0) {
-				$kills = min($classeDefenseur[$i]['nombre'], intdiv((int)$classDamage, (int)$hpPerMol));
+				$kills = min($classeDefenseur[$i]['nombre'], (int)floor($classDamage / $hpPerMol));
 				$rem = fmod($classDamage, $hpPerMol);
 				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
 				$defenseurMort[$i] = $kills;
 				// Overkill: damage beyond what killed the last unit carries forward
 				$damageUsed = $kills * $hpPerMol;
 				if ($kills >= $classeDefenseur[$i]['nombre']) {
-					$disperseeOverkill += max(0, $classDamage - $damageUsed);
+					$disperseeOverkill += max(0.0, $classDamage - $damageUsed);
 				} else {
 					$disperseeOverkill = 0;
 				}
@@ -296,7 +307,6 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 				$defenseurMort[$i] = $classeDefenseur[$i]['nombre'];
 				$disperseeOverkill += $classDamage;
 			}
-			$remainingActiveClasses--;
 		}
 	}
 } else {
@@ -308,11 +318,12 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 			$hpPerMol = pointsDeVieMolecule($classeDefenseur[$i]['brome'], $classeDefenseur[$i]['carbone'], $niveauxDef['brome'])
 						* $bonusDuplicateurDefense * $defIsotopeHpMod[$i];
 			if ($hpPerMol > 0) {
-				$kills = min($classeDefenseur[$i]['nombre'], intdiv((int)$remainingDamage, (int)$hpPerMol));
+				$kills = min($classeDefenseur[$i]['nombre'], (int)floor($remainingDamage / $hpPerMol));
 				$rem = fmod($remainingDamage, $hpPerMol);
 				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
 				$defenseurMort[$i] = $kills;
 				$remainingDamage -= $kills * $hpPerMol;
+				$remainingDamage = max(0.0, $remainingDamage); // guard against float underflow
 			} else {
 				$defenseurMort[$i] = $classeDefenseur[$i]['nombre'];
 			}
@@ -415,7 +426,12 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 		$catalystPillageBonus = 1 + catalystEffect('pillage_bonus');
 		$ressourcesAPiller *= $catalystPillageBonus;
 
-		// Compound synthesis pillage boost
+		// Compound synthesis pillage boost.
+		// Bug 3 note: this live getCompoundBonus() call for pillage is acceptable because
+		// pillage runs INSIDE the transaction (combat.php is included from game_actions.php
+		// after mysqli_begin_transaction). Attack/defense compound bonuses use the snapshotted
+		// $actions['compound_atk_bonus'] / $actions['compound_def_bonus'] columns (HIGH-024)
+		// to prevent retroactive activation — no race condition exists for those paths.
 		$compoundPillageBonus = getCompoundBonus($base, $actions['attaquant'], 'pillage_boost');
 		if ($compoundPillageBonus > 0) $ressourcesAPiller *= (1 + $compoundPillageBonus);
 
