@@ -81,6 +81,21 @@ if (!isset($_SESSION['last_online_update']) || time() - $_SESSION['last_online_u
 // On vérifie si le joueur connecté est en vacance
 $joueurEnVac = dbFetchOne($base, 'SELECT vacance FROM membre WHERE login = ?', 's', $_SESSION['login']);
 
+// Central vacation mode check — restrict access to safe pages only while on vacation
+// Pages that do not modify game state are permitted; all others redirect to index
+if (isset($joueurEnVac['vacance']) && $joueurEnVac['vacance'] == 1) {
+    $vacationAllowedPages = [
+        'compte.php', 'regles.php', 'prestige.php', 'maintenance.php',
+        'deconnexion.php', 'bilan.php', 'classement.php', 'alliance.php',
+        'index.php', 'joueur.php', 'classement.php', 'saison.php',
+        'alliance_discovery.php', 'season_recap.php',
+    ];
+    $currentPage = basename($_SERVER['PHP_SELF']);
+    if (!in_array($currentPage, $vacationAllowedPages)) {
+        header('Location: index.php?msg=vacation');
+        exit;
+    }
+}
 
 // Capture derniereConnexion BEFORE overwriting it (needed for comeback bonus)
 $prevConnRow = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login = ?', 's', $_SESSION['login']);

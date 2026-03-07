@@ -1040,10 +1040,12 @@ function remiseAZero()
  */
 function updateLoginStreak($base, $login) {
     global $STREAK_MILESTONES;
-    $today = date('Y-m-d');
+    // Streak date uses Europe/Paris timezone (see config.php — date_default_timezone_set)
+    $tz = new DateTimeZone('Europe/Paris');
+    $today = (new DateTime('now', $tz))->format('Y-m-d');
     $result = ['streak' => 0, 'pp_earned' => 0, 'milestone' => false];
 
-    withTransaction($base, function() use ($base, $login, $today, $STREAK_MILESTONES, &$result) {
+    withTransaction($base, function() use ($base, $login, $today, $tz, $STREAK_MILESTONES, &$result) {
         $row = dbFetchOne($base, 'SELECT streak_days, streak_last_date FROM autre WHERE login = ? FOR UPDATE', 's', $login);
         if (!$row) return;
 
@@ -1056,7 +1058,7 @@ function updateLoginStreak($base, $login) {
             return;
         }
 
-        $yesterday = date('Y-m-d', strtotime('-1 day'));
+        $yesterday = (new DateTime('yesterday', $tz))->format('Y-m-d');
 
         if ($lastDate === $yesterday) {
             $currentStreak++;

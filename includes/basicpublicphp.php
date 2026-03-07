@@ -64,6 +64,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 				$_SESSION['login'] = $loginInput;
 				$sessionToken = bin2hex(random_bytes(32));
 				$_SESSION['session_token'] = $sessionToken;
+				$_SESSION['last_activity'] = time();
 				dbExecute($base, 'UPDATE membre SET session_token=? WHERE login=?', 'ss', $sessionToken, $loginInput);
 
 				dbExecute($base, 'UPDATE membre SET ip = ? WHERE login = ?', 'ss', $_SERVER['REMOTE_ADDR'], $loginInput);

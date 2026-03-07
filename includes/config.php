@@ -8,6 +8,10 @@
  * and game constants used throughout the codebase.
  */
 
+// Game timezone — all date calculations use Europe/Paris
+// This must be set before any date() or strtotime() calls in the request lifecycle.
+date_default_timezone_set('Europe/Paris');
+
 // =============================================================================
 // TIME CONSTANTS
 // =============================================================================
@@ -353,6 +357,9 @@ define('ALLIANCE_RESEARCH_MAX_LEVEL', 25);
 // Alliance tag constraints
 define('ALLIANCE_TAG_MIN_LENGTH', 3);
 define('ALLIANCE_TAG_MAX_LENGTH', 16);
+
+// Rejoin cooldown: how long (seconds) a player must wait after leaving/being kicked
+define('ALLIANCE_REJOIN_COOLDOWN_SECONDS', SECONDS_PER_DAY); // 24h
 
 // Alliance Research Tree — 5 technologies alongside Duplicateur
 // Cost: round(BASE_COST * pow(COST_FACTOR, level + 1))

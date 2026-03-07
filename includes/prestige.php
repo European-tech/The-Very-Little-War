@@ -45,7 +45,9 @@ $PRESTIGE_UNLOCKS = [
  */
 function calculatePrestigePoints($login) {
     global $base, $MEDAL_THRESHOLDS_TERREUR, $MEDAL_THRESHOLDS_ATTAQUE, $MEDAL_THRESHOLDS_DEFENSE,
-           $MEDAL_THRESHOLDS_PILLAGE, $MEDAL_THRESHOLDS_PERTES, $MEDAL_THRESHOLDS_ENERGIEVORE;
+           $MEDAL_THRESHOLDS_PILLAGE, $MEDAL_THRESHOLDS_PERTES, $MEDAL_THRESHOLDS_ENERGIEVORE,
+           $MEDAL_THRESHOLDS_PIPELETTE, $MEDAL_THRESHOLDS_CONSTRUCTEUR, $MEDAL_THRESHOLDS_BOMBE;
+    // intentionally excluded: $MEDAL_THRESHOLDS_TROLL — no `troll` column exists in `autre`
 
     $pp = 0;
 
@@ -57,16 +59,22 @@ function calculatePrestigePoints($login) {
     }
 
     // Medal tiers: count tiers reached dynamically from raw stats in `autre` table
-    // FIX: was querying non-existent `medailles` table, now uses actual medal threshold arrays
+    // All 9 medal categories (10 defined in config; Troll excluded — no DB column):
+    //   Terreur, Attaque, Defense, Pillage, Pertes, Energievore (from `autre`)
+    //   Constructeur (batMax in `autre`), Bombe (bombe in `autre`)
+    //   Pipelette (forum messages — requires separate query on `reponses`)
+    //   Troll — intentionally excluded: no troll counter column in `autre` table
     $autre = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $login);
     if ($autre) {
         $medalChecks = [
-            [$autre['nbattaques'], $MEDAL_THRESHOLDS_TERREUR],
-            [$autre['pointsAttaque'], $MEDAL_THRESHOLDS_ATTAQUE],
-            [$autre['pointsDefense'], $MEDAL_THRESHOLDS_DEFENSE],
-            [$autre['ressourcesPillees'], $MEDAL_THRESHOLDS_PILLAGE],
+            [$autre['nbattaques'],       $MEDAL_THRESHOLDS_TERREUR],
+            [$autre['pointsAttaque'],    $MEDAL_THRESHOLDS_ATTAQUE],
+            [$autre['pointsDefense'],    $MEDAL_THRESHOLDS_DEFENSE],
+            [$autre['ressourcesPillees'],$MEDAL_THRESHOLDS_PILLAGE],
             [$autre['moleculesPerdues'], $MEDAL_THRESHOLDS_PERTES],
-            [$autre['energieDepensee'], $MEDAL_THRESHOLDS_ENERGIEVORE],
+            [$autre['energieDepensee'],  $MEDAL_THRESHOLDS_ENERGIEVORE],
+            [$autre['batMax'],           $MEDAL_THRESHOLDS_CONSTRUCTEUR],
+            [$autre['bombe'],            $MEDAL_THRESHOLDS_BOMBE],
         ];
         foreach ($medalChecks as [$value, $thresholds]) {
             $tier = 0;
@@ -74,6 +82,16 @@ function calculatePrestigePoints($login) {
                 if ($value >= $t) $tier++;
             }
             $pp += $tier; // 1 PP per tier reached
+        }
+
+        // Pipelette medal: count forum messages from reponses table
+        $pipeRow = dbFetchOne($base, 'SELECT COUNT(*) AS nbmessages FROM reponses WHERE auteur=?', 's', $login);
+        if ($pipeRow) {
+            $pipeTier = 0;
+            foreach ($MEDAL_THRESHOLDS_PIPELETTE as $t) {
+                if ($pipeRow['nbmessages'] >= $t) $pipeTier++;
+            }
+            $pp += $pipeTier;
         }
 
         // Activity-based PP
