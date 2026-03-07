@@ -13,9 +13,27 @@ if (!isset($_GET['id']) || !preg_match("#^[0-9]+$#", $_GET['id'])) {
 	exit();
 }
 $getId = (int)$_GET['id'];
-if ($getId < 1 || !dbFetchOne($base, 'SELECT id FROM forums WHERE id = ?', 'i', $getId)) {
+$forumRow = dbFetchOne($base, 'SELECT * FROM forums WHERE id = ?', 'i', $getId);
+if ($getId < 1 || !$forumRow) {
 	header('Location: forum.php');
 	exit();
+}
+
+// MED-028: Block non-members from viewing alliance-private forums on GET path
+try {
+    if (!empty($forumRow['alliance_id'])) {
+        $viewerAllianceId = 0;
+        if (isset($_SESSION['login'])) {
+            $viewerRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+            $viewerAllianceId = $viewerRow ? (int)$viewerRow['idalliance'] : 0;
+        }
+        if ($viewerAllianceId !== (int)$forumRow['alliance_id']) {
+            header('Location: forum.php');
+            exit();
+        }
+    }
+} catch (\Exception $e) {
+    // alliance_id column not yet present — all forums public, skip silently
 }
 
 include("includes/bbcode.php");

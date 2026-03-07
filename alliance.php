@@ -214,6 +214,11 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
             }
             if (!isset($erreur)) try {
                 withTransaction($base, function() use ($base, $idalliance, $joueursEquipe) {
+                    // LOW-019: Re-verify inside transaction that the accepting player has no alliance
+                    $currentAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                    if (!$currentAlliance || (int)$currentAlliance['idalliance'] !== 0) {
+                        throw new \RuntimeException('ALREADY_IN_ALLIANCE');
+                    }
                     // Count members inside transaction to prevent race condition
                     $count = dbCount($base, 'SELECT COUNT(*) AS nb FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
                     if ($count >= $joueursEquipe) {
@@ -226,7 +231,11 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
                 $information = "Vous avez accepté l'invitation.";
                 header("Location: alliance.php"); exit;
             } catch (\RuntimeException $e) {
-                $erreur = "Le nombre maximal de joueurs dans l'équipe est atteint.";
+                if ($e->getMessage() === 'ALREADY_IN_ALLIANCE') {
+                    $erreur = "Vous appartenez déjà à une alliance.";
+                } else {
+                    $erreur = "Le nombre maximal de joueurs dans l'équipe est atteint.";
+                }
             }
         } else {
             dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
@@ -334,10 +343,17 @@ if ($_GET['id'] != -1) {
 
         // On regarde si le joueur a un grade si il est dans l'alliance
         if ($_GET['id'] == $allianceJoueur['tag']) {
-            $gradeCheckRows = dbFetchAll($base, 'SELECT login FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $allianceJoueur['id']);
+            // HIGH-038: Re-fetch alliance from DB — $allianceJoueur may be stale if the alliance was
+            // auto-deleted above (chef missing). Use the freshly-loaded $allianceJoueurPage instead.
+            $freshAlliance = $allianceJoueurPage ?? null;
+            if (!$freshAlliance) {
+                $erreur = "L'alliance n'existe plus.";
+                header("Location: alliance.php"); exit;
+            }
+            $gradeCheckRows = dbFetchAll($base, 'SELECT login FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $freshAlliance['id']);
             $grade = count($gradeCheckRows);
             $admin = '';
-            if ($allianceJoueur['chef'] == $_SESSION['login'] or $grade > 0) {
+            if ($freshAlliance['chef'] == $_SESSION['login'] or $grade > 0) {
                 $admin = '<a href="allianceadmin.php" class="lienSousMenu"><img alt="admin" src="images/alliance/admin.png" title="Administration" class="imageSousMenu"/><br/><span class="labelSousMenu"  style="color:black">Administration</span></a>';
             }
 

@@ -56,6 +56,21 @@ if(isset($_SESSION['login'])) {
 $forumRows = dbFetchAll($base, 'SELECT * FROM forums');
 
 foreach($forumRows as $forum) {
+    // MED-028: Hide alliance-private forums from non-members
+    try {
+        if (!empty($forum['alliance_id'])) {
+            $viewerAllianceId = 0;
+            if (isset($_SESSION['login'])) {
+                $viewerRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+                $viewerAllianceId = $viewerRow ? (int)$viewerRow['idalliance'] : 0;
+            }
+            if ($viewerAllianceId !== (int)$forum['alliance_id']) {
+                continue; // Skip this forum — viewer is not a member
+            }
+        }
+    } catch (\Exception $e) {
+        // alliance_id column not yet present — all forums public, skip silently
+    }
     $nbSujets = dbFetchOne($base, 'SELECT count(*) AS nbSujets FROM sujets WHERE idforum = ? AND statut = 0', 'i', $forum['id']);
 	echo '<tr>';
     if(isset($_SESSION['login'])) {
