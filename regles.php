@@ -271,7 +271,7 @@ debutContent();
 ?>
 
 <?php echo important('Protection des débutants'); ?>
-Les nouveaux joueurs bénéficient d'une <strong>protection de 5 jours</strong> après leur inscription. Pendant cette période, ils ne peuvent pas être attaqués ni attaquer d'autres joueurs. Profitez-en pour développer votre base !<br/><br/>
+Les nouveaux joueurs bénéficient d'une <strong>protection de <?= (int)(BEGINNER_PROTECTION_SECONDS / SECONDS_PER_DAY) ?> jours</strong> après leur inscription. Pendant cette période, ils ne peuvent pas être attaqués ni attaquer d'autres joueurs. Profitez-en pour développer votre base !<br/><br/>
 
 <?php echo important('Taxe de pillage'); ?>
 Lors d'un pillage réussi, <strong>15%</strong> des ressources volées sont perdues (taxe de friction). L'attaquant ne récupère que 85% des ressources pillées. Cela réduit l'écart entre attaquants et défenseurs.<br/><br/>

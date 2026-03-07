@@ -25,7 +25,7 @@ $tutorielMissions[] = [
     'lien'        => 'constructions.php',
     'lien_texte'  => 'Constructions',
     'icone'       => 'images/batiments/generateur.png',
-    'recompense_energie' => 200,
+    'recompense_energie' => TUTORIAL_REWARDS[0],
     'condition'   => ($constructions['generateur'] >= 2),
 ];
 
@@ -43,7 +43,7 @@ $tutorielMissions[] = [
     'lien'        => 'constructions.php',
     'lien_texte'  => 'Constructions',
     'icone'       => 'images/batiments/producteur.png',
-    'recompense_energie' => 300,
+    'recompense_energie' => TUTORIAL_REWARDS[1],
     'condition'   => ($constructions['producteur'] >= 2),
 ];
 
@@ -61,7 +61,7 @@ $tutorielMissions[] = [
     'lien'        => 'constructions.php',
     'lien_texte'  => 'Constructions',
     'icone'       => 'images/batiments/depot.png',
-    'recompense_energie' => 400,
+    'recompense_energie' => TUTORIAL_REWARDS[2],
     'condition'   => ($constructions['depot'] >= 2),
 ];
 
@@ -83,7 +83,7 @@ $tutorielMissions[] = [
     'lien'        => 'armee.php',
     'lien_texte'  => 'Armee',
     'icone'       => 'images/menu/armee.png',
-    'recompense_energie' => 500,
+    'recompense_energie' => TUTORIAL_REWARDS[3],
     'condition'   => ($nbMoleculesCreees > 0),
 ];
 
@@ -101,7 +101,7 @@ $tutorielMissions[] = [
     'lien'        => 'compte.php',
     'lien_texte'  => 'Mon compte',
     'icone'       => 'images/menu/compte.png',
-    'recompense_energie' => 600,
+    'recompense_energie' => TUTORIAL_REWARDS[4],
     'condition'   => ($autre['description'] != "" && $autre['description'] != "Pas de description"),
 ];
 
@@ -127,7 +127,7 @@ $tutorielMissions[] = [
     'lien'        => 'attaquer.php',
     'lien_texte'  => 'Carte',
     'icone'       => 'images/rapports/binoculars.png',
-    'recompense_energie' => 800,
+    'recompense_energie' => TUTORIAL_REWARDS[5],
     'condition'   => $aEspionne,
 ];
 
@@ -145,7 +145,7 @@ $tutorielMissions[] = [
     'lien'        => 'alliance.php',
     'lien_texte'  => 'Equipe',
     'icone'       => 'images/menu/alliance.png',
-    'recompense_energie' => 1000,
+    'recompense_energie' => TUTORIAL_REWARDS[6],
     'condition'   => ($autre['idalliance'] != 0),
 ];
 
@@ -170,8 +170,27 @@ if(isset($_POST['claimMission'])) {
     if($missionIndex >= 0 && $missionIndex < count($tutorielMissions)) {
         $mission = $tutorielMissions[$missionIndex];
 
+        // Fix PASS1-MEDIUM-037: sequential enforcement — all prior missions must be claimed first
+        $sequenceOk = true;
+        if($missionIndex > 0) {
+            $prevMissionsData = $autre['missions'];
+            $prevMissionsArr = ($prevMissionsData != "") ? explode(";", $prevMissionsData) : [];
+            $prevTutoOffset = 19;
+            while(count($prevMissionsArr) < $prevTutoOffset + $missionIndex) {
+                $prevMissionsArr[] = "0";
+            }
+            for($i = 0; $i < $missionIndex; $i++) {
+                $prevClaimIdx = $prevTutoOffset + $i;
+                if(!isset($prevMissionsArr[$prevClaimIdx]) || $prevMissionsArr[$prevClaimIdx] != "1") {
+                    $erreur = "Vous devez d'abord completer les missions precedentes.";
+                    $sequenceOk = false;
+                    break;
+                }
+            }
+        }
+
         // Verify the condition is actually met
-        if($mission['condition']) {
+        if($sequenceOk && $mission['condition']) {
             // Wrap in transaction to prevent double-claim race condition
             $tutoResult = null;
             try {
@@ -195,8 +214,10 @@ if(isset($_POST['claimMission'])) {
                         $chaineM = implode(";", $missionsArr);
                         dbExecute($base, 'UPDATE autre SET missions=? WHERE login=?', 'ss', $chaineM, $_SESSION['login']);
 
-                        // Give energy reward atomically
-                        dbExecute($base, 'UPDATE ressources SET energie = energie + ? WHERE login=?', 'is', $mission['recompense_energie'], $_SESSION['login']);
+                        // Fix PASS1-MEDIUM-038: cap energy at depot storage limit to prevent overflow
+                        $constructRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $_SESSION['login']);
+                        $energieCap = placeDepot($constructRow ? intval($constructRow['depot']) : 0);
+                        dbExecute($base, 'UPDATE ressources SET energie = LEAST(energie + ?, ?) WHERE login=?', 'ids', $mission['recompense_energie'], $energieCap, $_SESSION['login']);
 
                         $tutoResult = 'ok';
                     } else {
@@ -216,9 +237,11 @@ if(isset($_POST['claimMission'])) {
             } else {
                 $erreur = "Erreur lors de la validation.";
             }
-        } else {
+        } elseif($sequenceOk) {
+            // Sequence is fine but the game condition is not yet satisfied
             $erreur = "Les conditions de cette mission ne sont pas encore remplies.";
         }
+        // else: $sequenceOk is false — $erreur already set by sequential enforcement check above
     } else {
         $erreur = "Mission invalide.";
     }

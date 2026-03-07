@@ -619,6 +619,7 @@ define('RATE_LIMIT_REGISTER_WINDOW', SECONDS_PER_HOUR); // 1 hour
 define('PASSWORD_MIN_LENGTH', 8);
 define('LOGIN_MIN_LENGTH', 3);
 define('LOGIN_MAX_LENGTH', 20);
+define('EMAIL_MAX_LENGTH', 100); // RFC 5321 practical limit
 
 // =============================================================================
 // ACCOUNT / VACATION / PROFILE
@@ -647,6 +648,18 @@ define('RESOURCE_NODE_MAX_BONUS_PCT', 50.0);       // max stacked node bonus (50
 // TUTORIAL
 // =============================================================================
 define('TUTORIAL_STARTER_MOLECULE_TOTAL_ATOMS', 1000);
+
+// Energy rewards for each tutorial mission (0-indexed, matching $tutorielMissions order).
+// Escalating values to encourage progression through all 7 missions.
+define('TUTORIAL_REWARDS', [
+    0 => 200,   // Mission 1: Build first generator (level 2)
+    1 => 300,   // Mission 2: Upgrade producteur to level 2
+    2 => 400,   // Mission 3: Build depot to level 2
+    3 => 500,   // Mission 4: Create first molecule class
+    4 => 600,   // Mission 5: Customize profile
+    5 => 800,   // Mission 6: Spy on a player
+    6 => 1000,  // Mission 7: Join or create an alliance
+]);
 
 // =============================================================================
 // LEADERBOARD / ARCHIVES / PAGINATION
