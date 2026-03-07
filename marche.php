@@ -289,6 +289,8 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             // PASS1-MEDIUM-019: Atomic tradeVolume increment to prevent read-then-write race
                             $tradeVolumeDelta = round($coutAchat * $reseauBonus);
                             dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
+                            // HIGH-039: Enforce MARKET_POINTS_MAX cap atomically to prevent buy-sell cycling inflation
+                            dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'is', MARKET_POINTS_MAX, $_SESSION['login']);
                             recalculerTotalPointsJoueur($base, $_SESSION['login']);
                         });
                         logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
@@ -420,6 +422,8 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         // PASS1-MEDIUM-019: Atomic tradeVolume increment to prevent read-then-write race
                         $tradeVolumeDelta = round($energyGained * $reseauBonus);
                         dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
+                        // HIGH-039: Enforce MARKET_POINTS_MAX cap atomically to prevent buy-sell cycling inflation
+                        dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'is', MARKET_POINTS_MAX, $_SESSION['login']);
                         recalculerTotalPointsJoueur($base, $_SESSION['login']);
                     });
                     logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $actualSold, 'energy_gained' => $energyGained]);

@@ -562,27 +562,31 @@ function augmenterBatiment($nom, $joueur)
         return;
     }
 
-    if ($nom == 'producteur') {
-        dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=? WHERE login=?', 'is', ($batiments['pointsProducteurRestants'] + $points['producteur']), $joueur);
-    }
-    if ($nom == 'condenseur') {
-        dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=? WHERE login=?', 'is', ($batiments['pointsCondenseurRestants'] + $points['condenseur']), $joueur);
-    }
-
-    if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
-        $vieCol = 'vie' . ucfirst($nom);
-        if ($nom == "champdeforce") {
-            $vieVal = vieChampDeForce($batiments[$nom] + 1, $joueur);
-        } elseif ($nom == "ionisateur") {
-            $vieVal = vieIonisateur($batiments[$nom] + 1, $joueur);
-        } else {
-            $vieVal = pointsDeVie($batiments[$nom] + 1, $joueur);
+    // MED-004: Wrap all DB writes in a transaction so a partial failure
+    // (e.g. ajouterPoints failing after the constructions UPDATE) leaves no inconsistent state.
+    withTransaction($base, function() use ($base, $nom, $joueur, $batiments, $listeConstructions, $points) {
+        if ($nom == 'producteur') {
+            dbExecute($base, 'UPDATE constructions SET pointsProducteurRestants=? WHERE login=?', 'is', ($batiments['pointsProducteurRestants'] + $points['producteur']), $joueur);
         }
-        dbExecute($base, "UPDATE constructions SET $nom=?, $vieCol=? WHERE login=?", 'ids', ($batiments[$nom] + 1), $vieVal, $joueur);
-    } else {
-        dbExecute($base, "UPDATE constructions SET $nom=? WHERE login=?", 'is', ($batiments[$nom] + 1), $joueur);
-    }
-    ajouterPoints($listeConstructions[$nom]['points'], $joueur);
+        if ($nom == 'condenseur') {
+            dbExecute($base, 'UPDATE constructions SET pointsCondenseurRestants=? WHERE login=?', 'is', ($batiments['pointsCondenseurRestants'] + $points['condenseur']), $joueur);
+        }
+
+        if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
+            $vieCol = 'vie' . ucfirst($nom);
+            if ($nom == "champdeforce") {
+                $vieVal = vieChampDeForce($batiments[$nom] + 1, $joueur);
+            } elseif ($nom == "ionisateur") {
+                $vieVal = vieIonisateur($batiments[$nom] + 1, $joueur);
+            } else {
+                $vieVal = pointsDeVie($batiments[$nom] + 1, $joueur);
+            }
+            dbExecute($base, "UPDATE constructions SET $nom=?, $vieCol=? WHERE login=?", 'ids', ($batiments[$nom] + 1), $vieVal, $joueur);
+        } else {
+            dbExecute($base, "UPDATE constructions SET $nom=? WHERE login=?", 'is', ($batiments[$nom] + 1), $joueur);
+        }
+        ajouterPoints($listeConstructions[$nom]['points'], $joueur);
+    });
 
     // FIX H-007: invalidate target player's cache, not necessarily current session
     invalidatePlayerCache($joueur);
@@ -1003,6 +1007,12 @@ function performSeasonEnd()
     // Phase 2: Reset all game state (has its own internal transaction)
     remiseAZero();
 
+    // MED-014: Invalidate all existing session tokens so every player must re-login
+    // after the season reset. This prevents stale sessions carrying old game state
+    // into the new season.
+    dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE 1', '');
+    logInfo('SEASON', 'All session tokens invalidated after season reset');
+
     // Phase 3: Generate resource nodes for the new season
     // remiseAZero() resets tailleCarte to 1 (players reconnect and expand it).
     // Use MAP_INITIAL_SIZE as the generation boundary so nodes span the full starting
@@ -1014,6 +1024,11 @@ function performSeasonEnd()
     // Update season start time
     $now = time();
     dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
+
+    // MED-016: Clear maintenance flag on successful season reset completion.
+    // This is only reached if all prior steps succeeded (no exception thrown).
+    dbExecute($base, 'UPDATE statistiques SET maintenance = 0', '');
+    logInfo('SEASON', 'Season reset complete — maintenance flag cleared');
 
     // Post winner news
     if ($vainqueurManche !== null) {

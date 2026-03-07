@@ -144,23 +144,21 @@ function revenuAtomeJavascript($joueur)
         $bonusDuplicateur = 1 + bonusDuplicateur($duplicateur['duplicateur']);
     }
 
-    // PASS1-MEDIUM-008: Include all production multipliers so JS display matches server values
-    // Prestige production bonus
-    $prestigeBonus = prestigeProductionBonus($joueur);
-
-    // Resource node proximity bonus — use average across all atom types for JS display
-    $nodeBonus = 0.0;
+    // MED-001: Per-type node bonus — compute individually per atom type for accurate JS display
     $pos = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login=?', 's', $joueur);
+    $nodeBonusByType = [];
+    foreach ($nomsRes as $num => $resName) {
+        $nodeBonusByType[$num] = 0.0;
+    }
     if ($pos && $pos['x'] >= 0 && $pos['y'] >= 0) {
         require_once(__DIR__ . '/resource_nodes.php');
-        $nodeSum = 0.0;
-        $nodeCount = 0;
-        foreach ($nomsRes as $resName) {
-            $nodeSum += getResourceNodeBonus($base, $pos['x'], $pos['y'], $resName);
-            $nodeCount++;
+        foreach ($nomsRes as $num => $resName) {
+            $nodeBonusByType[$num] = getResourceNodeBonus($base, $pos['x'], $pos['y'], $resName);
         }
-        $nodeBonus = $nodeCount > 0 ? $nodeSum / $nodeCount : 0.0;
     }
+
+    // Prestige production bonus
+    $prestigeBonus = prestigeProductionBonus($joueur);
 
     // Compound production boost
     require_once(__DIR__ . '/compounds.php');
@@ -169,13 +167,18 @@ function revenuAtomeJavascript($joueur)
     // Specialization: atom_production modifier
     $specAtomMod = getSpecModifier($joueur, 'atom_production');
 
-    // Combined multiplier applied on top of base formula (duplicateur already separate)
-    $totalMultiplier = $prestigeBonus * (1 + $nodeBonus) * (1 + $compoundProdBonus) * (1 + $specAtomMod);
+    // Base multiplier (without per-type node bonus — node bonus applied per-type in JS)
+    $baseMultiplier = $prestigeBonus * (1 + $compoundProdBonus) * (1 + $specAtomMod);
+
+    // Emit per-type node bonus as a JSON object indexed by atom number
+    $nodeBonusJson = json_encode($nodeBonusByType);
 
     echo '
     ' . cspScriptTag() . '
-    function revenuAtomeJavascript(niveau){
-        return Math.round(' . $bonusDuplicateur . '*' . BASE_ATOMS_PER_POINT . '*' . $totalMultiplier . '*niveau);
+    var _nodeBonusByType = ' . $nodeBonusJson . ';
+    function revenuAtomeJavascript(niveau, atomNum){
+        var nodeBonus = (atomNum !== undefined && _nodeBonusByType[atomNum] !== undefined) ? _nodeBonusByType[atomNum] : 0;
+        return Math.round(' . $bonusDuplicateur . '*' . BASE_ATOMS_PER_POINT . '*' . $baseMultiplier . '*(1+nodeBonus)*niveau);
     }
     </script>
     ';

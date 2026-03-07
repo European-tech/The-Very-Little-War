@@ -139,9 +139,27 @@ debutCarte("Production d'Energie");
     $prestigeProdMult = prestigeProductionBonus($login);
     $afterPrestige = $afterDup * $prestigeProdMult;
 
-    // Step 6: Producteur drain
+    // Step 6: Resource node proximity bonus for energy
+    require_once('includes/resource_nodes.php');
+    $energyNodeBonus = 0.0;
+    $playerPosEnergy = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login = ?', 's', $login);
+    if ($playerPosEnergy && $playerPosEnergy['x'] >= 0 && $playerPosEnergy['y'] >= 0) {
+        $energyNodeBonus = getResourceNodeBonus($base, $playerPosEnergy['x'], $playerPosEnergy['y'], 'energie');
+    }
+    $afterNodes = $afterPrestige * (1 + $energyNodeBonus);
+
+    // Step 7: Compound production boost
+    require_once('includes/compounds.php');
+    $compoundEnergyBonus = getCompoundBonus($base, $login, 'production_boost');
+    $afterCompound = $afterNodes * (1 + $compoundEnergyBonus);
+
+    // Step 8: Specialization energy_production modifier
+    $specEnergyMod = getSpecModifier($login, 'energy_production');
+    $afterSpec = $afterCompound * (1 + $specEnergyMod);
+
+    // Step 9: Producteur drain
     $drainage = drainageProducteur($prodLevel);
-    $netEnergy = max(0, round($afterPrestige) - $drainage);
+    $netEnergy = max(0, round($afterSpec) - $drainage);
 
     // Verify against revenuEnergie
     $verifiedEnergy = revenuEnergie($genLevel, $login, 0);
@@ -166,6 +184,23 @@ debutCarte("Production d'Energie");
 
     if ($prestigeProdMult > 1.0) {
         echo '<tr><td>Prestige (Experimente)</td><td style="color:green">+' . round(($prestigeProdMult - 1) * 100) . '%</td><td>' . fmtNum(round($afterPrestige)) . ' E/h</td></tr>';
+    }
+
+    // MED-002: Resource node bonus row
+    if ($energyNodeBonus > 0.0) {
+        echo '<tr><td>Noeud de ressource (proximite)</td><td style="color:green">+' . round($energyNodeBonus * 100, 1) . '%</td><td>' . fmtNum(round($afterNodes)) . ' E/h</td></tr>';
+    }
+
+    // MED-002: Compound production boost row
+    if ($compoundEnergyBonus > 0.0) {
+        echo '<tr><td>Compose actif (boost production)</td><td style="color:green">+' . round($compoundEnergyBonus * 100, 1) . '%</td><td>' . fmtNum(round($afterCompound)) . ' E/h</td></tr>';
+    }
+
+    // MED-002: Specialization energy modifier row
+    if ($specEnergyMod != 0.0) {
+        $specColor = $specEnergyMod > 0 ? 'green' : 'red';
+        $specSign = $specEnergyMod > 0 ? '+' : '';
+        echo '<tr><td>Specialisation (energie)</td><td style="color:' . $specColor . '">' . $specSign . round($specEnergyMod * 100, 1) . '%</td><td>' . fmtNum(round($afterSpec)) . ' E/h</td></tr>';
     }
 
     echo '<tr><td>Producteur niveau ' . $prodLevel . '</td><td style="color:red">-' . fmtNum($drainage) . ' E/h</td><td>' . fmtNum($netEnergy) . ' E/h</td></tr>';

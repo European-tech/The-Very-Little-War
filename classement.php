@@ -281,7 +281,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 		<td><?php echo chiffrePetit(pointsAttaque($donnees['pointsAttaque'])); ?></td>
 		<td><?php echo chiffrePetit(pointsDefense($donnees['pointsDefense'])); ?></td>
 		<td><?php echo chiffrePetit($donnees['ressourcesPillees']); ?></td>
-		<td><?php echo chiffrePetit($donnees['tradeVolume']); ?></td>
+		<td><?php echo chiffrePetit(min((int)$donnees['tradeVolume'], MARKET_POINTS_MAX)); ?></td>
 		<td><?php echo $donnees['victoires'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireJoueur($compteur).'</span>'; ?></td>
 		<td><a href="prestige.php"><?php echo isset($prestigeCache[$donnees['login']]) ? $prestigeCache[$donnees['login']] : 0; ?></a></td>
 		</tr>
