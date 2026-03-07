@@ -244,33 +244,39 @@ function updateRessources($joueur)
 
     $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $joueur);
 
+    // PASS1-LOW-034: Wrap all molecule decay UPDATEs in a transaction so a partial failure
+    // does not leave some molecules decayed and the moleculesPerdues counter out of sync.
+    // $nombreAvant[cls] captures pre-decay counts for the absence report (keyed by numeroclasse).
     $compteur = 0;
     $totalMoleculesPerdues = 0;
-    foreach ($moleculesRows as $molecules) {
+    $nombreAvant = [];
+    withTransaction($base, function() use ($base, $joueur, $moleculesRows, $nbsecondes, &$compteur, &$totalMoleculesPerdues, &$nombreAvant) {
+        foreach ($moleculesRows as $molecules) {
+            $moleculesRestantes = max(0, floor(pow(coefDisparition($joueur, $compteur + 1), $nbsecondes) * $molecules['nombre']));
+            // Store pre-decay count keyed by numeroclasse for the absence report
+            $nombreAvant[(int)$molecules['numeroclasse']] = $molecules['nombre'];
 
-        $moleculesRestantes = max(0, floor(pow(coefDisparition($joueur, $compteur + 1), $nbsecondes) * $molecules['nombre']));
-        ${'nombre' . ($compteur + 1)} = $molecules['nombre'];
+            dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $moleculesRestantes, $molecules['id']);
 
-        dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $moleculesRestantes, $molecules['id']);
+            $totalMoleculesPerdues += max(0, $molecules['nombre'] - $moleculesRestantes);
 
-        $totalMoleculesPerdues += max(0, $molecules['nombre'] - $moleculesRestantes);
-
-        $compteur++;
-    }
-    // Batch: single atomic UPDATE instead of N SELECT+UPDATE pairs
-    if ($totalMoleculesPerdues > 0) {
-        dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login = ?', 'ds', $totalMoleculesPerdues, $joueur);
-    }
-
-    // V4: Neutrino decay — treated as mass-1 molecule
-    $neutrinoData = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $joueur);
-    if ($neutrinoData && isset($neutrinoData['neutrinos']) && $neutrinoData['neutrinos'] > 0) {
-        $coefNeutrino = coefDisparition($joueur, 1, 1); // type=1, nbAtomes=1
-        $neutrinosRestants = floor(pow($coefNeutrino, $nbsecondes) * $neutrinoData['neutrinos']);
-        if ($neutrinosRestants != $neutrinoData['neutrinos']) {
-            dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $neutrinosRestants, $joueur);
+            $compteur++;
         }
-    }
+        // Batch: single atomic UPDATE instead of N SELECT+UPDATE pairs
+        if ($totalMoleculesPerdues > 0) {
+            dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login = ?', 'ds', $totalMoleculesPerdues, $joueur);
+        }
+
+        // V4: Neutrino decay — treated as mass-1 molecule (included in same transaction for atomicity)
+        $neutrinoData = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $joueur);
+        if ($neutrinoData && isset($neutrinoData['neutrinos']) && $neutrinoData['neutrinos'] > 0) {
+            $coefNeutrino = coefDisparition($joueur, 1, 1); // type=1, nbAtomes=1
+            $neutrinosRestants = floor(pow($coefNeutrino, $nbsecondes) * $neutrinoData['neutrinos']);
+            if ($neutrinosRestants != $neutrinoData['neutrinos']) {
+                dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $neutrinosRestants, $joueur);
+            }
+        }
+    });
 
     if ($nbheuresDebut > ABSENCE_REPORT_THRESHOLD_HOURS && $compteur > 0) {
         $lossLines = '';
@@ -278,7 +284,7 @@ function updateRessources($joueur)
         $afterRows = dbFetchAll($base, 'SELECT nombre, formule, numeroclasse FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $joueur);
         foreach ($afterRows as $afterMol) {
             $cls = (int)$afterMol['numeroclasse'];
-            $before = ${'nombre' . $cls} ?? 0;
+            $before = $nombreAvant[$cls] ?? 0;
             $lost = $before - $afterMol['nombre'];
             if ($lost != 0) $hasLosses = true;
             $lossLines .= couleurFormule($afterMol['formule']) . ' : ' . number_format($lost, 0, ' ', ' ') . ' molécules<br/>';

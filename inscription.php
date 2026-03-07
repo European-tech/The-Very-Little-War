@@ -22,7 +22,9 @@ if (isset($_POST['login'])) {
 		$passConfirm = $_POST['pass_confirm'];
 		$emailInput = trim($_POST['email']);
 
-		if (mb_strlen($passInput) < PASSWORD_MIN_LENGTH) {
+		if (mb_strlen($passInput) > PASSWORD_BCRYPT_MAX_LENGTH) {
+			$erreur = 'Le mot de passe est trop long (' . PASSWORD_BCRYPT_MAX_LENGTH . ' caract&egrave;res max).';
+		} elseif (mb_strlen($passInput) < PASSWORD_MIN_LENGTH) {
 			$erreur = 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caract&egrave;res.';
 		} elseif ($passInput != $passConfirm) {
 			$erreur = 'Les deux mots de passe sont diff&eacute;rents.';
@@ -62,8 +64,8 @@ echo csrfField();
 debutListe();
 item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/player.png" class="w32"/>', 'titre' => 'Login', 'input' => '<input type="text" name="login" id="login" maxlength="' . LOGIN_MAX_LENGTH . '" value="Login">', 'after' => submit(['link' => '#', 'titre' => 'G&eacute;n&eacute;rer', 'id' => 'btn-generate'])]);
 item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/email.png" class="w32"/>', 'titre' => 'E-mail', 'input' => '<input type="text" name="email" id="email" maxlength="100" class="form-control">', 'after' => popover('popover-mail', 'images/question.png')]);
-item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Mot de passe', 'input' => '<input type="password" name="pass" id="pass" class="form-control">']);
-item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Confirmation', 'input' => '<input type="password" name="pass_confirm" id="pass_confirm" class="form-control">']);
+item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Mot de passe', 'input' => '<input type="password" name="pass" id="pass" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '" class="form-control">']);
+item(['floating' => true, 'media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'titre' => 'Confirmation', 'input' => '<input type="password" name="pass_confirm" id="pass_confirm" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '" class="form-control">']);
 echo '<p style="margin-left:5px">En vous inscrivant vous acceptez nos <a href="regles.php" class="external lien lienVisible">Conditions G&eacute;n&eacute;rales d\'Utilisation</a></p>';
 item(['input' => submit(['form' => 'inscription', 'titre' => 'Inscription'])]);
 finListe();

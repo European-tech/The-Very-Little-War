@@ -33,8 +33,10 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
             $_POST['nomalliance'] = trim($_POST['nomalliance']);
             $_POST['tagalliance'] = trim($_POST['tagalliance']);
 
-            if (preg_match("#^[a-zA-Z0-9_]{3,16}$#", $_POST['tagalliance'])) {
-                if (mb_strlen($_POST['nomalliance'], 'UTF-8') > 50) {
+            if (preg_match('#^[a-zA-Z0-9_]{' . ALLIANCE_TAG_MIN_LENGTH . ',' . ALLIANCE_TAG_MAX_LENGTH . '}$#', $_POST['tagalliance'])) {
+                if (!preg_match('/^[\w\s\-\.\']{3,50}$/u', $_POST['nomalliance'])) {
+                    $erreur = "Le nom d'alliance ne peut contenir que des lettres, chiffres, espaces, tirets et apostrophes (3-50 caractères).";
+                } elseif (mb_strlen($_POST['nomalliance'], 'UTF-8') > 50) {
                     $erreur = "Le nom de l'alliance est trop long (50 caractères max).";
                 } else {
                     try {
@@ -58,7 +60,7 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
                     }
                 }
             } else {
-                $erreur = "Le TAG de l'alliance ne peut être composé que de lettres, nombres, \"_\", entre 3 et 16 caractères.";
+                $erreur = "Le TAG de l'alliance ne peut être composé que de lettres, nombres, \"_\", entre " . ALLIANCE_TAG_MIN_LENGTH . " et " . ALLIANCE_TAG_MAX_LENGTH . " caractères.";
             }
         } else {
             $erreur =  "Vous avez déja une équipe";
