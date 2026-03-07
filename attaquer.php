@@ -191,6 +191,8 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                             $c++;
                         }
+                        // LOW-010: Round energy cost to 2 decimal places to avoid float precision issues
+                        $cout = round($cout, 2);
 
                         // Apply compound speed boost to travel time and snapshot all active bonuses.
                         // HIGH-024: Bonuses must be snapshotted NOW (before the transaction) so that

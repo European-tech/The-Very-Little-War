@@ -19,9 +19,12 @@ debutCarte('Historique des connexions'); ?>
         </thead>
         <tbody>
             <?php
-            // LOW-029: show relative timestamps to non-admins, exact only to admin
+            // LOW-007: Track online status by login (session-based), not by IP address.
+            // Only show players active in the last ONLINE_TIMEOUT_SECONDS (default 5 min).
+            // LOW-029: show relative timestamps to non-admins, exact only to admin.
             $isAdmin = (isset($_SESSION['login']) && $_SESSION['login'] === ADMIN_LOGIN);
-            $connectesRows = dbFetchAll($base, 'SELECT login, derniereConnexion FROM membre ORDER BY derniereConnexion DESC');
+            $onlineThreshold = time() - ONLINE_TIMEOUT_SECONDS;
+            $connectesRows = dbFetchAll($base, 'SELECT login, derniereConnexion FROM membre WHERE derniereConnexion > ? ORDER BY derniereConnexion DESC', 'i', $onlineThreshold);
             foreach ($connectesRows as $donnees) {
                 if ($donnees['login'] != "Guortates") {
                     $lastSeen = (int)$donnees['derniereConnexion'];

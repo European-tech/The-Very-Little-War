@@ -8,6 +8,14 @@ require_once(__DIR__ . '/csrf.php');
 require_once(__DIR__ . '/validation.php');
 require_once(__DIR__ . '/logger.php');
 
+// LOW-008: Idle timeout check runs FIRST — before any game state reads, DB queries,
+// or session regeneration — so expired sessions are rejected immediately.
+if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > SESSION_IDLE_TIMEOUT) {
+    session_destroy();
+    header('Location: index.php?erreur=' . urlencode('Session expirée. Veuillez vous reconnecter.'));
+    exit();
+}
+
 if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
     $row = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
     if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !hash_equals($row['session_token'], $_SESSION['session_token'])) {
@@ -27,12 +35,6 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
     exit();
 }
 
-// Idle timeout: 1 hour of inactivity
-if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > SESSION_IDLE_TIMEOUT) {
-    session_destroy();
-    header('Location: index.php?erreur=' . urlencode('Session expirée. Veuillez vous reconnecter.'));
-    exit();
-}
 $_SESSION['last_activity'] = time();
 
 // si c'est la premiere connexion depuis la derniere partie, on le replace
