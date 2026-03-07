@@ -41,8 +41,9 @@ $text = preg_replace('!\[color=(blue|red|green|white|black|beige|brown|cyan|yell
 
 if ($javascript) {
     $text = preg_replace_callback('!\[latex\](.+)\[/latex\]!isU', function($m) {
-        // Strip dangerous MathJax commands (\href, \url, \unicode, \cssId, \class) to prevent XSS
-        $latex = preg_replace('/\\\\(href|url|unicode|cssId|class)\b/i', '\\text{blocked}', $m[1]);
+        // HIGH-008: Block all LaTeX macro-definition and external-resource commands to prevent XSS/RCE
+        $blacklist = ['href', 'url', 'unicode', 'cssId', 'class', 'def', 'let', 'gdef', 'edef', 'newcommand', 'renewcommand', 'catcode', 'input', 'include', 'csname', 'expandafter', 'require', 'write', 'special'];
+        $latex = preg_replace('/\\\\(' . implode('|', $blacklist) . ')\b/i', '\\text{blocked}', $m[1]);
         return '$$' . $latex . '$$';
     }, $text);
 } else {

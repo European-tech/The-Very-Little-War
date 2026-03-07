@@ -9,13 +9,15 @@ include("includes/bbcode.php");
 require_once("includes/csrf.php");
 require_once("includes/rate_limiter.php");
 
-if (isset($_POST['contenu']) and isset($_GET['id'])) {
+if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
+	// HIGH-009: Read topic ID from POST body, not GET, so form action URL tampering is prevented
+	$sujet_id = (int)$_POST['sujet_id'];
 	csrfCheck();
-	if (!rateLimitCheck($_SESSION['login'], 'forum_reply', 10, 300)) {
+	if ($sujet_id <= 0) {
+		$erreur = "Identifiant de sujet invalide.";
+	} elseif (!rateLimitCheck($_SESSION['login'], 'forum_reply', 10, 300)) {
 		$erreur = "Vous répondez trop rapidement. Veuillez patienter.";
-	}
-	$_GET['id'] = trim($_GET['id']);
-	if (preg_match("#^[0-9]+$#", $_GET['id'])) {
+	} else {
 		if (isset($_SESSION['login']) && empty($erreur)) {
 			// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
 			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
@@ -24,21 +26,20 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 				$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
 			}
 			if (empty($erreur) && !empty($_POST['contenu']) && mb_strlen($_POST['contenu']) <= 10000) {
-				$getId = (int)$_GET['id'];
 				// Check topic is not locked (P5-GAP-023)
-				$topicStatus = dbFetchOne($base, 'SELECT statut FROM sujets WHERE id = ?', 'i', $getId);
+				$topicStatus = dbFetchOne($base, 'SELECT statut FROM sujets WHERE id = ?', 'i', $sujet_id);
 				if (!$topicStatus) {
 					$erreur = "Ce sujet n'existe pas.";
 				} elseif ($topicStatus['statut'] == 1) {
 					$erreur = "Ce sujet est verrouillé.";
 				} else {
 				$timestamp = time();
-				dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, "1", ?, ?, ?)', 'issi', $getId, $_POST['contenu'], $_SESSION['login'], $timestamp);
+				dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, "1", ?, ?, ?)', 'issi', $sujet_id, $_POST['contenu'], $_SESSION['login'], $timestamp);
 				//
-				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $getId);
+				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $sujet_id);
 				$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $_SESSION['login']);
 				dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', ($nbMessages['nbMessages'] + 1), $_SESSION['login']);
-				header("Location: sujet.php?id=" . (int)$_GET['id']); exit;
+				header("Location: sujet.php?id=" . $sujet_id); exit;
 				} // end locked topic check
 			} else {
 				$erreur = "Tous les champs ne sont pas remplis.";
@@ -46,8 +47,6 @@ if (isset($_POST['contenu']) and isset($_GET['id'])) {
 		} else {
 			$erreur = "T'as essayé de m'avoir ? Eh bah non !";
 		}
-	} else {
-		$erreur = "Mais c'est que tu es trés marrant toi ?";
 	}
 }
 
@@ -233,7 +232,7 @@ if (isset($_GET['id'])) {
 			if ($sujet['statut'] == 0) {
 				debutListe();
 				creerBBcode("contenu");
-				item(['form' => ['sujet.php?id=' . $getId, "reponseForm"], 'floating' => false, 'titre' => "Réponse", 'input' => csrfField() . '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
+				item(['form' => ['sujet.php?id=' . $getId, "reponseForm"], 'floating' => false, 'titre' => "Réponse", 'input' => csrfField() . '<input type="hidden" name="sujet_id" value="' . $getId . '">' . '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
 				item(['input' => submit(['titre' => 'Répondre', 'form' => 'reponseForm'])]);
 				finListe();
 			} else {
@@ -248,8 +247,10 @@ if (isset($_GET['id'])) {
 ?>
 
 <?php if (isset($javascript) && $javascript): ?>
-<!-- TODO: add integrity="sha384-..." once hash is confirmed (run: curl -sL https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML | openssl dgst -sha384 -binary | base64) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+    integrity="sha384-vi9R4hb1goLJPJDHY+dOmXxcY3HGv6tJIwHxy5JunOTxJGHbsSuubPgl++SNxYYi"
+    crossorigin="anonymous"
+    nonce="<?= htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php endif; ?>
 <?php echo cspScriptTag(); ?>
 document.addEventListener('click', function(e) {

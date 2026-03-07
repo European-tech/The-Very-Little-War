@@ -564,6 +564,13 @@ function updateActions($joueur)
         " . $energieRecue . $chaine2;
 
         withTransaction($base, function() use ($base, $actionId, $actions, $nomsRes, $nbRes, $recues, $titreRapport, $contenuRapport) {
+            // HIGH-006: Lock the actionsenvoi row first to prevent double-delivery race condition
+            $transfer = dbFetchOne($base, 'SELECT id FROM actionsenvoi WHERE id=? FOR UPDATE', 'i', $actionId);
+            if (!$transfer) {
+                // Already delivered by a concurrent request — abort cleanly
+                return;
+            }
+
             $ressourcesDestinataire = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $actions['receveur']);
             if (!$ressourcesDestinataire) {
                 // Recipient was deleted — just remove the transfer
