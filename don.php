@@ -4,11 +4,19 @@ include("includes/redirectionVacance.php");
 
 if(isset($_POST['energieEnvoyee'])) {
 	csrfCheck();
+	// MED-073: Rate limit donations to prevent spam/abuse (10 per hour per player)
+	if (!rateLimitCheck($_SESSION['login'], 'donation', 10, SECONDS_PER_HOUR)) {
+		$erreur = "Trop de dons effectués. Veuillez attendre avant de réessayer.";
+	} else {
 	if(empty($_POST['energieEnvoyee'])) {
 		$_POST['energieEnvoyee'] = 0;
 	}
-	$_POST['energieEnvoyee'] = transformInt($_POST['energieEnvoyee']);
-	if(preg_match("#^[0-9]+$#", $_POST['energieEnvoyee']) && $_POST['energieEnvoyee'] > 0) {
+	// HIGH-004: Cast to int after transformInt to prevent integer overflow via string injection
+	$_POST['energieEnvoyee'] = (int) transformInt($_POST['energieEnvoyee']);
+	// HIGH-004: Enforce a maximum donation cap to prevent resource drain exploits
+	if ($_POST['energieEnvoyee'] > MAX_DONATION) {
+		$erreur = "Montant invalide (maximum " . number_format(MAX_DONATION, 0, ' ', ' ') . " énergie).";
+	} elseif(preg_match("#^[0-9]+$#", $_POST['energieEnvoyee']) && $_POST['energieEnvoyee'] > 0) {
 		$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 
 		if($idalliance['idalliance'] > 0) {
@@ -52,6 +60,7 @@ if(isset($_POST['energieEnvoyee'])) {
 	else {
 		$erreur = "Seul des nombres entiers et positifs doivent être entrés.";
 	}
+	} // end rate limit check
 }
 
 include("includes/layout.php");

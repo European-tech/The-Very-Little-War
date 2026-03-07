@@ -564,6 +564,7 @@ define('PRESTIGE_PP_TRADE_THRESHOLD', 20);    // Min trade volume for trade acti
 define('PRESTIGE_PP_TRADE_BONUS', 3);         // PP for reaching trade threshold
 define('PRESTIGE_PP_DONATION_BONUS', 2);      // PP for donating energy
 define('DONATION_MIN_ENERGY_RESERVE', 100);   // Min energy a player must keep after donating
+define('MAX_DONATION', 1000000);              // Maximum energy a player can donate in a single transaction
 // Rank bonuses (awarded by final leaderboard position)
 $PRESTIGE_RANK_BONUSES = [
     5  => 50,  // Top 5
@@ -677,6 +678,14 @@ define('SEASON_ARCHIVE_TOP_N', 20);
 define('MESSAGES_PER_PAGE', 15);
 define('REPORTS_PER_PAGE', 15);
 define('FORUM_POSTS_PER_PAGE', 10);
+
+// =============================================================================
+// ADMIN IDENTITY
+// =============================================================================
+// The primary administrator login. Only this account can trigger the season reset
+// when PHP processes a month-change during a regular page load.
+// Cron-initiated resets bypass this check by calling performSeasonEnd() directly.
+define('ADMIN_LOGIN', 'Guortates');
 
 // =============================================================================
 // ADMIN RATE LIMITS

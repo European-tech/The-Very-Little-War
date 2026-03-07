@@ -209,7 +209,9 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAcheter'])) {
     csrfCheck();
     // PASS1-LOW-023: Rate limit market buys to prevent automated trading exploits
-    rateLimitCheck($_SESSION['login'], 'market_buy', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW);
+    if (!rateLimitCheck($_SESSION['login'], 'market_buy', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW)) {
+        $erreur = "Trop d'opérations sur le marché. Attendez avant de réessayer.";
+    } else {
     $_POST['nombreRessourceAAcheter'] = intval(transformInt($_POST['nombreRessourceAAcheter']));
     $_POST['typeRessourceAAcheter'] = trim($_POST['typeRessourceAAcheter']);
     if ($_POST['nombreRessourceAAcheter'] <= 0) {
@@ -234,10 +236,17 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                     $erreur = "Vous n'avez pas assez de place dans votre stockage.";
                 } else {
                     try {
-                        withTransaction($base, function() use ($base, &$diffEnergieAchat, &$newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $coutAchat) {
+                        withTransaction($base, function() use ($base, &$diffEnergieAchat, &$newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, &$coutAchat) {
                             // PASS1-MEDIUM-020: Re-read depot level inside transaction to get authoritative storage cap
                             $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                             $placeDepotTx = placeDepot($depotRow ? (int)$depotRow['depot'] : 1);
+
+                            // HIGH-003: Re-read current market price with lock BEFORE computing cost
+                            // Prevents stale pre-transaction price from being charged to the player
+                            $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
+                            $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
+                            // Recompute cost from the freshly locked price (min 1 to prevent free-atom exploit)
+                            $coutAchat = max(1, (int)round($txTabCours[$numRes] * $_POST['nombreRessourceAAcheter']));
 
                             // Re-read resources with lock to prevent race condition
                             $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
@@ -250,10 +259,6 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                                 throw new Exception('NOT_ENOUGH_STORAGE');
                             }
                             dbExecute($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?', 'dds', $diffEnergieAchat, $newResVal, $_SESSION['login']);
-
-                            // PASS1-MEDIUM-018: Re-read current market price with lock to prevent stale-price race
-                            $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
-                            $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
 
                             $chaine = '';
                             foreach ($txTabCours as $num => $cours) {
@@ -312,12 +317,15 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
     } else {
         $erreur = "Vous ne devez entrer que des nombre entiers et positifs.";
     }
+    } // end rate limit check (buy)
 }
 
 if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVendre'])) {
     csrfCheck();
     // PASS1-LOW-023: Rate limit market sells to prevent automated trading exploits
-    rateLimitCheck($_SESSION['login'], 'market_sell', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW);
+    if (!rateLimitCheck($_SESSION['login'], 'market_sell', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW)) {
+        $erreur = "Trop d'opérations sur le marché. Attendez avant de réessayer.";
+    } else {
     $_POST['nombreRessourceAVendre'] = intval(transformInt($_POST['nombreRessourceAVendre']));
     $_POST['typeRessourceAVendre'] = trim($_POST['typeRessourceAVendre']);
     if ($_POST['nombreRessourceAVendre'] <= 0) {
@@ -439,6 +447,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
     } else {
         $erreur = "Vous ne devez entrer que des nombre entiers et positifs.";
     }
+    } // end rate limit check (sell)
 }
 
 $pageTitle = 'Marché — The Very Little War';

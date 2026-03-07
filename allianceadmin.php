@@ -331,20 +331,23 @@ if ($guerre) {
 	if (isset($_POST['adversaire']) and !empty($_POST['adversaire'])) {
 		csrfCheck();
 		$_POST['adversaire'] = intval($_POST['adversaire']);
-		$guerreExiste = dbCount($base, 'SELECT count(*) AS guerreExiste FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=0 AND fin=0', 'iiii', $chef['id'], $_POST['adversaire'], $chef['id'], $_POST['adversaire']);
+
+		// HIGH-005: Only the declaring alliance (alliance1) may end the war.
+		// This prevents the attacked party from unilaterally cancelling a war they did not start.
+		$guerreExiste = dbCount($base, 'SELECT count(*) AS guerreExiste FROM declarations WHERE alliance1=? AND alliance2=? AND type=0 AND fin=0', 'ii', $chef['id'], $_POST['adversaire']);
 
 		if ($guerreExiste > 0) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $_POST['adversaire']);
 
 			$now = time();
-			dbExecute($base, 'UPDATE declarations SET fin=? WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND fin=0 AND type=0', 'iiiii', $now, $chef['id'], $allianceAdverse['id'], $chef['id'], $allianceAdverse['id']);
+			dbExecute($base, 'UPDATE declarations SET fin=? WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'iii', $now, $chef['id'], $allianceAdverse['id']);
 			$safeWarTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
 			$rapportTitre = 'L\'alliance ' . $safeWarTag . ' met fin à la guerre qui vous opposait.';
 			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeWarTag . '</a> met fin à la guerre qui vous opposait.';
 			dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
 			$information = "La guerre contre " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " a pris fin.";
 		} else {
-			$erreur = "Cette guerre n'existe pas.";
+			$erreur = "Cette guerre n'existe pas ou vous n'êtes pas à l'origine de cette déclaration de guerre.";
 		}
 	}
 }
