@@ -1,7 +1,16 @@
-<?php include("includes/connexion.php");
+<?php
+require_once("includes/session_init.php");
+include("includes/connexion.php");
 include("includes/fonctions.php");
 require_once("includes/csp.php");
-require_once("includes/session_init.php");
+require_once("includes/constantesBase.php");
+
+// LOW-024: Restrict maintenance page to admin only.
+// Non-admin visitors are shown a 403 to avoid information disclosure.
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {
+    http_response_code(403);
+    exit('Accès refusé.');
+}
 
 include("includes/layout.php");
 debutCarte("Maintenance");

@@ -967,13 +967,14 @@ function performSeasonEnd()
     // Phase 0: Archive per-player stats into season_recap (P1-D8-052)
     archiveSeasonData($base);
 
-    // Phase 1: Archive and award VP (atomic)
-    // Wrapped in transaction so a mid-execution crash cannot leave
-    // archives partially written or VP partially awarded.
-    $vainqueurManche = withTransaction($base, function() use ($base) {
+    // Phase 1a: Archive rankings and compute VP awards (read-only inside one transaction).
+    // Snapshot rankings and archive strings atomically so the data is consistent.
+    $vainqueurManche = null;
+    $playerRankingsForVP = [];
+    $allianceRankingsForVP = [];
+    withTransaction($base, function() use ($base, &$vainqueurManche, &$playerRankingsForVP, &$allianceRankingsForVP) {
         // Archive top players
         $chaine = '';
-        $vainqueurManche = null;
         $classementRows = dbFetchAll($base, 'SELECT * FROM autre ORDER BY totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N, '');
         $compteur = 0;
         foreach ($classementRows as $data) {
@@ -1021,38 +1022,49 @@ function performSeasonEnd()
             }
         }
 
-        // Award VP to players by individual ranking
-        // Freeze rankings into array to prevent concurrent changes mid-award
-        $playerRankings = dbFetchAll($base, 'SELECT login, totalPoints FROM autre ORDER BY totalPoints DESC');
-        $c = 1;
-        foreach ($playerRankings as $pointsVictoire) {
-            ajouter('victoires', 'autre', pointsVictoireJoueur($c), $pointsVictoire['login']);
-            $c++;
-        }
-
-        // Award VP to alliances and their members
-        // Freeze alliance rankings into array to prevent concurrent changes mid-award
-        $allianceRankings = dbFetchAll($base, 'SELECT id, pointsVictoire, pointstotaux FROM alliances ORDER BY pointstotaux DESC');
-        $c = 1;
-        foreach ($allianceRankings as $allianceData) {
-            $newPtsVictoire = $allianceData['pointsVictoire'] + pointsVictoireAlliance($c);
-            dbExecute($base, 'UPDATE alliances SET pointsVictoire = ? WHERE id = ?', 'ii', $newPtsVictoire, $allianceData['id']);
-            $allianceMembers = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $allianceData['id']);
-            foreach ($allianceMembers as $pointsVictoireJoueurs) {
-                ajouter('victoires', 'autre', pointsVictoireAlliance($c), $pointsVictoireJoueurs['login']);
-            }
-            $c++;
-        }
-
-        // Award prestige points BEFORE reset (cross-season progression)
-        awardPrestigePoints();
+        // Freeze rankings into arrays (ranking read done inside this transaction to ensure consistency)
+        $playerRankingsForVP = dbFetchAll($base, 'SELECT login, totalPoints FROM autre ORDER BY totalPoints DESC');
+        $allianceRankingsForVP = dbFetchAll($base, 'SELECT id, pointsVictoire, pointstotaux FROM alliances ORDER BY pointstotaux DESC');
 
         // Insert season archive record
         $now = time();
         dbExecute($base, 'INSERT INTO parties VALUES(default, ?, ?, ?, ?)', 'isss', $now, $chaine, $chaine1, $chaine2);
-
-        return $vainqueurManche;
     });
+
+    // Phase 1b: Award VP to players in chunks of 100 to avoid long-running transactions.
+    // LOW-022: Split large VP award loop into smaller transactions so the DB is not locked
+    // for the entire season-reset duration. Rankings were snapshotted in Phase 1a.
+    $playerChunks = array_chunk($playerRankingsForVP, 100);
+    $rankOffset = 1;
+    foreach ($playerChunks as $chunk) {
+        $localOffset = $rankOffset;
+        withTransaction($base, function() use ($base, $chunk, $localOffset) {
+            $c = $localOffset;
+            foreach ($chunk as $pointsVictoire) {
+                ajouter('victoires', 'autre', pointsVictoireJoueur($c), $pointsVictoire['login']);
+                $c++;
+            }
+        });
+        $rankOffset += count($chunk);
+    }
+
+    // Phase 1c: Award VP to alliances and their members (each alliance in one transaction).
+    $c = 1;
+    foreach ($allianceRankingsForVP as $allianceData) {
+        $localC = $c;
+        withTransaction($base, function() use ($base, $allianceData, $localC) {
+            $newPtsVictoire = $allianceData['pointsVictoire'] + pointsVictoireAlliance($localC);
+            dbExecute($base, 'UPDATE alliances SET pointsVictoire = ? WHERE id = ?', 'ii', $newPtsVictoire, $allianceData['id']);
+            $allianceMembers = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $allianceData['id']);
+            foreach ($allianceMembers as $pointsVictoireJoueurs) {
+                ajouter('victoires', 'autre', pointsVictoireAlliance($localC), $pointsVictoireJoueurs['login']);
+            }
+        });
+        $c++;
+    }
+
+    // Phase 1d: Award prestige points BEFORE reset (cross-season progression).
+    awardPrestigePoints();
 
     // Phase 2: Reset all game state (has its own internal transaction)
     remiseAZero();
@@ -1171,6 +1183,9 @@ function remiseAZero()
     withTransaction($base, function() use ($nomsRes, $nbRes) {
         global $base;
 
+        // LOW-023: victoires=0 reset is intentional — historical medals are archived to season_recap
+        // (via archiveSeasonData() in Phase 0 of performSeasonEnd()) before this point.
+        // Alliance pointsVictoire is preserved across seasons (not reset here).
         dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'\', image=NULL, timeMolecule=0');
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'ddddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1), vieIonisateur(0));
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0');

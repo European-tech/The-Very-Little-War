@@ -24,6 +24,10 @@ $seasonPP = calculatePrestigePoints($_SESSION['login']);
 $prodBonus = prestigeProductionBonus($_SESSION['login']);
 $combatBonus = prestigeCombatBonus($_SESSION['login']);
 
+// LOW-016: Retrieve streak PP earned today (updateLoginStreak already ran in basicprivatephp.php
+// and stored the result in $_SESSION['streak_pp_today']. Use that to avoid re-running the logic).
+$streakPPToday = isset($_SESSION['streak_pp_today']) ? (int)$_SESSION['streak_pp_today'] : 0;
+
 // ------- Section 1: PP Balance -------
 debutCarte("Points de Prestige");
     debutContent();
@@ -36,6 +40,12 @@ debutCarte("Points de Prestige");
         echo '<span style="font-size:16px;">Cette saison : <strong style="color:green;">+' . htmlspecialchars((string)$seasonPP, ENT_QUOTES, 'UTF-8') . ' PP</strong></span>';
         echo '<br/><span style="font-size:11px;color:grey;">Points attribués à la fin de la saison</span>';
         echo '</div>';
+        if ($streakPPToday > 0) {
+            echo '<br/>';
+            echo '<div style="text-align:center;padding:8px;background-color:#e8f5e9;border-radius:5px;border:1px solid #a5d6a7;">';
+            echo '<span style="font-size:14px;">PP de connexion aujourd\'hui : <strong style="color:green;">+' . htmlspecialchars((string)$streakPPToday, ENT_QUOTES, 'UTF-8') . ' PP</strong></span>';
+            echo '</div>';
+        }
     finContent();
 finCarte();
 
@@ -135,20 +145,16 @@ debutCarte("Améliorations disponibles");
         if ($owned) {
             $actionHtml = '<span style="color:green;font-weight:bold;">Déjà acheté</span>';
         } else {
-            $btnHtml = submit([
-                    'titre' => 'Acheter (' . $costText . ')',
-                    'form' => 'achat_' . $key,
-                    'classe' => $canAfford ? 'button-raised button-fill' : 'button-raised button-disabled',
-                    'style' => $canAfford ? '' : 'opacity:0.5;cursor:not-allowed;'
-                ]);
-            if (!$canAfford) {
-                // Inject disabled attribute so the button is non-interactive
-                $btnHtml = str_replace('<button ', '<button disabled ', $btnHtml);
-            }
+            // LOW-020: Use a proper PHP flag variable instead of fragile str_replace injection.
+            $btnDisabled = $canAfford ? '' : 'disabled';
+            $btnClass = $canAfford ? 'button-raised button-fill' : 'button-raised button-disabled';
+            $btnStyle = $canAfford ? '' : 'opacity:0.5;cursor:not-allowed;';
             $actionHtml = '<form method="post" action="prestige.php" name="achat_' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '" style="display:inline;">'
                 . csrfField()
                 . '<input type="hidden" name="achat" value="' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '"/>'
-                . $btnHtml
+                . '<button type="submit" class="button ' . $btnClass . '" style="' . $btnStyle . '" ' . $btnDisabled . '>'
+                . 'Acheter (' . $costText . ')'
+                . '</button>'
                 . '</form>';
         }
 

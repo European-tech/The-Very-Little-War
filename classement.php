@@ -94,7 +94,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			 JOIN membre m ON m.login = a.login
 			 WHERE m.derniereConnexion >= ? AND m.x != -1000
 			 ORDER BY a.totalPoints DESC
-			 LIMIT 50',
+			 LIMIT ' . LEADERBOARD_PAGE_SIZE,
 			'i', $midnightToday);
 
 		// Pre-load alliance tags for daily view
@@ -192,8 +192,15 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 
 	$premierJoueurAafficher = ($page - 1) * $nombreDeJoueursParPage;
 
-	// $order is whitelisted, $premierJoueurAafficher and $nombreDeJoueursParPage are integers
-	$classementRows = dbFetchAll($base, 'SELECT a.* FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != -1000 ORDER BY a.' . $order . ' DESC LIMIT ?, ?', 'ii', $premierJoueurAafficher, $nombreDeJoueursParPage);
+	// LOW-017: Use DENSE_RANK() window function so tied scores share the same rank instead of
+	// producing incorrect consecutive page-offset numbers. $order is whitelisted above.
+	$classementRows = dbFetchAll($base,
+		'SELECT a.*, DENSE_RANK() OVER (ORDER BY a.' . $order . ' DESC) AS rang
+		 FROM autre a JOIN membre m ON m.login = a.login
+		 WHERE m.x != -1000
+		 ORDER BY a.' . $order . ' DESC
+		 LIMIT ?, ?',
+		'ii', $premierJoueurAafficher, $nombreDeJoueursParPage);
 	$compteur = $nombreDeJoueursParPage*($page-1)+1;
 
 	if(isset($_SESSION['login'])) {
@@ -273,7 +280,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 		$allianceTag = ($rowAllianceId > 0 && isset($allianceCache[$rowAllianceId])) ? $allianceCache[$rowAllianceId] : '';
 		?>
 		<tr style="background-color: rgba(<?php if(isset($enGuerre)) { echo $enGuerre.",0.6)"; }?>;">
-		<td ><?php echo imageClassement($compteur) ; ?></td>
+		<td ><?php echo imageClassement((int)$donnees['rang']) ; // LOW-017: DENSE_RANK from SQL ?></td>
 		<td><?php echo joueur($donnees['login']); ?></td>
 		<td><?php echo number_format($donnees['totalPoints'], 0 , ' ', ' '); ?></td>
 		<td><?php if($rowAllianceId > 0 && $allianceTag !== '') { echo alliance($allianceTag); } ?></td>
