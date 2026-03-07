@@ -525,7 +525,20 @@ function updateActions($joueur)
         }
     }
 
-    $rows = dbFetchAll($base, 'SELECT * FROM actionsenvoi WHERE (receveur=? OR envoyeur=?) AND tempsArrivee<?', 'ssi', $joueur, $joueur, time());
+    // MED-049: UNION ALL avoids OR-condition that prevents index use on receveur/envoyeur.
+    // Both columns have separate indexes; UNION ALL lets each branch hit its index.
+    // Deduplicate by id in case a row ever matches both (receveur==envoyeur, edge case).
+    $now = time();
+    $rowsA = dbFetchAll($base, 'SELECT * FROM actionsenvoi WHERE receveur=? AND tempsArrivee<?', 'si', $joueur, $now);
+    $rowsB = dbFetchAll($base, 'SELECT * FROM actionsenvoi WHERE envoyeur=? AND tempsArrivee<?', 'si', $joueur, $now);
+    $seenIds = [];
+    $rows = [];
+    foreach (array_merge($rowsA, $rowsB) as $r) {
+        if (!isset($seenIds[$r['id']])) {
+            $seenIds[$r['id']] = true;
+            $rows[] = $r;
+        }
+    }
 
     foreach ($rows as $actions) {
         $actionId = $actions['id'];

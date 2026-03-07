@@ -43,8 +43,10 @@ function ajouter($champ, $bdd, $nombre, $joueur)
         return;
     }
 
-    // Use atomic increment instead of read-then-write
-    dbExecute($base, "UPDATE $bdd SET $champ = $champ + ? WHERE login=?", 'ds', $nombre, $joueur);
+    // Use atomic increment instead of read-then-write.
+    // MED-051: use 'i' for integer values and 'd' for float/non-integer to match column type.
+    $bindType = is_int($nombre) ? 'i' : 'd';
+    dbExecute($base, "UPDATE $bdd SET $champ = $champ + ? WHERE login=?", $bindType . 's', $nombre, $joueur);
 }
 
 function alliance($alliance)

@@ -74,6 +74,23 @@ function generateResourceNodes($base, $mapSize)
             );
         }
     });
+
+    // MED-053: Invalidate the in-process static node cache so any subsequent call to
+    // getResourceNodeBonus() within the same request picks up the newly generated nodes.
+    clearResourceNodeCache();
+}
+
+/**
+ * Invalidate the static node cache inside getResourceNodeBonus().
+ * Must be called after generateResourceNodes() so the new nodes are picked up
+ * on the next call within the same PHP request (e.g. during season reset).
+ */
+function clearResourceNodeCache()
+{
+    // PHP static variables can be reset by passing a reference via a nested function.
+    // The simplest cross-version approach: use a process-wide flag that
+    // getResourceNodeBonus() checks to know it must refetch.
+    getResourceNodeBonus(null, 0, 0, '__INVALIDATE__');
 }
 
 /**
@@ -88,6 +105,12 @@ function generateResourceNodes($base, $mapSize)
 function getResourceNodeBonus($base, $px, $py, $resourceName)
 {
     static $nodesCache = null;
+
+    // MED-053: Allow cache invalidation (called by clearResourceNodeCache() after regeneration)
+    if ($resourceName === '__INVALIDATE__') {
+        $nodesCache = null;
+        return 0.0;
+    }
 
     // Cache all active nodes (they change only on season reset)
     if ($nodesCache === null) {
