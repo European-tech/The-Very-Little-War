@@ -24,6 +24,17 @@ if(isset($_GET['id']) AND !empty($_GET['id'])) {
 		}
 	}
 
+        // MED-055: Ensure condenseur-level variables are initialized even if initPlayer()
+        // did not set them (e.g. player has no constructions row).
+        // initPlayer() sets these via pointsCondenseur; default 0 is safe (no bonus).
+        foreach ($nomsRes as $_resName) {
+            $varName = 'niveau' . $_resName;
+            if (!isset($$varName)) {
+                $$varName = 0;
+            }
+        }
+        unset($_resName, $varName);
+
         // V4: Pre-compute medal bonuses and lieur level for covalent formulas
         $medalData = dbFetchOne($base, 'SELECT pointsAttaque, pointsDefense, ressourcesPillees FROM autre WHERE login=?', 's', $_SESSION['login']);
         $bonusAttaque = computeMedalBonus($medalData ? $medalData['pointsAttaque'] : 0, $paliersAttaque, $bonusMedailles);

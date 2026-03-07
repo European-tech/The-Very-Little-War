@@ -13,9 +13,10 @@ if(isset($_POST['energieEnvoyee'])) {
 	}
 	// HIGH-004: Cast to int after transformInt to prevent integer overflow via string injection
 	$_POST['energieEnvoyee'] = (int) transformInt($_POST['energieEnvoyee']);
-	// HIGH-004: Enforce a maximum donation cap to prevent resource drain exploits
-	if ($_POST['energieEnvoyee'] > MAX_DONATION) {
-		$erreur = "Montant invalide (maximum " . number_format(MAX_DONATION, 0, ' ', ' ') . " énergie).";
+	// HIGH-004 / MED-058: Enforce a per-donation cap. ALLIANCE_DONATION_MAX (10 000) is the
+	// per-transaction ceiling; MAX_DONATION is a legacy absolute ceiling kept as belt-and-suspenders.
+	if ($_POST['energieEnvoyee'] > ALLIANCE_DONATION_MAX) {
+		$erreur = "Montant invalide (maximum " . number_format(ALLIANCE_DONATION_MAX, 0, ' ', ' ') . " énergie par don).";
 	} elseif(preg_match("#^[0-9]+$#", $_POST['energieEnvoyee']) && $_POST['energieEnvoyee'] > 0) {
 		$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 

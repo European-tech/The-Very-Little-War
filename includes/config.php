@@ -570,6 +570,7 @@ define('PRESTIGE_PP_DONATION_BONUS', 2);      // PP for donating energy
 define('PP_DONATION_MIN_THRESHOLD', 10);      // Min energy donation to qualify for PP bonus
 define('DONATION_MIN_ENERGY_RESERVE', 100);   // Min energy a player must keep after donating
 define('MAX_DONATION', 1000000);              // Maximum energy a player can donate in a single transaction
+define('ALLIANCE_DONATION_MAX', 10000);       // MED-058: Hard per-donation cap for alliance energy donations
 define('INACTIVE_PLAYER_X', -1000);           // X coordinate sentinel for inactive/banned players
 // Rank bonuses (awarded by final leaderboard position)
 $PRESTIGE_RANK_BONUSES = [

@@ -63,7 +63,7 @@ function synthesizeCompound($base, $login, $compoundKey)
 
     // All checks and deductions inside transaction to prevent TOCTOU race
     try {
-        withTransaction($base, function() use ($base, $login, $recipe, $compoundKey) {
+        withTransaction($base, function() use ($base, $login, $recipe, $compoundKey, $nomsRes) {
             // Check storage limit inside transaction to prevent TOCTOU race
             $storedCount = countStoredCompounds($base, $login);
             if ($storedCount >= COMPOUND_MAX_STORED) {
@@ -77,6 +77,11 @@ function synthesizeCompound($base, $login, $compoundKey)
             }
 
             foreach ($recipe as $resource => $qty) {
+                // MED-056: Validate resource key against $nomsRes whitelist before using
+                // as a column name in SQL, to prevent injection via a tampered recipe.
+                if (!in_array($resource, $nomsRes, true)) {
+                    throw new \RuntimeException('INVALID_RESOURCE:' . $resource);
+                }
                 $needed = $qty * COMPOUND_ATOM_MULTIPLIER;
                 if (!isset($ressources[$resource]) || $ressources[$resource] < $needed) {
                     throw new \RuntimeException('INSUFFICIENT_' . strtoupper($resource) . ':' . $needed . ':' . floor($ressources[$resource] ?? 0));
@@ -85,7 +90,14 @@ function synthesizeCompound($base, $login, $compoundKey)
 
             foreach ($recipe as $resource => $qty) {
                 $cost = $qty * COMPOUND_ATOM_MULTIPLIER;
-                ajouter($resource, 'ressources', -$cost, $login);
+                // MED-054: Use GREATEST(col - ?, 0) to prevent negative balances from
+                // a race between the FOR UPDATE read and this UPDATE (belt-and-suspenders).
+                // The FOR UPDATE above serializes concurrent synthesis, but GREATEST()
+                // adds a hard floor as a final safety net.
+                dbExecute($base,
+                    "UPDATE ressources SET $resource = GREATEST($resource - ?, 0) WHERE login = ?",
+                    'ds', (float)$cost, $login
+                );
             }
 
             dbExecute($base,
@@ -100,6 +112,11 @@ function synthesizeCompound($base, $login, $compoundKey)
         }
         if ($msg === 'STORAGE_FULL') {
             return "Stock plein (maximum " . COMPOUND_MAX_STORED . " composés).";
+        }
+        if (str_starts_with($msg, 'INVALID_RESOURCE:')) {
+            // MED-056: Recipe key not in nomsRes whitelist — likely a tampered $COMPOUNDS config
+            error_log("synthesizeCompound() blocked: " . $msg);
+            return "Recette invalide.";
         }
         if (str_starts_with($msg, 'INSUFFICIENT_')) {
             $parts = explode(':', $msg);
