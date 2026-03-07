@@ -146,10 +146,13 @@ if (isset($_SESSION['login'])) {
     }
 }
 
-// Welcome-back bonus (P1-D8-044/047)
-$comebackResult = checkComebackBonus($base, $_SESSION['login'], $prevConnexion);
-if ($comebackResult['applied']) {
-    $_SESSION['comeback_bonus'] = $comebackResult;
+// Welcome-back bonus (P1-D8-044/047) — checked once per session to avoid per-page overhead
+if (!isset($_SESSION['comeback_checked'])) {
+    $comebackResult = checkComebackBonus($base, $_SESSION['login'], $prevConnexion);
+    if ($comebackResult['applied']) {
+        $_SESSION['comeback_bonus'] = $comebackResult;
+    }
+    $_SESSION['comeback_checked'] = true;
 }
 
 // Unread attack count for navbar badge (P1-D8-049)
@@ -179,6 +182,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         $erreur = "Une nouvelle partie recommencera dans 24 heures.";
     } else {
 
+    $vainqueurManche = null;
     try {
     // Full season-end flow: archive, VP, prestige, reset, news
     $vainqueurManche = performSeasonEnd();

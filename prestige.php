@@ -134,15 +134,20 @@ debutCarte("Améliorations disponibles");
         if ($owned) {
             $actionHtml = '<span style="color:green;font-weight:bold;">Déjà acheté</span>';
         } else {
+            $btnHtml = submit([
+                    'titre' => 'Acheter (' . $costText . ')',
+                    'form' => 'achat_' . $key,
+                    'classe' => $canAfford ? 'button-raised button-fill' : 'button-raised button-disabled',
+                    'style' => $canAfford ? '' : 'opacity:0.5;cursor:not-allowed;'
+                ]);
+            if (!$canAfford) {
+                // Inject disabled attribute so the button is non-interactive
+                $btnHtml = str_replace('<button ', '<button disabled ', $btnHtml);
+            }
             $actionHtml = '<form method="post" action="prestige.php" name="achat_' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '" style="display:inline;">'
                 . csrfField()
                 . '<input type="hidden" name="achat" value="' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '"/>'
-                . submit([
-                    'titre' => 'Acheter (' . $costText . ')',
-                    'form' => 'achat_' . $key,
-                    'classe' => $canAfford ? 'button-raised button-fill' : 'button-raised',
-                    'style' => $canAfford ? '' : 'opacity:0.5;'
-                ])
+                . $btnHtml
                 . '</form>';
         }
 

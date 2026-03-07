@@ -80,7 +80,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	?>
 	<div class="segmented" style="margin:8px 16px;">
 		<a href="classement.php?sub=0&mode=total<?= isset($_GET['clas']) ? '&clas=' . (int)$_GET['clas'] : '' ?>" class="button <?= $mode === 'total' ? 'button-active' : '' ?>">Total</a>
-		<a href="classement.php?sub=0&mode=daily" class="button <?= $mode === 'daily' ? 'button-active' : '' ?>">Aujourd'hui</a>
+		<a href="classement.php?sub=0&mode=daily<?= isset($_GET['clas']) ? '&clas=' . (int)$_GET['clas'] : '' ?>" class="button <?= $mode === 'daily' ? 'button-active' : '' ?>">Aujourd'hui</a>
 	</div>
 	<?php
 
@@ -291,7 +291,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	</table>
 
 	<?php
-	$adresse = "classement.php?sub=0&";
+	$adresse = 'classement.php?sub=0&mode=' . urlencode($mode) . (isset($_GET['clas']) ? '&clas=' . (int)$_GET['clas'] : '') . '&';
         $premier = '';
         if($page > 2){
             $premier = '<a href="'.$adresse.'page=1">1</a>';

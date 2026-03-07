@@ -316,7 +316,8 @@ debutCarte("Combat — Attaque");
     // Formation
     $currentFormation = (int)($constructions['formation'] ?? 0);
     $formationInfo = $FORMATIONS[$currentFormation] ?? $FORMATIONS[FORMATION_DISPERSEE];
-    echo '<tr><td>Formation defensive</td><td>' . htmlspecialchars($formationInfo['name'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
+    $formationDesc = isset($formationInfo['desc']) ? '<br/><small style="color:#666;">' . htmlspecialchars($formationInfo['desc'], ENT_QUOTES, 'UTF-8') . '</small>' : '';
+    echo '<tr><td>Formation defensive</td><td>' . htmlspecialchars($formationInfo['name'], ENT_QUOTES, 'UTF-8') . $formationDesc . '</td></tr>';
 
     echo '</tbody></table></div>';
 

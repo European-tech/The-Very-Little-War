@@ -1098,11 +1098,19 @@ function checkComebackBonus($base, $login, $prevConnexion = null) {
     $now = time();
     $result = ['applied' => false];
 
+    // Fetch registration date and last login in one query
+    $membre = dbFetchOne($base, 'SELECT timestamp, derniereConnexion FROM membre WHERE login = ?', 's', $login);
+    if (!$membre) return $result;
+
+    // New players (account younger than COMEBACK_ABSENCE_DAYS) cannot trigger comeback bonus
+    $minAge = COMEBACK_ABSENCE_DAYS * SECONDS_PER_DAY;
+    if (($now - (int)$membre['timestamp']) < $minAge) {
+        return $result;
+    }
+
     if ($prevConnexion !== null) {
         $lastLogin = (int)$prevConnexion;
     } else {
-        $membre = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login = ?', 's', $login);
-        if (!$membre) return $result;
         $lastLogin = (int)$membre['derniereConnexion'];
     }
 
