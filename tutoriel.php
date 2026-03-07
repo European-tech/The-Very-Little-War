@@ -27,6 +27,11 @@ $tutorielMissions[] = [
     'icone'       => 'images/batiments/generateur.png',
     'recompense_energie' => TUTORIAL_REWARDS[0],
     'condition'   => ($constructions['generateur'] >= 2),
+    // MED-040-DB: re-verify objective from DB inside the claim transaction
+    'verify_db'   => function($base, $login) {
+        $r = dbFetchOne($base, 'SELECT generateur FROM constructions WHERE login = ?', 's', $login);
+        return $r && (int)$r['generateur'] >= 2;
+    },
 ];
 
 // --- Mission 2: Produce atoms (upgrade producteur to level 2) ---
@@ -45,6 +50,10 @@ $tutorielMissions[] = [
     'icone'       => 'images/batiments/producteur.png',
     'recompense_energie' => TUTORIAL_REWARDS[1],
     'condition'   => ($constructions['producteur'] >= 2),
+    'verify_db'   => function($base, $login) {
+        $r = dbFetchOne($base, 'SELECT producteur FROM constructions WHERE login = ?', 's', $login);
+        return $r && (int)$r['producteur'] >= 2;
+    },
 ];
 
 // --- Mission 3: Build storage (upgrade depot to level 2) ---
@@ -63,6 +72,10 @@ $tutorielMissions[] = [
     'icone'       => 'images/batiments/depot.png',
     'recompense_energie' => TUTORIAL_REWARDS[2],
     'condition'   => ($constructions['depot'] >= 2),
+    'verify_db'   => function($base, $login) {
+        $r = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $login);
+        return $r && (int)$r['depot'] >= 2;
+    },
 ];
 
 // --- Mission 4: Create your first molecule ---
@@ -85,6 +98,10 @@ $tutorielMissions[] = [
     'icone'       => 'images/menu/armee.png',
     'recompense_energie' => TUTORIAL_REWARDS[3],
     'condition'   => ($nbMoleculesCreees > 0),
+    'verify_db'   => function($base, $login) {
+        $r = dbFetchOne($base, "SELECT COUNT(*) AS nb FROM molecules WHERE proprietaire = ? AND formule != ?", 'ss', $login, 'Vide ');
+        return $r && (int)$r['nb'] > 0;
+    },
 ];
 
 // --- Mission 5: Explore the market (change your profile description to prove exploration) ---
@@ -103,6 +120,12 @@ $tutorielMissions[] = [
     'icone'       => 'images/menu/compte.png',
     'recompense_energie' => TUTORIAL_REWARDS[4],
     'condition'   => (mb_strlen(trim($autre['description'] ?? ''), 'UTF-8') >= 10 && $autre['description'] != "Pas de description"),
+    'verify_db'   => function($base, $login) {
+        $r = dbFetchOne($base, 'SELECT description FROM autre WHERE login = ?', 's', $login);
+        if (!$r) return false;
+        $desc = $r['description'] ?? '';
+        return mb_strlen(trim($desc), 'UTF-8') >= 10 && $desc !== 'Pas de description';
+    },
 ];
 
 // --- Mission 6: Scout a nearby player (use espionage) ---
@@ -127,6 +150,10 @@ $tutorielMissions[] = [
     'icone'       => 'images/rapports/binoculars.png',
     'recompense_energie' => TUTORIAL_REWARDS[5],
     'condition'   => $aEspionne,
+    'verify_db'   => function($base, $login) {
+        $r = dbFetchOne($base, "SELECT COUNT(*) AS nb FROM rapports WHERE destinataire = ? AND type = 'espionage'", 's', $login);
+        return $r && (int)$r['nb'] > 0;
+    },
 ];
 
 // --- Mission 7: Join or create an alliance ---
@@ -145,6 +172,10 @@ $tutorielMissions[] = [
     'icone'       => 'images/menu/alliance.png',
     'recompense_energie' => TUTORIAL_REWARDS[6],
     'condition'   => ($autre['idalliance'] != 0),
+    'verify_db'   => function($base, $login) {
+        $r = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $login);
+        return $r && (int)$r['idalliance'] != 0;
+    },
 ];
 
 // ============================================================
@@ -201,6 +232,15 @@ if(isset($_POST['claimMission'])) {
                     $autreRow = dbFetchOne($base, 'SELECT missions FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                     $missionsData = $autreRow['missions'];
 
+                    // MED-040-DB: Re-verify game objective from DB inside the transaction
+                    // to prevent a race where the player undoes the condition after pre-check.
+                    if (isset($mission['verify_db']) && is_callable($mission['verify_db'])) {
+                        if (!$mission['verify_db']($base, $_SESSION['login'])) {
+                            $tutoResult = 'condition_fail';
+                            return;
+                        }
+                    }
+
                     // Re-enforce sequential prerequisite with fresh DB data
                     if($missionIndex > 0) {
                         $freshMissionsArr = ($missionsData != "") ? explode(";", $missionsData) : [];
@@ -253,6 +293,9 @@ if(isset($_POST['claimMission'])) {
                 $information = "Mission terminee ! +" . $mission['recompense_energie'] . " energie";
             } elseif ($tutoResult === 'already') {
                 $erreur = "Cette mission a deja ete validee.";
+            } elseif ($tutoResult === 'condition_fail') {
+                // MED-040-DB: Fresh DB read confirmed objective not met (race or UI desync)
+                $erreur = "Les conditions de cette mission ne sont pas encore remplies.";
             } elseif ($tutoResult === 'sequence_fail') {
                 // MED-040: Fresh DB read confirmed prerequisite not met (concurrent claim race)
                 $erreur = "Vous devez d'abord completer les missions precedentes.";

@@ -143,6 +143,11 @@ else {
 // Daily login streak (P1-D8-041)
 if (isset($_SESSION['login'])) {
     $streakResult = updateLoginStreak($base, $_SESSION['login']);
+    // LOW-016: Persist streak PP earned today to session for prestige.php display.
+    // updateLoginStreak returns pp_earned=0 if streak was already processed today
+    // (guarded by streak_last_date == today check), so this is safe to overwrite
+    // on every page load — it will be 0 except on the first load of each new day.
+    $_SESSION['streak_pp_today'] = $streakResult['pp_earned'] ?? 0;
     if ($streakResult['milestone']) {
         $_SESSION['streak_milestone'] = $streakResult;
     }

@@ -14,9 +14,10 @@ ALTER TABLE attack_cooldowns CONVERT TO CHARACTER SET latin1 COLLATE latin1_swed
 --          fingerprint VARCHAR(64), timestamp INT, event_type ENUM
 -- login references membre.login
 ALTER TABLE login_history CONVERT TO CHARACTER SET latin1 COLLATE latin1_swedish_ci;
+ALTER TABLE login_history DROP FOREIGN KEY IF EXISTS fk_login_history_login;
 ALTER TABLE login_history
     ADD CONSTRAINT fk_login_history_login
-    FOREIGN KEY IF NOT EXISTS (login) REFERENCES membre(login) ON DELETE CASCADE;
+    FOREIGN KEY (login) REFERENCES membre(login) ON DELETE CASCADE;
 
 -- account_flags (created in 0021)
 -- Columns: id, login VARCHAR(255), flag_type ENUM, related_login VARCHAR(255),
@@ -25,12 +26,14 @@ ALTER TABLE login_history
 -- login references membre.login; related_login also references membre.login but
 -- may be NULL and the related account may be deleted independently, so SET NULL
 ALTER TABLE account_flags CONVERT TO CHARACTER SET latin1 COLLATE latin1_swedish_ci;
+ALTER TABLE account_flags DROP FOREIGN KEY IF EXISTS fk_account_flags_login;
 ALTER TABLE account_flags
     ADD CONSTRAINT fk_account_flags_login
-    FOREIGN KEY IF NOT EXISTS (login) REFERENCES membre(login) ON DELETE CASCADE;
+    FOREIGN KEY (login) REFERENCES membre(login) ON DELETE CASCADE;
+ALTER TABLE account_flags DROP FOREIGN KEY IF EXISTS fk_account_flags_related;
 ALTER TABLE account_flags
     ADD CONSTRAINT fk_account_flags_related
-    FOREIGN KEY IF NOT EXISTS (related_login) REFERENCES membre(login) ON DELETE SET NULL;
+    FOREIGN KEY (related_login) REFERENCES membre(login) ON DELETE SET NULL;
 
 -- admin_alerts (created in 0021)
 -- Columns: id, alert_type VARCHAR(50), message TEXT, details TEXT,
@@ -52,6 +55,7 @@ ALTER TABLE resource_nodes CONVERT TO CHARACTER SET latin1 COLLATE latin1_swedis
 -- so the FK can be applied.
 ALTER TABLE prestige ENGINE=InnoDB;
 ALTER TABLE prestige CONVERT TO CHARACTER SET latin1 COLLATE latin1_swedish_ci;
+ALTER TABLE prestige DROP FOREIGN KEY IF EXISTS fk_prestige_login;
 ALTER TABLE prestige
     ADD CONSTRAINT fk_prestige_login
-    FOREIGN KEY IF NOT EXISTS (login) REFERENCES membre(login) ON DELETE CASCADE;
+    FOREIGN KEY (login) REFERENCES membre(login) ON DELETE CASCADE;
