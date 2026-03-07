@@ -363,9 +363,14 @@ if ($inviter) {
 				$invitationDejaEnvoye = dbCount($base, 'SELECT count(*) as nb FROM invitations WHERE invite=? AND idalliance=?', 'si', $_POST['inviterpersonne'], $currentAlliance['idalliance']);
 				if ($invitationDejaEnvoye == 0) {
 					if ($joueurExiste > 0) {
-						dbExecute($base, 'INSERT INTO invitations VALUES (default, ?, ?, ?)', 'iss', $currentAlliance['idalliance'], $chef['tag'], $_POST['inviterpersonne']);
-
-						$information = 'Vous avez invité ' . htmlspecialchars($_POST['inviterpersonne'], ENT_QUOTES, 'UTF-8') . '';
+						// HIGH-036: Block invite if target player is already in an alliance
+						$targetAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_POST['inviterpersonne']);
+						if ($targetAlliance && (int)$targetAlliance['idalliance'] !== 0) {
+							$erreur = "Ce joueur est déjà dans une alliance.";
+						} else {
+							dbExecute($base, 'INSERT INTO invitations VALUES (default, ?, ?, ?)', 'iss', $currentAlliance['idalliance'], $chef['tag'], $_POST['inviterpersonne']);
+							$information = 'Vous avez invité ' . htmlspecialchars($_POST['inviterpersonne'], ENT_QUOTES, 'UTF-8') . '';
+						}
 					} else {
 						$erreur = "Ce joueur n'existe pas.";
 					}

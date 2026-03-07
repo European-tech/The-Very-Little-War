@@ -61,6 +61,8 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
 
             if (!$verified) {
                 $erreur = "Le mot de passe actuel est incorrect.";
+            } elseif (mb_strlen($newPassword) > PASSWORD_BCRYPT_MAX_LENGTH) {
+                $erreur = "Le mot de passe ne peut pas d&eacute;passer " . PASSWORD_BCRYPT_MAX_LENGTH . " caract&egrave;res.";
             } elseif (mb_strlen($newPassword) < PASSWORD_MIN_LENGTH) {
                 $erreur = "Le mot de passe doit contenir au moins 8 caract&egrave;res.";
             } elseif ($newPassword != $newPasswordConfirm) {
@@ -169,9 +171,9 @@ if (!isset($_POST['supprimercompte'])) {
     debutListe();
     echo '<form action="compte.php" method="post" name="formChangerMdp">';
     echo csrfField();
-    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Mot de passe actuel', 'input' => '<input type="password" name="changermdpactuel" id="changermdpactuel" class="form-control"/>']);
-    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Nouveau mot de passe', 'input' => '<input type="password" name="changermdp" id="changermdp" class="form-control"/>']);
-    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Confirmation', 'input' => '<input type="password" name="changermdp1" id="changermdp1" class="form-control"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Mot de passe actuel', 'input' => '<input type="password" name="changermdpactuel" id="changermdpactuel" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Nouveau mot de passe', 'input' => '<input type="password" name="changermdp" id="changermdp" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '"/>']);
+    item(['media' => '<img alt="login" src="images/accueil/door-key.png" class="w32"/>', 'floating' => true, 'titre' => 'Confirmation', 'input' => '<input type="password" name="changermdp1" id="changermdp1" class="form-control" maxlength="' . PASSWORD_BCRYPT_MAX_LENGTH . '"/>']);
     item(['input' => submit(['titre' => 'Changer', 'form' => 'formChangerMdp'])]);
     echo '</form><br/>';
     finListe();

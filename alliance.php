@@ -97,6 +97,18 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
 
     if (isset($_POST['augmenterDuplicateur'])) {
         csrfCheck();
+        // MED-065: Only chef or grade-holding officers may upgrade the duplicateur
+        $dupAllianceInfo = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
+        $isDupChef = ($dupAllianceInfo && $dupAllianceInfo['chef'] === $_SESSION['login']);
+        $hasDupGrade = false;
+        if (!$isDupChef) {
+            $dupGradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $idalliance['idalliance']);
+            $hasDupGrade = ($dupGradeRow !== false && $dupGradeRow !== null);
+        }
+        if (!$isDupChef && !$hasDupGrade) {
+            $erreur = "Permission insuffisante : seul le chef ou un officier gradé peut améliorer le duplicateur.";
+        }
+        if (!isset($erreur)) :
         $allianceId = $idalliance['idalliance'];
         try {
             $newLevel = withTransaction($base, function() use ($base, $allianceId) {
@@ -115,6 +127,7 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
         } catch (\RuntimeException $e) {
             $erreur = "Vous n'avez pas assez d'énergie.";
         }
+        endif; // end permission check for augmenterDuplicateur
     }
 
     // Alliance research upgrades
@@ -207,7 +220,8 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
                         throw new \RuntimeException('FULL');
                     }
                     dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
-                    dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
+                    // HIGH-037: Clear all pending invitations for this player after joining
+                    dbExecute($base, 'DELETE FROM invitations WHERE invite=?', 's', $_SESSION['login']);
                 });
                 $information = "Vous avez accepté l'invitation.";
                 header("Location: alliance.php"); exit;
