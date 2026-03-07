@@ -6,6 +6,7 @@ if (isset($_SESSION['login'])) {
 	include("includes/basicpublicphp.php");
 }
 require_once("includes/csrf.php");
+require_once("includes/rate_limiter.php");
 
 if (!isset($_GET['id']) || !preg_match("#^[0-9]+$#", $_GET['id'])) {
 	header('Location: forum.php');
@@ -23,7 +24,14 @@ $_GET['id'] = trim($_GET['id']);
 
 if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 	csrfCheck();
-	if (isset($_SESSION['login'])) {
+	if (!rateLimitCheck($_SESSION['login'], 'forum_topic', 5, 300)) {
+		$erreur = "Vous créez des sujets trop rapidement. Veuillez patienter.";
+	}
+	if (isset($_SESSION['login']) && empty($erreur)) {
+		$titre = trim($_POST['titre'] ?? '');
+		if (mb_strlen($titre) > 200) {
+			$erreur = "Le titre est trop long (200 caractères max).";
+		}
 		// Check if poster is banned from forum
 		$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
 		if ($banCheck) {
@@ -34,9 +42,9 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 				$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
 			}
 		}
-		if (empty($erreur) && !empty($_POST['titre']) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= 10000 and mb_strlen($_POST['titre']) <= 200) {
+		if (empty($erreur) && !empty($titre) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= 10000 and mb_strlen($titre) <= 200) {
 			$timestamp = time();
-			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $timestamp);
+			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $titre, $_POST['contenu'], $_SESSION['login'], $timestamp);
 			$sujetId = mysqli_insert_id($base);
 			dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sii', $_SESSION['login'], $sujetId, $getId);
 			header("Location: sujet.php?id=" . (int)$sujetId); exit;
@@ -171,7 +179,7 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 									echo (int)$_GET['id'];
 								} ?>" method="post" name="formCreerSujet"><?php echo csrfField();
 																																debutListe();
-																																item(['titre' => 'Titre', 'input' => '<input type="text" name="titre" id="titre" class="form-control"/>', 'floating' => true]);
+																																item(['titre' => 'Titre', 'input' => '<input type="text" name="titre" id="titre" class="form-control" maxlength="200"/>', 'floating' => true]);
 																																creerBBcode("contenu");
 																																item(['floating' => true, 'titre' => "Contenu", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
 																																item(['input' => submit(['titre' => 'Créer', 'form' => 'formCreerSujet'])]);

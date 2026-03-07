@@ -46,6 +46,9 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				$information = "Le message a bien été envoyé à tous les joueurs.";
 			}
 		} else {
+			if (!rateLimitCheck($_SESSION['login'], 'private_msg', 10, 300)) {
+				$erreur = "Vous envoyez trop de messages. Veuillez patienter.";
+			} else {
 			$joueurExiste = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=?', 's', $_POST['destinataire']);
 			if ($joueurExiste > 0) {
 				$now = time();
@@ -56,6 +59,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 			} else {
 				$erreur = 'Le joueur ' . htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8') . ' n\'existe pas.';
 			}
+			} // end rate limit else
 		}
 	} else {
 		$erreur = "Tous les champs ne sont pas remplis.";

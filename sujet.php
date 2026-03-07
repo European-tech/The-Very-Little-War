@@ -7,12 +7,16 @@ if (isset($_SESSION['login'])) {
 }
 include("includes/bbcode.php");
 require_once("includes/csrf.php");
+require_once("includes/rate_limiter.php");
 
 if (isset($_POST['contenu']) and isset($_GET['id'])) {
 	csrfCheck();
+	if (!rateLimitCheck($_SESSION['login'], 'forum_reply', 10, 300)) {
+		$erreur = "Vous répondez trop rapidement. Veuillez patienter.";
+	}
 	$_GET['id'] = trim($_GET['id']);
 	if (preg_match("#^[0-9]+$#", $_GET['id'])) {
-		if (isset($_SESSION['login'])) {
+		if (isset($_SESSION['login']) && empty($erreur)) {
 			// Check if poster is banned from forum
 			$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ?', 's', $_SESSION['login']);
 			if ($banCheck) {

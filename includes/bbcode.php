@@ -15,7 +15,7 @@ $text = preg_replace('!\[center\](.+)\[/center\]!isU', '<div style="text-align: 
 $text = preg_replace('!\[title\](.+)\[/title\]!isU', '<span style="font-size: 130%;">$1</span>', $text);
 $text = preg_replace('!\[joueur=([a-z0-9_-]{3,16})/\]!isU', '<a href="joueur.php?id=$1">$1</a>', $text);
 $text = preg_replace('!\[alliance=([a-z0-9_-]{3,16})/\]!isU', '<a href="alliance.php?id=$1">$1</a>', $text);
-$text = preg_replace('!\[url=(https?://[^\]]+)\](.+?)\[/url\]!isU', '<a href="$1" rel="noopener noreferrer" target="_blank">$2</a>', $text);
+$text = preg_replace('!\[url=(https?://[^\]]+)\](.+?)\[/url\]!isU', '<a href="$1" rel="nofollow noopener noreferrer" target="_blank">$2</a>', $text);
 $text = preg_replace_callback('!\[img=([^\]]+)\]!isU', function($matches) {
     $url = $matches[1];
     // Allow self-hosted images: relative paths starting with / or images/
