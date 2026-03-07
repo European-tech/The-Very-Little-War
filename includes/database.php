@@ -11,14 +11,16 @@
 function dbQuery($base, $sql, $types = "", ...$params) {
     $stmt = mysqli_prepare($base, $sql);
     if (!$stmt) {
-        error_log("SQL Prepare Error: " . mysqli_error($base) . " | Query: " . $sql);
+        $truncatedQuery = mb_substr($sql, 0, 100);
+        error_log("SQL Prepare Error [" . mysqli_errno($base) . "]: " . mysqli_error($base) . " | Query: " . $truncatedQuery);
         return false;
     }
     if ($types !== "" && count($params) > 0) {
         mysqli_stmt_bind_param($stmt, $types, ...$params);
     }
     if (!mysqli_stmt_execute($stmt)) {
-        error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
+        $truncatedQuery = mb_substr($sql, 0, 100);
+        error_log("SQL Execute Error [" . mysqli_stmt_errno($stmt) . "]: " . mysqli_stmt_error($stmt) . " | Query: " . $truncatedQuery);
         mysqli_stmt_close($stmt);
         return false;
     }
@@ -58,14 +60,16 @@ function dbFetchAll($base, $sql, $types = "", ...$params) {
 function dbExecute($base, $sql, $types = "", ...$params) {
     $stmt = mysqli_prepare($base, $sql);
     if (!$stmt) {
-        error_log("SQL Prepare Error: " . mysqli_error($base) . " | Query: " . $sql);
+        $truncatedQuery = mb_substr($sql, 0, 100);
+        error_log("SQL Prepare Error [" . mysqli_errno($base) . "]: " . mysqli_error($base) . " | Query: " . $truncatedQuery);
         return false;
     }
     if ($types !== "" && count($params) > 0) {
         mysqli_stmt_bind_param($stmt, $types, ...$params);
     }
     if (!mysqli_stmt_execute($stmt)) {
-        error_log("SQL Execute Error: " . mysqli_stmt_error($stmt));
+        $truncatedQuery = mb_substr($sql, 0, 100);
+        error_log("SQL Execute Error [" . mysqli_stmt_errno($stmt) . "]: " . mysqli_stmt_error($stmt) . " | Query: " . $truncatedQuery);
         mysqli_stmt_close($stmt);
         return false;
     }
