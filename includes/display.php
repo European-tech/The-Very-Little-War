@@ -332,13 +332,17 @@ function creerBBcode($nomTextArea, $interieur = NULL, $reponse = 0)
 
 function transformInt($nombre)
 {
-    $nombre = preg_replace('#K$#i', '000', $nombre);
-    $nombre = preg_replace('#M$#i', '000000', $nombre);
-    $nombre = preg_replace('#G$#i', '000000000', $nombre);
-    $nombre = preg_replace('#T$#i', '000000000000', $nombre);
-    $nombre = preg_replace('#P$#i', '000000000000000', $nombre);
-    $nombre = preg_replace('#E$#i', '000000000000000000', $nombre);
-    $nombre = preg_replace('#Z$#i', '000000000000000000000', $nombre);
-    $nombre = preg_replace('#Y$#i', '000000000000000000000000', $nombre);
+    // Apply suffix replacements iteratively to support chained suffixes like "1KK" → "1000000"
+    // Pattern matches suffix followed by any trailing digits (from prior expansions)
+    $patterns = ['K' => '000', 'M' => '000000', 'G' => '000000000', 'T' => '000000000000',
+                 'P' => '000000000000000', 'E' => '000000000000000000',
+                 'Z' => '000000000000000000000', 'Y' => '000000000000000000000000'];
+    $prev = null;
+    while ($prev !== $nombre) {
+        $prev = $nombre;
+        foreach ($patterns as $suffix => $zeros) {
+            $nombre = preg_replace('#' . $suffix . '([0-9]*)$#i', $zeros . '$1', $nombre);
+        }
+    }
     return $nombre;
 }

@@ -241,7 +241,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             // Award trade points based on energy spent (not atom volume, to prevent buy-sell exploits)
                             $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
                             $tradeVolume = round($coutAchat * $reseauBonus);
-                            $autreData = dbFetchOne($base, 'SELECT tradeVolume FROM autre WHERE login=?', 's', $_SESSION['login']);
+                            $autreData = dbFetchOne($base, 'SELECT tradeVolume FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                             $oldVolume = $autreData['tradeVolume'] ?? 0;
                             $newVolume = $oldVolume + $tradeVolume;
                             dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
@@ -360,7 +360,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         // Award trade points on sell (mirror buy logic)
                         $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
                         $tradeVolume = round($energyGained * $reseauBonus);
-                        $autreData = dbFetchOne($base, 'SELECT tradeVolume FROM autre WHERE login=?', 's', $_SESSION['login']);
+                        $autreData = dbFetchOne($base, 'SELECT tradeVolume FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                         $oldVolume = $autreData['tradeVolume'] ?? 0;
                         $newVolume = $oldVolume + $tradeVolume;
                         dbExecute($base, 'UPDATE autre SET tradeVolume=? WHERE login=?', 'ds', $newVolume, $_SESSION['login']);
@@ -638,7 +638,7 @@ if ($_GET['sub'] == 0) {
                     } else {
                         $fin = "";
                     }
-                    $tot =  '["' . date('d/m', $cours['timestamp']) . '",' . $cours['tableauCours'] . ']' . $fin . $tot;
+                    $tot =  '["' . date('d/m H\hi', $cours['timestamp']) . '",' . $cours['tableauCours'] . ']' . $fin . $tot;
                     $c++;
                 }
 

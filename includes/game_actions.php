@@ -483,7 +483,7 @@ function updateActions($joueur)
             }
         }
 
-        if ($actions['tempsRetour'] < time() && $joueur == $actions['attaquant'] && $actions['troupes'] != 'Espionnage') { // dans ce cas là on remet à jour les troupes
+        if ($actions['tempsRetour'] < time() && $actions['attaqueFaite'] == 1 && $joueur == $actions['attaquant'] && $actions['troupes'] != 'Espionnage') { // dans ce cas là on remet à jour les troupes
 
             $nbsecondes = $actions['tempsRetour'] - $actions['tempsAttaque'];
             $molecules = explode(";", $actions['troupes']);

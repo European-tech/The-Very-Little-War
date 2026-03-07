@@ -171,24 +171,17 @@ function updateRessources($joueur)
         return; // Another request already updated — skip to prevent double resources
     }
 
-    $donnees = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $joueur);
-
     $depot = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////ENERGIE
+    $placeMax = placeDepot($depot['depot']);
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////ENERGIE
+    // Use atomic SQL increment (LEAST/GREATEST) to prevent race with concurrent combat/market updates
     $revenuenergie = revenuEnergie($depot['generateur'], $joueur);
-    $energie = $donnees['energie'] + $revenuenergie * ($nbsecondes / SECONDS_PER_HOUR); // On calcule l'energie que l'on doit avoir
-    if ($energie >= placeDepot($depot['depot'])) {
-        $energie = placeDepot($depot['depot']); // on limite l'energie pouvant être reçu (depots de ressources)
-    }
-    if ($energie < 0) {
-        $energie = 0;
-    }
-    dbExecute($base, 'UPDATE ressources SET energie=? WHERE login=?', 'ds', $energie, $joueur);
+    $energieDelta = $revenuenergie * ($nbsecondes / SECONDS_PER_HOUR);
+    dbExecute($base, 'UPDATE ressources SET energie = LEAST(GREATEST(0, energie + ?), ?) WHERE login=?', 'dds', $energieDelta, $placeMax, $joueur);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////RESSOURCES
-    // Optimization: build one UPDATE with all 8 atom columns instead of 8 separate queries.
-    $placeMax = placeDepot($depot['depot']);
+    // Atomic incremental UPDATE — no read-modify-write race condition possible
     $sqlParts = [];
     $sqlTypes = '';
     $sqlParams = [];
@@ -197,18 +190,18 @@ function updateRessources($joueur)
         if (!in_array($ressource, $allowedColumns, true)) {
             throw new \RuntimeException("Invalid column: $ressource");
         }
-        ${'revenu' . $ressource} = revenuAtome($num, $joueur);
-        $$ressource = $donnees[$ressource] + ${'revenu' . $ressource} * ($nbsecondes / SECONDS_PER_HOUR);
-        if ($$ressource >= $placeMax) {
-            $$ressource = $placeMax;
-        }
-        $sqlParts[] = "$ressource=?";
-        $sqlTypes .= 'd';
-        $sqlParams[] = $$ressource;
+        $delta = revenuAtome($num, $joueur) * ($nbsecondes / SECONDS_PER_HOUR);
+        $sqlParts[] = "$ressource = LEAST(GREATEST(0, $ressource + ?), ?)";
+        $sqlTypes .= 'dd';
+        $sqlParams[] = $delta;
+        $sqlParams[] = $placeMax;
     }
     $sqlParams[] = $joueur;
     $sqlTypes .= 's';
     dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $sqlParts) . ' WHERE login=?', $sqlTypes, ...$sqlParams);
+
+    // Re-read ressources so molecule decay and downstream code sees accurate values
+    $donnees = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $joueur);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////Gestion des molécules disparaissant
 

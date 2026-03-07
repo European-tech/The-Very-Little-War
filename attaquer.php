@@ -94,10 +94,11 @@ if (isset($_POST['joueurAAttaquer'])) {
                 $erreur = "Vous ne pouvez pas attaquer un membre de votre alliance.";
             } elseif ($enVac['vacance']) {
                 $erreur = "Vous ne pouvez pas attaquer un joueur en vacances";
-            } elseif (time() - $enVac['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
+            } elseif (time() - $enVac['timestamp'] < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_POST['joueurAAttaquer'], 'veteran') ? SECONDS_PER_DAY : 0)) {
                 $erreur = "Le joueur est encore sous protection des débutants.";
-            } elseif (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
-                $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps(BEGINNER_PROTECTION_SECONDS - time() + $membre['timestamp']) . " h</strong>) et vous ne pouvez donc pas attaquer.";
+            } elseif (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0)) {
+                $attackerProtectionLeft = BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0) - time() + $membre['timestamp'];
+                $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps($attackerProtectionLeft) . " h</strong>) et vous ne pouvez donc pas attaquer.";
             } elseif (hasActiveShield($base, $_POST['joueurAAttaquer'])) {
                 // Comeback shield protection (P1-D8-044)
                 $erreur = "Ce joueur est sous protection de retour. Revenez plus tard.";

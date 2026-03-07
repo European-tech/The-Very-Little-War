@@ -20,28 +20,24 @@ function generateResourceNodes($base, $mapSize)
 {
     global $nomsRes;
 
-    // Clear old nodes
-    dbExecute($base, 'DELETE FROM resource_nodes');
-
+    // Pre-generate node placement data before the transaction to avoid rand calls inside
     $count = mt_rand(RESOURCE_NODE_MIN_COUNT, RESOURCE_NODE_MAX_COUNT);
-    $margin = 1; // avoid placing on the very edge
+    $margin = 1;
     $placed = [];
-
-    // Resource types: 8 atom types + energy
+    $nodesToInsert = [];
     $resourceTypes = array_merge($nomsRes, ['energie']);
 
     for ($i = 0; $i < $count; $i++) {
         $maxAttempts = 50;
         $attempts = 0;
+        $valid = false;
         $x = 0;
         $y = 0;
-        $valid = false;
 
         while ($attempts < $maxAttempts) {
             $x = mt_rand($margin, $mapSize - 1 - $margin);
             $y = mt_rand($margin, $mapSize - 1 - $margin);
 
-            // Check minimum distance from all placed nodes
             $tooClose = false;
             foreach ($placed as $node) {
                 $dist = sqrt(pow($x - $node[0], 2) + pow($y - $node[1], 2));
@@ -59,18 +55,25 @@ function generateResourceNodes($base, $mapSize)
         }
 
         if (!$valid) {
-            continue; // skip if can't place (small map)
+            continue;
         }
 
         $resourceType = $resourceTypes[array_rand($resourceTypes)];
         $placed[] = [$x, $y];
-
-        dbExecute($base,
-            'INSERT INTO resource_nodes (x, y, resource_type, bonus_pct, radius) VALUES (?, ?, ?, ?, ?)',
-            'iisdi',
-            $x, $y, $resourceType, RESOURCE_NODE_DEFAULT_BONUS_PCT, RESOURCE_NODE_DEFAULT_RADIUS
-        );
+        $nodesToInsert[] = [$x, $y, $resourceType];
     }
+
+    // Atomic: clear old nodes and insert new ones in a single transaction
+    withTransaction($base, function() use ($base, $nodesToInsert) {
+        dbExecute($base, 'DELETE FROM resource_nodes');
+        foreach ($nodesToInsert as [$x, $y, $resourceType]) {
+            dbExecute($base,
+                'INSERT INTO resource_nodes (x, y, resource_type, bonus_pct, radius) VALUES (?, ?, ?, ?, ?)',
+                'iisdi',
+                $x, $y, $resourceType, RESOURCE_NODE_DEFAULT_BONUS_PCT, RESOURCE_NODE_DEFAULT_RADIUS
+            );
+        }
+    });
 }
 
 /**

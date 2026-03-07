@@ -159,7 +159,30 @@ function activateCompound($base, $login, $compoundId)
         throw $e;
     }
 
+    // Invalidate cache so subsequent getCompoundBonus() calls in this request see the new active compound
+    invalidateCompoundBonusCache($login);
+
     return true;
+}
+
+// Per-request cache for compound bonuses — use global so it can be invalidated after activation
+$_compoundBonusCache = [];
+
+/**
+ * Invalidate cached compound bonuses for a player (or all players).
+ */
+function invalidateCompoundBonusCache($login = null)
+{
+    global $_compoundBonusCache;
+    if ($login === null) {
+        $_compoundBonusCache = [];
+    } else {
+        foreach (array_keys($_compoundBonusCache) as $key) {
+            if (str_starts_with($key, $login . '-')) {
+                unset($_compoundBonusCache[$key]);
+            }
+        }
+    }
 }
 
 /**
@@ -170,11 +193,10 @@ function activateCompound($base, $login, $compoundId)
  */
 function getCompoundBonus($base, $login, $effectType)
 {
-    global $COMPOUNDS;
+    global $COMPOUNDS, $_compoundBonusCache;
 
-    static $cache = [];
     $cacheKey = $login . '-' . $effectType;
-    if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+    if (isset($_compoundBonusCache[$cacheKey])) return $_compoundBonusCache[$cacheKey];
 
     $activeCompounds = getActiveCompounds($base, $login);
     $totalBonus = 0.0;
@@ -186,7 +208,7 @@ function getCompoundBonus($base, $login, $effectType)
         }
     }
 
-    $cache[$cacheKey] = $totalBonus;
+    $_compoundBonusCache[$cacheKey] = $totalBonus;
     return $totalBonus;
 }
 
@@ -199,4 +221,6 @@ function cleanupExpiredCompounds($base)
         'DELETE FROM player_compounds WHERE activated_at IS NOT NULL AND expires_at < ?',
         'i', time() - 86400 // keep for 24h after expiry for UI display
     );
+    // Invalidate all cached bonuses since we don't know which players were affected
+    invalidateCompoundBonusCache();
 }

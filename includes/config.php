@@ -551,6 +551,7 @@ define('PRESTIGE_PP_ATTACK_BONUS', 5);        // PP for reaching attack threshol
 define('PRESTIGE_PP_TRADE_THRESHOLD', 20);    // Min trade volume for trade activity bonus
 define('PRESTIGE_PP_TRADE_BONUS', 3);         // PP for reaching trade threshold
 define('PRESTIGE_PP_DONATION_BONUS', 2);      // PP for donating energy
+define('DONATION_MIN_ENERGY_RESERVE', 100);   // Min energy a player must keep after donating
 // Rank bonuses (awarded by final leaderboard position)
 $PRESTIGE_RANK_BONUSES = [
     5  => 50,  // Top 5

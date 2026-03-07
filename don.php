@@ -22,7 +22,7 @@ if(isset($_POST['energieEnvoyee'])) {
 						$energieDonnee = dbFetchOne($base, 'SELECT energieDonnee FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
 						$ressourcesAlliance = dbFetchOne($base, 'SELECT energieAlliance, energieTotaleRecue FROM alliances WHERE id=? FOR UPDATE', 'i', $idalliance['idalliance']);
 
-						if($ressources['energie'] < $_POST['energieEnvoyee']) {
+						if($ressources['energie'] - $_POST['energieEnvoyee'] < DONATION_MIN_ENERGY_RESERVE) {
 							throw new \RuntimeException("NOT_ENOUGH_ENERGY");
 						}
 
@@ -35,7 +35,7 @@ if(isset($_POST['energieEnvoyee'])) {
 					exit();
 				} catch (\RuntimeException $e) {
 					if ($e->getMessage() === "NOT_ENOUGH_ENERGY") {
-						$erreur = "Vous n'avez pas assez d'energie.";
+						$erreur = "Vous n'avez pas assez d'énergie (réserve minimale de " . DONATION_MIN_ENERGY_RESERVE . " requise).";
 					} else {
 						throw $e;
 					}

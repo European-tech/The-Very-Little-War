@@ -109,8 +109,8 @@ $tutorielMissions[] = [
 $exNeutrinos = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $_SESSION['login']);
 $nbNeutrinos = $exNeutrinos ? intval($exNeutrinos['neutrinos']) : 0;
 
-// Check if player has ever spied (espionage reports contain 'binoculars' in image and 'spionnage' in title)
-$exEspionnage = dbFetchOne($base, 'SELECT count(*) AS nb FROM rapports WHERE destinataire=? AND titre LIKE ?', 'ss', $_SESSION['login'], '%spionnage%');
+// Check if player has ever spied — exclude victim notification ("Tentative d'espionnage détectée")
+$exEspionnage = dbFetchOne($base, 'SELECT count(*) AS nb FROM rapports WHERE destinataire=? AND titre LIKE ? AND titre NOT LIKE ?', 'sss', $_SESSION['login'], '%spionnage%', 'Tentative%');
 $aEspionne = ($exEspionnage && intval($exEspionnage['nb']) > 0);
 
 $tutorielMissions[] = [

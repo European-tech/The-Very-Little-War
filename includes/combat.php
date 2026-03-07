@@ -25,22 +25,22 @@ foreach ($rowsAttaquant as $classeAttaquant) {
 
 // recupération des niveaux des atomes
 
-$niveauxAttaquant = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
+$niveauxAttaquant = dbFetchOne($base, 'SELECT pointsCondenseur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
 if (!$niveauxAttaquant) {
 	logError("Combat: missing attacker constructions for " . $actions['attaquant'] . " at line " . __LINE__);
 	throw new Exception('Missing attacker constructions');
 }
-$niveauxAttaquant = explode(";", $niveauxAttaquant['pointsProducteur']);
+$niveauxAttaquant = explode(";", $niveauxAttaquant['pointsCondenseur']);
 foreach ($nomsRes as $num => $ressource) {
 	$niveauxAtt[$ressource] = $niveauxAttaquant[$num];
 }
 
-$niveauxDefenseur = dbFetchOne($base, 'SELECT pointsProducteur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
+$niveauxDefenseur = dbFetchOne($base, 'SELECT pointsCondenseur FROM constructions WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
 if (!$niveauxDefenseur) {
 	logError("Combat: missing defender constructions for " . $actions['defenseur'] . " at line " . __LINE__);
 	throw new Exception('Missing defender constructions');
 }
-$niveauxDefenseur = explode(";", $niveauxDefenseur['pointsProducteur']);
+$niveauxDefenseur = explode(";", $niveauxDefenseur['pointsCondenseur']);
 foreach ($nomsRes as $num => $ressource) {
 	$niveauxDef[$ressource] = $niveauxDefenseur[$num];
 }
@@ -170,10 +170,6 @@ $degatsDefenseur = 0;
 for ($c = 1; $c <= $nbClasses; $c++) {
 	$degatsAttaquant += attaque(${'classeAttaquant' . $c}['oxygene'], ${'classeAttaquant' . $c}['hydrogene'], $niveauxAtt['oxygene'], $bonusAttaqueMedaille) * $attIsotopeAttackMod[$c] * (1 + (($ionisateur['ionisateur'] * IONISATEUR_COMBAT_BONUS_PER_LEVEL) / 100)) * $bonusDuplicateurAttaque * $catalystAttackBonus * ${'classeAttaquant' . $c}['nombre'];
 	$defBonusForClass = $defIsotopeAttackMod[$c]; // Apply defender isotope modifier to defense output
-	// Phalange: class 1 gets extra defense bonus
-	if ($defenderFormation == FORMATION_PHALANGE && $c == 1) {
-		$defBonusForClass *= (1.0 + FORMATION_PHALANX_DEFENSE_BONUS);
-	}
 	$degatsDefenseur += defense(${'classeDefenseur' . $c}['carbone'], ${'classeDefenseur' . $c}['brome'], $niveauxDef['carbone'], $bonusDefenseMedaille) * $defBonusForClass * (1 + (($champdeforce['champdeforce'] * CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL) / 100)) * $bonusDuplicateurDefense * ${'classeDefenseur' . $c}['nombre'];
 }
 
@@ -226,7 +222,8 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 
 	// Class 1 takes phalanx share
 	$hpPerMol1 = pointsDeVieMolecule($classeDefenseur1['brome'], $classeDefenseur1['carbone'], $niveauxDef['brome'])
-				 * $bonusDuplicateurDefense * $defIsotopeHpMod[1];
+				 * $bonusDuplicateurDefense * $defIsotopeHpMod[1]
+				 * (1.0 + FORMATION_PHALANX_DEFENSE_BONUS); // Phalange: class 1 harder to kill
 	$classe1DefenseurMort = 0;
 	$phalanxOverflow = 0;
 	if ($classeDefenseur1['nombre'] > 0 && $hpPerMol1 > 0) {
@@ -264,18 +261,14 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 		if (${'classeDefenseur' . $i}['nombre'] > 0) $activeDefClasses++;
 	}
 	$sharePerClass = ($activeDefClasses > 0) ? $degatsAttaquant / $activeDefClasses : 0;
-	$overflow = 0;
+	// Equal split: each active class receives exactly its share; overkill is wasted, not cascaded
 	for ($i = 1; $i <= $nbClasses; $i++) {
 		${'classe' . $i . 'DefenseurMort'} = 0;
-		if (${'classeDefenseur' . $i}['nombre'] > 0) {
-			$damageForClass = $sharePerClass + $overflow;
-			$overflow = 0;
+		if (${'classeDefenseur' . $i}['nombre'] > 0 && $sharePerClass > 0) {
 			$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], ${'classeDefenseur' . $i}['carbone'], $niveauxDef['brome'])
 						* $bonusDuplicateurDefense * $defIsotopeHpMod[$i];
 			if ($hpPerMol > 0) {
-				$kills = min(${'classeDefenseur' . $i}['nombre'], floor($damageForClass / $hpPerMol));
-				${'classe' . $i . 'DefenseurMort'} = $kills;
-				$overflow = max(0, $damageForClass - $kills * $hpPerMol);
+				${'classe' . $i . 'DefenseurMort'} = min(${'classeDefenseur' . $i}['nombre'], floor($sharePerClass / $hpPerMol));
 			} else {
 				${'classe' . $i . 'DefenseurMort'} = ${'classeDefenseur' . $i}['nombre'];
 			}

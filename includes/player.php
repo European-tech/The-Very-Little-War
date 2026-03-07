@@ -173,7 +173,8 @@ function initPlayer($joueur)
 
     // CONSTRUCTIONS
 
-    $points = ['condenseur' => $BUILDING_CONFIG['condenseur']['points_per_level'], 'producteur' => sizeof($nomsRes)];
+    $specCondMod = getSpecModifier($joueur, 'condenseur_points');
+    $points = ['condenseur' => max(1, $BUILDING_CONFIG['condenseur']['points_per_level'] + (int)$specCondMod), 'producteur' => sizeof($nomsRes)];
 
     $plusHaut = batMax($joueur);
     dbExecute($base, 'UPDATE autre SET batmax=? WHERE login=?', 'is', $plusHaut, $joueur);
@@ -988,9 +989,9 @@ function remiseAZero()
     withTransaction($base, function() use ($nomsRes, $nbRes) {
         global $base;
 
-        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0');
+        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0');
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'ddddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1), vieIonisateur(0));
-        dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0');
+        dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0');
         dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0, isotope=0');
         dbExecute($base, 'UPDATE membre SET timestamp=?', 'i', time());
 
@@ -1115,16 +1116,26 @@ function checkComebackBonus($base, $login, $prevConnexion = null) {
             return;
         }
 
-        dbExecute($base, 'UPDATE ressources SET energie = energie + ?, carbone = carbone + ?,
-            azote = azote + ?, hydrogene = hydrogene + ?, oxygene = oxygene + ?,
-            chlore = chlore + ?, soufre = soufre + ?, brome = brome + ?, iode = iode + ?
+        // Cap bonuses at storage limit to prevent exceeding depot capacity
+        $depotData = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $login);
+        $storageMax = placeDepot($depotData ? $depotData['depot'] : 1);
+        dbExecute($base, 'UPDATE ressources SET
+            energie = LEAST(energie + ?, ?),
+            carbone = LEAST(carbone + ?, ?), azote = LEAST(azote + ?, ?),
+            hydrogene = LEAST(hydrogene + ?, ?), oxygene = LEAST(oxygene + ?, ?),
+            chlore = LEAST(chlore + ?, ?), soufre = LEAST(soufre + ?, ?),
+            brome = LEAST(brome + ?, ?), iode = LEAST(iode + ?, ?)
             WHERE login = ?',
-            'ddddddddds',
-            (float)COMEBACK_ENERGY_BONUS,
-            (float)COMEBACK_ATOMS_BONUS, (float)COMEBACK_ATOMS_BONUS,
-            (float)COMEBACK_ATOMS_BONUS, (float)COMEBACK_ATOMS_BONUS,
-            (float)COMEBACK_ATOMS_BONUS, (float)COMEBACK_ATOMS_BONUS,
-            (float)COMEBACK_ATOMS_BONUS, (float)COMEBACK_ATOMS_BONUS,
+            'ddddddddddddddddddds',
+            (float)COMEBACK_ENERGY_BONUS, (float)$storageMax,
+            (float)COMEBACK_ATOMS_BONUS, (float)$storageMax,
+            (float)COMEBACK_ATOMS_BONUS, (float)$storageMax,
+            (float)COMEBACK_ATOMS_BONUS, (float)$storageMax,
+            (float)COMEBACK_ATOMS_BONUS, (float)$storageMax,
+            (float)COMEBACK_ATOMS_BONUS, (float)$storageMax,
+            (float)COMEBACK_ATOMS_BONUS, (float)$storageMax,
+            (float)COMEBACK_ATOMS_BONUS, (float)$storageMax,
+            (float)COMEBACK_ATOMS_BONUS, (float)$storageMax,
             $login
         );
 

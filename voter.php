@@ -41,19 +41,23 @@ if (!empty($reponse)) {
     }
 
     $sondageId = $data['id'];
+    $pasDeVote = $_POST['pasDeVote'] ?? null;
 
-    $existing = dbFetchOne($base, 'SELECT count(*) AS nb FROM reponses_sondage WHERE login = ? AND sondage = ?', 'si', $login, $sondageId);
-
-    if ($existing['nb'] == 0) {
-        dbExecute($base, 'INSERT INTO reponses_sondage VALUES(default, ?, ?, ?)', 'sis', $login, $sondageId, $reponse);
-        exit(json_encode(["erreur" => false, "dejaRepondu" => false]));
-    } else {
-        $pasDeVote = $_POST['pasDeVote'] ?? null;
-        if (!$pasDeVote) {
-            dbExecute($base, 'UPDATE reponses_sondage SET reponse = ? WHERE login = ? AND sondage = ?', 'isi', $reponse, $login, $sondageId);
+    $dejaRepondu = false;
+    // Use transaction with FOR UPDATE to prevent duplicate vote race condition
+    withTransaction($base, function() use ($base, $login, $sondageId, $reponse, $pasDeVote, &$dejaRepondu) {
+        $existing = dbFetchOne($base, 'SELECT id FROM reponses_sondage WHERE login = ? AND sondage = ? FOR UPDATE', 'si', $login, $sondageId);
+        if (!$existing) {
+            dbExecute($base, 'INSERT INTO reponses_sondage (login, sondage, reponse) VALUES (?, ?, ?)', 'sis', $login, $sondageId, $reponse);
+            $dejaRepondu = false;
+        } else {
+            if (!$pasDeVote) {
+                dbExecute($base, 'UPDATE reponses_sondage SET reponse = ? WHERE login = ? AND sondage = ?', 'isi', $reponse, $login, $sondageId);
+            }
+            $dejaRepondu = true;
         }
-        exit(json_encode(["erreur" => false, "dejaRepondu" => true]));
-    }
+    });
+    exit(json_encode(["erreur" => false, "dejaRepondu" => $dejaRepondu]));
 } else {
     exit(json_encode(["erreur" => true]));
 }

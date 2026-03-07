@@ -315,7 +315,8 @@ debutCarte("Combat — Attaque");
 
     // Formation
     $currentFormation = (int)($constructions['formation'] ?? 0);
-    echo '<tr><td>Formation defensive</td><td>' . htmlspecialchars($FORMATIONS[$currentFormation]['name'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
+    $formationInfo = $FORMATIONS[$currentFormation] ?? $FORMATIONS[FORMATION_DISPERSEE];
+    echo '<tr><td>Formation defensive</td><td>' . htmlspecialchars($formationInfo['name'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
 
     echo '</tbody></table></div>';
 
@@ -367,8 +368,8 @@ debutCarte("Combat — Defense");
         echo '<tr><td>Specialisation Combat</td><td style="color:#999">Non choisie</td></tr>';
     }
 
-    // Formation details
-    echo '<tr><td>Formation defensive</td><td>' . htmlspecialchars($FORMATIONS[$currentFormation]['name'], ENT_QUOTES, 'UTF-8') . ' — ' . htmlspecialchars($FORMATIONS[$currentFormation]['desc'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
+    // Formation details (reuse $formationInfo already validated above)
+    echo '<tr><td>Formation defensive</td><td>' . htmlspecialchars($formationInfo['name'], ENT_QUOTES, 'UTF-8') . ' — ' . htmlspecialchars($formationInfo['desc'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
 
     echo '</tbody></table></div>';
 

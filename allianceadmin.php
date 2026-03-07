@@ -28,11 +28,11 @@ if ($chef['chef'] != $_SESSION['login'] and $existeGrade < 1) {
 
 if ($_SESSION['login'] != $chef['chef']) {
 	list($inviter, $guerre, $pacte, $bannir, $description) = explode('.', $grade['grade']);
-	if ($inviter == 1) $inviter = true;
-	if ($guerre == 1) $guerre = true;
-	if ($bannir == 1) $bannir = true;
-	if ($pacte == 1) $pacte = true;
-	if ($description == 1) $description = true;
+	$inviter     = ($inviter === '1');
+	$guerre      = ($guerre === '1');
+	$bannir      = ($bannir === '1');
+	$pacte       = ($pacte === '1');
+	$description = ($description === '1');
 	$gradeChef = false;
 } else {
 	$inviter = true;
@@ -209,9 +209,9 @@ if ($pacte) {
 		if ($existeAlliance > 0) {
 			$allianceAllie = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['pacte']);
 
-			$nbDeclarations = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance1=? AND alliance2=? AND fin=0', 'ii', $allianceAllie['id'], $chef['id']);
+			$nbDeclarations = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance1=? AND alliance2=? AND (fin=0 OR type=1)', 'ii', $allianceAllie['id'], $chef['id']);
 
-			$nbDeclarations1 = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance2=? AND alliance1=? AND fin=0', 'ii', $allianceAllie['id'], $chef['id']);
+			$nbDeclarations1 = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance2=? AND alliance1=? AND (fin=0 OR type=1)', 'ii', $allianceAllie['id'], $chef['id']);
 
 			if ($nbDeclarations['nbDeclarations'] == 0 and $nbDeclarations1['nbDeclarations'] == 0) {
 				$now = time();
