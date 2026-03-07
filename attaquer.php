@@ -88,6 +88,9 @@ if (isset($_POST['joueurAAttaquer'])) {
             // Prevent attacking alliance members
             $attackerAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
             $defenderAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_POST['joueurAAttaquer']);
+            // PASS1-MEDIUM-007: Fresh fetch of attacker registration timestamp to avoid stale $membre data
+            $attackerFresh = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login=?', 's', $_SESSION['login']);
+            $attackerTimestamp = $attackerFresh ? (int)$attackerFresh['timestamp'] : (int)$membre['timestamp'];
             if ($attackerAlliance && $defenderAlliance
                 && $attackerAlliance['idalliance'] > 0
                 && $attackerAlliance['idalliance'] == $defenderAlliance['idalliance']) {
@@ -96,8 +99,8 @@ if (isset($_POST['joueurAAttaquer'])) {
                 $erreur = "Vous ne pouvez pas attaquer un joueur en vacances";
             } elseif (time() - $enVac['timestamp'] < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_POST['joueurAAttaquer'], 'veteran') ? SECONDS_PER_DAY : 0)) {
                 $erreur = "Le joueur est encore sous protection des débutants.";
-            } elseif (time() - $membre['timestamp'] < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0)) {
-                $attackerProtectionLeft = BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0) - time() + $membre['timestamp'];
+            } elseif (time() - $attackerTimestamp < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0)) {
+                $attackerProtectionLeft = BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0) - time() + $attackerTimestamp;
                 $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps($attackerProtectionLeft) . " h</strong>) et vous ne pouvez donc pas attaquer.";
             } elseif (hasActiveShield($base, $_POST['joueurAAttaquer'])) {
                 // Comeback shield protection (P1-D8-044)
@@ -187,25 +190,42 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                         if ($cout <= $ressources['energie']) {
                             if ($bool) {
-                                withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet) {
-                                    $moleculesAttaqueTxRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $_SESSION['login']);
-                                    $c = 1;
-                                    foreach ($moleculesAttaqueTxRows as $moleculesAttaque) {
-                                        $newNombre = $moleculesAttaque['nombre'] - $_POST['nbclasse' . $c];
-                                        if ($newNombre < 0) {
-                                            throw new Exception('Pas assez de molécules');
+                                try {
+                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet) {
+                                        // PASS1-MEDIUM-006: Re-validate energy under FOR UPDATE lock to prevent TOCTOU
+                                        $attaquant = $_SESSION['login'];
+                                        $energieFraiche = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login=? FOR UPDATE', 's', $attaquant);
+                                        if ($energieFraiche['energie'] < $cout) {
+                                            throw new RuntimeException('Énergie insuffisante');
                                         }
-                                        dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $newNombre, $moleculesAttaque['id']);
-                                        $c++;
+                                        $moleculesAttaqueTxRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $attaquant);
+                                        $c = 1;
+                                        foreach ($moleculesAttaqueTxRows as $moleculesAttaque) {
+                                            $newNombre = $moleculesAttaque['nombre'] - $_POST['nbclasse' . $c];
+                                            if ($newNombre < 0) {
+                                                throw new Exception('Pas assez de molécules');
+                                            }
+                                            dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', $newNombre, $moleculesAttaque['id']);
+                                            $c++;
+                                        }
+                                        $now = time();
+                                        dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,0,default)', 'ssiiis',
+                                            $attaquant, $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes);
+                                        ajouter('energie', 'ressources', -$cout, $attaquant);
+                                        ajouter('energieDepensee', 'autre', $cout, $attaquant);
+                                    });
+                                    logInfo('ATTACK', 'Attack launched', ['attacker' => $_SESSION['login'], 'defender' => $_POST['joueurAAttaquer'], 'troops' => $troupes, 'energy_cost' => $cout]);
+                                    $information = "L'attaque a été lancée.";
+                                } catch (RuntimeException $e) {
+                                    if ($e->getMessage() === 'Énergie insuffisante') {
+                                        $erreur = "Vous n'avez pas assez d'énergie (solde modifié entre la vérification et l'envoi).";
+                                    } else {
+                                        $erreur = "Une erreur est survenue lors du lancement de l'attaque.";
+                                        error_log('Attack transaction failed: ' . $e->getMessage());
                                     }
-                                    $now = time();
-                                    dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,0,default)', 'ssiiis',
-                                        $_SESSION['login'], $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes);
-                                    ajouter('energie', 'ressources', -$cout, $_SESSION['login']);
-                                    ajouter('energieDepensee', 'autre', $cout, $_SESSION['login']);
-                                });
-                                logInfo('ATTACK', 'Attack launched', ['attacker' => $_SESSION['login'], 'defender' => $_POST['joueurAAttaquer'], 'troops' => $troupes, 'energy_cost' => $cout]);
-                                $information = "L'attaque a été lancée.";
+                                } catch (Exception $e) {
+                                    $erreur = "Vous n'avez pas assez de molécules.";
+                                }
                             } else {
                                 $erreur = "Vous n\'avez pas assez de molécules.";
                             }

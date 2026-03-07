@@ -134,7 +134,9 @@ function revenuAtome($num, $joueur)
 function revenuAtomeJavascript($joueur)
 {
     global $base;
+    global $nomsRes;
 
+    // Duplicateur (alliance) bonus
     $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $joueur);
     $bonusDuplicateur = 1;
     if ($idalliance['idalliance'] > 0) {
@@ -142,10 +144,38 @@ function revenuAtomeJavascript($joueur)
         $bonusDuplicateur = 1 + bonusDuplicateur($duplicateur['duplicateur']);
     }
 
+    // PASS1-MEDIUM-008: Include all production multipliers so JS display matches server values
+    // Prestige production bonus
+    $prestigeBonus = prestigeProductionBonus($joueur);
+
+    // Resource node proximity bonus — use average across all atom types for JS display
+    $nodeBonus = 0.0;
+    $pos = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login=?', 's', $joueur);
+    if ($pos && $pos['x'] >= 0 && $pos['y'] >= 0) {
+        require_once(__DIR__ . '/resource_nodes.php');
+        $nodeSum = 0.0;
+        $nodeCount = 0;
+        foreach ($nomsRes as $resName) {
+            $nodeSum += getResourceNodeBonus($base, $pos['x'], $pos['y'], $resName);
+            $nodeCount++;
+        }
+        $nodeBonus = $nodeCount > 0 ? $nodeSum / $nodeCount : 0.0;
+    }
+
+    // Compound production boost
+    require_once(__DIR__ . '/compounds.php');
+    $compoundProdBonus = getCompoundBonus($base, $joueur, 'production_boost');
+
+    // Specialization: atom_production modifier
+    $specAtomMod = getSpecModifier($joueur, 'atom_production');
+
+    // Combined multiplier applied on top of base formula (duplicateur already separate)
+    $totalMultiplier = $prestigeBonus * (1 + $nodeBonus) * (1 + $compoundProdBonus) * (1 + $specAtomMod);
+
     echo '
     ' . cspScriptTag() . '
     function revenuAtomeJavascript(niveau){
-        return Math.round(' . $bonusDuplicateur . '*' . BASE_ATOMS_PER_POINT . '*niveau);
+        return Math.round(' . $bonusDuplicateur . '*' . BASE_ATOMS_PER_POINT . '*' . $totalMultiplier . '*niveau);
     }
     </script>
     ';

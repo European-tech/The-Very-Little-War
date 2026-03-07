@@ -85,6 +85,32 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 
                             $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $_POST['destinataire']);
 
+                            // PASS1-MEDIUM-010: Check recipient storage capacity before accepting the transfer.
+                            // Reject if the recipient has no room in any of the resources/energy being sent.
+                            $maxStorageReceveur = placeDepot($constructionsJoueur['depot']);
+                            $ressourcesReceveur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $_POST['destinataire']);
+                            if ($ressourcesReceveur) {
+                                $noRoomCount = 0;
+                                $sentCount = 0;
+                                if ($_POST['energieEnvoyee'] > 0) {
+                                    $sentCount++;
+                                    if ($ressourcesReceveur['energie'] >= $maxStorageReceveur) {
+                                        $noRoomCount++;
+                                    }
+                                }
+                                foreach ($nomsRes as $num => $ressource) {
+                                    if ($_POST[$ressource . 'Envoyee'] > 0) {
+                                        $sentCount++;
+                                        if ($ressourcesReceveur[$ressource] >= $maxStorageReceveur) {
+                                            $noRoomCount++;
+                                        }
+                                    }
+                                }
+                                if ($sentCount > 0 && $noRoomCount === $sentCount) {
+                                    throw new \RuntimeException('RECIPIENT_STORAGE_FULL');
+                                }
+                            }
+
                             // V4: Invert ratio — penalize alt→main feeding, allow big→small charity
                             $receiverEnergyRev = revenuEnergie($constructionsJoueur['generateur'], $_POST['destinataire']);
                             if ($receiverEnergyRev > $revenuEnergie) {
@@ -157,6 +183,8 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                     } catch (\RuntimeException $e) {
                         if ($e->getMessage() === 'NOT_ENOUGH_RESOURCES') {
                             $erreur = "Vous n'avez pas assez de ressources.";
+                        } elseif ($e->getMessage() === 'RECIPIENT_STORAGE_FULL') {
+                            $erreur = "Le destinataire n'a pas de place dans son stockage pour ces ressources.";
                         } else {
                             $erreur = "Erreur lors du transfert.";
                             error_log('Transfer failed: ' . $e->getMessage());
@@ -192,7 +220,8 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
             }
         }
         if ($bool == 0) { // verification que c'est une ressource qui existe
-            $coutAchat = round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']);
+            // PASS1-MEDIUM-009: Ensure cost is at least 1 to prevent free-atom exploit when price*qty rounds to 0
+            $coutAchat = max(1, (int)round($tabCours[$numRes] * $_POST['nombreRessourceAAcheter']));
             // Advisory pre-check (may use stale data); authoritative check is inside the transaction with FOR UPDATE
             $diffEnergieAchat = $ressources['energie'] - $coutAchat;
             if ($diffEnergieAchat >= 0) {
