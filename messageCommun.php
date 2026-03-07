@@ -7,7 +7,7 @@ require_once('includes/basicprivatephp.php');
 require_once('includes/csrf.php');
 
 // Require game owner account (runs in player session, not admin session)
-if ($_SESSION['login'] !== 'Guortates') {
+if ($_SESSION['login'] !== ADMIN_LOGIN) {
 	header('Location: index.php');
 	exit();
 }
@@ -32,12 +32,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['message']) || !isset
 csrfCheck();
 
 $titre = trim($_POST['titre']);
-$message = trim($_POST['message']);
+$texte = trim($_POST['message']);
 
-if (empty($titre) || empty($message)) {
+if (empty($titre) || empty($texte)) {
 	header('Location: messageCommun.php?erreur=' . urlencode('Titre et message requis.'));
 	exit();
 }
+
+// MED-032: Length validation on admin broadcast message
+if (mb_strlen($texte) > MESSAGE_MAX_LENGTH) {
+	header('Location: messageCommun.php?erreur=' . urlencode('Message trop long.'));
+	exit();
+}
+
+$message = $texte;
 
 $membres = dbFetchAll($base, 'SELECT login FROM membre');
 $timestamp = time();

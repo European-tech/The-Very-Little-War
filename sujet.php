@@ -25,6 +25,23 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 			if ($banCheck) {
 				$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
 			}
+			// MED-028: Alliance-only forum access control for replies
+			if (empty($erreur)) {
+				try {
+					$replyTopic = dbFetchOne($base, 'SELECT idforum FROM sujets WHERE id = ?', 'i', $sujet_id);
+					if ($replyTopic) {
+						$forumMeta = dbFetchOne($base, 'SELECT alliance_id FROM forums WHERE id = ?', 'i', $replyTopic['idforum']);
+						if ($forumMeta && !empty($forumMeta['alliance_id'])) {
+							$posterAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
+							if (!$posterAlliance || (int)$posterAlliance['idalliance'] !== (int)$forumMeta['alliance_id']) {
+								$erreur = "Vous n'avez pas accès à ce forum.";
+							}
+						}
+					}
+				} catch (\Exception $e) {
+					// alliance_id column not yet present — all forums public, skip silently
+				}
+			}
 			if (empty($erreur) && !empty($_POST['contenu']) && mb_strlen($_POST['contenu']) <= 10000) {
 				// Check topic is not locked (P5-GAP-023)
 				$topicStatus = dbFetchOne($base, 'SELECT statut FROM sujets WHERE id = ?', 'i', $sujet_id);
@@ -33,12 +50,16 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 				} elseif ($topicStatus['statut'] == 1) {
 					$erreur = "Ce sujet est verrouillé.";
 				} else {
-				$timestamp = time();
-				dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, "1", ?, ?, ?)', 'issi', $sujet_id, $_POST['contenu'], $_SESSION['login'], $timestamp);
-				//
-				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $sujet_id);
-				$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $_SESSION['login']);
-				dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', ($nbMessages['nbMessages'] + 1), $_SESSION['login']);
+				// MED-029: Wrap reply INSERT + message count UPDATE in a transaction
+				$contenu = $_POST['contenu'];
+				$login   = $_SESSION['login'];
+				withTransaction($base, function() use ($base, $sujet_id, $contenu, $login) {
+					$timestamp = time();
+					dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, "1", ?, ?, ?)', 'issi', $sujet_id, $contenu, $login, $timestamp);
+					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $sujet_id);
+					$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $login);
+					dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', ($nbMessages['nbMessages'] + 1), $login);
+				});
 				header("Location: sujet.php?id=" . $sujet_id); exit;
 				} // end locked topic check
 			} else {

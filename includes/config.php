@@ -632,6 +632,8 @@ define('PASSWORD_BCRYPT_MAX_LENGTH', 72); // bcrypt silently truncates beyond 72
 define('LOGIN_MIN_LENGTH', 3);
 define('LOGIN_MAX_LENGTH', 20);
 define('EMAIL_MAX_LENGTH', 100); // RFC 5321 practical limit
+define('DESCRIPTION_MAX_LENGTH', 500); // Profile description character limit
+define('MESSAGE_MAX_LENGTH', 5000); // Max length for admin broadcast and private messages
 
 // =============================================================================
 // ACCOUNT / VACATION / PROFILE

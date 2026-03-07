@@ -38,6 +38,21 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 		if ($banCheck) {
 			$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
 		}
+		// MED-028: Alliance-only forum access control
+		// If the forum category has an alliance_id set, only members of that alliance may post.
+		if (empty($erreur)) {
+			try {
+				$forumMeta = dbFetchOne($base, 'SELECT alliance_id FROM forums WHERE id = ?', 'i', $getId);
+				if ($forumMeta && !empty($forumMeta['alliance_id'])) {
+					$posterAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
+					if (!$posterAlliance || (int)$posterAlliance['idalliance'] !== (int)$forumMeta['alliance_id']) {
+						$erreur = "Vous n'avez pas accès à ce forum.";
+					}
+				}
+			} catch (\Exception $e) {
+				// alliance_id column not yet present — all forums public, skip silently
+			}
+		}
 		if (empty($erreur) && !empty($titre) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= 10000 and mb_strlen($titre) <= 200) {
 			$timestamp = time();
 			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $titre, $_POST['contenu'], $_SESSION['login'], $timestamp);

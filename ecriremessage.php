@@ -24,11 +24,17 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 			} elseif (!rateLimitCheck($_SESSION['login'], 'broadcast_alliance', 3, 300)) {
 				$erreur = "Vous envoyez trop de messages de masse. Veuillez patienter.";
 			} else {
+				// MED-030: Wrap all inserts in a transaction so partial sends are rolled back on failure
 				$destinataireRows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
-				foreach ($destinataireRows as $destinataire) {
+				$titreMsg   = $_POST['titre'];
+				$contenuMsg = $_POST['contenu'];
+				$expediteur = $_SESSION['login'];
+				withTransaction($base, function() use ($base, $destinataireRows, $titreMsg, $contenuMsg, $expediteur) {
 					$now = time();
-					dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $destinataire['login']);
-				}
+					foreach ($destinataireRows as $destinataire) {
+						dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $titreMsg, $contenuMsg, $expediteur, $destinataire['login']);
+					}
+				});
 				$information = "Le message a bien été envoyé à toute l'alliance.";
 			}
 		} elseif ($_POST['destinataire'] == "[all]") {

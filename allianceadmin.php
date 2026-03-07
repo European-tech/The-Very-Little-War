@@ -203,15 +203,18 @@ if ($bannir) {
 				} elseif ($allianceData && $allianceData['chef'] === $_POST['bannirpersonne']) {
 					$erreur = "Vous ne pouvez pas bannir le chef de l'alliance.";
 				} else {
-				dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_POST['bannirpersonne']);
-				dbExecute($base, 'DELETE FROM grades WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $_POST['bannirpersonne']);
+				$kickedLogin = $_POST['bannirpersonne'];
+				dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $kickedLogin);
+				dbExecute($base, 'DELETE FROM grades WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $kickedLogin);
+				// MED-027: Clean up pending invitations for the kicked player
+				dbExecute($base, 'DELETE FROM invitations WHERE invite=?', 's', $kickedLogin);
 				// Record kick timestamp for rejoin cooldown (column added by migration 0030)
 				try {
-					dbExecute($base, 'UPDATE autre SET alliance_left_at=UNIX_TIMESTAMP() WHERE login=?', 's', $_POST['bannirpersonne']);
+					dbExecute($base, 'UPDATE autre SET alliance_left_at=UNIX_TIMESTAMP() WHERE login=?', 's', $kickedLogin);
 				} catch (\Exception $e) {
 					// Column not yet present — migration pending, skip silently
 				}
-				$information = 'Vous avez banni ' . htmlspecialchars($_POST['bannirpersonne'], ENT_QUOTES, 'UTF-8') . '.';
+				$information = 'Vous avez banni ' . htmlspecialchars($kickedLogin, ENT_QUOTES, 'UTF-8') . '.';
 				}
 			} else {
 				$erreur = "Le joueur que vous essayez de bannir n'existe pas ou n'est pas dans votre équipe.";
