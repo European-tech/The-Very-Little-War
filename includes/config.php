@@ -364,6 +364,9 @@ define('ALLIANCE_RESEARCH_MAX_LEVEL', 25);
 define('ALLIANCE_TAG_MIN_LENGTH', 3);
 define('ALLIANCE_TAG_MAX_LENGTH', 16);
 
+// Alliance grade name constraints (MED-026)
+define('ALLIANCE_GRADE_MAX_LENGTH', 20);
+
 // Rejoin cooldown: how long (seconds) a player must wait after leaving/being kicked
 define('ALLIANCE_REJOIN_COOLDOWN_SECONDS', SECONDS_PER_DAY); // 24h
 

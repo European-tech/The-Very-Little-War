@@ -33,7 +33,10 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 			$erreur = "Le titre est trop long (200 caractères max).";
 		}
 		// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
-		dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		// MED-036: Probabilistic GC — only clean up expired bans 1% of the time to avoid hot-path writes
+		if (mt_rand(1, 100) === 1) {
+			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		}
 		$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
 		if ($banCheck) {
 			$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
@@ -130,8 +133,10 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 				echo '<br/><a href="editer.php?id=' . $sujet['id'] . '&type=1"><em>Editer</em></a>';
 			}
 			echo '</td>';
+			// MED-050: auteur may be NULL when the player was deleted (FK SET NULL)
+			$sujetAuteur = $sujet['auteur'] ?? '[supprimé]';
 			echo '
-		<td>' . joueur($sujet['auteur']) . '</td>
+		<td>' . joueur($sujetAuteur) . '</td>
 		<td><em>' . date('d/m/Y à H\hi', $sujet['timestamp']) . '</em></td>';
 			echo '</tr>';
 		}

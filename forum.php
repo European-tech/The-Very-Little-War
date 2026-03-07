@@ -18,7 +18,10 @@ debutCarte("Forum"); ?>
 	$isBanned = false;
 	if(isset($_SESSION['login'])) {
 		// Clean up any expired bans first, then check for an active one
-		dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		// MED-036: Probabilistic GC — only clean up expired bans 1% of the time to avoid hot-path writes
+		if (mt_rand(1, 100) === 1) {
+			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		}
 		$sanction = dbFetchOne($base, 'SELECT * FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
 		if ($sanction) {
 			$isBanned = true;

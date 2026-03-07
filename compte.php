@@ -113,10 +113,13 @@ if (isset($_POST['changermail'])) {
 
 if (isset($_POST['changerdescription'])) {
     $newDescription = trim($_POST['changerdescription']);
-    dbExecute($base, 'UPDATE autre SET description = ? WHERE login = ?', 'ss', $newDescription, $_SESSION['login']);
-    $autre['description'] = $newDescription;
-
-    $information = "Votre description a été changée.";
+    if (mb_strlen($newDescription) > DESCRIPTION_MAX_LENGTH) {
+        $erreur = "Description trop longue (max " . DESCRIPTION_MAX_LENGTH . " caractères).";
+    } else {
+        dbExecute($base, 'UPDATE autre SET description = ? WHERE login = ?', 'ss', $newDescription, $_SESSION['login']);
+        $autre['description'] = $newDescription;
+        $information = "Votre description a été changée.";
+    }
 }
 
 if (isset($_FILES['photo']['name']) and !empty($_FILES['photo']['name'])) {
@@ -258,7 +261,7 @@ if (!isset($_POST['supprimercompte'])) {
     echo '<br/>';
     creerBBcode("changerdescription", $description['description']);
 
-    item(['form' => ["compte.php", "formChangerDescription"], 'floating' => false, 'titre' => "Description", 'input' => '<textarea name="changerdescription" id="changerdescription" rows="10" cols="50">' . htmlspecialchars($description['description'], ENT_QUOTES, 'UTF-8') . '</textarea>' . csrfField()]);
+    item(['form' => ["compte.php", "formChangerDescription"], 'floating' => false, 'titre' => "Description", 'input' => '<textarea name="changerdescription" id="changerdescription" rows="10" cols="50" maxlength="' . DESCRIPTION_MAX_LENGTH . '">' . htmlspecialchars($description['description'], ENT_QUOTES, 'UTF-8') . '</textarea>' . csrfField()]);
     item(['input' => submit(['titre' => 'Modifier', 'form' => 'formChangerDescription'])]);
 
     finListe();

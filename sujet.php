@@ -20,7 +20,10 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 	} else {
 		if (isset($_SESSION['login']) && empty($erreur)) {
 			// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
-			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+			// MED-036: Probabilistic GC — only clean up expired bans 1% of the time to avoid hot-path writes
+			if (mt_rand(1, 100) === 1) {
+				dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+			}
 			$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
 			if ($banCheck) {
 				$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
@@ -131,7 +134,10 @@ if (isset($_GET['id'])) {
 	// Vérification du ban forum : requête unique sur dateFin >= CURDATE() (standardisé)
 	$sanctionRow = null;
 	if (isset($_SESSION['login'])) {
-		dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		// MED-036: Probabilistic GC — only clean up expired bans 1% of the time to avoid hot-path writes
+		if (mt_rand(1, 100) === 1) {
+			dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+		}
 		$sanctionRow = dbFetchOne($base, 'SELECT * FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
 	}
 	$isBanned = (bool)$sanctionRow;
@@ -143,8 +149,10 @@ if (isset($_GET['id'])) {
 		echo "Motif de la sanction : " . BBcode($sanction['motif']);
 	} else {
 
-		$image = dbFetchOne($base, 'SELECT image, count(image) as nb FROM autre WHERE login = ?', 's', $sujet['auteur']);
-		$couleur = rangForum($sujet['auteur']);
+		// MED-050: auteur may be NULL when the player was deleted (FK SET NULL)
+		$sujetAuteur = $sujet['auteur'] ?? '[supprimé]';
+		$image = dbFetchOne($base, 'SELECT image, count(image) as nb FROM autre WHERE login = ?', 's', $sujetAuteur);
+		$couleur = rangForum($sujetAuteur);
 		if ($image['nb'] == 0) { // s'il le joueur n'existe plus, on prends l'image par défaut
 			$image['image'] = "defaut.png";
 		}
@@ -187,13 +195,34 @@ if (isset($_GET['id'])) {
 		if (isset($_SESSION['login']) and $_SESSION['login'] == $sujet['auteur']) {
 			$editer = '<a href="editer.php?id=' . $sujet['id'] . '&type=1">Editer</a>';
 		}
-		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . htmlspecialchars($sujet['auteur'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($sujet['auteur'], ENT_QUOTES, 'UTF-8') . '</a>', date('d/m/Y à H\hi', $sujet['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
+		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . htmlspecialchars($sujetAuteur, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($sujetAuteur, ENT_QUOTES, 'UTF-8') . '</a>', date('d/m/Y à H\hi', $sujet['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
 
 
 		if ($nb_resultats > 0) {
+			// MED-035: Pre-load all reply author profile images in one query to avoid N+1
+			$replyAuthors = array_unique(array_column($reponseRows, 'auteur'));
+			$imageMap = [];
+			if (!empty($replyAuthors)) {
+				$inPlaceholders = implode(',', array_fill(0, count($replyAuthors), '?'));
+				$types = str_repeat('s', count($replyAuthors));
+				$imageRows = dbFetchAll($base, "SELECT login, image FROM autre WHERE login IN ($inPlaceholders)", $types, ...$replyAuthors);
+				foreach ($imageRows as $imgRow) {
+					$imageMap[$imgRow['login']] = $imgRow['image'];
+				}
+			}
+
+			// Moderator check for current session user — same result on every iteration, hoist out of loop
+			$donnees4 = ['moderateur' => 0];
+			if (isset($_SESSION['login'])) {
+				$modoRow = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
+				if ($modoRow) $donnees4 = $modoRow;
+			}
+
 			foreach ($reponseRows as $reponse) {
 
-				$couleur = rangForum($reponse['auteur']);
+				// MED-050: auteur may be NULL when the player was deleted (FK SET NULL)
+				$reponseAuteur = $reponse['auteur'] ?? '[supprimé]';
+				$couleur = rangForum($reponseAuteur);
 
 				// Ajout de Yojim
 				// Si le message est masqué, on change sa couleur
@@ -202,16 +231,12 @@ if (isset($_GET['id'])) {
 				}
 				// Sinon on laisse la couleur normale
 				//
-				$image = dbFetchOne($base, 'SELECT image, count(image) as nb FROM autre WHERE login = ?', 's', $reponse['auteur']);
-				if ($image['nb'] == 0) { // s'il le joueur n'existe plus, on prends l'image par défaut
-					$image['image'] = "defaut.png";
-				}
+				// Use pre-loaded image map instead of per-reply DB query (MED-035)
+				$authorImage = $imageMap[$reponseAuteur] ?? null;
+				$image = ['image' => $authorImage ?: 'defaut.png'];
 
 				// On regarde si l'utilisateur connecté est un modérateur
 				$editer = false;
-				if (isset($_SESSION['login'])) {
-					$donnees4 = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
-				}
 				if (isset($_SESSION['login']) and $_SESSION['login'] == $reponse['auteur'] and $donnees4['moderateur'] == 0) {
 					$editer = '<a href="editer.php?id=' . $reponse['id'] . '&type=2">Editer</a> '
 						. '<form method="post" action="editer.php?id=' . $reponse['id'] . '&type=3" style="display:inline">' . csrfField() . '<button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;color:inherit;padding:0;" data-confirm="Supprimer cette réponse ?">Supprimer</button></form>';
@@ -232,7 +257,7 @@ if (isset($_GET['id'])) {
 					}
 				}
 
-				carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . htmlspecialchars($reponse['auteur'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($reponse['auteur'], ENT_QUOTES, 'UTF-8') . '</a>', date('d/m/Y à H\hi', $reponse['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($reponse['contenu'], $javascript), $couleur, $editer);
+				carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . htmlspecialchars($reponseAuteur, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($reponseAuteur, ENT_QUOTES, 'UTF-8') . '</a>', date('d/m/Y à H\hi', $reponse['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($reponse['contenu'], $javascript), $couleur, $editer);
 			}
 		} else {
 			debutCarte();

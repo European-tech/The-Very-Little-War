@@ -2,9 +2,11 @@
 include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
 
-// Validate and sanitize ID early
-$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$type = isset($_GET['type']) ? (int)$_GET['type'] : 0;
+// Validate and sanitize ID early — prefer POST body (hidden fields) over GET to prevent
+// action="" XSS routing bypass (MED-033). GET params are still accepted for link-based
+// navigation to the edit form (type=1/2), but POST params take precedence.
+$id = isset($_POST['id']) ? (int)$_POST['id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
+$type = isset($_POST['type']) ? (int)$_POST['type'] : (isset($_GET['type']) ? (int)$_GET['type'] : 0);
 
 // On regarde si l'utilisateur est un modérateur
 $moderateur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
@@ -84,6 +86,13 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 				$erreur = "Vous ne pouvez pas modifier une réponse donc vous n'êtes pas l'auteur";
 			}
 		} else {
+			// Moderator edit: log the change before applying it (MED-034)
+			$originalRow = dbFetchOne($base, 'SELECT contenu FROM reponses WHERE id = ?', 'i', $id);
+			$originalContent = $originalRow ? $originalRow['contenu'] : '';
+			dbExecute($base,
+				'INSERT INTO moderation_log (moderator_login, target_post_id, post_type, original_content, new_content, action_at) VALUES (?, ?, ?, ?, ?, ?)',
+				'sisssi', $_SESSION['login'], $id, 'reponse', $originalContent, $contenu, time()
+			);
 			dbExecute($base, 'UPDATE reponses SET contenu = ? WHERE id = ?', 'si', $contenu, $id);
 			$information = "La réponse a bien été modifiée";
 			$reponse = dbFetchOne($base, 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
@@ -120,8 +129,11 @@ if ($id > 0 AND $type > 0) {
 
 	if ($nbReponses == 1) {
 		debutListe();
-        echo '<form method="post" action="" name="formEditer">';
+        $safeAction = htmlspecialchars(strtok($_SERVER['REQUEST_URI'], '?'), ENT_QUOTES, 'UTF-8');
+        echo '<form method="post" action="' . $safeAction . '" name="formEditer">';
         echo csrfField();
+        echo '<input type="hidden" name="id" value="' . (int)$id . '"/>';
+        echo '<input type="hidden" name="type" value="' . (int)$type . '"/>';
 		if ($type == 1) {
             item(['titre' => 'Titre', "floating" => true, 'input'=> '<input type="text" name="titre" id="titre" value="'.htmlspecialchars($reponse['titre'], ENT_QUOTES, 'UTF-8').'"/>']);
 		}

@@ -41,11 +41,21 @@ if (isset($_POST['login'])) {
 					$nbLogin = dbCount($base, 'SELECT COUNT(*) FROM membre WHERE login = ?', 's', $loginInput);
 					//Si le login est deja utilise
 					if ($nbLogin == 0) {
-						inscrire($loginInput, $passInput, $emailInput);
-						logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'ip' => $_SERVER['REMOTE_ADDR']]);
-						require_once('includes/multiaccount.php');
-						logLoginEvent($base, $loginInput, 'register');
-						header("Location: index.php?inscrit=1"); exit;
+						// inscrire() returns true on success, 'login_taken' / 'email_taken' when the
+						// DB UNIQUE constraint fires (catches concurrent registrations), false on error.
+						$result = inscrire($loginInput, $passInput, $emailInput);
+						if ($result === true) {
+							logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'ip' => $_SERVER['REMOTE_ADDR']]);
+							require_once('includes/multiaccount.php');
+							logLoginEvent($base, $loginInput, 'register');
+							header("Location: index.php?inscrit=1"); exit;
+						} elseif ($result === 'email_taken') {
+							$erreur = 'L\'email est d&eacute;j&agrave; utilis&eacute;.';
+						} elseif ($result === 'login_taken') {
+							$erreur = 'Ce login est d&eacute;j&agrave; utilis&eacute;.';
+						} else {
+							$erreur = 'Une erreur est survenue lors de l\'inscription. Veuillez r&eacute;essayer.';
+						}
 					} else {
 						$erreur = 'Ce login est d&eacute;j&agrave; utilis&eacute;.';
 					}
