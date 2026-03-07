@@ -12,4 +12,13 @@ if (isset($_SESSION['admin_last_activity']) && (time() - $_SESSION['admin_last_a
 	header('Location: index.php');
 	exit();
 }
+// HIGH-019: Validate admin session is bound to the IP that authenticated.
+// Admin sessions have no membre DB row, so IP binding is the equivalent guard
+// against session token theft / fixation attacks.
+if (isset($_SESSION['admin_ip']) && !hash_equals((string)$_SESSION['admin_ip'], (string)($_SERVER['REMOTE_ADDR'] ?? ''))) {
+	session_unset();
+	session_destroy();
+	header('Location: index.php');
+	exit();
+}
 $_SESSION['admin_last_activity'] = time();

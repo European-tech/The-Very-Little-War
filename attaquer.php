@@ -31,6 +31,9 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                 $erreur = "Vous ne pouvez pas espionner un joueur en vacances.";
             } elseif (time() - $espTarget['timestamp'] < BEGINNER_PROTECTION_SECONDS) {
                 $erreur = "Le joueur est encore sous protection des débutants.";
+            } elseif (hasActiveShield($base, $_POST['joueurAEspionner'])) {
+                // Comeback shield blocks espionage as well as direct attacks (P2-HIGH-013)
+                $erreur = "Ce joueur est sous protection de retour. Revenez plus tard.";
             } elseif (preg_match("#^[0-9]*$#", $_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
                 $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
                 updateRessources($_POST['joueurAEspionner']);

@@ -19,7 +19,13 @@ function debutCarte($titre = false, $style = "", $image = false, $overflow = fal
 {
     if ($image) {
         $classe = "demo-card-header-pic";
-        $style = $style . "background-image:url('" . $image . "');";
+        // Validate image path to a safe allowlist pattern before placing in CSS url() context.
+        // Prevents CSS injection via a crafted $image value containing quotes or escape sequences.
+        if (!preg_match('#^images/[a-zA-Z0-9_./-]+$#', $image)) {
+            $image = 'images/defaut.jpg';
+        }
+        $escapedImage = htmlspecialchars($image, ENT_QUOTES, 'UTF-8');
+        $style = $style . "background-image:url('" . $escapedImage . "');";
     } else {
         $classe = "";
     }
@@ -243,13 +249,15 @@ function item($options)
 
         if (array_key_exists("autocomplete", $options) && $options["autocomplete"]) {
             $autocomplete = ' autocomplete-opener';
-            $autocompleteId = 'id="' . $options["autocomplete"] . '"';
+            // Escape the id attribute value to prevent XSS via crafted autocomplete identifiers
+            $autocompleteId = 'id="' . htmlspecialchars($options["autocomplete"], ENT_QUOTES, 'UTF-8') . '"';
         } else {
             $autocomplete = '';
             $autocompleteId = '';
         }
 
-        $link = '<a class="item-link' . $ajax . $autocomplete . ' close-panel-link" data-view=".view-main" href="' . $options["link"] . '" ' . $autocompleteId . '>';
+        // Escape href attribute to prevent XSS via crafted link values
+        $link = '<a class="item-link' . $ajax . $autocomplete . ' close-panel-link" data-view=".view-main" href="' . htmlspecialchars($options["link"], ENT_QUOTES, 'UTF-8') . '" ' . $autocompleteId . '>';
         $finLink = '</a>';
     } else {
         $link = "";
@@ -263,7 +271,8 @@ function item($options)
             $sup = "";
         }
 
-        $form = '<form method="post" action="' . $options["form"][0] . '" name="' . $options["form"][1] . '" ' . $sup . '>';
+        // Escape action URL and form name to prevent XSS via crafted form option values
+        $form = '<form method="post" action="' . htmlspecialchars($options["form"][0], ENT_QUOTES, 'UTF-8') . '" name="' . htmlspecialchars($options["form"][1], ENT_QUOTES, 'UTF-8') . '" ' . $sup . '>';
         $finForm = '</form>';
     } else {
         $form = "";
@@ -353,7 +362,8 @@ function itemAccordion($titre = false, $media = false, $contenu = false, $id = f
     }
 
     if ($id) {
-        $id = 'id="' . $id . '"';
+        // Escape the id attribute value to prevent XSS via crafted id strings
+        $id = 'id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"';
     } else {
         $id = "";
     }

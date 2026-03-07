@@ -138,55 +138,70 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
                     $.ajax({url: "api.php?id=attaque&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveauoxygene.'&nombre="+document.getElementById(\'oxygene\').value+"&nombre2="+document.getElementById(\'hydrogene\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'attaque\').innerHTML = contenu.valeur;
+                        // Safe: contenu.valeur is a server-computed numeric string
+                        document.getElementById(\'attaque\').textContent = contenu.valeur;
                     }});
 
                     $.ajax({url: "api.php?id=defense&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveaucarbone.'&nombre="+document.getElementById(\'carbone\').value+"&nombre2="+document.getElementById(\'brome\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'defense\').innerHTML = contenu.valeur;
+                        // Safe: contenu.valeur is a server-computed numeric string
+                        document.getElementById(\'defense\').textContent = contenu.valeur;
                     }});
 
                     $.ajax({url: "api.php?id=pointsDeVieMolecule&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveaubrome.'&nombre="+document.getElementById(\'brome\').value+"&nombre2="+document.getElementById(\'carbone\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'vie\').innerHTML = contenu.valeur;
+                        // Safe: contenu.valeur is a server-computed numeric string
+                        document.getElementById(\'vie\').textContent = contenu.valeur;
                     }});
 
                     $.ajax({url: "api.php?id=potentielDestruction&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveauhydrogene.'&nombre="+document.getElementById(\'hydrogene\').value+"&nombre2="+document.getElementById(\'oxygene\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'destruction\').innerHTML = contenu.valeur;
+                        // Safe: contenu.valeur is a server-computed numeric string
+                        document.getElementById(\'destruction\').textContent = contenu.valeur;
                     }});
 
                     $.ajax({url: "api.php?id=vitesse&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveauchlore.'&nombre="+document.getElementById(\'chlore\').value+"&nombre2="+document.getElementById(\'azote\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'vitesse\').innerHTML = contenu.valeur+" cases/h";
+                        // Safe: contenu.valeur is a server-computed numeric string
+                        document.getElementById(\'vitesse\').textContent = contenu.valeur+" cases/h";
                     }});
 
                     $.ajax({url: "api.php?id=pillage&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveausoufre.'&nombre="+document.getElementById(\'soufre\').value+"&nombre2="+document.getElementById(\'chlore\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'pillage\').innerHTML = contenu.valeur;
+                        // Safe: contenu.valeur is a server-computed numeric string
+                        document.getElementById(\'pillage\').textContent = contenu.valeur;
                     }});
 
                     $.ajax({url: "api.php?id=productionEnergieMolecule&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveauiode.'&nombre="+document.getElementById(\'iode\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'productionIode\').innerHTML = "<span style=\"color:green\">+"+contenu.valeur+"/h</span>";
+                        // Build span via DOM API — avoids innerHTML with dynamic content
+                        var span = document.createElement(\'span\');
+                        span.style.color = \'green\';
+                        // Safe: contenu.valeur is a server-computed numeric string
+                        span.textContent = \'+\' + contenu.valeur + \'/h\';
+                        var el = document.getElementById(\'productionIode\');
+                        el.innerHTML = \'\';
+                        el.appendChild(span);
                     }});
 
                     $.ajax({url: "api.php?id=tempsFormation&joueur='.urlencode($_SESSION['login']).'&nbTotalAtomes="+totalAtomes+"&niveau='.$niveauazote.'&nombre="+document.getElementById(\'azote\').value+"&nombre2="+document.getElementById(\'iode\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'tempsFormation\').innerHTML = contenu.valeur;
+                        // Safe: contenu.valeur is a server-formatted time string (e.g. "2h30")
+                        document.getElementById(\'tempsFormation\').textContent = contenu.valeur;
                     }});
-                    
+
                     $.ajax({url: "api.php?id=demiVie&joueur='.urlencode($_SESSION['login']).'&nbTotalAtomes="+totalAtomes,
                     success: function(data){
                         var contenu = JSON.parse(data);
-                        document.getElementById(\'demiVie\').innerHTML = contenu.valeur;
+                        // Safe: contenu.valeur is a server-formatted time string (e.g. "2h30")
+                        document.getElementById(\'demiVie\').textContent = contenu.valeur;
                     }});
                 }
                 // Bind oninput for all atom composition fields (replaces inline oninput handlers)

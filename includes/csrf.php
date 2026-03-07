@@ -18,7 +18,12 @@ function csrfVerify() {
     if (empty($_POST['csrf_token']) || empty($_SESSION['csrf_token'])) {
         return false;
     }
-    return hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']);
+    if (hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        // Rotate token after each successful validation to prevent replay attacks
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        return true;
+    }
+    return false;
 }
 
 function csrfCheck() {

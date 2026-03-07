@@ -4,20 +4,22 @@ require_once("includes/csp.php");
 include("includes/connexion.php");
 include("includes/fonctions.php");
 require_once("includes/csrf.php");
-if(isset($_POST['verification']) AND isset($_POST['oui'])) {
-	csrfCheck();
-	supprimerJoueur($_SESSION['login']);
-}
 
 // Validate session token before any destructive action to prevent CSRF-triggered logouts
 if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
 	$tokenDb = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
-	if (!$tokenDb || $tokenDb['session_token'] !== $_SESSION['session_token']) {
+	if (!$tokenDb || !hash_equals((string)$tokenDb['session_token'], (string)$_SESSION['session_token'])) {
 		session_unset();
 		session_destroy();
 		header('Location: index.php');
 		exit;
 	}
+}
+
+// Account deletion: only after CSRF + session token DB validation above
+if(isset($_POST['verification']) AND isset($_POST['oui'])) {
+	csrfCheck();
+	supprimerJoueur($_SESSION['login']);
 }
 
 // Clear session token from DB to prevent reuse
