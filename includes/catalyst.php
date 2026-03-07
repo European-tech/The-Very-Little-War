@@ -60,6 +60,12 @@ function getActiveCatalyst() {
     $stats = dbFetchOne($base, 'SELECT catalyst, catalyst_week FROM statistiques');
     $currentWeek = intval(date('W')) + intval(date('Y')) * 100; // unique week ID
 
+    // IMPORTANT: Weekly catalyst rotation uses (weekNumber % count($CATALYSTS)).
+    // Rules to prevent disruption:
+    // 1. ALWAYS append new catalysts to the END of the array — never remove mid-season
+    // 2. If mid-season change is needed, update the DB with new week->catalyst mapping
+    // 3. Adding a catalyst changes ALL future weeks for that season
+    // TODO: Consider storing the rotation in DB (game_state table) for flexibility
     if (!$stats || $stats['catalyst_week'] != $currentWeek) {
         // Rotate to a new catalyst
         $newCatalyst = $currentWeek % count($CATALYSTS);

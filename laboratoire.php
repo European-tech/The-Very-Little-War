@@ -27,8 +27,10 @@ if (isset($_POST['activate'])) {
     }
 }
 
-// Cleanup expired
-cleanupExpiredCompounds($base);
+// GC runs ~5% of requests — expired compounds are filtered by expiry timestamp at read time
+if (mt_rand(1, 20) === 1) {
+    cleanupExpiredCompounds($base);
+}
 
 include("includes/layout.php");
 

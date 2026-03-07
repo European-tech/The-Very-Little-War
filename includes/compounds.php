@@ -21,13 +21,17 @@ function getStoredCompounds($base, $login)
 
 /**
  * Get player's active (activated and not expired) compounds.
+ *
+ * @param bool $forUpdate  When true, appends FOR UPDATE to lock rows inside a transaction.
+ *                         Use this inside activateCompound() to serialize concurrent activations.
  */
-function getActiveCompounds($base, $login)
+function getActiveCompounds($base, $login, bool $forUpdate = false)
 {
-    return dbFetchAll($base,
-        'SELECT * FROM player_compounds WHERE login = ? AND activated_at IS NOT NULL AND expires_at > ?',
-        'si', $login, time()
-    );
+    $sql = 'SELECT * FROM player_compounds WHERE login = ? AND activated_at IS NOT NULL AND expires_at > ?';
+    if ($forUpdate) {
+        $sql .= ' FOR UPDATE';
+    }
+    return dbFetchAll($base, $sql, 'si', $login, time());
 }
 
 /**
@@ -134,8 +138,8 @@ function activateCompound($base, $login, $compoundId)
                 throw new \RuntimeException('COMPOUND_INVALID');
             }
 
-            // Check if same effect type is already active
-            $activeCompounds = getActiveCompounds($base, $login);
+            // Check if same effect type is already active — FOR UPDATE locks rows to serialize concurrent activations
+            $activeCompounds = getActiveCompounds($base, $login, true);
             foreach ($activeCompounds as $active) {
                 if (isset($COMPOUNDS[$active['compound_key']]) &&
                     $COMPOUNDS[$active['compound_key']]['effect'] === $COMPOUNDS[$key]['effect']) {

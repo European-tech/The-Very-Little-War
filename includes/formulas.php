@@ -227,6 +227,12 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
 
     $stabilisateur = dbFetchOne($base, 'SELECT stabilisateur FROM constructions WHERE login=?', 's', $joueur);
 
+    // Null guard: player may not have a constructions row yet (new account, deleted player)
+    if ($stabilisateur === null || !isset($stabilisateur['stabilisateur'])) {
+        // No stabilisateur built yet — treat as level 0, which yields pow(STABILISATEUR_ASYMPTOTE, 0) = 1.0 (no bonus)
+        $stabilisateur = ['stabilisateur' => 0];
+    }
+
     $donneesMedaille = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $joueur);
     $bonus = 0;
 
