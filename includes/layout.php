@@ -14,6 +14,8 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles XSS
 ?>
 <!DOCTYPE html>
 <html lang="fr">
