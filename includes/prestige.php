@@ -97,7 +97,7 @@ function calculatePrestigePoints($login) {
         // Activity-based PP
         if ($autre['nbattaques'] >= PRESTIGE_PP_ATTACK_THRESHOLD) $pp += PRESTIGE_PP_ATTACK_BONUS;
         if ($autre['tradeVolume'] >= PRESTIGE_PP_TRADE_THRESHOLD) $pp += PRESTIGE_PP_TRADE_BONUS;
-        if ($autre['energieDonnee'] > 0) $pp += PRESTIGE_PP_DONATION_BONUS;
+        if ($autre['energieDonnee'] >= PP_DONATION_MIN_THRESHOLD) $pp += PRESTIGE_PP_DONATION_BONUS;
     }
 
     return $pp;
@@ -110,7 +110,8 @@ function awardPrestigePoints() {
     global $base, $PRESTIGE_RANK_BONUSES;
 
     // Freeze rankings into array to prevent concurrent changes mid-award
-    $players = dbFetchAll($base, 'SELECT login, totalPoints FROM autre ORDER BY totalPoints DESC');
+    // Exclude inactive/banned players (x = INACTIVE_PLAYER_X sentinel = -1000)
+    $players = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC');
     $rank = 1;
     foreach ($players as $player) {
         $pp = calculatePrestigePoints($player['login']);

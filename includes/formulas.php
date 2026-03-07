@@ -236,8 +236,9 @@ function coefDisparition($joueur, $classeOuNbTotal, $type = 0)
     $donneesMedaille = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $joueur);
     $bonus = 0;
 
+    // Null guard: player row may not exist (deleted account, new player before first insert)
     foreach ($paliersPertes as $num => $palier) {
-        if ($donneesMedaille['moleculesPerdues'] >= $palier) {
+        if (($donneesMedaille['moleculesPerdues'] ?? 0) >= $palier) {
             $bonus = $bonusMedailles[$num];
         }
     }

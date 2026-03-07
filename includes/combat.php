@@ -177,10 +177,13 @@ for ($c = 1; $c <= $nbClasses; $c++) {
 $degatsAttaquant *= prestigeCombatBonus($actions['attaquant']);
 $degatsDefenseur *= prestigeCombatBonus($actions['defenseur']);
 
-// Apply compound synthesis combat bonuses
-require_once(__DIR__ . '/compounds.php');
-$compoundAttackBonus = getCompoundBonus($base, $actions['attaquant'], 'attack_boost');
-$compoundDefenseBonus = getCompoundBonus($base, $actions['defenseur'], 'defense_boost');
+// Apply compound synthesis combat bonuses.
+// HIGH-024: Use the snapshotted values stored at attack-launch time (columns added by
+// migration 0039) rather than re-querying live compound state. This prevents a player
+// from activating a compound AFTER launching an attack to retroactively benefit from it.
+// Rows inserted before migration 0039 have DEFAULT 0.0, so legacy attacks are unaffected.
+$compoundAttackBonus  = isset($actions['compound_atk_bonus']) ? (float)$actions['compound_atk_bonus'] : 0.0;
+$compoundDefenseBonus = isset($actions['compound_def_bonus']) ? (float)$actions['compound_def_bonus'] : 0.0;
 if ($compoundAttackBonus > 0) $degatsAttaquant *= (1 + $compoundAttackBonus);
 if ($compoundDefenseBonus > 0) $degatsDefenseur *= (1 + $compoundDefenseBonus);
 
@@ -202,7 +205,9 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 		$hpPerMol = pointsDeVieMolecule(${'classeAttaquant' . $i}['brome'], ${'classeAttaquant' . $i}['carbone'], $niveauxAtt['brome'])
 					* $bonusDuplicateurAttaque * $attIsotopeHpMod[$i];
 		if ($hpPerMol > 0) {
-			$kills = min(${'classeAttaquant' . $i}['nombre'], floor($remainingDamage / $hpPerMol));
+			$kills = min(${'classeAttaquant' . $i}['nombre'], intdiv((int)$remainingDamage, (int)$hpPerMol));
+			$remainder = fmod($remainingDamage, $hpPerMol);
+			if ($remainder > 0 && lcg_value() < $remainder / $hpPerMol && $kills < ${'classeAttaquant' . $i}['nombre']) $kills++;
 			${'classe' . $i . 'AttaquantMort'} = $kills;
 			$remainingDamage -= $kills * $hpPerMol;
 		} else {
@@ -227,7 +232,9 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 	$classe1DefenseurMort = 0;
 	$phalanxOverflow = 0;
 	if ($classeDefenseur1['nombre'] > 0 && $hpPerMol1 > 0) {
-		$kills1 = min($classeDefenseur1['nombre'], floor($phalanxDamage / $hpPerMol1));
+		$kills1 = min($classeDefenseur1['nombre'], intdiv((int)$phalanxDamage, (int)$hpPerMol1));
+		$remainder1 = fmod($phalanxDamage, $hpPerMol1);
+		if ($remainder1 > 0 && lcg_value() < $remainder1 / $hpPerMol1 && $kills1 < $classeDefenseur1['nombre']) $kills1++;
 		$classe1DefenseurMort = $kills1;
 		$phalanxOverflow = max(0, $phalanxDamage - $kills1 * $hpPerMol1);
 	} elseif ($classeDefenseur1['nombre'] > 0) {
@@ -246,7 +253,9 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 			$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], ${'classeDefenseur' . $i}['carbone'], $niveauxDef['brome'])
 						* $bonusDuplicateurDefense * $defIsotopeHpMod[$i];
 			if ($hpPerMol > 0) {
-				$kills = min(${'classeDefenseur' . $i}['nombre'], floor($remainingDamage / $hpPerMol));
+				$kills = min(${'classeDefenseur' . $i}['nombre'], intdiv((int)$remainingDamage, (int)$hpPerMol));
+				$rem = fmod($remainingDamage, $hpPerMol);
+				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < ${'classeDefenseur' . $i}['nombre']) $kills++;
 				${'classe' . $i . 'DefenseurMort'} = $kills;
 				$remainingDamage -= $kills * $hpPerMol;
 			} else {
@@ -261,17 +270,35 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 		if (${'classeDefenseur' . $i}['nombre'] > 0) $activeDefClasses++;
 	}
 	$sharePerClass = ($activeDefClasses > 0) ? $degatsAttaquant / $activeDefClasses : 0;
-	// Equal split: each active class receives exactly its share; overkill is wasted, not cascaded
+	// Equal split: each active class receives its share; overkill cascades to remaining classes
+	$disperseeOverkill = 0;
+	$remainingActiveClasses = $activeDefClasses;
 	for ($i = 1; $i <= $nbClasses; $i++) {
 		${'classe' . $i . 'DefenseurMort'} = 0;
 		if (${'classeDefenseur' . $i}['nombre'] > 0 && $sharePerClass > 0) {
+			$classDamage = $sharePerClass;
+			if ($disperseeOverkill > 0 && $remainingActiveClasses > 0) {
+				$classDamage += $disperseeOverkill / $remainingActiveClasses;
+			}
 			$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], ${'classeDefenseur' . $i}['carbone'], $niveauxDef['brome'])
 						* $bonusDuplicateurDefense * $defIsotopeHpMod[$i];
 			if ($hpPerMol > 0) {
-				${'classe' . $i . 'DefenseurMort'} = min(${'classeDefenseur' . $i}['nombre'], floor($sharePerClass / $hpPerMol));
+				$kills = min(${'classeDefenseur' . $i}['nombre'], intdiv((int)$classDamage, (int)$hpPerMol));
+				$rem = fmod($classDamage, $hpPerMol);
+				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < ${'classeDefenseur' . $i}['nombre']) $kills++;
+				${'classe' . $i . 'DefenseurMort'} = $kills;
+				// Overkill: damage beyond what killed the last unit carries forward
+				$damageUsed = $kills * $hpPerMol;
+				if ($kills >= ${'classeDefenseur' . $i}['nombre']) {
+					$disperseeOverkill += max(0, $classDamage - $damageUsed);
+				} else {
+					$disperseeOverkill = 0;
+				}
 			} else {
 				${'classe' . $i . 'DefenseurMort'} = ${'classeDefenseur' . $i}['nombre'];
+				$disperseeOverkill += $classDamage;
 			}
+			$remainingActiveClasses--;
 		}
 	}
 } else {
@@ -283,7 +310,9 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 			$hpPerMol = pointsDeVieMolecule(${'classeDefenseur' . $i}['brome'], ${'classeDefenseur' . $i}['carbone'], $niveauxDef['brome'])
 						* $bonusDuplicateurDefense * $defIsotopeHpMod[$i];
 			if ($hpPerMol > 0) {
-				$kills = min(${'classeDefenseur' . $i}['nombre'], floor($remainingDamage / $hpPerMol));
+				$kills = min(${'classeDefenseur' . $i}['nombre'], intdiv((int)$remainingDamage, (int)$hpPerMol));
+				$rem = fmod($remainingDamage, $hpPerMol);
+				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < ${'classeDefenseur' . $i}['nombre']) $kills++;
 				${'classe' . $i . 'DefenseurMort'} = $kills;
 				$remainingDamage -= $kills * $hpPerMol;
 			} else {
@@ -349,10 +378,9 @@ $actions['troupes'] = $chaine;
 dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chaine, $actions['id']);
 
 // defenseur
-dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur1['nombre'] - $classe1DefenseurMort), $classeDefenseur1['id']);
-dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur2['nombre'] - $classe2DefenseurMort), $classeDefenseur2['id']);
-dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur3['nombre'] - $classe3DefenseurMort), $classeDefenseur3['id']);
-dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur4['nombre'] - $classe4DefenseurMort), $classeDefenseur4['id']);
+for ($di = 1; $di <= $nbClasses; $di++) {
+	dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', (${'classeDefenseur' . $di}['nombre'] - ${'classe' . $di . 'DefenseurMort'}), ${'classeDefenseur' . $di}['id']);
+}
 
 // Gestion du pillage
 $ressourcesDefenseur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['defenseur']);
@@ -388,10 +416,10 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 	} // On calcule les ressources pillables du défenseur
 
 	if ($ressourcesTotalesDefenseur != 0) { // Si elles sont différentes de zéro (pas de division par zéro)
-		$ressourcesAPiller = (($classeAttaquant1['nombre'] - $classe1AttaquantMort) * pillage($classeAttaquant1['soufre'], $classeAttaquant1['chlore'], $niveauxAtt['soufre'], $bonusPillageMedaille) +
-			($classeAttaquant2['nombre'] - $classe2AttaquantMort) * pillage($classeAttaquant2['soufre'], $classeAttaquant2['chlore'], $niveauxAtt['soufre'], $bonusPillageMedaille) +
-			($classeAttaquant3['nombre'] - $classe3AttaquantMort) * pillage($classeAttaquant3['soufre'], $classeAttaquant3['chlore'], $niveauxAtt['soufre'], $bonusPillageMedaille) +
-			($classeAttaquant4['nombre'] - $classe4AttaquantMort) * pillage($classeAttaquant4['soufre'], $classeAttaquant4['chlore'], $niveauxAtt['soufre'], $bonusPillageMedaille));
+		$ressourcesAPiller = 0;
+		for ($pi = 1; $pi <= $nbClasses; $pi++) {
+			$ressourcesAPiller += (${'classeAttaquant' . $pi}['nombre'] - ${'classe' . $pi . 'AttaquantMort'}) * pillage(${'classeAttaquant' . $pi}['soufre'], ${'classeAttaquant' . $pi}['chlore'], $niveauxAtt['soufre'], $bonusPillageMedaille);
+		}
 
 		// V4: Apply weekly catalyst pillage bonus (migrated from pillage() which is now pure)
 		$catalystPillageBonus = 1 + catalystEffect('pillage_bonus');
@@ -565,8 +593,12 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 
 // calcul des stats de combat
 
-$pertesAttaquant = $classe1AttaquantMort + $classe2AttaquantMort + $classe3AttaquantMort + $classe4AttaquantMort;
-$pertesDefenseur = $classe1DefenseurMort + $classe2DefenseurMort + $classe3DefenseurMort + $classe4DefenseurMort;
+$pertesAttaquant = 0;
+$pertesDefenseur = 0;
+for ($pi = 1; $pi <= $nbClasses; $pi++) {
+	$pertesAttaquant += ${'classe' . $pi . 'AttaquantMort'};
+	$pertesDefenseur += ${'classe' . $pi . 'DefenseurMort'};
+}
 
 $pointsAttaquant = 0;
 $pointsDefenseur = 0;

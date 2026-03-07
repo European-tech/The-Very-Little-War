@@ -1004,9 +1004,11 @@ function performSeasonEnd()
     remiseAZero();
 
     // Phase 3: Generate resource nodes for the new season
-    // Use a reasonable default map size since the map grows dynamically as players connect
+    // remiseAZero() resets tailleCarte to 1 (players reconnect and expand it).
+    // Use MAP_INITIAL_SIZE as the generation boundary so nodes span the full starting
+    // map; actual tailleCarte at this point is 1 and would produce invalid coordinates.
     require_once(__DIR__ . '/resource_nodes.php');
-    $nodeMapSize = max(20, (int)dbFetchOne($base, 'SELECT tailleCarte FROM statistiques')['tailleCarte']);
+    $nodeMapSize = MAP_INITIAL_SIZE;
     generateResourceNodes($base, $nodeMapSize);
 
     // Update season start time
@@ -1100,7 +1102,7 @@ function remiseAZero()
     withTransaction($base, function() use ($nomsRes, $nbRes) {
         global $base;
 
-        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0');
+        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0');
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'ddddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1), vieIonisateur(0));
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0');
         dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0, isotope=0');

@@ -184,9 +184,13 @@ if (isset($_POST['joueurAAttaquer'])) {
                             $c++;
                         }
 
-                        // Apply compound speed boost to travel time
+                        // Apply compound speed boost to travel time and snapshot all active bonuses.
+                        // HIGH-024: Bonuses must be snapshotted NOW (before the transaction) so that
+                        // combat.php uses the values that were active at launch, not at resolution.
                         require_once('includes/compounds.php');
                         $speedBoost = getCompoundBonus($base, $_SESSION['login'], 'speed_boost');
+                        $atkBoostSnapshot = getCompoundBonus($base, $_SESSION['login'], 'attack_boost');
+                        $defBoostSnapshot = getCompoundBonus($base, $_POST['joueurAAttaquer'], 'defense_boost');
                         if ($speedBoost > 0) {
                             $tempsTrajet = max(1, round($tempsTrajet / (1 + $speedBoost)));
                         }
@@ -194,7 +198,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                         if ($cout <= $ressources['energie']) {
                             if ($bool) {
                                 try {
-                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet) {
+                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet, $atkBoostSnapshot, $defBoostSnapshot, $speedBoost) {
                                         // PASS1-MEDIUM-006: Re-validate energy under FOR UPDATE lock to prevent TOCTOU
                                         $attaquant = $_SESSION['login'];
                                         $energieFraiche = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login=? FOR UPDATE', 's', $attaquant);
@@ -212,8 +216,12 @@ if (isset($_POST['joueurAAttaquer'])) {
                                             $c++;
                                         }
                                         $now = time();
-                                        dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,0,default)', 'ssiiis',
-                                            $attaquant, $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes);
+                                        // Store snapshotted compound bonuses so combat.php uses launch-time values
+                                        dbExecute($base,
+                                            'INSERT INTO actionsattaques (attaquant, defenseur, tempsAller, tempsAttaque, tempsRetour, troupes, attaqueFaite, nombreneutrinos, compound_atk_bonus, compound_spd_bonus, compound_def_bonus) VALUES (?,?,?,?,?,?,0,0,?,?,?)',
+                                            'ssiiisddd',
+                                            $attaquant, $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes,
+                                            $atkBoostSnapshot, $speedBoost, $defBoostSnapshot);
                                         ajouter('energie', 'ressources', -$cout, $attaquant);
                                         ajouter('energieDepensee', 'autre', $cout, $attaquant);
                                     });

@@ -30,6 +30,7 @@ define('SECONDS_PER_MONTH', 2678400); // 31 days - used for active player check
 // =============================================================================
 define('MAX_CONCURRENT_CONSTRUCTIONS', 2);
 define('MAX_MOLECULE_CLASSES', 4);       // 4 classes per player
+define('NB_CLASSES', MAX_MOLECULE_CLASSES); // Alias for molecule class loops
 define('MAX_ATOMS_PER_ELEMENT', 200);    // max atoms of one type in a molecule
 define('MAX_ALLIANCE_MEMBERS', 20);      // $joueursEquipe
 define('BEGINNER_PROTECTION_SECONDS', 3 * SECONDS_PER_DAY);
@@ -563,8 +564,10 @@ define('PRESTIGE_PP_ATTACK_BONUS', 5);        // PP for reaching attack threshol
 define('PRESTIGE_PP_TRADE_THRESHOLD', 20);    // Min trade volume for trade activity bonus
 define('PRESTIGE_PP_TRADE_BONUS', 3);         // PP for reaching trade threshold
 define('PRESTIGE_PP_DONATION_BONUS', 2);      // PP for donating energy
+define('PP_DONATION_MIN_THRESHOLD', 10);      // Min energy donation to qualify for PP bonus
 define('DONATION_MIN_ENERGY_RESERVE', 100);   // Min energy a player must keep after donating
 define('MAX_DONATION', 1000000);              // Maximum energy a player can donate in a single transaction
+define('INACTIVE_PLAYER_X', -1000);           // X coordinate sentinel for inactive/banned players
 // Rank bonuses (awarded by final leaderboard position)
 $PRESTIGE_RANK_BONUSES = [
     5  => 50,  // Top 5
@@ -642,6 +645,14 @@ define('PROFILE_IMAGE_MAX_DIMENSION_PX', 150);
 // =============================================================================
 define('MAP_TILE_SIZE_PX', 80);
 $MAP_ICON_DIVISORS = [16, 8, 4, 2]; // Fractions of VICTORY_POINTS_TOTAL for icon sizes
+
+// =============================================================================
+// MAP
+// =============================================================================
+// Initial map size at season start (tailleCarte is reset to this value by remiseAZero()).
+// Resource nodes generated at season reset use this boundary so nodes span the full
+// starting map rather than a hardcoded 20×20 tile area.
+define('MAP_INITIAL_SIZE', 20);
 
 // =============================================================================
 // RESOURCE NODES (map bonuses)
