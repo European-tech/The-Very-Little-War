@@ -65,7 +65,7 @@ foreach ($STREAK_MILESTONES as $day => $reward) {
         <?php endif; ?>
         <p class="text-color-gray" style="margin-top:8px;font-size:12px;">
             Connectez-vous chaque jour pour accumuler des PP bonus.
-            Paliers : 3j (+<?= STREAK_REWARD_DAY_3 ?>PP), 7j (+<?= STREAK_REWARD_DAY_7 ?>PP),
+            Paliers : 1j (+<?= STREAK_REWARD_DAY_1 ?>PP), 3j (+<?= STREAK_REWARD_DAY_3 ?>PP), 7j (+<?= STREAK_REWARD_DAY_7 ?>PP),
             14j (+<?= STREAK_REWARD_DAY_14 ?>PP), 21j (+<?= STREAK_REWARD_DAY_21 ?>PP),
             28j (+<?= STREAK_REWARD_DAY_28 ?>PP)
         </p>

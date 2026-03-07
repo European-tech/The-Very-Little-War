@@ -44,7 +44,11 @@ if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login'
         
         $bombe = dbFetchOne($base, 'SELECT bombe FROM autre WHERE login=?', 's', $joueur);
             
-	    debutCarte("Médailles");
+        // Display player name from DB (not from $_GET) to prevent XSS via URL parameter
+        $joueurDisplay = isset($donnees2['login'])
+            ? htmlspecialchars($donnees2['login'], ENT_QUOTES, 'UTF-8')
+            : htmlspecialchars($joueur, ENT_QUOTES, 'UTF-8');
+	    debutCarte("Médailles de " . $joueurDisplay);
         debutListe();
             $listeMedailles = [['Terreur',$donnees['nbattaques'],$paliersTerreur,'Attaques','% de diminution du coût d\'attaque',$bonusMedailles],
                                ['Attaquant',floor($donnees2['pointsAttaque']),$paliersAttaque,'Points d\'attaque','% d\'attaque supplémentaire',$bonusMedailles],

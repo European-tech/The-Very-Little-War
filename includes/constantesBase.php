@@ -20,23 +20,24 @@ $nbRes = sizeof($nomsRes)-1;
 $nbClasses = MAX_MOLECULE_CLASSES;
 $nbPointsVictoire = VICTORY_POINTS_TOTAL;
 
-$paliersMedailles = ['Bronze','Argent','Or','Emeraude','Saphir','Rubis','Diamant','Diamant Rouge'];
-$imagesMedailles = ['medaillebronze.png','medailleargent.png','medailleor.png','emeraude.png','saphir.png','rubis.png','diamant.png','diamantrouge.png'];
+// Derive from config.php — single source of truth for medal tiers and thresholds
+$paliersMedailles = $MEDAL_TIER_NAMES;
+$imagesMedailles  = $MEDAL_TIER_IMAGES;
 
-$bonusMedailles = [1,3,6,10,15,20,30,50];
-$bonusForum = ['insigne bronze','insigne argent','insigne or','insigne emeraude','insigne saphir','insigne rubis','insigne diamant','insigne diamant rouge'];
+$bonusMedailles = $MEDAL_BONUSES;
+$bonusForum     = $MEDAL_FORUM_BADGES;
 $bonusTroll = ['Rien','Rien','Rien','Rien','Rien','Rien','Rien','Rien'];
 
-$paliersTerreur = [5,15,30,60,120,250,500,1000];
-$paliersAttaque = [50,200,500,1500,4000,8000,15000,30000];
-$paliersDefense = [50,200,500,1500,4000,8000,15000,30000];
-$paliersPillage = [500,5000,25000,100000,500000,2000000,5000000,10000000];
-$paliersPipelette = [10,25,50,100,200,500,1000,5000];
-$paliersPertes = [10,100,500,2000,10000,50000,200000,1000000];
-$paliersEnergievore = [100,500,3000,20000,100000,2000000,10000000,1000000000];
-$paliersConstructeur = [5,10,15,25,35,50,70,100];
-$paliersBombe = [1,2,3,4,5,6,8,12];
-$paliersTroll = [0,1,2,3,4,5,6,7];
+$paliersTerreur     = $MEDAL_THRESHOLDS_TERREUR;
+$paliersAttaque     = $MEDAL_THRESHOLDS_ATTAQUE;
+$paliersDefense     = $MEDAL_THRESHOLDS_DEFENSE;
+$paliersPillage     = $MEDAL_THRESHOLDS_PILLAGE;
+$paliersPipelette   = $MEDAL_THRESHOLDS_PIPELETTE;
+$paliersPertes      = $MEDAL_THRESHOLDS_PERTES;
+$paliersEnergievore = $MEDAL_THRESHOLDS_ENERGIEVORE;
+$paliersConstructeur = $MEDAL_THRESHOLDS_CONSTRUCTEUR;
+$paliersBombe       = $MEDAL_THRESHOLDS_BOMBE;
+$paliersTroll       = $MEDAL_THRESHOLDS_TROLL;
 
 //EQUIPES
 $joueursEquipe = MAX_ALLIANCE_MEMBERS;

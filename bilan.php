@@ -406,8 +406,13 @@ debutCarte("Pillage");
         echo '<tr><td>Catalyseur (Volatilite)</td><td style="color:green">+' . round($catalystPillageBonus * 100) . '% de pillage</td></tr>';
     }
 
-    // Vault protection
-    echo '<tr><td>Coffre-fort niveau ' . $coffrefortLevel . '</td><td style="color:green">' . fmtNum($vaultProtection) . ' ressources protegees par type</td></tr>';
+    // Vault protection — per-level rate and total
+    $vaultPctPerLevel = round(VAULT_PCT_PER_LEVEL * 100, 1);
+    $vaultTotalPct    = round($coffrefortLevel * VAULT_PCT_PER_LEVEL * 100, 1);
+    echo '<tr><td>Coffre-fort niveau ' . $coffrefortLevel
+        . '<br/><small style="color:#757575;">' . $vaultPctPerLevel . '% par niveau &mdash; niveau '
+        . $coffrefortLevel . ' = ' . $vaultTotalPct . '% du stockage</small>'
+        . '</td><td style="color:green">' . fmtNum($vaultProtection) . ' ressources protegees par type</td></tr>';
 
     $pctProtected = $totalStorage > 0 ? round(($vaultProtection / $totalStorage) * 100, 1) : 0;
     echo '<tr><td>Protection relative</td><td>' . $pctProtected . '% du stockage protege</td></tr>';
@@ -434,7 +439,10 @@ debutCarte("Stockage");
     echo '<tbody>';
 
     echo '<tr><td>Depot niveau ' . $depotLevel . '</td><td>' . fmtNum($totalStorage) . ' par ressource</td></tr>';
-    echo '<tr><td>Coffre-fort niveau ' . $coffrefortLevel . '</td><td>' . fmtNum($vaultProtection) . ' proteges par type (' . $pctProtected . '%)</td></tr>';
+    echo '<tr><td>Coffre-fort niveau ' . $coffrefortLevel
+        . '<br/><small style="color:#757575;">' . $vaultPctPerLevel . '% par niveau &mdash; niveau '
+        . $coffrefortLevel . ' = ' . $vaultTotalPct . '% du stockage</small>'
+        . '</td><td>' . fmtNum($vaultProtection) . ' proteges par type (' . $pctProtected . '%)</td></tr>';
 
     // Current fill status
     echo '<tr><td>Energie</td><td>' . fmtNum($ressources['energie']) . ' / ' . fmtNum($totalStorage) . '</td></tr>';

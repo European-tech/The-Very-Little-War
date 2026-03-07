@@ -333,7 +333,28 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	endif; // end total/daily mode toggle
 }
 elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
-	recalculerStatsAlliances();
+    // Check for active season maintenance — rankings are frozen during end-of-season reset
+    $seasonMaintenance = false;
+    if (isset($maintenance['maintenance']) && $maintenance['maintenance'] == 1) {
+        $seasonMaintenance = true;
+    } else {
+        // Also check DB directly for public visitors (no basicprivatephp.php $maintenance)
+        $maintenanceCheck = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
+        if ($maintenanceCheck && $maintenanceCheck['maintenance'] == 1) {
+            $seasonMaintenance = true;
+        }
+    }
+
+    if ($seasonMaintenance) {
+        echo '<div class="card card-outline">'
+            . '<div class="card-header" style="background:#ff9800;color:#fff;">Classement gelé — fin de saison en cours</div>'
+            . '<div class="card-content card-content-padding">'
+            . '<p>Le classement des alliances est temporairement gelé pendant la remise à zéro de fin de saison. '
+            . 'Il sera de nouveau disponible dans quelques instants.</p>'
+            . '</div></div>';
+    } else {
+        recalculerStatsAlliances();
+    }
 
 
 
