@@ -1274,6 +1274,7 @@ function updateLoginStreak($base, $login) {
             $ppEarned = $STREAK_MILESTONES[$currentStreak];
             $isMilestone = true;
         } elseif ($currentStreak >= 1) {
+            // Non-milestone daily PP is intentional — small reward for consistency
             $ppEarned = STREAK_REWARD_DAY_1;
         }
 

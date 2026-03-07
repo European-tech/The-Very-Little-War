@@ -24,4 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_membre_xy ON membre (x, y);
 CREATE INDEX IF NOT EXISTS idx_cours_timestamp ON cours (timestamp);
 
 -- Cleanup expired cooldowns (column is 'expires' as unix timestamp)
+-- LOW-044: This one-time migration runs a periodic cleanup inline. The same cleanup logic
+-- has been moved to scripts/cleanup_old_data.php for recurring cron execution.
+-- To run periodically: add to crontab — e.g. every hour:
+--   0 * * * * php /var/www/html/scripts/cleanup_old_data.php >> /var/www/html/logs/cleanup.log 2>&1
 DELETE FROM attack_cooldowns WHERE expires < UNIX_TIMESTAMP();

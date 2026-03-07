@@ -26,6 +26,7 @@ UPDATE autre SET totalPoints = ROUND(
 );
 
 -- Also fix prestige.login width (H-045)
+-- LOW-042: Note: migration 0015 already widened this column to VARCHAR(255); this MODIFY is idempotent (re-running is safe).
 ALTER TABLE prestige MODIFY login VARCHAR(255) NOT NULL;
 
 -- Block web access to migrations (H-046) — handled by .htaccess file

@@ -17,7 +17,10 @@ if (isset($_POST['login'])) {
 	//Si les champs sont vides
 	if ((isset($_POST['login']) && !empty($_POST['login'])) && (isset($_POST['pass']) && !empty($_POST['pass'])) && (isset($_POST['pass_confirm']) && !empty($_POST['pass_confirm'])) && (isset($_POST['email']) && !empty($_POST['email']))) {
 		//Si les deux mots de passe sont differents
+		// LOW-035: Normalize login (first letter uppercase, rest lowercase, trimmed).
+		// The normalized value is what will be stored and displayed to the user.
 		$loginInput = ucfirst(mb_strtolower(trim($_POST['login'])));
+		$loginNormalized = $loginInput; // alias for display in error/success messages
 		$passInput = $_POST['pass'];
 		$passConfirm = $_POST['pass_confirm'];
 		$emailInput = trim($_POST['email']);
@@ -31,6 +34,7 @@ if (isset($_POST['login'])) {
 		} else {
 			if (!validateLogin($loginInput)) {
 				$erreur = 'Vous ne pouvez pas utiliser de caract&egrave;res sp&eacute;ciaux dans votre login (3-20 caract&egrave;res alphanum&eacute;riques).';
+				$erreur .= ' <strong>Votre identifiant sera : ' . htmlspecialchars($loginNormalized, ENT_QUOTES, 'UTF-8') . '</strong>';
 			} elseif (!validateEmail($emailInput)) {
 				$erreur = 'L\'email n\'est pas correct.';
 			} else {
@@ -69,6 +73,11 @@ if (isset($_POST['login'])) {
 }
 include("includes/layout.php");
 debutCarte("Inscription");
+// LOW-035: If a login was submitted, show the normalized form so the user knows what will be stored.
+if (!empty($_POST['login'])) {
+    $loginPreview = ucfirst(mb_strtolower(trim($_POST['login'])));
+    echo '<p style="margin:8px 5px;color:#1565c0;font-size:13px;">Votre identifiant sera : <strong>' . htmlspecialchars($loginPreview, ENT_QUOTES, 'UTF-8') . '</strong></p>';
+}
 echo '<form action="inscription.php" method="post" name="inscription">';
 echo csrfField();
 debutListe();

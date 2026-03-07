@@ -239,9 +239,13 @@ if($tuto['missions'] != ""){ // initialisation du tableau des missions
     $missionStorageCap = placeDepot($missionDepotRow ? intval($missionDepotRow['depot']) : 0);
 
     foreach($listeMissions as $num => $mission){
-        $temp = $missions[$num].';'; // par défaut on ne change pas le statut de la mission
+        // LOW-038: Guard against OOB access for legacy accounts whose missions string
+        // has fewer entries than the current $listeMissions array (e.g. accounts created
+        // before new missions were added). Default to '0' (not done) when missing.
+        $missionValue = isset($missions[$num]) ? $missions[$num] : '0';
+        $temp = $missionValue.';'; // par défaut on ne change pas le statut de la mission
         if($c < 3){ // on vérifie que les trois premires missions non réalisées
-            if($missions[$num] == 0){ //si c'est pas fait
+            if($missionValue == 0){ //si c'est pas fait
                 if($mission['resultat']){ // si les conditions sont remplies
                     $information = "Mission ".$mission['titre']." réussie";
                     $temp = '1;'; // mission réussie dans la base de données
