@@ -1361,6 +1361,9 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
             logWarn('EMAIL_QUEUE', 'mail() failed for queued email', ['id' => $id, 'recipient_hash' => substr(hash('sha256', $recipient), 0, 12)]);
         }
     }
+    // EMAIL11-001: Purge sent and stale unsent emails to comply with GDPR data minimization.
+    // Stale unsent emails (>24h old) are skipped by the query above but never deleted otherwise.
+    dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL OR (sent_at IS NULL AND created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR))');
 }
 
 function remiseAZero()
@@ -1374,6 +1377,9 @@ function remiseAZero()
     // M-008: Wrap in try/catch so a failure here does not abort the season reset transaction.
     try {
         dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL');
+        // EMAIL11-001: Also purge stale unsent emails (>24h) to comply with GDPR data minimization.
+        // processEmailQueue() skips these old entries but never deletes them, causing PII accumulation.
+        dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NULL AND created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)');
     } catch (\Exception $e) {
         logError('remiseAZero: email_queue cleanup failed (non-fatal): ' . $e->getMessage());
     }

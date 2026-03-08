@@ -38,7 +38,7 @@ if (isset($_POST['login'])) {
 			} else {
 				$nbMail = dbCount($base, 'SELECT COUNT(*) AS nb FROM membre WHERE email = ?', 's', $emailInput);
 				if ($nbMail > 0) {
-					$erreur = 'L\'email est d&eacute;j&agrave; utilis&eacute;.';
+					$erreur = 'Ce login ou email est d&eacute;j&agrave; utilis&eacute;.';
 				} else {
 					$nbLogin = dbCount($base, 'SELECT COUNT(*) FROM membre WHERE login = ?', 's', $loginInput);
 					//Si le login est deja utilise
@@ -58,7 +58,7 @@ if (isset($_POST['login'])) {
 							$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 							header("Location: index.php?inscrit=1"); exit;
 						} elseif ($result === 'email_taken') {
-							$erreur = 'L\'email est d&eacute;j&agrave; utilis&eacute;.';
+							$erreur = 'Ce login ou email est d&eacute;j&agrave; utilis&eacute;.';
 						} elseif ($result === 'login_taken') {
 							$erreur = 'Ce login est d&eacute;j&agrave; utilis&eacute;.';
 						} else {

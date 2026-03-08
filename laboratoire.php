@@ -25,11 +25,16 @@ if (isset($_POST['synthesize'])) {
 if (isset($_POST['activate'])) {
     csrfCheck();
     $compoundId = intval($_POST['compound_id'] ?? 0);
-    $result = activateCompound($base, $_SESSION['login'], $compoundId);
-    if ($result === true) {
-        $information = "Composé activé !";
+    // LAB11-001: Validate compound_id > 0 before passing to activateCompound()
+    if ($compoundId <= 0) {
+        $erreur = "Composé invalide.";
     } else {
-        $erreur = $result;
+        $result = activateCompound($base, $_SESSION['login'], $compoundId);
+        if ($result === true) {
+            $information = "Composé activé !";
+        } else {
+            $erreur = $result;
+        }
     }
 }
 

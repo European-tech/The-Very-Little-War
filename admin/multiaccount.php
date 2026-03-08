@@ -364,7 +364,10 @@ if (!empty($detailLogin) && (strlen($detailLogin) > 20 || !preg_match('/^[a-zA-Z
                 <?php foreach ($md5Accounts as $acc): ?>
                 <tr>
                     <td><?php echo htmlspecialchars($acc['login'], ENT_QUOTES, 'UTF-8'); ?></td>
-                    <td><?php echo htmlspecialchars($acc['email'], ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td><?php // GDPR11-001: Mask email to comply with data minimization (admin doesn't need full address)
+                        $parts = explode('@', $acc['email'] ?? '', 2);
+                        $masked = (strlen($parts[0] ?? '') > 2 ? substr($parts[0], 0, 2) . '***' : '***') . (isset($parts[1]) ? '@' . $parts[1] : '');
+                        echo htmlspecialchars($masked, ENT_QUOTES, 'UTF-8'); ?></td>
                     <td><?php echo $acc['derniereConnexion'] ? date('d/m/Y H:i', (int)$acc['derniereConnexion']) : 'Jamais'; ?></td>
                 </tr>
                 <?php endforeach; ?>

@@ -96,9 +96,10 @@ function synthesizeCompound($base, $login, $compoundKey)
             }
 
             foreach ($recipe as $resource => $qty) {
-                // P9-MED-011: Re-check whitelist immediately before column interpolation
-                // inside the deduction loop as a belt-and-suspenders guard.
-                $allowedCols = ['carbone', 'azote', 'hydrogene', 'oxygene', 'chlore', 'soufre', 'brome', 'iode'];
+                // ECO11-003: Use $nomsRes (authoritative atom list) minus 'energie' as the whitelist,
+                // rather than a hardcoded list that may diverge when new atoms are added.
+                // P9-MED-011: Re-check whitelist immediately before column interpolation.
+                $allowedCols = array_diff($nomsRes, ['energie']);
                 if (!in_array($resource, $allowedCols, true)) {
                     throw new \RuntimeException('Invalid resource: ' . $resource);
                 }

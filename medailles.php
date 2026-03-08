@@ -2,8 +2,8 @@
 include("includes/basicprivatephp.php");
 include("includes/layout.php");
 
-// LOW-020: Rate limit player-lookup queries to prevent timing-based login enumeration
-rateLimitCheck('medals_lookup', $_SERVER['REMOTE_ADDR'], 30, 60);
+// MISC11-001: Fix swapped rateLimitCheck args — identifier=IP, action=string (not reversed)
+rateLimitCheck($_SERVER['REMOTE_ADDR'], 'medals_lookup', 30, 60);
 
 /**
  * Calculate medal progress toward the next tier (P1-D8-053)

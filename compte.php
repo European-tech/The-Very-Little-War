@@ -103,7 +103,10 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
 }
 
 if (isset($_POST['changermail'])) {
-    if (!empty($_POST['changermail']) && !empty($_POST['mot_de_passe_actuel'])) {
+    // PLAYER11-002: Rate-limit email change to prevent rapid lockout attacks via stolen credentials
+    if (!rateLimitCheck($_SESSION['login'], 'email_change', 3, 3600)) {
+        $erreur = "Trop de tentatives de changement d'email. Réessayez dans une heure.";
+    } elseif (!empty($_POST['changermail']) && !empty($_POST['mot_de_passe_actuel'])) {
         // Require current password before changing email (PASS1-MEDIUM-004)
         $membreData = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
         $emailPasswordOk = false;
