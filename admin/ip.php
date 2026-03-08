@@ -14,10 +14,14 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
 <body>
 <?php
 include("../includes/connexion.php");
-$ip = isset($_GET['ip']) ? $_GET['ip'] : '';
+require_once(__DIR__ . '/../includes/multiaccount.php');
+$ip = isset($_GET['ip']) ? trim($_GET['ip']) : '';
 echo '<h4>Pseudos avec l\'ip '.htmlspecialchars($ip, ENT_QUOTES, 'UTF-8').'\'<p>';
 
-$ipMembreRows = dbFetchAll($base, 'SELECT * FROM membre WHERE ip = ?', 's', $ip);
+// IP addresses are stored as hashed values in the membre table (via hashIpAddress())
+// Must hash the input IP before querying to get matching results
+$hashedIp = $ip !== '' ? hashIpAddress($ip) : '';
+$ipMembreRows = $hashedIp ? dbFetchAll($base, 'SELECT * FROM membre WHERE ip = ?', 's', $hashedIp) : [];
 foreach ($ipMembreRows as $donnees) {
 	echo '<a href="../joueur.php?id='.htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8').'</a><br/>';
 }

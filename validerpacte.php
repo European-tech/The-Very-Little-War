@@ -9,16 +9,17 @@ if(isset($_POST['idDeclaration'])) {
 		$declaration = dbFetchOne($base, 'SELECT d.id, d.alliance2 FROM declarations d WHERE d.id=? AND d.valide=0 FOR UPDATE', 'i', $_POST['idDeclaration']);
 		if (!$declaration) return;
 
-		$targetAlliance = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=?', 'i', $declaration['alliance2']);
+		$targetAlliance = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $declaration['alliance2']);
 		if (!$targetAlliance) return;
 
 		$isChef = ($targetAlliance['chef'] === $_SESSION['login']);
 
 		// PASS1-MEDIUM-015: Also allow grade-holding officers with the pact permission bit
 		// Grade string format: "inviter.guerre.pacte.bannir.description" (index 2 = pacte)
+		// ALLY-001: Use FOR UPDATE on grades row to prevent TOCTOU race where grade is revoked mid-request
 		$hasPactPerm = false;
 		if (!$isChef) {
-			$gradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=?', 'si', $_SESSION['login'], $declaration['alliance2']);
+			$gradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=? FOR UPDATE', 'si', $_SESSION['login'], $declaration['alliance2']);
 			if ($gradeRow && !empty($gradeRow['grade'])) {
 				$bits = explode('.', $gradeRow['grade']);
 				$hasPactPerm = (isset($bits[2]) && $bits[2] === '1');
