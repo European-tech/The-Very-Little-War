@@ -40,7 +40,8 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 		$searchLogin = $_POST['joueurRecherche'];
 		$playerScore = dbFetchOne($base, 'SELECT a.' . $order . ' AS score FROM autre a JOIN membre m ON m.login = a.login WHERE a.login=? AND m.x != -1000', 's', $searchLogin);
 		if ($playerScore) {
-			$rankRow = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $playerScore['score']);
+			// LOW-018: Count distinct score values above the player's score to get DENSE_RANK-style position
+			$rankRow = dbFetchOne($base, 'SELECT COUNT(DISTINCT a.' . $order . ') AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $playerScore['score']);
 			$place = ($rankRow['rank'] ?? 0) + 1;
 			$pageParDefaut = ceil($place / LEADERBOARD_PAGE_SIZE);
 		}
@@ -71,14 +72,15 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	<?php
 
 	if ($mode === 'daily'):
-		// Daily leaderboard: players who logged in today, sorted by total points
+		// Daily leaderboard: players who logged in today, sorted by $order column (MED-031)
 		$midnightToday = strtotime('today midnight');
 		$dailyPlayers = dbFetchAll($base,
-			'SELECT a.login, a.totalPoints, a.pointsAttaque, a.pointsDefense, a.ressourcesPillees, a.tradeVolume, a.victoires, a.points, a.idalliance
+			'SELECT a.login, a.totalPoints, a.pointsAttaque, a.pointsDefense, a.ressourcesPillees, a.tradeVolume, a.victoires, a.points, a.idalliance,
+			        DENSE_RANK() OVER (ORDER BY a.' . $order . ' DESC) AS rang
 			 FROM autre a
 			 JOIN membre m ON m.login = a.login
 			 WHERE m.derniereConnexion >= ? AND m.x != -1000
-			 ORDER BY a.totalPoints DESC
+			 ORDER BY a.' . $order . ' DESC
 			 LIMIT ' . LEADERBOARD_PAGE_SIZE,
 			'i', $midnightToday);
 
@@ -95,7 +97,6 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			$prestigeCacheDaily[$pr['login']] = (int)$pr['total_pp'];
 		}
 
-		$compteurDaily = 1;
 		?>
 		<table class="table table-striped table-bordered">
 		<thead>
@@ -124,7 +125,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			}
 			?>
 			<tr style="background-color: rgba(<?php echo $enGuerre; ?>,0.6);">
-			<td><?php echo imageClassement($compteurDaily); ?></td>
+			<td><?php echo imageClassement((int)$donnees['rang']); ?></td>
 			<td><?php echo joueur($donnees['login']); ?></td>
 			<td><?php echo number_format($donnees['totalPoints'], 0, ' ', ' '); ?></td>
 			<td><?php if ($rowAllianceId > 0 && $allianceTag !== '') { echo alliance($allianceTag); } ?></td>
@@ -133,7 +134,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			<td><?php echo chiffrePetit($donnees['ressourcesPillees']); ?></td>
 			<td><a href="prestige.php"><?php echo isset($prestigeCacheDaily[$donnees['login']]) ? $prestigeCacheDaily[$donnees['login']] : 0; ?></a></td>
 			</tr>
-			<?php $compteurDaily++;
+			<?php
 		}
 		?>
 		</tbody>
@@ -151,7 +152,8 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 				// Find logged-in player's rank with a count query instead of full table scan
 				$myScore = dbFetchOne($base, 'SELECT a.' . $order . ' AS score FROM autre a JOIN membre m ON m.login = a.login WHERE a.login=? AND m.x != -1000', 's', $_SESSION['login']);
 				if ($myScore) {
-					$myRank = dbFetchOne($base, 'SELECT COUNT(*) AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $myScore['score']);
+					// LOW-018: DENSE_RANK — count distinct scores above player's score
+			$myRank = dbFetchOne($base, 'SELECT COUNT(DISTINCT a.' . $order . ') AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $myScore['score']);
 					$place = ($myRank['rank'] ?? 0) + 1;
 					$pageParDefaut = ceil($place / $nombreDeJoueursParPage);
 				} else {
@@ -385,8 +387,8 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
         $order = 'pointstotaux';
     }
 
-	// $order is whitelisted
-	$classementAllianceRows = dbFetchAll($base, 'SELECT * FROM alliances ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premiereAllianceAafficher, $nombreDeAlliancesParPage);
+	// $order is whitelisted; MED-032: use DENSE_RANK so tied alliances share the same rank
+	$classementAllianceRows = dbFetchAll($base, 'SELECT *, DENSE_RANK() OVER (ORDER BY ' . $order . ' DESC) AS rang FROM alliances ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premiereAllianceAafficher, $nombreDeAlliancesParPage);
 	$compteur = $nombreDeAlliancesParPage*($page-1)+1;
 
 	// Pre-load member counts per alliance to avoid N+1 queries
@@ -449,9 +451,10 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 
 		$nbjoueurs = isset($memberCountCache[$rowAllianceIdAT]) ? $memberCountCache[$rowAllianceIdAT] : 0;
 		if ($nbjoueurs != 0) { // Pour éviter la division par zéro
+			$allianceRang = (int)$donnees['rang']; // MED-032: DENSE_RANK from SQL
 			?>
 			<tr style="background-color: rgba(<?php if(isset($enGuerre)) { echo $enGuerre.",0.6)"; }?>">
-			<td><?php echo imageClassement($compteur) ; ?></td>
+			<td><?php echo imageClassement($allianceRang); ?></td>
 			<td><?php echo alliance($donnees['tag']); ?></td>
 			<td><?php echo $nbjoueurs; ?></td>
 			<td><?php echo number_format($donnees['pointstotaux'], 0 , ' ', ' ');?></td>
@@ -460,9 +463,9 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 			<td><?php echo number_format($donnees['totalAttaque'], 0 , ' ', ' ');?></td>
 			<td><?php echo number_format($donnees['totalDefense'], 0 , ' ', ' ');?></td>
 			<td><?php echo number_format($donnees['totalPillage'], 0 , ' ', ' ');?></td>
-            <td><?php echo $donnees['pointsVictoire'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireAlliance($compteur).'</span>'; ?></td>
+            <td><?php echo $donnees['pointsVictoire'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireAlliance($allianceRang).'</span>'; ?></td>
 			</tr>
-			<?php $compteur++;
+			<?php
 		}
 		else {
 			// Skip empty alliances during display - do NOT delete during render loop

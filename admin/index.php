@@ -16,7 +16,7 @@ $rateLimitError = '';
 if (isset($_POST['motdepasseadmin'])) {
 	csrfCheck();
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'admin_login', RATE_LIMIT_ADMIN_MAX, RATE_LIMIT_ADMIN_WINDOW)) {
-		logWarn('ADMIN', 'Admin login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
+		logWarn('ADMIN', 'Admin login rate limited', ['ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw')), 0, 12)]);
 		$rateLimitError = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
 	} elseif (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		session_regenerate_id(true);

@@ -226,66 +226,70 @@ if($autre['niveaututo'] == 9 and isset($_POST['finir'])){
 }
 
 
-$tuto = dbFetchOne($base, 'SELECT niveaututo, missions FROM autre WHERE login = ?', 's', $_SESSION['login']);
+// HIGH-legacy-missions: Wrap legacy mission grant in a transaction with FOR UPDATE
+// to prevent concurrent page loads from granting the same mission reward twice.
+withTransaction($base, function() use ($base, $nomsRes, $listeMissions, &$information) {
+    $tuto = dbFetchOne($base, 'SELECT niveaututo, missions FROM autre WHERE login = ? FOR UPDATE', 's', $_SESSION['login']);
 
-// VERIFICATION DES MISSIONS
-if($tuto['missions'] != ""){ // initialisation du tableau des missions
-    $missions = explode(";",$tuto['missions']);
-    $c = 0;
-    $chaine = '';
+    // VERIFICATION DES MISSIONS
+    if($tuto['missions'] != ""){ // initialisation du tableau des missions
+        $missions = explode(";",$tuto['missions']);
+        $c = 0;
+        $chaine = '';
 
-    // MED-041: Pre-compute storage cap for capping all reward paths below.
-    $missionDepotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $_SESSION['login']);
-    $missionStorageCap = placeDepot($missionDepotRow ? intval($missionDepotRow['depot']) : 0);
+        // MED-041: Pre-compute storage cap for capping all reward paths below.
+        $missionDepotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login = ?', 's', $_SESSION['login']);
+        $missionStorageCap = placeDepot($missionDepotRow ? intval($missionDepotRow['depot']) : 0);
 
-    foreach($listeMissions as $num => $mission){
-        // LOW-038: Guard against OOB access for legacy accounts whose missions string
-        // has fewer entries than the current $listeMissions array (e.g. accounts created
-        // before new missions were added). Default to '0' (not done) when missing.
-        $missionValue = isset($missions[$num]) ? $missions[$num] : '0';
-        $temp = $missionValue.';'; // par défaut on ne change pas le statut de la mission
-        if($c < 3){ // on vérifie que les trois premires missions non réalisées
-            if($missionValue == 0){ //si c'est pas fait
-                if($mission['resultat']){ // si les conditions sont remplies
-                    $information = "Mission ".$mission['titre']." réussie";
-                    $temp = '1;'; // mission réussie dans la base de données
+        foreach($listeMissions as $num => $mission){
+            // LOW-038: Guard against OOB access for legacy accounts whose missions string
+            // has fewer entries than the current $listeMissions array (e.g. accounts created
+            // before new missions were added). Default to '0' (not done) when missing.
+            $missionValue = isset($missions[$num]) ? $missions[$num] : '0';
+            $temp = $missionValue.';'; // par défaut on ne change pas le statut de la mission
+            if($c < 3){ // on vérifie que les trois premires missions non réalisées
+                if($missionValue == 0){ //si c'est pas fait
+                    if($mission['resultat']){ // si les conditions sont remplies
+                        $information = "Mission ".$mission['titre']." réussie";
+                        $temp = '1;'; // mission réussie dans la base de données
 
-                    // MED-041: Use LEAST() to cap energy and atom rewards at storage max.
-                    if(array_key_exists("energie",$mission)){
-                        dbExecute($base, 'UPDATE ressources SET energie = LEAST(energie + ?, ?) WHERE login = ?', 'ids', $mission['energie'], $missionStorageCap, $_SESSION['login']);
-                    }
-                    if(array_key_exists("atomes",$mission)){
+                        // MED-041: Use LEAST() to cap energy and atom rewards at storage max.
+                        if(array_key_exists("energie",$mission)){
+                            dbExecute($base, 'UPDATE ressources SET energie = LEAST(energie + ?, ?) WHERE login = ?', 'ids', $mission['energie'], $missionStorageCap, $_SESSION['login']);
+                        }
+                        if(array_key_exists("atomes",$mission)){
+                            foreach($nomsRes as $num1 => $res){
+                                dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission['atomes'], $missionStorageCap, $_SESSION['login']);
+                            }
+                        }
+                        if(array_key_exists("tout",$mission)){
+                            foreach($nomsRes as $num1 => $res){
+                                dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission['tout'], $missionStorageCap, $_SESSION['login']);
+                            }
+                        }
                         foreach($nomsRes as $num1 => $res){
-                            dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission['atomes'], $missionStorageCap, $_SESSION['login']);
+                            if(array_key_exists($res,$mission)){
+                                dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission[$res], $missionStorageCap, $_SESSION['login']);
+                            }
                         }
-                    }
-                    if(array_key_exists("tout",$mission)){
-                        foreach($nomsRes as $num1 => $res){
-                            dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission['tout'], $missionStorageCap, $_SESSION['login']);
-                        }
-                    }
-                    foreach($nomsRes as $num1 => $res){
-                        if(array_key_exists($res,$mission)){
-                            dbExecute($base, 'UPDATE ressources SET ' . $res . ' = LEAST(' . $res . ' + ?, ?) WHERE login = ?', 'ids', $mission[$res], $missionStorageCap, $_SESSION['login']);
-                        }
-                    }
 
+                    }
+                    $c++;
                 }
-                $c++;
             }
+            $chaine = $chaine.$temp;
         }
-        $chaine = $chaine.$temp;
-    }
 
-    dbExecute($base, 'UPDATE autre SET missions = ? WHERE login = ?', 'ss', $chaine, $_SESSION['login']);
-}
-else { // si cela n'a pas été initialisé à la première connexion
-    $chaine = '';
-    foreach($listeMissions as $num){
-        $chaine=$chaine."0;";
+        dbExecute($base, 'UPDATE autre SET missions = ? WHERE login = ?', 'ss', $chaine, $_SESSION['login']);
     }
-    dbExecute($base, 'UPDATE autre SET missions = ? WHERE login = ?', 'ss', $chaine, $_SESSION['login']);
-}
+    else { // si cela n'a pas été initialisé à la première connexion
+        $chaine = '';
+        foreach($listeMissions as $num){
+            $chaine=$chaine."0;";
+        }
+        dbExecute($base, 'UPDATE autre SET missions = ? WHERE login = ?', 'ss', $chaine, $_SESSION['login']);
+    }
+});
 
 
 ?>
@@ -516,7 +520,7 @@ else { // si cela n'a pas été initialisé à la première connexion
 var revenuJSEnergie=<?php echo json_encode(revenuEnergie($constructions['generateur'],$_SESSION['login'])/SECONDS_PER_HOUR);?> //incrementer tous ces nombres de secondes
 var valeur = <?php echo json_encode($ressources['energie']); ?>;
 function energieDynamique(){
-	document.getElementById("affichageenergie").innerHTML = nFormatter(Math.floor(valeur))+'/'+<?php echo json_encode($ressourcesMax); ?>;
+	document.getElementById("affichageenergie").textContent = nFormatter(Math.floor(valeur))+'/'+<?php echo json_encode($ressourcesMax); ?>;
 	if(valeur+revenuJSEnergie < <?php echo json_encode((int)placeDepot($constructions['depot'])); ?>){
 		valeur = valeur+revenuJSEnergie;
 	}
@@ -531,7 +535,7 @@ foreach($nomsRes as $num => $ressource) {
 	var revenuJS'.$ressource.'='.json_encode(revenuAtome($num,$_SESSION['login'])/SECONDS_PER_HOUR).'
 	var valeur'.$ressource.' = '.json_encode($ressources[$ressource]).'
 	function '.$ressource.'Dynamique(){
-		document.getElementById("affichage'.$ressource.'").innerHTML = nFormatter(Math.floor(valeur'.$ressource.'))+\'/\'+'.json_encode($ressourcesMax).'
+		document.getElementById("affichage'.$ressource.'").textContent = nFormatter(Math.floor(valeur'.$ressource.'))+\'/\'+'.json_encode($ressourcesMax).'
 		if(valeur'.$ressource.'+revenuJS'.$ressource.' < '.json_encode((int)placeDepot($depot['depot'])).'){
 			valeur'.$ressource.' = valeur'.$ressource.'+revenuJS'.$ressource.'
 		}

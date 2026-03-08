@@ -392,13 +392,13 @@ for ($di = 1; $di <= $nbClasses; $di++) {
 }
 
 // Gestion du pillage
-$ressourcesDefenseur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['defenseur']);
+$ressourcesDefenseur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
 if (!$ressourcesDefenseur) {
 	logError("Combat: missing defender resources for " . $actions['defenseur']);
 	throw new Exception('Missing defender resources');
 }
 
-$ressourcesJoueur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['attaquant']);
+$ressourcesJoueur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
 if (!$ressourcesJoueur) {
 	logError("Combat: missing attacker resources for " . $actions['attaquant']);
 	throw new Exception('Missing attacker resources');
@@ -427,12 +427,11 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 		$ressourcesAPiller *= $catalystPillageBonus;
 
 		// Compound synthesis pillage boost.
-		// Bug 3 note: this live getCompoundBonus() call for pillage is acceptable because
-		// pillage runs INSIDE the transaction (combat.php is included from game_actions.php
-		// after mysqli_begin_transaction). Attack/defense compound bonuses use the snapshotted
-		// $actions['compound_atk_bonus'] / $actions['compound_def_bonus'] columns (HIGH-024)
-		// to prevent retroactive activation — no race condition exists for those paths.
-		$compoundPillageBonus = getCompoundBonus($base, $actions['attaquant'], 'pillage_boost');
+		// HIGH-024 (pillage): Use the snapshotted value stored at attack-launch time
+		// (column added by migration 0053) rather than querying live compound state.
+		// This prevents retroactive activation of H2SO4 after the attack is already in-flight.
+		// Rows inserted before migration 0053 have DEFAULT 0.0, so legacy attacks are unaffected.
+		$compoundPillageBonus = (float)($actions['compound_pillage_bonus'] ?? 0.0);
 		if ($compoundPillageBonus > 0) $ressourcesAPiller *= (1 + $compoundPillageBonus);
 
 		// Alliance Bouclier research reduces pillage losses for defender

@@ -48,12 +48,13 @@ if (mb_strlen($texte) > MESSAGE_MAX_LENGTH) {
 $message = $texte;
 
 $membres = dbFetchAll($base, 'SELECT login FROM membre');
-$timestamp = time();
-$count = 0;
-foreach($membres as $d){
-	dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $timestamp, $titre, $message, $_SESSION['login'], $d['login']);
-	$count++;
-}
+$count = count($membres);
+withTransaction($base, function() use ($base, $membres, $titre, $message) {
+	$timestamp = time();
+	foreach ($membres as $d) {
+		dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $timestamp, $titre, $message, ADMIN_LOGIN, $d['login']);
+	}
+});
 
 header('Location: messages.php?information=' . urlencode("Message envoyé à $count joueurs."));
 exit();

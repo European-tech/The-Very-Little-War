@@ -112,13 +112,27 @@ function awardPrestigePoints() {
     // Freeze rankings into array to prevent concurrent changes mid-award
     // Exclude inactive/banned players (x = INACTIVE_PLAYER_X sentinel = -1000)
     $players = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC');
-    $rank = 1;
+
+    // HIGH-019: Compute DENSE_RANK so tied players receive the same rank bonus.
+    $denseRank = 1;
+    $prevScore = null;
+    $rankIndex = 0;
+    foreach ($players as &$player) {
+        if ($prevScore !== null && $player['totalPoints'] !== $prevScore) {
+            $denseRank = $rankIndex + 1;
+        }
+        $player['dense_rank'] = $denseRank;
+        $prevScore = $player['totalPoints'];
+        $rankIndex++;
+    }
+    unset($player);
+
     foreach ($players as $player) {
         $pp = calculatePrestigePoints($player['login']);
 
-        // Rank bonus: top players get extra PP
+        // Rank bonus: top players get extra PP (using DENSE_RANK so ties share rank)
         foreach ($PRESTIGE_RANK_BONUSES as $cutoff => $bonus) {
-            if ($rank <= $cutoff) {
+            if ($player['dense_rank'] <= $cutoff) {
                 $pp += $bonus;
                 break;
             }
@@ -128,8 +142,6 @@ function awardPrestigePoints() {
             // Ensure prestige row exists, then add PP
             dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $player['login'], $pp, $pp);
         }
-
-        $rank++;
     }
 }
 

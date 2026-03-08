@@ -204,6 +204,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                         $speedBoost = getCompoundBonus($base, $_SESSION['login'], 'speed_boost');
                         $atkBoostSnapshot = getCompoundBonus($base, $_SESSION['login'], 'attack_boost');
                         $defBoostSnapshot = getCompoundBonus($base, $_POST['joueurAAttaquer'], 'defense_boost');
+                        $pillageBoostSnapshot = getCompoundBonus($base, $_SESSION['login'], 'pillage_boost');
                         if ($speedBoost > 0) {
                             $tempsTrajet = max(1, round($tempsTrajet / (1 + $speedBoost)));
                         }
@@ -211,7 +212,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                         if ($cout <= $ressources['energie']) {
                             if ($bool) {
                                 try {
-                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet, $atkBoostSnapshot, $defBoostSnapshot, $speedBoost) {
+                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet, $atkBoostSnapshot, $defBoostSnapshot, $speedBoost, $pillageBoostSnapshot) {
                                         // PASS1-MEDIUM-006: Re-validate energy under FOR UPDATE lock to prevent TOCTOU
                                         $attaquant = $_SESSION['login'];
                                         $energieFraiche = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login=? FOR UPDATE', 's', $attaquant);
@@ -231,10 +232,10 @@ if (isset($_POST['joueurAAttaquer'])) {
                                         $now = time();
                                         // Store snapshotted compound bonuses so combat.php uses launch-time values
                                         dbExecute($base,
-                                            'INSERT INTO actionsattaques (attaquant, defenseur, tempsAller, tempsAttaque, tempsRetour, troupes, attaqueFaite, nombreneutrinos, compound_atk_bonus, compound_spd_bonus, compound_def_bonus) VALUES (?,?,?,?,?,?,0,0,?,?,?)',
-                                            'ssiiisddd',
+                                            'INSERT INTO actionsattaques (attaquant, defenseur, tempsAller, tempsAttaque, tempsRetour, troupes, attaqueFaite, nombreneutrinos, compound_atk_bonus, compound_spd_bonus, compound_def_bonus, compound_pillage_bonus) VALUES (?,?,?,?,?,?,0,0,?,?,?,?)',
+                                            'ssiiisdddd',
                                             $attaquant, $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes,
-                                            $atkBoostSnapshot, $speedBoost, $defBoostSnapshot);
+                                            $atkBoostSnapshot, $speedBoost, $defBoostSnapshot, $pillageBoostSnapshot);
                                         ajouter('energie', 'ressources', -$cout, $attaquant);
                                         ajouter('energieDepensee', 'autre', $cout, $attaquant);
                                     });

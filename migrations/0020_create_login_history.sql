@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS login_history (
     INDEX idx_login_history_ip (ip),
     INDEX idx_login_history_fingerprint (fingerprint),
     INDEX idx_login_history_timestamp (timestamp)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+-- NOTE: charset fixed from utf8mb4 to latin1 to avoid FK charset mismatch with membre.login
+-- (Migration 0033 converted this table; this ensures the original creation is also latin1.)
 
 -- Widen membre.ip for IPv6 support (was VARCHAR(11))
 ALTER TABLE membre MODIFY ip VARCHAR(45) NOT NULL DEFAULT '';

@@ -32,7 +32,7 @@ function imageLabel($image, $label, $lien = false)
         $lien = "";
         $typeLabel = 'labelClassement';
     } else {
-        $lien = '<a href="' . $lien . '" class="lienSousMenu">';
+        $lien = '<a href="' . htmlspecialchars($lien, ENT_QUOTES, 'UTF-8') . '" class="lienSousMenu">';
         $typeLabel = 'labelSousMenu';
     }
     return $lien . $image . '<br/><span class="' . $typeLabel . '"  style="color:black">' . $label . '</span>' . ($lien ? '</a>' : '');

@@ -281,11 +281,11 @@ function initPlayer($joueur)
         $production = $production . '
         ' . cspScriptTag() . '
             document.getElementById("add' . $ressource . '").addEventListener("click",function(){
-                var pointsRestants = parseInt(document.getElementById("nbPointsRestants").innerHTML);
+                var pointsRestants = parseInt(document.getElementById("nbPointsRestants").textContent);
                 if(pointsRestants > 0){
-                    document.getElementById("nbPointsRestants").innerHTML = pointsRestants-1;
+                    document.getElementById("nbPointsRestants").textContent = pointsRestants-1;
                     document.getElementById("nbPoints' . $ressource . '").value++;
-                    document.getElementById("nbPointsAffichage' . $ressource . '").innerHTML = revenuAtomeJavascript(parseInt(document.getElementById("nbPoints' . $ressource . '").value)+parseInt(' . ${'points' . $ressource} . '));
+                    document.getElementById("nbPointsAffichage' . $ressource . '").textContent = revenuAtomeJavascript(parseInt(document.getElementById("nbPoints' . $ressource . '").value)+parseInt(' . ${'points' . $ressource} . '));
                 }
             });
         </script>';
@@ -305,11 +305,11 @@ function initPlayer($joueur)
         $productionCondenseur = $productionCondenseur . '
         ' . cspScriptTag() . '
             document.getElementById("addCondenseur' . $ressource . '").addEventListener("click",function(){
-                var pointsRestants = parseInt(document.getElementById("nbPointsCondenseurRestants").innerHTML);
+                var pointsRestants = parseInt(document.getElementById("nbPointsCondenseurRestants").textContent);
                 if(pointsRestants > 0){
-                    document.getElementById("nbPointsCondenseurRestants").innerHTML = pointsRestants-1;
+                    document.getElementById("nbPointsCondenseurRestants").textContent = pointsRestants-1;
                     document.getElementById("nbPointsCondenseur' . $ressource . '").value++;
-                    document.getElementById("nbPointsCondenseurAffichage' . $ressource . '").innerHTML=parseInt(document.getElementById("nbPointsCondenseur' . $ressource . '").value)+parseInt(' . ${'niveau' . $ressource} . ');
+                    document.getElementById("nbPointsCondenseurAffichage' . $ressource . '").textContent=parseInt(document.getElementById("nbPointsCondenseur' . $ressource . '").value)+parseInt(' . ${'niveau' . $ressource} . ');
                 }
             });
         </script>';
@@ -743,7 +743,7 @@ function coordonneesAleatoires()
         $carte[] = $temp;
     }
 
-    $joueursRows = dbFetchAll($base, 'SELECT x,y FROM membre', '');
+    $joueursRows = dbFetchAll($base, 'SELECT x,y FROM membre WHERE x >= 0 AND y >= 0', '');
     foreach ($joueursRows as $joueurs) {
         $carte[$joueurs['x']][$joueurs['y']] = 1;
     }
@@ -960,9 +960,10 @@ function performSeasonEnd()
 
     // MED-012: Advisory lock prevents double-reset when called concurrently.
     // GET_LOCK(..., 0) returns 1 if acquired immediately, 0 if already held, NULL on error.
-    $lockResult = dbFetchOne($base, "SELECT GET_LOCK('season_reset', 0) AS locked");
+    // Lock name matches basicprivatephp.php ('tvlw_season_reset') so the two locks are unified.
+    $lockResult = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_reset', 0) AS locked");
     if (!$lockResult || !$lockResult['locked']) {
-        return; // another reset in progress
+        throw new \RuntimeException('Season reset lock not acquired — another reset in progress');
     }
 
     try {
@@ -1039,18 +1040,27 @@ function performSeasonEnd()
     // Phase 1b: Award VP to players in chunks of 100 to avoid long-running transactions.
     // LOW-022: Split large VP award loop into smaller transactions so the DB is not locked
     // for the entire season-reset duration. Rankings were snapshotted in Phase 1a.
+    // HIGH-018: Compute DENSE_RANK so tied players receive the same VP bonus.
+    $denseRank = 1;
+    $prevScore = null;
+    $rankIndex = 0;
+    foreach ($playerRankingsForVP as &$player) {
+        if ($prevScore !== null && $player['totalPoints'] !== $prevScore) {
+            $denseRank = $rankIndex + 1;
+        }
+        $player['dense_rank'] = $denseRank;
+        $prevScore = $player['totalPoints'];
+        $rankIndex++;
+    }
+    unset($player);
+
     $playerChunks = array_chunk($playerRankingsForVP, 100);
-    $rankOffset = 1;
     foreach ($playerChunks as $chunk) {
-        $localOffset = $rankOffset;
-        withTransaction($base, function() use ($base, $chunk, $localOffset) {
-            $c = $localOffset;
+        withTransaction($base, function() use ($base, $chunk) {
             foreach ($chunk as $pointsVictoire) {
-                ajouter('victoires', 'autre', pointsVictoireJoueur($c), $pointsVictoire['login']);
-                $c++;
+                ajouter('victoires', 'autre', pointsVictoireJoueur($pointsVictoire['dense_rank']), $pointsVictoire['login']);
             }
         });
-        $rankOffset += count($chunk);
     }
 
     // Phase 1c: Award VP to alliances and their members (each alliance in one transaction).
@@ -1108,7 +1118,7 @@ function performSeasonEnd()
     return $vainqueurManche;
 
     } finally {
-        dbFetchOne($base, "SELECT RELEASE_LOCK('season_reset')");
+        dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
     }
 }
 

@@ -224,6 +224,8 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // leaves the game in a degraded state if mail() is slow.
     // Emails are inserted into email_queue and sent by processEmailQueue() which
     // is called probabilistically (1% of requests) on subsequent page loads.
+    // Guard: only queue emails when the reset actually succeeded and we have a winner.
+    if ($seasonResetOk && $vainqueurManche !== null) {
     $mailRows = dbFetchAll($base, 'SELECT email, login FROM membre', '');
     $winnerName = $vainqueurManche ?? 'Personne';
     $resetDate  = date('d/m/Y à H\hi', time());
@@ -246,6 +248,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     if (!empty($mailRows)) {
         logInfo('SEASON', 'Season reset emails queued', ['count' => count($mailRows)]);
     }
+    } // end if ($seasonResetOk && $vainqueurManche !== null)
 
     } // end advisory lock else block
     } // end admin gate else block

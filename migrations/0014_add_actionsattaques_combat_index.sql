@@ -9,6 +9,6 @@
 --
 -- Also adds an index on attaqueFaite to speed up filtering unprocessed attacks.
 
-ALTER TABLE `actionsattaques` ADD INDEX `idx_attaques_attaquant_temps` (`attaquant`, `tempsAttaque`);
-ALTER TABLE `actionsattaques` ADD INDEX `idx_attaques_defenseur_temps` (`defenseur`, `tempsAttaque`);
-ALTER TABLE `actionsattaques` ADD INDEX `idx_attaques_fait` (`attaqueFaite`);
+ALTER TABLE `actionsattaques` ADD INDEX IF NOT EXISTS `idx_attaques_attaquant_temps` (`attaquant`, `tempsAttaque`);
+ALTER TABLE `actionsattaques` ADD INDEX IF NOT EXISTS `idx_attaques_defenseur_temps` (`defenseur`, `tempsAttaque`);
+ALTER TABLE `actionsattaques` ADD INDEX IF NOT EXISTS `idx_attaques_fait` (`attaqueFaite`);

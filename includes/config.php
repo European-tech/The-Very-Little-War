@@ -16,6 +16,7 @@ date_default_timezone_set('Europe/Paris');
 // SECURITY
 // =============================================================================
 // Salt used for hashing PII (IP addresses) in log files — change per deployment.
+// TODO: Load from .env for production. Currently in source for convenience.
 define('SECRET_SALT', 'tvlw_audit_salt_2026');
 
 // =============================================================================
@@ -646,6 +647,8 @@ define('LOGIN_MAX_LENGTH', 20);
 define('EMAIL_MAX_LENGTH', 100); // RFC 5321 practical limit
 define('DESCRIPTION_MAX_LENGTH', 500); // Profile description character limit
 define('MESSAGE_MAX_LENGTH', 5000); // Max length for admin broadcast and private messages
+define('FORUM_POST_MAX_LENGTH', 10000);  // max characters per forum post
+define('FORUM_TITLE_MAX_LENGTH', 200);   // max characters per forum title
 
 // =============================================================================
 // ACCOUNT / VACATION / PROFILE

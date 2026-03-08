@@ -83,12 +83,12 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                                 throw new \RuntimeException('NOT_ENOUGH_RESOURCES');
                             }
 
-                            $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $_POST['destinataire']);
+                            $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $_POST['destinataire']);
 
                             // PASS1-MEDIUM-010: Check recipient storage capacity before accepting the transfer.
                             // Reject if the recipient has no room in any of the resources/energy being sent.
                             $maxStorageReceveur = placeDepot($constructionsJoueur['depot']);
-                            $ressourcesReceveur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $_POST['destinataire']);
+                            $ressourcesReceveur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_POST['destinataire']);
                             if ($ressourcesReceveur) {
                                 $noRoomCount = 0;
                                 $sentCount = 0;
@@ -150,15 +150,14 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
                                 $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
 
-                            // Build parameterized UPDATE for ressources
-                            $newEnergie = $ressources['energie'] - $_POST['energieEnvoyee'];
-                            $setClauses = ['energie=?'];
+                            // Build parameterized UPDATE for ressources using GREATEST guard (Fix 2)
+                            $setClauses = ['energie=GREATEST(0, energie-?)'];
                             $paramTypes = 'd';
-                            $paramValues = [$newEnergie];
+                            $paramValues = [(float)$_POST['energieEnvoyee']];
                             foreach ($nomsRes as $num => $ressource) {
-                                $setClauses[] = $ressource . '=?';
+                                $setClauses[] = $ressource . '=GREATEST(0, ' . $ressource . '-?)';
                                 $paramTypes .= 'd';
-                                $paramValues[] = $ressources[$ressource] - $_POST[$ressource . 'Envoyee'];
+                                $paramValues[] = (float)$_POST[$ressource . 'Envoyee'];
                             }
                             $paramTypes .= 's';
                             $paramValues[] = $_SESSION['login'];
@@ -293,7 +292,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             $tradeVolumeDelta = round($coutAchat * $reseauBonus);
                             dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
                             // HIGH-039: Enforce MARKET_POINTS_MAX cap atomically to prevent buy-sell cycling inflation
-                            dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'is', MARKET_POINTS_MAX, $_SESSION['login']);
+                            dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'ds', MARKET_POINTS_MAX, $_SESSION['login']);
                             recalculerTotalPointsJoueur($base, $_SESSION['login']);
                         });
                         logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
@@ -389,6 +388,9 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
 
                         $newResVal = $locked['res'] - $actualSold;
                         $energyGained = round($txTabCours[$numRes] * $actualSold * $sellTaxRate);
+                        if ($energyGained <= 0 && $actualSold > 0) {
+                            throw new Exception('PRICE_TOO_LOW');
+                        }
                         $newEnergie = $locked['energie'] + $energyGained;
                         if ($newEnergie > $placeDepotTx) {
                             $newEnergie = $placeDepotTx;
@@ -441,6 +443,8 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         $erreur = "Vous n'avez pas assez d'atomes.";
                     } elseif ($e->getMessage() === 'ENERGY_FULL') {
                         $erreur = "Votre stockage d'énergie est plein.";
+                    } elseif ($e->getMessage() === 'PRICE_TOO_LOW') {
+                        $erreur = "Le prix de cette ressource est trop bas pour générer de l'énergie. Attendez que le cours remonte.";
                     } else {
                         $erreur = "Une erreur est survenue lors de la vente. Veuillez réessayer.";
                         error_log('Market sell transaction failed: ' . $e->getMessage());

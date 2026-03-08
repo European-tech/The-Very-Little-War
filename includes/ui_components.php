@@ -286,7 +286,7 @@ function item($options)
         }
 
         if (array_key_exists("hauteur", $options["select"]) && $options["select"]["hauteur"]) {
-            $options["select"]["hauteur"] = 'data-picker-height="' . $options["select"]["hauteur"] . 'px"';
+            $options["select"]["hauteur"] = 'data-picker-height="' . htmlspecialchars($options["select"]["hauteur"], ENT_QUOTES, 'UTF-8') . 'px"';
         } else {
             $options["select"]["hauteur"] = '';
         }
@@ -449,7 +449,7 @@ function checkbox($liste)
         $options = $options . '
             <li>
             <label class="label-checkbox item-content">
-                <input type="checkbox" name="' . $value['name'] . '" id="' . $value['name'] . '">
+                <input type="checkbox" name="' . htmlspecialchars($value['name'], ENT_QUOTES, 'UTF-8') . '" id="' . htmlspecialchars($value['name'], ENT_QUOTES, 'UTF-8') . '">
                 <div class="item-media">
                     <i class="icon icon-form-checkbox"></i>
                 </div>
@@ -492,7 +492,7 @@ function chip($label, $image, $couleurImage = "black", $couleur = "", $circle = 
 
 function chipInfo($label, $image, $id = false)
 {
-    return chip($label, '<img alt="tag" src="' . $image . '" style="width:25px;height:25px;border-radius:0px;"/>', "white", "", true, $id);
+    return chip($label, '<img alt="tag" src="' . htmlspecialchars($image, ENT_QUOTES, 'UTF-8') . '" style="width:25px;height:25px;border-radius:0px;"/>', "white", "", true, $id);
 }
 
 function progressBar($vie, $vieMax, $couleur)
@@ -503,7 +503,7 @@ function progressBar($vie, $vieMax, $couleur)
         <div class="item-content" style="margin:0;padding:0;">
             <div class="item-inner" style="width: 80px;padding-right:0px;">
               <div data-progress="' . $pct . '" class="progressbar color-' . $couleur . '" style="height:6px;border:2px solid black;"></div>
-              <center><strong style="font-size:13px">' . $vie . '/' . $vieMax . '</strong></center>
+              <div style="text-align:center"><strong style="font-size:13px">' . $vie . '/' . $vieMax . '</strong></div>
         </div>
         </div>';
 }
@@ -582,9 +582,9 @@ function submit($options)
     }
 
     if (array_key_exists("image", $options) && $options["image"]) {
-        $image1 = '<img alt="imageCote" src="' . $options['image'] . '" style="float:left;vertical-align:middle;width:25px;height:25px;margin-top:5px;margin-left:-3px"/>';
+        $image1 = '<img alt="imageCote" src="' . htmlspecialchars($options['image'], ENT_QUOTES, 'UTF-8') . '" style="float:left;vertical-align:middle;width:25px;height:25px;margin-top:5px;margin-left:-3px"/>';
         if (!array_key_exists("simple", $options) || !$options["simple"]) {
-            $image2 = '<img alt="imageCote" src="' . $options['image'] . '" style="float:right;vertical-align:middle;width:25px;height:25px;margin-top:5px;margin-right:-3px"/>';
+            $image2 = '<img alt="imageCote" src="' . htmlspecialchars($options['image'], ENT_QUOTES, 'UTF-8') . '" style="float:right;vertical-align:middle;width:25px;height:25px;margin-top:5px;margin-right:-3px"/>';
         } else {
             $image2 = "";
         }
@@ -594,7 +594,7 @@ function submit($options)
     }
 
     if (array_key_exists("nom", $options) && $options["nom"]) {
-        $nom = '<input type="hidden" name="' . $options['nom'] . '"/>';
+        $nom = '<input type="hidden" name="' . htmlspecialchars($options['nom'], ENT_QUOTES, 'UTF-8') . '"/>';
     } else {
         $nom = '';
     }
@@ -605,9 +605,9 @@ function submit($options)
     }
 
     if ($isFormSubmit) {
-        return $nom . '<button type="submit" class="button ' . $classe . '" style="' . $style . '" ' . $id . $confirmAttr . '>' . $image1 . $titre . $image2 . '</button>';
+        return $nom . '<button type="submit" class="button ' . htmlspecialchars($classe, ENT_QUOTES, 'UTF-8') . '" style="' . htmlspecialchars($style, ENT_QUOTES, 'UTF-8') . '" ' . $id . $confirmAttr . '>' . $image1 . $titre . $image2 . '</button>';
     }
-    return $nom . '<a class="button ' . $classe . '" style="' . $style . '" href="' . $form . '" ' . $id . $confirmAttr . '>' . $image1 . $titre . $image2 . '</a>';
+    return $nom . '<a class="button ' . htmlspecialchars($classe, ENT_QUOTES, 'UTF-8') . '" style="' . htmlspecialchars($style, ENT_QUOTES, 'UTF-8') . '" href="' . htmlspecialchars($form, ENT_QUOTES, 'UTF-8') . '" ' . $id . $confirmAttr . '>' . $image1 . $titre . $image2 . '</a>';
 }
 
 function important($contenu)
@@ -626,7 +626,7 @@ function aide($page, $noir = false)
 
 function popover($nom, $image)
 {
-    return '<a href="#" data-popover=".' . $nom . '" class="open-popover" style=""><img src="' . $image . '" alt="question" style="width:20px;height:20px;vertical-align:middle;"></a>';
+    return '<a href="#" data-popover=".' . htmlspecialchars($nom, ENT_QUOTES, 'UTF-8') . '" class="open-popover" style=""><img src="' . htmlspecialchars($image, ENT_QUOTES, 'UTF-8') . '" alt="question" style="width:20px;height:20px;vertical-align:middle;"></a>';
 }
 
 function carteForum($avatar, $login, $date, $titre, $contenu, $grade, $sujet = false)

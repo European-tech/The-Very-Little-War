@@ -46,8 +46,7 @@
       var jours = Math.floor(diff / 86400);
       var heures = Math.floor((diff % 86400) / 3600);
       var minutes = Math.floor((diff % 3600) / 60);
-      text =
-        jours + "j " + heures + "h " + minutes + "m (heure du serveur UTC+1)";
+      text = jours + "j " + heures + "h " + minutes + "m";
     }
 
     for (var k = 0; k < elements.length; k++) {

@@ -47,8 +47,8 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 	}
 	if (isset($_SESSION['login']) && empty($erreur)) {
 		$titre = trim($_POST['titre'] ?? '');
-		if (mb_strlen($titre) > 200) {
-			$erreur = "Le titre est trop long (200 caractères max).";
+		if (mb_strlen($titre) > FORUM_TITLE_MAX_LENGTH) {
+			$erreur = "Le titre est trop long (" . FORUM_TITLE_MAX_LENGTH . " caractères max).";
 		}
 		// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
 		// MED-036: Probabilistic GC — only clean up expired bans 1% of the time to avoid hot-path writes
@@ -74,7 +74,7 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 				// alliance_id column not yet present — all forums public, skip silently
 			}
 		}
-		if (empty($erreur) && !empty($titre) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= 10000 and mb_strlen($titre) <= 200) {
+		if (empty($erreur) && !empty($titre) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= FORUM_POST_MAX_LENGTH and mb_strlen($titre) <= FORUM_TITLE_MAX_LENGTH) {
 			$timestamp = time();
 			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $titre, $_POST['contenu'], $_SESSION['login'], $timestamp);
 			$sujetId = mysqli_insert_id($base);
@@ -213,7 +213,7 @@ $idforum = dbFetchOne($base, 'SELECT titre, id FROM forums WHERE id = ?', 'i', $
 									echo (int)$_GET['id'];
 								} ?>" method="post" name="formCreerSujet"><?php echo csrfField();
 																																debutListe();
-																																item(['titre' => 'Titre', 'input' => '<input type="text" name="titre" id="titre" class="form-control" maxlength="200"/>', 'floating' => true]);
+																																item(['titre' => 'Titre', 'input' => '<input type="text" name="titre" id="titre" class="form-control" maxlength="' . FORUM_TITLE_MAX_LENGTH . '"/>', 'floating' => true]);
 																																creerBBcode("contenu");
 																																item(['floating' => true, 'titre' => "Contenu", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
 																																item(['input' => submit(['titre' => 'Créer', 'form' => 'formCreerSujet'])]);

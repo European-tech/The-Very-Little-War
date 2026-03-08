@@ -54,9 +54,18 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 	$contenu = $_POST['contenu'];
 	if (isset($_POST['titre']) AND !empty($_POST['titre'])) { // alors c'est un sujet
 		$titre = $_POST['titre'];
+		if ($type == 1) {
+			if (mb_strlen($contenu) > FORUM_POST_MAX_LENGTH) {
+				$erreur = "Le contenu est trop long (" . FORUM_POST_MAX_LENGTH . " caractères max).";
+			} elseif (mb_strlen($titre) > FORUM_TITLE_MAX_LENGTH) {
+				$erreur = "Le titre est trop long (" . FORUM_TITLE_MAX_LENGTH . " caractères max).";
+			}
+		}
 		$auteur = dbFetchOne($base, 'SELECT auteur FROM sujets WHERE id = ?', 'i', $id);
 		if ($type == 1) {
-			if ($auteur && $auteur['auteur'] == $_SESSION['login']) {
+			if (!empty($erreur)) {
+				// fall through to display form with error
+			} elseif ($auteur && $auteur['auteur'] == $_SESSION['login']) {
 				dbExecute($base, 'UPDATE sujets SET contenu = ?, titre = ? WHERE id = ?', 'ssi', $contenu, $titre, $id);
 				$information = "Le sujet a bien été modifié";
 				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $id);
@@ -67,8 +76,11 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 		}
 	}
 	if ($type == 2) {
+		if (mb_strlen($contenu) > FORUM_POST_MAX_LENGTH) {
+			$erreur = "Le contenu est trop long (" . FORUM_POST_MAX_LENGTH . " caractères max).";
+		}
 		// Rajout de Yojim
-		if ($moderateur['moderateur'] == '0') {
+		if (empty($erreur) && $moderateur['moderateur'] == '0') {
 			$auteur = dbFetchOne($base, 'SELECT auteur FROM reponses WHERE id = ?', 'i', $id);
 			if ($auteur && $auteur['auteur'] == $_SESSION['login']) {
 				dbExecute($base, 'UPDATE reponses SET contenu = ? WHERE auteur = ? AND id = ?', 'ssi', $contenu, $_SESSION['login'], $id);
@@ -85,7 +97,7 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 			} else {
 				$erreur = "Vous ne pouvez pas modifier une réponse donc vous n'êtes pas l'auteur";
 			}
-		} else {
+		} elseif (empty($erreur)) {
 			// Moderator edit: log the change before applying it (MED-034)
 			$originalRow = dbFetchOne($base, 'SELECT contenu FROM reponses WHERE id = ?', 'i', $id);
 			$originalContent = $originalRow ? $originalRow['contenu'] : '';

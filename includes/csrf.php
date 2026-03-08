@@ -31,7 +31,7 @@ function csrfCheck() {
         if (!csrfVerify()) {
             if (function_exists('logWarn')) {
                 logWarn('SECURITY', 'CSRF token validation failed', [
-                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                    'ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw')), 0, 12),
                     'uri' => $_SERVER['REQUEST_URI'] ?? 'unknown'
                 ]);
             }

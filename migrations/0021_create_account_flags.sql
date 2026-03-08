@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS account_flags (
     INDEX idx_flags_related (related_login),
     INDEX idx_flags_status (status),
     INDEX idx_flags_severity (severity)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+-- NOTE: charset fixed from utf8mb4 to latin1 to avoid FK charset mismatch with membre.login
+-- (Migration 0033 converted this table; this ensures the original creation is also latin1.)
 
 CREATE TABLE IF NOT EXISTS admin_alerts (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -27,4 +29,5 @@ CREATE TABLE IF NOT EXISTS admin_alerts (
     is_read TINYINT(1) NOT NULL DEFAULT 0,
     created_at INT NOT NULL,
     INDEX idx_alerts_unread (is_read, created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+-- NOTE: charset fixed from utf8mb4 to latin1 to match project standard (all InnoDB tables latin1)

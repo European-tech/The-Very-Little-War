@@ -1,9 +1,27 @@
 -- Migration 0018: Add foreign key constraints for referential integrity
 --
 -- Prerequisites:
--- 1. Run orphan cleanup BEFORE applying this migration (see bottom of file)
--- 2. membre.login must be VARCHAR(255) with UNIQUE index (added here)
--- 3. attack_cooldowns.attacker/defender widened from VARCHAR(50) to VARCHAR(255)
+-- 1. membre.login must be VARCHAR(255) with UNIQUE index (added here)
+-- 2. attack_cooldowns.attacker/defender widened from VARCHAR(50) to VARCHAR(255)
+-- 3. Orphan cleanup runs in Step 0 (before FK additions) to prevent constraint failures
+
+-- Step 0: Orphan cleanup — must run BEFORE FK additions
+-- Diagnostic SELECTs kept commented (they produce unwanted result sets in multi_query).
+-- SELECT COUNT(*) FROM autre WHERE login NOT IN (SELECT login FROM membre);
+-- SELECT COUNT(*) FROM ressources WHERE login NOT IN (SELECT login FROM membre);
+-- SELECT COUNT(*) FROM constructions WHERE login NOT IN (SELECT login FROM membre);
+-- SELECT COUNT(*) FROM molecules WHERE proprietaire NOT IN (SELECT login FROM membre);
+-- SELECT COUNT(*) FROM prestige WHERE login NOT IN (SELECT login FROM membre);
+-- SELECT COUNT(*) FROM attack_cooldowns WHERE attacker NOT IN (SELECT login FROM membre);
+-- SELECT COUNT(*) FROM attack_cooldowns WHERE defender NOT IN (SELECT login FROM membre);
+
+DELETE FROM autre WHERE login NOT IN (SELECT login FROM membre);
+DELETE FROM ressources WHERE login NOT IN (SELECT login FROM membre);
+DELETE FROM constructions WHERE login NOT IN (SELECT login FROM membre);
+DELETE FROM molecules WHERE proprietaire NOT IN (SELECT login FROM membre);
+DELETE FROM prestige WHERE login NOT IN (SELECT login FROM membre);
+DELETE FROM attack_cooldowns WHERE attacker NOT IN (SELECT login FROM membre);
+DELETE FROM attack_cooldowns WHERE defender NOT IN (SELECT login FROM membre);
 
 -- Step 1: Add UNIQUE index on membre.login (required for FK references)
 -- Drop the non-unique index first if it exists
@@ -43,28 +61,14 @@ ALTER TABLE prestige ADD CONSTRAINT fk_prestige_login
 ALTER TABLE attack_cooldowns ADD CONSTRAINT fk_cooldowns_attacker
     FOREIGN KEY (attacker) REFERENCES membre(login) ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- Attack cooldowns defender → membre.login (symmetric with attacker FK)
+-- Note: migration 0035 added this via PREPARE/EXECUTE guard; 0041 does DROP+ADD for idempotency.
+ALTER TABLE attack_cooldowns ADD CONSTRAINT fk_cooldowns_defender
+    FOREIGN KEY (defender) REFERENCES membre(login) ON DELETE CASCADE ON UPDATE CASCADE;
+
 -- Forum → membre.login (SET NULL: keep posts when player deleted)
 ALTER TABLE sujets ADD CONSTRAINT fk_sujets_auteur
     FOREIGN KEY (auteur) REFERENCES membre(login) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE reponses ADD CONSTRAINT fk_reponses_auteur
     FOREIGN KEY (auteur) REFERENCES membre(login) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- ============================================================
--- ORPHAN CLEANUP — Run BEFORE applying the ALTER TABLE statements above
--- These queries find and delete rows referencing non-existent players.
--- Execute manually and verify row counts before proceeding.
--- ============================================================
--- SELECT COUNT(*) FROM autre WHERE login NOT IN (SELECT login FROM membre);
--- SELECT COUNT(*) FROM ressources WHERE login NOT IN (SELECT login FROM membre);
--- SELECT COUNT(*) FROM constructions WHERE login NOT IN (SELECT login FROM membre);
--- SELECT COUNT(*) FROM molecules WHERE proprietaire NOT IN (SELECT login FROM membre);
--- SELECT COUNT(*) FROM prestige WHERE login NOT IN (SELECT login FROM membre);
--- SELECT COUNT(*) FROM attack_cooldowns WHERE attacker NOT IN (SELECT login FROM membre);
---
--- DELETE FROM autre WHERE login NOT IN (SELECT login FROM membre);
--- DELETE FROM ressources WHERE login NOT IN (SELECT login FROM membre);
--- DELETE FROM constructions WHERE login NOT IN (SELECT login FROM membre);
--- DELETE FROM molecules WHERE proprietaire NOT IN (SELECT login FROM membre);
--- DELETE FROM prestige WHERE login NOT IN (SELECT login FROM membre);
--- DELETE FROM attack_cooldowns WHERE attacker NOT IN (SELECT login FROM membre);

@@ -7,7 +7,13 @@ require_once("includes/constantesBase.php");
 
 // LOW-024: Restrict maintenance page to admin only.
 // Non-admin visitors are shown a 403 to avoid information disclosure.
+// Also validate session token against DB to prevent session fixation bypass.
 if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {
+    http_response_code(403);
+    exit('Accès refusé.');
+}
+$tokenCheck = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login=?', 's', $_SESSION['login']);
+if (!$tokenCheck || !hash_equals($tokenCheck['session_token'] ?? '', $_SESSION['session_token'] ?? 'x')) {
     http_response_code(403);
     exit('Accès refusé.');
 }

@@ -135,7 +135,7 @@ All game constants are in `includes/config.php`. Key settings:
 
 | Constant | Default | Description |
 |----------|---------|-------------|
-| BEGINNER_PROTECTION_SECONDS | 432000 (5 days) | New player attack immunity |
+| BEGINNER_PROTECTION_SECONDS | 259200 (3 days) | New player attack immunity |
 | MAX_CONCURRENT_CONSTRUCTIONS | 2 | Simultaneous building upgrades |
 | MAX_MOLECULE_CLASSES | 4 | Molecule army slots |
 | MAX_ATOMS_PER_ELEMENT | 200 | Cap per atom type |

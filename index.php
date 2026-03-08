@@ -142,8 +142,10 @@ if (isset($_SESSION['login'])) {
     echo '</span>';
     echo '</div>';
 
-    // Forum latest threads widget
-    $latestThreads = dbFetchAll($base, 'SELECT id, titre, auteur, timestamp FROM sujets WHERE statut = 0 ORDER BY timestamp DESC LIMIT 3', '', '');
+    // Forum latest threads widget — exclude alliance-private categories
+    $latestThreads = dbFetchAll($base,
+        'SELECT s.id, s.titre, s.auteur, s.timestamp FROM sujets s JOIN forums f ON s.idforum = f.id WHERE s.statut = 0 AND (f.alliance_id IS NULL OR f.alliance_id = 0) ORDER BY s.timestamp DESC LIMIT 3',
+        '', '');
     if (!empty($latestThreads)):
 ?>
 <div class="card">

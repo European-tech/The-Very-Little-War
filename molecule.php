@@ -66,6 +66,7 @@ if(isset($_GET['id']) AND !empty($_GET['id'])) {
         $isoDesc = isset($ISOTOPES[$isoType]) ? $ISOTOPES[$isoType]['desc'] : '';
         item(['titre' => 'Isotope', 'soustitre' => '<strong>' . htmlspecialchars($isoName) . '</strong>' . ($isoDesc ? ' — <small>' . htmlspecialchars($isoDesc) . '</small>' : ''), 'media' => '<img alt="isotope" src="images/molecule/molecule.png" class="imageMedia"/>']);
         finListe();
+        echo '<p><small>Note : les modificateurs de spécialisation sont appliqués en combat.</small></p>';
 	}
 	else {
 		echo "Cette molecule n'existe pas ou ne vous appartient pas.";

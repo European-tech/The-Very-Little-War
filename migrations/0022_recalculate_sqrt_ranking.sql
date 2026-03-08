@@ -15,13 +15,17 @@
 --   + 1.2 * SQRT(MAX(0, ROUND(TANH(ressourcesPillees / 50000) * 80)))
 -- )
 
+-- EXP() overflows (returns NULL) when 2*ressourcesPillees/50000 > ~709, i.e. ressourcesPillees > ~17.7M.
+-- tanh(x) = (e^2x - 1)/(e^2x + 1) → 1.0 as x→∞, so cap at 1.0 when argument > 700.
 UPDATE autre SET totalPoints = ROUND(
     1.0 * SQRT(GREATEST(0, points))
     + 1.5 * SQRT(GREATEST(0, ROUND(5.0 * SQRT(ABS(pointsAttaque)))))
     + 1.5 * SQRT(GREATEST(0, ROUND(5.0 * SQRT(ABS(pointsDefense)))))
     + 1.0 * SQRT(GREATEST(0, tradeVolume))
     + 1.2 * SQRT(GREATEST(0, ROUND(
-        (EXP(2 * ressourcesPillees / 50000) - 1) / (EXP(2 * ressourcesPillees / 50000) + 1) * 80
+        CASE WHEN (2 * ressourcesPillees / 50000) > 700 THEN 1.0
+             ELSE (EXP(2 * ressourcesPillees / 50000) - 1) / (EXP(2 * ressourcesPillees / 50000) + 1)
+        END * 80
     )))
 );
 

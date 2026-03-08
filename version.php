@@ -13,7 +13,7 @@ include("includes/layout.php");
 
 debutCarte("Historique des versions");
 $gitHash = '';
-if (function_exists('shell_exec')) {
+if (isset($_SESSION['login']) && function_exists('shell_exec')) {
     $raw = shell_exec('cd ' . escapeshellarg(__DIR__) . ' && git rev-parse --short HEAD 2>/dev/null');
     $gitHash = trim($raw ?? '');
 }

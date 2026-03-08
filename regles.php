@@ -217,7 +217,7 @@ En combat, les dégâts infligés ne sont jamais perdus. Si une classe de moléc
 <strong>Fonctionnement selon la formation :</strong><br/>
 &bull; <strong>Dispersée :</strong> les dégâts sont répartis à parts égales entre les classes actives. L'excédent de chaque classe se propage aux suivantes.<br/>
 &bull; <strong>Phalange :</strong> la classe 1 absorbe 50% des dégâts (avec +20% de défense). L'excédent se propage aux classes 2, 3 et 4.<br/>
-&bull; <strong>Embuscade :</strong> les dégâts traversent vos classes dans l'ordre (1 &rarr; 2 &rarr; 3 &rarr; 4), cascade directe.<br/><br/>
+&bull; <strong>Embuscade :</strong> +40% attaque <strong>si vous avez plus de molécules que l'attaquant</strong>, mais les dégâts traversent vos classes dans l'ordre (1 &rarr; 2 &rarr; 3 &rarr; 4), cascade directe. Puissant en défense avec une armée nombreuse.<br/><br/>
 
 <em>Astuce :</em> Répartissez vos molécules entre plusieurs classes pour absorber plus de dégâts totaux. Une seule classe concentrée peut être anéantie d'un coup !<br/><br/>
 
@@ -294,7 +294,7 @@ Trois formations tactiques sont disponibles :<br/><br/>
 <tbody>
 <tr><td style="padding:6px;border:1px solid #ddd;"><strong>Dispersée</strong></td><td style="padding:6px;border:1px solid #ddd;">Dégâts répartis également entre toutes les classes. Équilibré.</td></tr>
 <tr><td style="padding:6px;border:1px solid #ddd;"><strong>Phalange</strong></td><td style="padding:6px;border:1px solid #ddd;">Classe 1 absorbe <strong>50%</strong> des dégâts (+20% défense). Protège les classes arrière.</td></tr>
-<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Embuscade</strong></td><td style="padding:6px;border:1px solid #ddd;"><strong>+40% attaque</strong>, mais dégâts traversent les classes dans l'ordre (1→2→3→4). Risqué mais dévastateur.</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Embuscade</strong></td><td style="padding:6px;border:1px solid #ddd;"><strong>+40% attaque si vous avez plus de molécules que l'attaquant</strong>, dégâts traversent les classes dans l'ordre (1→2→3→4). Puissant en défense avec une armée nombreuse.</td></tr>
 </tbody>
 </table><br/>
 

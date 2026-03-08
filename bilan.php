@@ -216,20 +216,39 @@ finCarte();
 debutCarte("Production d'Atomes");
     debutContent();
 
+    // MED-033: Load shared atom bonuses (node/compound/spec) for the full bonus chain
+    $atomPlayerPos = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login = ?', 's', $login);
+    require_once('includes/compounds.php');
+    $compoundAtomBonus = getCompoundBonus($base, $login, 'production_boost');
+    $specAtomMod = getSpecModifier($login, 'atom_production');
+
     echo '<div class="data-table"><table>';
     echo '<thead><tr><th>Atome</th><th>Points alloues</th><th>Base</th>';
     if ($duplicateurLevel > 0) echo '<th>Duplicateur</th>';
     if ($prestigeProdMult > 1.0) echo '<th>Prestige</th>';
+    echo '<th>Noeud</th>';
+    if ($compoundAtomBonus > 0.0) echo '<th>Compose</th>';
+    if ($specAtomMod != 0.0) echo '<th>Spec</th>';
     echo '<th>Total/h</th></tr></thead>';
     echo '<tbody>';
 
     $nomsDisplay = ['Carbone', 'Azote', 'Hydrogene', 'Oxygene', 'Chlore', 'Soufre', 'Brome', 'Iode'];
 
+    require_once('includes/resource_nodes.php');
     foreach ($nomsRes as $num => $ressource) {
         $points = (int)$niveauxProducteur[$num];
         $atomBase = BASE_ATOMS_PER_POINT * $points;
         $atomDup = $atomBase * $bonusDupVal;
         $atomPrestige = $atomDup * $prestigeProdMult;
+
+        // Per-atom node bonus (different resource type per atom)
+        $atomNodeBonus = 0.0;
+        if ($atomPlayerPos && $atomPlayerPos['x'] >= 0 && $atomPlayerPos['y'] >= 0) {
+            $atomNodeBonus = getResourceNodeBonus($base, $atomPlayerPos['x'], $atomPlayerPos['y'], $nomsRes[$num]);
+        }
+        $atomAfterNode = $atomPrestige * (1 + $atomNodeBonus);
+        $atomAfterCompound = $atomAfterNode * (1 + $compoundAtomBonus);
+        $atomAfterSpec = $atomAfterCompound * (1 + $specAtomMod);
         $verified = revenuAtome($num, $login);
 
         echo '<tr>';
@@ -238,6 +257,13 @@ debutCarte("Production d'Atomes");
         echo '<td>' . fmtNum($atomBase) . '</td>';
         if ($duplicateurLevel > 0) echo '<td>' . fmtNum(round($atomDup)) . '</td>';
         if ($prestigeProdMult > 1.0) echo '<td>' . fmtNum(round($atomPrestige)) . '</td>';
+        echo '<td' . ($atomNodeBonus > 0 ? ' style="color:green"' : '') . '>'
+            . ($atomNodeBonus > 0 ? fmtNum(round($atomAfterNode)) : '—') . '</td>';
+        if ($compoundAtomBonus > 0.0) echo '<td style="color:green">' . fmtNum(round($atomAfterCompound)) . '</td>';
+        if ($specAtomMod != 0.0) {
+            $specColor = $specAtomMod > 0 ? 'green' : 'red';
+            echo '<td style="color:' . $specColor . '">' . fmtNum(round($atomAfterSpec)) . '</td>';
+        }
         echo '<td style="color:green;font-weight:bold">' . fmtNum($verified) . '/h</td>';
         echo '</tr>';
     }
@@ -248,6 +274,11 @@ debutCarte("Production d'Atomes");
     echo 'Base : ' . BASE_ATOMS_PER_POINT . ' atomes/h par point alloue';
     if ($duplicateurLevel > 0) echo ' | Duplicateur : +' . round(bonusDuplicateur($duplicateurLevel) * 100) . '%';
     if ($prestigeProdMult > 1.0) echo ' | Prestige : +' . round(($prestigeProdMult - 1) * 100) . '%';
+    if ($compoundAtomBonus > 0.0) echo ' | Compose actif : +' . round($compoundAtomBonus * 100, 1) . '%';
+    if ($specAtomMod != 0.0) {
+        $specSign = $specAtomMod > 0 ? '+' : '';
+        echo ' | Specialisation : ' . $specSign . round($specAtomMod * 100, 1) . '%';
+    }
     echo '</p>';
 
     finContent();

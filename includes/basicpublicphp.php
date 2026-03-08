@@ -23,7 +23,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 	if (!empty($_POST['loginConnexion']) && !empty($_POST['passConnexion'])) {
 		// 10 attempts per 5 minutes per IP
 		if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'login', RATE_LIMIT_LOGIN_MAX, RATE_LIMIT_LOGIN_WINDOW)) {
-			logWarn('AUTH', 'Login rate limited', ['ip' => $_SERVER['REMOTE_ADDR']]);
+			logWarn('AUTH', 'Login rate limited', ['ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw')), 0, 12)]);
 			$erreur = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
 		} else {
 

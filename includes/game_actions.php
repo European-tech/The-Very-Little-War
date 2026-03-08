@@ -140,16 +140,6 @@ function updateActions($joueur)
                 $actions['troupes'] = $chaine;
                 include("includes/combat.php"); // Les pertes sont calculées, le gagnant est désigné et les troupes sont mises à jour dans la BD, les ressources sont pillées
 
-                // Map array casualties to flat vars expected by report template
-                $classe1AttaquantMort = $attaquantMort[1] ?? 0;
-                $classe2AttaquantMort = $attaquantMort[2] ?? 0;
-                $classe3AttaquantMort = $attaquantMort[3] ?? 0;
-                $classe4AttaquantMort = $attaquantMort[4] ?? 0;
-                $classe1DefenseurMort = $defenseurMort[1] ?? 0;
-                $classe2DefenseurMort = $defenseurMort[2] ?? 0;
-                $classe3DefenseurMort = $defenseurMort[3] ?? 0;
-                $classe4DefenseurMort = $defenseurMort[4] ?? 0;
-
                 // Map combat.php output variables to report template variables
                 $attaquePts = number_format($pointsAttaquant, 0, ' ', ' ');
                 $defensePts = number_format($pointsDefenseur, 0, ' ', ' ');
@@ -184,10 +174,10 @@ function updateActions($joueur)
                 // verifier si on a envoyé des molécules de cette classe
 
                 for ($i = 1; $i <= $nbClasses; $i++) {
-                    if (${'classeAttaquant' . $i}['nombre'] == 0) {
-                        ${'classeAttaquant' . $i}['formuleAfficher'] = "?";
+                    if ($classeAttaquant[$i]['nombre'] == 0) {
+                        $classeAttaquant[$i]['formuleAfficher'] = "?";
                     } else {
-                        ${'classeAttaquant' . $i}['formuleAfficher'] = couleurFormule(${'classeAttaquant' . $i}['formule']);
+                        $classeAttaquant[$i]['formuleAfficher'] = couleurFormule($classeAttaquant[$i]['formule']);
                     }
                 }
 
@@ -205,28 +195,37 @@ function updateActions($joueur)
                             <thead>
                             <tr>
                             <th></th>
-                            <th>" . $classeAttaquant1['formuleAfficher'] . "</th>
-                            <th>" . $classeAttaquant2['formuleAfficher'] . "</th>
-                            <th>" . $classeAttaquant3['formuleAfficher'] . "</th>
-                            <th>" . $classeAttaquant4['formuleAfficher'] . "</th>
+                            " . (function() use ($classeAttaquant, $nbClasses) {
+                                $h = '';
+                                for ($i = 1; $i <= $nbClasses; $i++) {
+                                    $h .= "<th>" . $classeAttaquant[$i]['formuleAfficher'] . "</th>\n";
+                                }
+                                return $h;
+                            })() . "
                             </tr>
                             </thead>
 
                             <tbody>
                             <tr>
                             <th>Troupes</th>
-                            <td>" . number_format($classeAttaquant1['nombre'], 0, ' ', ' ') . "</td>
-                            <td>" . number_format($classeAttaquant2['nombre'], 0, ' ', ' ') . "</td>
-                            <td>" . number_format($classeAttaquant3['nombre'], 0, ' ', ' ') . "</td>
-                            <td>" . number_format($classeAttaquant4['nombre'], 0, ' ', ' ') . "</td>
+                            " . (function() use ($classeAttaquant, $nbClasses) {
+                                $h = '';
+                                for ($i = 1; $i <= $nbClasses; $i++) {
+                                    $h .= "<td>" . number_format($classeAttaquant[$i]['nombre'], 0, ' ', ' ') . "</td>\n";
+                                }
+                                return $h;
+                            })() . "
                             </tr>
 
                             <tr>
                             <th>Pertes</th>
-                            <td>" . number_format($classe1AttaquantMort, 0, ' ', ' ') . "</td>
-                            <td>" . number_format($classe2AttaquantMort, 0, ' ', ' ') . "</td>
-                            <td>" . number_format($classe3AttaquantMort, 0, ' ', ' ') . "</td>
-                            <td>" . number_format($classe4AttaquantMort, 0, ' ', ' ') . "</td>
+                            " . (function() use ($attaquantMort, $nbClasses) {
+                                $h = '';
+                                for ($i = 1; $i <= $nbClasses; $i++) {
+                                    $h .= "<td>" . number_format($attaquantMort[$i] ?? 0, 0, ' ', ' ') . "</td>\n";
+                                }
+                                return $h;
+                            })() . "
                             </tr>
                             </tbody>
                             </table></div><br/><br/>
@@ -243,86 +242,56 @@ function updateActions($joueur)
                             <tr>
                             <th></th>";
 
-                $classeDefenseur1['nombre'] = separerZeros($classeDefenseur1['nombre']);
-                $classeDefenseur2['nombre'] = separerZeros($classeDefenseur2['nombre']);
-                $classeDefenseur3['nombre'] = separerZeros($classeDefenseur3['nombre']);
-                $classeDefenseur4['nombre'] = separerZeros($classeDefenseur4['nombre']);
+                for ($i = 1; $i <= $nbClasses; $i++) {
+                    $classeDefenseur[$i]['nombre'] = separerZeros($classeDefenseur[$i]['nombre']);
+                    $defenseurMort[$i] = separerZeros($defenseurMort[$i] ?? 0);
+                }
 
-                $classe1DefenseurMort = separerZeros($classe1DefenseurMort);
-                $classe2DefenseurMort = separerZeros($classe2DefenseurMort);
-                $classe3DefenseurMort = separerZeros($classe3DefenseurMort);
-                $classe4DefenseurMort = separerZeros($classe4DefenseurMort);
-
-                $milieuDefenseur = "
-                            <th>" . couleurFormule($classeDefenseur1['formule']) . "</th>
-                            <th>" . couleurFormule($classeDefenseur2['formule']) . "</th>
-                            <th>" . couleurFormule($classeDefenseur3['formule']) . "</th>
-                            <th>" . couleurFormule($classeDefenseur4['formule']) . "</th>
-                            </tr>
-                            </thead>
-
-                            <tbody>
-                            <tr>
-                            <th>Troupes</th>
-                            <td>" . $classeDefenseur1['nombre'] . "</td>
-                            <td>" . $classeDefenseur2['nombre'] . "</td>
-                            <td>" . $classeDefenseur3['nombre'] . "</td>
-                            <td>" . $classeDefenseur4['nombre'] . "</td>
-                            </tr>
-
-                            <tr>
-                            <th>Pertes</th>
-                            <td>" . $classe1DefenseurMort . "</td>
-                            <td>" . $classe2DefenseurMort . "</td>
-                            <td>" . $classe3DefenseurMort . "</td>
-                            <td>" . $classe4DefenseurMort . "</td>
-                            </tr>";
+                $milieuDefenseur = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
+                    $h = '';
+                    for ($i = 1; $i <= $nbClasses; $i++) {
+                        $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
+                    }
+                    $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
+                    for ($i = 1; $i <= $nbClasses; $i++) {
+                        $h .= "<td>" . $classeDefenseur[$i]['nombre'] . "</td>\n";
+                    }
+                    $h .= "</tr><tr><th>Pertes</th>\n";
+                    for ($i = 1; $i <= $nbClasses; $i++) {
+                        $h .= "<td>" . $defenseurMort[$i] . "</td>\n";
+                    }
+                    $h .= "</tr>";
+                    return $h;
+                })();
 
                 if ($attaquantsRestants == 0) { // si aucune molécule n'est revenue alors on a aucune information sur les troupes en face
-                    $classeDefenseur1['formule'] = "?";
-                    $classeDefenseur2['formule'] = "?";
-                    $classeDefenseur3['formule'] = "?";
-                    $classeDefenseur4['formule'] = "?";
-
-                    $classeDefenseur1['nombre'] = "?";
-                    $classeDefenseur2['nombre'] = "?";
-                    $classeDefenseur3['nombre'] = "?";
-                    $classeDefenseur4['nombre'] = "?";
-
-                    $classe1DefenseurMort = "?";
-                    $classe2DefenseurMort = "?";
-                    $classe3DefenseurMort = "?";
-                    $classe4DefenseurMort = "?";
+                    for ($i = 1; $i <= $nbClasses; $i++) {
+                        $classeDefenseur[$i]['formule'] = "?";
+                        $classeDefenseur[$i]['nombre'] = "?";
+                        $defenseurMort[$i] = "?";
+                    }
 
                     dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']); // pas de retour si ils sont morts
 
                 }
 
 
-                $milieuAttaquant = "
-                            <th>" . couleurFormule($classeDefenseur1['formule']) . "</th>
-                            <th>" . couleurFormule($classeDefenseur2['formule']) . "</th>
-                            <th>" . couleurFormule($classeDefenseur3['formule']) . "</th>
-                            <th>" . couleurFormule($classeDefenseur4['formule']) . "</th>
-                            </tr>
-                            </thead>
-
-                            <tbody>
-                            <tr>
-                            <th>Troupes</th>
-                            <td>" . $classeDefenseur1['nombre'] . "</td>
-                            <td>" . $classeDefenseur2['nombre'] . "</td>
-                            <td>" . $classeDefenseur3['nombre'] . "</td>
-                            <td>" . $classeDefenseur4['nombre'] . "</td>
-                            </tr>
-
-                            <tr>
-                            <th>Pertes</th>
-                            <td>" . $classe1DefenseurMort . "</td>
-                            <td>" . $classe2DefenseurMort . "</td>
-                            <td>" . $classe3DefenseurMort . "</td>
-                            <td>" . $classe4DefenseurMort . "</td>
-                            </tr>";
+                $milieuAttaquant = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
+                    $h = '';
+                    for ($i = 1; $i <= $nbClasses; $i++) {
+                        $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
+                    }
+                    $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
+                    for ($i = 1; $i <= $nbClasses; $i++) {
+                        $h .= "<td>" . $classeDefenseur[$i]['nombre'] . "</td>\n";
+                    }
+                    $h .= "</tr><tr><th>Pertes</th>\n";
+                    for ($i = 1; $i <= $nbClasses; $i++) {
+                        $h .= "<td>" . $defenseurMort[$i] . "</td>\n";
+                    }
+                    $h .= "</tr>";
+                    return $h;
+                })();
 
 
                 // Reactions feature removed — placeholder for future implementation

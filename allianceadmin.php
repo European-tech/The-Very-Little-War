@@ -5,7 +5,7 @@ include("includes/bbcode.php");
 
 // H-027: Verify alliance membership before allowing admin access
 $currentAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
-if (!$currentAlliance || $currentAlliance['idalliance'] === 0) {
+if (!$currentAlliance || (int)$currentAlliance['idalliance'] === 0) {
     header('Location: alliance.php');
     exit();
 }
@@ -155,6 +155,7 @@ if ($gradeChef) {
 							throw new \RuntimeException('DUPLICATE');
 						}
 						dbExecute($base, 'UPDATE alliances SET tag=? WHERE id=?', 'si', $newTag, $allianceId);
+					dbExecute($base, 'UPDATE invitations SET tag=? WHERE idalliance=?', 'si', $newTag, $allianceId);
 					});
 					$information = 'Le tag de l\'équipe a bien été changé et est devenu ' . htmlspecialchars($_POST['changertag'], ENT_QUOTES, 'UTF-8') . '.';
 				} catch (\RuntimeException $e) {
@@ -170,11 +171,17 @@ if ($gradeChef) {
 		csrfCheck();
 		if (!empty($_POST['changerchef'])) {
 			$_POST['changerchef'] = trim($_POST['changerchef']);
-			$dansLAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $_POST['changerchef']);
-			if ($dansLAlliance > 0) {
-					dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $_POST['changerchef'], $currentAlliance['idalliance']);
+			$newChef = $_POST['changerchef'];
+			try {
+				withTransaction($base, function() use ($base, $currentAlliance, $newChef) {
+					$member = dbFetchOne($base, 'SELECT login FROM autre WHERE idalliance=? AND login=? FOR UPDATE', 'is', $currentAlliance['idalliance'], $newChef);
+					if (!$member) {
+						throw new \RuntimeException('NOT_IN_ALLIANCE');
+					}
+					dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $newChef, $currentAlliance['idalliance']);
+				});
 				header("Location: alliance.php"); exit;
-			} else {
+			} catch (\RuntimeException $e) {
 				$erreur = "Le joueur que vous essayez de mettre en chef n'existe pas ou n'est pas dans votre équipe.";
 			}
 		} else {
