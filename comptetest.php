@@ -53,22 +53,28 @@ if (isset($_GET['inscription'])) {
 		//Si les deux mots de passe sont différents
 		if (mb_strlen($_POST['pass']) < PASSWORD_MIN_LENGTH) {
 			$erreur = 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caractères.';
+		} elseif (mb_strlen($_POST['pass']) > PASSWORD_BCRYPT_MAX_LENGTH) {
+			$erreur = 'Le mot de passe est trop long (max ' . PASSWORD_BCRYPT_MAX_LENGTH . ' caractères).';
 		} elseif ($_POST['pass'] != $_POST['pass_confirm']) {
 			$erreur = 'Les deux mots de passe sont différents.';
 		} else {
 			if (!validateLogin($_POST['login'])) {
 				$erreur = 'Le login doit contenir entre ' . LOGIN_MIN_LENGTH . ' et ' . LOGIN_MAX_LENGTH . ' caractères alphanumériques.';
-			} elseif (preg_match("#^[A-Za-z0-9]*$#", $_POST['login'])) {
+			} else {
 				if (validateEmail($_POST['email'])) {
-					$_POST['login'] = ucfirst(mb_strtolower($_POST['login']));
-					$loginClean = $_POST['login'];
+					$email = trim($_POST['email']);
+					$nbMail = dbCount($base, 'SELECT COUNT(*) AS nb FROM membre WHERE email = ?', 's', $email);
+					if ($nbMail > 0) {
+						$erreur = 'L\'email est déjà utilisé.';
+					} else {
+						$_POST['login'] = ucfirst(mb_strtolower($_POST['login']));
+						$loginClean = $_POST['login'];
 
-					$data = dbFetchOne($base, 'SELECT count(*) AS cnt FROM membre WHERE login = ?', 's', $loginClean);
-					//Si le login est déjà utilisé
-					if ($data['cnt'] == 0) {
-						$oldLogin = $_SESSION['login'];
-						$newLogin = $loginClean;
-						$email = trim($_POST['email']);
+						$data = dbFetchOne($base, 'SELECT count(*) AS cnt FROM membre WHERE login = ?', 's', $loginClean);
+						//Si le login est déjà utilisé
+						if ($data['cnt'] == 0) {
+							$oldLogin = $_SESSION['login'];
+							$newLogin = $loginClean;
 						// Use password_hash instead of MD5
 						$hashedPassword = password_hash($_POST['pass'], PASSWORD_DEFAULT);
 
@@ -110,14 +116,13 @@ if (isset($_GET['inscription'])) {
 						$_SESSION['session_token'] = $sessionToken;
 
 						header("Location: index.php?inscrit=1"); exit;
-					} else {
-						$erreur = 'Ce login est déjà utilisé.';
-					}
+						} else {
+							$erreur = 'Ce login est déjà utilisé.';
+						}
+					} // end email-not-duplicate check
 				} else {
 					$erreur = 'L\'email n\'est pas correct.';
 				}
-			} else {
-				$erreur = 'Vous ne pouvez pas utiliser de caractères spéciaux dans votre login';
 			}
 		}
 	} else {

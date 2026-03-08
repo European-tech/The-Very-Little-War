@@ -110,6 +110,18 @@ function calculatePrestigePoints($login) {
 function awardPrestigePoints() {
     global $base, $PRESTIGE_RANK_BONUSES;
 
+    // P9-INFO-004: Idempotency guard — do not award PP twice for the same season.
+    // The current season number is MAX(season_number)+1 from season_recap (consistent
+    // with archiveSeasonData()). We store the last awarded season in statistiques so
+    // a retry or double-call within the same season is a no-op.
+    $lastRecap  = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
+    $currentSeason = ($lastRecap && $lastRecap['max_s']) ? (int)$lastRecap['max_s'] + 1 : 1;
+    $statsRow = dbFetchOne($base, 'SELECT prestige_awarded_season FROM statistiques', '', '');
+    if ($statsRow && (int)$statsRow['prestige_awarded_season'] >= $currentSeason) {
+        // Already awarded for this season — skip silently.
+        return;
+    }
+
     // Freeze rankings into array to prevent concurrent changes mid-award
     // Exclude inactive/banned players (x = INACTIVE_PLAYER_X sentinel = -1000)
     // Read rankings BEFORE the transaction to avoid long-held locks on autre/membre
@@ -155,6 +167,9 @@ function awardPrestigePoints() {
             }
         });
     }
+
+    // P9-INFO-004: Mark this season as awarded so retries are idempotent.
+    dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
 }
 
 /**

@@ -55,10 +55,10 @@ if ($type == 4 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	}
 }
 
-if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type > 0) {
+if (isset($_POST['contenu']) AND !empty(trim($_POST['contenu'])) AND $id > 0 AND $type > 0) {
 	csrfCheck();
 	$contenu = $_POST['contenu'];
-	if (isset($_POST['titre']) AND !empty($_POST['titre'])) { // alors c'est un sujet
+	if (isset($_POST['titre']) AND !empty(trim($_POST['titre']))) { // alors c'est un sujet
 		$titre = $_POST['titre'];
 		if ($type == 1) {
 			if (mb_strlen($contenu) > FORUM_POST_MAX_LENGTH) {
@@ -104,19 +104,41 @@ if (isset($_POST['contenu']) AND !empty($_POST['contenu']) AND $id > 0 AND $type
 				$erreur = "Vous ne pouvez pas modifier une réponse donc vous n'êtes pas l'auteur";
 			}
 		} elseif (empty($erreur)) {
-			// Moderator edit: log the change before applying it (MED-034)
-			$originalRow = dbFetchOne($base, 'SELECT contenu FROM reponses WHERE id = ?', 'i', $id);
-			$originalContent = $originalRow ? $originalRow['contenu'] : '';
-			dbExecute($base,
-				'INSERT INTO moderation_log (moderator_login, target_post_id, post_type, original_content, new_content, action_at) VALUES (?, ?, ?, ?, ?, ?)',
-				'sisssi', $_SESSION['login'], $id, 'reponse', $originalContent, $contenu, time()
-			);
-			dbExecute($base, 'UPDATE reponses SET contenu = ? WHERE id = ?', 'si', $contenu, $id);
-			$information = "La réponse a bien été modifiée";
-			$reponse = dbFetchOne($base, 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
-			if ($reponse) {
-				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $reponse['idsujet']);
-				header("Location: sujet.php?id=" . (int)$reponse['idsujet']); exit;
+			// P9-MED-007: Check alliance-private forum access for moderator edits.
+			// Fetch the forum for this reply's topic and verify the moderator is a member of the
+			// required alliance (if any). Site-wide moderation does not grant access to
+			// alliance-private forums that the moderator is not a member of.
+			$replyTopicRow = dbFetchOne($base, 'SELECT s.idforum FROM reponses r JOIN sujets s ON s.id = r.idsujet WHERE r.id = ?', 'i', $id);
+			if ($replyTopicRow) {
+				try {
+					$forumMeta = dbFetchOne($base, 'SELECT alliance_id FROM forums WHERE id = ?', 'i', $replyTopicRow['idforum']);
+					if ($forumMeta && !empty($forumMeta['alliance_id'])) {
+						// Fetch moderator's own alliance from autre (not from $moderateur which only has the moderateur key)
+						$modAllianceRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
+						$modAllianceId = $modAllianceRow ? (int)$modAllianceRow['idalliance'] : 0;
+						if ($modAllianceId !== (int)$forumMeta['alliance_id']) {
+							$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
+						}
+					}
+				} catch (\Exception $e) {
+					// alliance_id column not yet present — all forums public, skip silently
+				}
+			}
+			if (empty($erreur)) {
+				// Moderator edit: log the change before applying it (MED-034)
+				$originalRow = dbFetchOne($base, 'SELECT contenu FROM reponses WHERE id = ?', 'i', $id);
+				$originalContent = $originalRow ? $originalRow['contenu'] : '';
+				dbExecute($base,
+					'INSERT INTO moderation_log (moderator_login, target_post_id, post_type, original_content, new_content, action_at) VALUES (?, ?, ?, ?, ?, ?)',
+					'sisssi', $_SESSION['login'], $id, 'reponse', $originalContent, $contenu, time()
+				);
+				dbExecute($base, 'UPDATE reponses SET contenu = ? WHERE id = ?', 'si', $contenu, $id);
+				$information = "La réponse a bien été modifiée";
+				$reponse = dbFetchOne($base, 'SELECT * FROM reponses WHERE id = ?', 'i', $id);
+				if ($reponse) {
+					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $reponse['idsujet']);
+					header("Location: sujet.php?id=" . (int)$reponse['idsujet']); exit;
+				}
 			}
 		}
 	}
@@ -147,8 +169,8 @@ if ($id > 0 AND $type > 0) {
 
 	if ($nbReponses == 1) {
 		debutListe();
-        $safeAction = htmlspecialchars(strtok($_SERVER['REQUEST_URI'], '?'), ENT_QUOTES, 'UTF-8');
-        echo '<form method="post" action="' . $safeAction . '" name="formEditer">';
+        // FORUM-P9-004: use hardcoded action instead of REQUEST_URI
+        echo '<form method="post" action="editer.php" name="formEditer">';
         echo csrfField();
         echo '<input type="hidden" name="id" value="' . (int)$id . '"/>';
         echo '<input type="hidden" name="type" value="' . (int)$type . '"/>';

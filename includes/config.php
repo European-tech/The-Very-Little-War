@@ -17,7 +17,18 @@ date_default_timezone_set('Europe/Paris');
 // =============================================================================
 // Salt used for hashing PII (IP addresses) in log files — change per deployment.
 // TODO: Load from .env for production. Currently in source for convenience.
+// In production, set SECRET_SALT as environment variable: putenv("SECRET_SALT=<random>") in .env
 define('SECRET_SALT', 'tvlw_audit_salt_2026');
+
+// Trusted upstream proxy IPs for X-Forwarded-For extraction.
+// IMPORTANT: This project currently runs on a VPS with direct client connections
+// (no load balancer or reverse proxy in front of Apache). REMOTE_ADDR is used
+// directly as the client IP. If a reverse proxy is ever added (e.g., Cloudflare,
+// nginx), set TRUSTED_PROXY_IPS to the proxy's IP(s) and update multiaccount.php
+// logLoginEvent() to extract the real client IP from X-Forwarded-For only when
+// REMOTE_ADDR matches a trusted proxy. Using X-Forwarded-For without validation
+// allows any client to spoof their IP and evade multi-account detection.
+define('TRUSTED_PROXY_IPS', []); // empty = direct connect assumed; add proxy IPs as array of strings if needed
 
 // LOW-010: Admin resource grant limits — used in admin moderation panels
 define('ADMIN_RESOURCE_GRANT_DEFAULT', 100000);
@@ -574,6 +585,14 @@ $MEDAL_THRESHOLDS_TROLL = [0, 1, 2, 3, 4, 5, 6, 7];
 define('REGISTRATION_RANDOM_MAX', 200);
 $REGISTRATION_ELEMENT_THRESHOLDS = [100, 150, 175, 187, 193, 197, 199, 200];
 
+// Starting resource values — must match the DEFAULT clauses in the `ressources` table schema.
+// PHP code uses `INSERT INTO ressources (login) VALUES (?)` and `energie=default` so these
+// constants serve as the authoritative documentation and can be referenced in season resets.
+define('STARTING_ENERGY', 64);
+define('STARTING_ATOMS', 64);
+define('STARTING_REVENUE_ENERGY', 12);
+define('STARTING_REVENUE_ATOMS', 9);
+
 // =============================================================================
 // PRESTIGE SYSTEM
 // =============================================================================
@@ -660,6 +679,7 @@ define('DESCRIPTION_MAX_LENGTH', 500); // Profile description character limit
 define('MESSAGE_MAX_LENGTH', 5000); // Max length for admin broadcast and private messages
 define('FORUM_POST_MAX_LENGTH', 10000);  // max characters per forum post
 define('FORUM_TITLE_MAX_LENGTH', 200);   // max characters per forum title
+define('MATH_FORUM_ID', 8);             // Forum category ID where MathJax rendering is enabled
 
 // =============================================================================
 // ACCOUNT / VACATION / PROFILE

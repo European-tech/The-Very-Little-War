@@ -87,7 +87,7 @@ debutCarte("Modération du forum");
 	<?php
 	finCarte();
 	debutCarte("Sanctions en cours");
-	$sanctions = dbFetchAll($base, 'SELECT * FROM sanctions');
+	$sanctions = dbFetchAll($base, 'SELECT * FROM sanctions WHERE dateFin >= CURDATE() ORDER BY dateDebut DESC LIMIT 200');
 	if (!count($sanctions)) {
 		debutContent();
 		echo "Aucune sanction en cours.";

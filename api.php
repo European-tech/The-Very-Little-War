@@ -34,6 +34,7 @@ require_once('includes/rate_limiter.php');
 
 // Rate limit: 60 API calls per 60 seconds per IP
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+// 'api' bucket: formula preview only; market ops are rate-limited in their own pages (marche.php)
 if (!rateLimitCheck($ip, 'api', 60, 60)) {
     http_response_code(429);
     echo json_encode(['error' => 'Rate limit exceeded. Try again later.']);
@@ -46,11 +47,11 @@ include("includes/fonctions.php");
 // Force joueur to current session — never trust client-supplied player identity
 $joueur = $_SESSION['login'];
 
-// Sanitize numeric params with intval (safe for formula calculations)
-$nombre        = isset($_GET['nombre'])       ? intval($_GET['nombre'])       : 0;
-$nombre2       = isset($_GET['nombre2'])      ? intval($_GET['nombre2'])      : 0;
-$niveau        = isset($_GET['niveau'])       ? intval($_GET['niveau'])       : 0;
-$nbTotalAtomes = isset($_GET['nbTotalAtomes']) ? intval($_GET['nbTotalAtomes']) : 0;
+// Sanitize and clamp numeric params (API-P9-001: negative values produce NaN in formulas)
+$nombre        = max(0, min(MAX_ATOMS_PER_ELEMENT, isset($_GET['nombre'])        ? intval($_GET['nombre'])        : 0));
+$nombre2       = max(0, min(MAX_ATOMS_PER_ELEMENT, isset($_GET['nombre2'])       ? intval($_GET['nombre2'])       : 0));
+$niveau        = max(0, min(MAX_BUILDING_LEVEL,    isset($_GET['niveau'])        ? intval($_GET['niveau'])        : 0));
+$nbTotalAtomes = max(0, min(8 * MAX_ATOMS_PER_ELEMENT, isset($_GET['nbTotalAtomes']) ? intval($_GET['nbTotalAtomes']) : 0));
 
 // V4: Pre-compute medal bonuses and lieur level for covalent formulas
 $medalDataApi = dbFetchOne($base, 'SELECT pointsAttaque, pointsDefense, ressourcesPillees FROM autre WHERE login=?', 's', $joueur);
@@ -60,6 +61,8 @@ $bonusPillageApi = computeMedalBonus($medalDataApi ? $medalDataApi['ressourcesPi
 $lieurDataApi = dbFetchOne($base, 'SELECT lieur FROM constructions WHERE login=?', 's', $joueur);
 $nivLieurApi = ($lieurDataApi && isset($lieurDataApi['lieur'])) ? $lieurDataApi['lieur'] : 0;
 
+// IMPORTANT: All handlers in this dispatch table are read-only (formula preview).
+// Any future handler that mutates state MUST: (1) verify POST method, (2) call csrfCheck().
 // Whitelist dispatch table: 'id' value => callable returning the result
 // V4: nombre = primary atom, nombre2 = secondary atom (covalent synergy), niveau = condenseur level
 $dispatch = [
@@ -102,5 +105,12 @@ if (!isset($dispatch[$id])) {
     exit;
 }
 
-// Execute the dispatched handler and return JSON
-echo json_encode(['valeur' => $dispatch[$id]()]);
+// Execute the dispatched handler and return JSON (API-P9-002: guard NaN/INF encoding failures)
+$result = json_encode(['valeur' => $dispatch[$id]()]);
+if ($result === false) {
+    http_response_code(500);
+    error_log('api.php json_encode failed for id=' . $id . ': ' . json_last_error_msg());
+    echo json_encode(['error' => 'Encoding error']);
+} else {
+    echo $result;
+}

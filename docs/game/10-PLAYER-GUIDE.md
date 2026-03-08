@@ -707,6 +707,8 @@ Le prestige est un systeme de **progression cross-saison**. Vos points de presti
 | Volume d'echange >= 20 | +3 PP |
 | Don d'energie effectue | +2 PP |
 
+Chaque connexion journalière rapporte également +1 PP (en plus des jalons de série), soit jusqu'à ~25 PP supplémentaires par saison pour les joueurs très actifs.
+
 > **Exemple :** Si vous avez Terreur Bronze (1 tier), Attaque Argent (2 tiers), Defense Bronze (1 tier), Pillage Or (3 tiers), Pertes Argent (2 tiers), Energivore Bronze (1 tier) = **10 PP** des medailles. Ajoutez la connexion finale semaine (+5), 10+ attaques (+5) = **20 PP minimum**.
 
 ### Bonus de Rang

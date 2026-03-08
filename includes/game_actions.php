@@ -347,38 +347,61 @@ function updateActions($joueur)
                     error_log('Combat transaction rolled back for action ' . ($actions['id'] ?? 'unknown') . ': ' . $combatException->getMessage());
                 }
             } else {
-                $nDef = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $actions['defenseur']);
-                if (!$nDef) {
-                    // Defender was deleted — cancel espionage silently
-                    dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
-                    continue;
-                }
-                // Radar research reduces the neutrino threshold for successful espionage
-                $radarDiscount = 1 - allianceResearchBonus($actions['attaquant'], 'espionage_cost');
-                $espionageThreshold = ($nDef['neutrinos'] * ESPIONAGE_SUCCESS_RATIO) * $radarDiscount;
-
-                if ($espionageThreshold < $actions['nombreneutrinos']) {
-                    // COMB-001: Use a plain array instead of variable-variables ($classe1..$classeN)
-                    // to avoid dynamic variable injection risk and improve readability.
-                    $espClasses = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
-
-                    $ressourcesJoueur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['defenseur']);
-
-                    $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $actions['defenseur']);
-
-                    $titreRapportJoueur = "Vous espionnez " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8');
-                    $chaine1 = "";
-                    foreach ($nomsRes as $num => $ressource) {
-                        $chaine1 = $chaine1 . nombreAtome($num, number_format($ressourcesJoueur[$ressource], 0, ' ', ' '));
+                // P9-MED-008: Outer transaction wraps the entire espionage resolution block.
+                // The CAS guard (first statement) prevents double-processing in concurrent requests.
+                $espActionId = $actions['id'];
+                $espActions  = $actions; // capture by value for closure
+                withTransaction($base, function() use (
+                    $base, $espActionId, $espActions, $nomsRes, $nbClasses, $FORMATIONS
+                ) {
+                    // CAS guard: mark attaqueFaite=1 only if not already processed.
+                    // dbExecute returns affected_rows: 0 means another request beat us.
+                    $cas = dbExecute($base, 'UPDATE actionsattaques SET attaqueFaite=1 WHERE id=? AND attaqueFaite=0', 'i', $espActionId);
+                    if ($cas === false || $cas === 0) {
+                        // Already resolved by a concurrent request — skip silently.
+                        return;
                     }
 
-                    // Build army section dynamically from the $espClasses array
-                    $armeeHtml = '';
-                    foreach ($espClasses as $espClass) {
-                        $armeeHtml .= "<strong>" . couleurFormule($espClass['formule']) . " : </strong>" . nombreMolecules(number_format($espClass['nombre'], 0, ' ', ' ')) . "<br/>\n";
+                    $nDef = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $espActions['defenseur']);
+                    if (!$nDef) {
+                        // Defender was deleted — cancel espionage, action already marked done.
+                        dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
+                        return;
                     }
+                    // Radar research reduces the neutrino threshold for successful espionage
+                    $radarDiscount      = 1 - allianceResearchBonus($espActions['attaquant'], 'espionage_cost');
+                    $espionageThreshold = ($nDef['neutrinos'] * ESPIONAGE_SUCCESS_RATIO) * $radarDiscount;
 
-                    $contenuRapportJoueur = "
+                    if ($espionageThreshold < $espActions['nombreneutrinos']) {
+                        // COMB-001: Use a plain array instead of variable-variables ($classe1..$classeN)
+                        // to avoid dynamic variable injection risk and improve readability.
+                        $espClasses = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $espActions['defenseur']);
+
+                        $ressourcesJoueur    = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?',     's', $espActions['defenseur']);
+                        $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?',  's', $espActions['defenseur']);
+
+                        // P9-MED-009: NULL-dereference guard — target may have been deleted
+                        // between the CAS guard and these reads (e.g. account deletion race).
+                        if (!$ressourcesJoueur || !$constructionsJoueur) {
+                            $titreRapportJoueur   = "Espionnage — cible supprimée";
+                            $contenuRapportJoueur = "<p>La cible a été supprimée avant que le rapport puisse être généré.</p>";
+                        } else {
+                            $titreRapportJoueur = "Vous espionnez " . htmlspecialchars($espActions['defenseur'], ENT_QUOTES, 'UTF-8');
+                            $chaine1 = "";
+                            foreach ($nomsRes as $num => $ressource) {
+                                $chaine1 = $chaine1 . nombreAtome($num, number_format($ressourcesJoueur[$ressource], 0, ' ', ' '));
+                            }
+
+                            // Build army section dynamically from the $espClasses array
+                            // SPY-P9-009: couleurFormule() does not call htmlspecialchars() internally,
+                            // so we escape the formula string first to prevent latent XSS in spy reports.
+                            $armeeHtml = '';
+                            foreach ($espClasses as $espClass) {
+                                $safeFormule = htmlspecialchars($espClass['formule'], ENT_QUOTES, 'UTF-8');
+                                $armeeHtml .= "<strong>" . couleurFormule($safeFormule) . " : </strong>" . nombreMolecules(number_format($espClass['nombre'], 0, ' ', ' ')) . "<br/>\n";
+                            }
+
+                            $contenuRapportJoueur = "
                     <p>" . important('Armée') . "
                     " . $armeeHtml . "<br/>
                     <br/><br/>
@@ -454,26 +477,28 @@ function updateActions($joueur)
                     <br/>" . important('Formation défensive') . "
                     <strong>" . htmlspecialchars($FORMATIONS[$constructionsJoueur['formation'] ?? 0]['name'] ?? 'Dispersée') . "</strong>
                     </p>";
-                } else {
-                    $titreRapportJoueur = "Espionnage raté";
-                    $contenuRapportJoueur = "<p>Votre espionnage a raté, vous avez envoyé moins de la moitié des neutrinos de votre adversaire.</p>";
-                }
-
-
-                // MED-068: Wrap espionage report creation and action deletion in a transaction
-                // to prevent partial writes (report created but action not deleted, or vice versa).
-                withTransaction($base, function() use ($base, $actions, $titreRapportJoueur, $contenuRapportJoueur, $espionageThreshold) {
-                    dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $actions['attaquant'], 'espionage');
-
-                    // Notify defender they were spied on (anonymous — doesn't reveal spy identity)
-                    if ($espionageThreshold < $actions['nombreneutrinos']) {
-                        $titreRapportEspionDef = 'Tentative d\'espionnage détectée';
-                        $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
-                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $actions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $actions['defenseur'], 'defense');
+                        } // end null-check else
+                    } else {
+                        $titreRapportJoueur   = "Espionnage raté";
+                        $contenuRapportJoueur = "<p>Votre espionnage a raté, vous avez envoyé moins de la moitié des neutrinos de votre adversaire.</p>";
                     }
 
-                    dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
-                });
+                    // Inner transaction for atomic report write + action deletion (MED-068).
+                    // Still useful: the outer transaction covers the CAS + reads, the inner
+                    // groups the two INSERT/DELETE writes into a single atomic unit within it.
+                    withTransaction($base, function() use ($base, $espActionId, $espActions, $titreRapportJoueur, $contenuRapportJoueur, $espionageThreshold) {
+                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $espActions['attaquant'], 'espionage');
+
+                        // Notify defender they were spied on (anonymous — doesn't reveal spy identity)
+                        if ($espionageThreshold < $espActions['nombreneutrinos']) {
+                            $titreRapportEspionDef   = 'Tentative d\'espionnage détectée';
+                            $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
+                            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $espActions['defenseur'], 'defense');
+                        }
+
+                        dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
+                    });
+                }); // end outer espionage transaction
             }
         }
 
@@ -607,6 +632,11 @@ function updateActions($joueur)
 
             dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
         });
+
+        // P9-LOW-019: Check for suspicious transfer patterns (outside tx — read-only detection)
+        if (function_exists('checkTransferPatterns')) {
+            checkTransferPatterns($base, $actions['envoyeur'], $actions['receveur'], time());
+        }
     }
 
     initPlayer($joueur);

@@ -31,9 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $validStatuses = ['investigating', 'confirmed', 'dismissed'];
         if (in_array($action, $validStatuses, true)) {
             if ($action === 'confirmed' || $action === 'dismissed') {
+                // P9-MED-024: Use session-scoped identifier instead of hardcoded 'admin'
+                $resolvedBy = 'admin_' . substr(session_id(), 0, 8);
                 dbExecute($base,
                     'UPDATE account_flags SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?',
-                    'sisi', $action, time(), 'admin', $flagId
+                    'sisi', $action, time(), $resolvedBy, $flagId
                 );
             } else {
                 dbExecute($base,
@@ -257,8 +259,8 @@ if (!empty($detailLogin) && (strlen($detailLogin) > 20 || !preg_match('/^[a-zA-Z
                     <?php foreach ($loginHistory as $lh): ?>
                     <tr>
                         <td><?php echo date('d/m/Y H:i:s', $lh['timestamp']); ?></td>
-                        <td><?php echo htmlspecialchars($lh['ip'], ENT_QUOTES, 'UTF-8'); ?></td>
-                        <td title="<?php echo htmlspecialchars($lh['fingerprint'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(substr($lh['fingerprint'] ?? '', 0, 12), ENT_QUOTES, 'UTF-8'); ?>...</td>
+                        <td title="<?php echo htmlspecialchars($lh['ip'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"><?php $ipDisplay = substr($lh['ip'] ?? '', 0, 12) . '…'; echo htmlspecialchars($ipDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td title="<?php echo htmlspecialchars($lh['fingerprint'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(substr($lh['fingerprint'] ?? '', 0, 12), ENT_QUOTES, 'UTF-8'); ?>…</td>
                         <td><?php echo htmlspecialchars($lh['event_type'], ENT_QUOTES, 'UTF-8'); ?></td>
                         <td title="<?php echo htmlspecialchars($lh['user_agent'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(substr($lh['user_agent'] ?? '', 0, 60), ENT_QUOTES, 'UTF-8'); ?>...</td>
                     </tr>

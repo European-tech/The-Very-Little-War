@@ -33,6 +33,8 @@ if ($clas === 0) {
 }
 
 if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
+	// RANK-P9-001: CSRF check on search POST (policy compliance)
+	if (function_exists('csrfCheck')) { csrfCheck(); }
 	$recherche = dbFetchOne($base, 'SELECT count(*) AS joueurExiste FROM autre WHERE login=?', 's', $_POST['joueurRecherche']);
 
 	if($recherche['joueurExiste'] == 1) {
@@ -370,7 +372,9 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
             . 'Il sera de nouveau disponible dans quelques instants.</p>'
             . '</div></div>';
     } else {
-        recalculerStatsAlliances();
+        if (isset($_SESSION['login'])) {
+            recalculerStatsAlliances();
+        }
     }
 
 

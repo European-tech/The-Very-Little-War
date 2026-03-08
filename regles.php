@@ -330,6 +330,8 @@ Connectez-vous chaque jour pour accumuler des <strong>Points de Prestige (PP)</s
 </tbody>
 </table><br/>
 
+Chaque connexion journalière rapporte également +1 PP (en plus des jalons de série), soit jusqu'à ~25 PP supplémentaires par saison pour les joueurs très actifs.<br/><br/>
+
 <em>Astuce :</em> Si vous manquez un jour, votre série repart à zéro. Consultez votre progression sur la page <strong>Prestige</strong>.<br/><br/>
 
 <?php echo important('Bonus de retour'); ?>

@@ -65,12 +65,17 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 			$canonicalRow = dbFetchOne($base, 'SELECT login FROM autre WHERE LOWER(login)=LOWER(?)', 's', $_POST['destinataire']);
 			if ($canonicalRow) {
 				$canonicalLogin = $canonicalRow['login'];
-				$now = time();
-				dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $canonicalLogin);
-				// LOW-030: store flash message before redirect
-				$_SESSION['flash_message'] = 'Message envoyé avec succès.';
-				header('Location: messages.php');
-				exit();
+				// P9-MED-019: Self-messaging guard (compare canonical DB login, case-insensitive)
+				if (strtolower($canonicalLogin) === strtolower($_SESSION['login'])) {
+					$erreur = "Vous ne pouvez pas vous envoyer un message à vous-même.";
+				} else {
+					$now = time();
+					dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $canonicalLogin);
+					// LOW-030: store flash message before redirect
+					$_SESSION['flash_message'] = 'Message envoyé avec succès.';
+					header('Location: messages.php');
+					exit();
+				}
 			} else {
 				$erreur = 'Le joueur ' . htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8') . ' n\'existe pas.';
 			}
@@ -115,7 +120,7 @@ if (isset($_GET['reponse'])) {
 if (isset($_POST['titre'])) {
 	$valueTitre = $_POST['titre'];
 }
-item(['floating' => true, 'titre' => 'Titre', 'input' => '<input type="text" class="form-control" name="titre" id="titre" value="' . htmlspecialchars($valueTitre, ENT_QUOTES, 'UTF-8') . '" />']);
+item(['floating' => true, 'titre' => 'Titre', 'input' => '<input type="text" class="form-control" name="titre" id="titre" maxlength="200" value="' . htmlspecialchars($valueTitre, ENT_QUOTES, 'UTF-8') . '" />']); // P9-MED-020: maxlength matches server-side 200-char limit
 
 $valueDestinataire = trim($message['expeditaire']);
 if (isset($_GET['destinataire'])) {
@@ -127,6 +132,11 @@ if (isset($_POST['destinataire'])) {
 item(['floating' => true, 'titre' => 'Destinataire', 'input' => '<input type="text" class="form-control" name="destinataire" id="destinataire" value="' . htmlspecialchars($valueDestinataire, ENT_QUOTES, 'UTF-8') . '" />']);
 
 if (isset($_GET['id'])) {
+	// P9-MED-018 SECURITY: $message['contenu'] here is raw DB content passed as the second arg to creerBBcode().
+	// creerBBcode()'s second arg is a pre-fill value; it is NOT rendered as HTML by creerBBcode() itself —
+	// it is only placed into the <textarea> below via htmlspecialchars($options). This is safe as long as
+	// the textarea value is always escaped before output (see item() call below). Do NOT pass this value to
+	// any rendering function that outputs raw HTML without escaping.
 	creerBBcode("contenu", $message['contenu'], 1);
 	$options = $message['contenu'];
 } elseif (isset($_POST['contenu'])) {
@@ -137,7 +147,7 @@ if (isset($_GET['id'])) {
 	$options = "";
 }
 
-item(['floating' => true, 'titre' => "Contenu", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50">' . htmlspecialchars($options, ENT_QUOTES, 'UTF-8') . '</textarea>']);
+item(['floating' => true, 'titre' => "Contenu", 'input' => '<textarea name="contenu" id="contenu" rows="10" cols="50" maxlength="' . MESSAGE_MAX_LENGTH . '">' . htmlspecialchars($options, ENT_QUOTES, 'UTF-8') . '</textarea>']); // P9-MED-020: maxlength matches MESSAGE_MAX_LENGTH constant
 
 
 item(['input' => submit(['form' => 'formEcrire', 'titre' => 'Envoyer'])]);

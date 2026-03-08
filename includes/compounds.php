@@ -36,6 +36,11 @@ function getActiveCompounds($base, $login, bool $forUpdate = false)
 
 /**
  * Count stored compounds for a player.
+ *
+ * @note P9-MED-012: Must be called inside a withTransaction() block.
+ *       The FOR UPDATE clause in the query is only effective within an active
+ *       transaction; calling this outside a transaction yields no locking and
+ *       exposes a TOCTOU race between the count read and the subsequent INSERT.
  */
 function countStoredCompounds($base, $login)
 {
@@ -91,6 +96,12 @@ function synthesizeCompound($base, $login, $compoundKey)
             }
 
             foreach ($recipe as $resource => $qty) {
+                // P9-MED-011: Re-check whitelist immediately before column interpolation
+                // inside the deduction loop as a belt-and-suspenders guard.
+                $allowedCols = ['C', 'N', 'H', 'O', 'Cl', 'S', 'Br', 'I'];
+                if (!in_array($resource, $allowedCols, true)) {
+                    throw new \RuntimeException('Invalid resource: ' . $resource);
+                }
                 $cost = $qty * COMPOUND_ATOM_MULTIPLIER;
                 // MED-054: Use GREATEST(col - ?, 0) to prevent negative balances from
                 // a race between the FOR UPDATE read and this UPDATE (belt-and-suspenders).
@@ -242,7 +253,7 @@ function cleanupExpiredCompounds($base)
 {
     dbExecute($base,
         'DELETE FROM player_compounds WHERE activated_at IS NOT NULL AND expires_at < ?',
-        'i', time() - 86400 // keep for 24h after expiry for UI display
+        'i', time() - SECONDS_PER_DAY // P9-MED-014: keep for 24h after expiry for UI display
     );
     // Invalidate all cached bonuses since we don't know which players were affected
     invalidateCompoundBonusCache();

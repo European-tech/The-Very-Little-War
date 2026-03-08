@@ -271,7 +271,7 @@ function rangForum($joueur)
     } else {
 
         $donnees2 = dbFetchOne($base, 'SELECT moderateur, login, codeur FROM membre WHERE login=?', 's', $joueur);
-        if ($donnees2['login'] == "Guortates") {
+        if ($donnees2['login'] == ADMIN_LOGIN) {
             $couleur = "#FFCC99";
             $nom = "Créateur";
         } elseif ($donnees2['moderateur'] == 1) { //Si il est moderateur

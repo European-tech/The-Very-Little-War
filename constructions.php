@@ -300,11 +300,21 @@ function traitementConstructions($liste)
                         $erreur = "Vous n'avez pas assez de ressources."; return;
                     }
 
+                    // Whitelist $liste['bdd'] before using as constructions array key
+                    $validBuildingCols = ['generateur', 'producteur', 'depot', 'champdeforce', 'ionisateur', 'condenseur', 'lieur', 'stabilisateur', 'coffrefort'];
+                    if (!in_array($liste['bdd'], $validBuildingCols, true)) {
+                        $erreur = "Bâtiment invalide."; return;
+                    }
+
+                    // Re-fetch current building level inside transaction with FOR UPDATE to avoid stale snapshot
+                    $currentBuilding = dbFetchOne($base, 'SELECT ' . $liste['bdd'] . ' AS niveau FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                    $currentLevel = $currentBuilding ? (int)$currentBuilding['niveau'] : 0;
+
                     // Check max level BEFORE deducting resources
                     $niveauActuel = dbFetchOne($base, 'SELECT niveau FROM actionsconstruction WHERE login=? AND batiment=? ORDER BY niveau DESC', 'ss', $_SESSION['login'], $liste['bdd']);
 
                     if (!$niveauActuel) {
-                        $niveauActuel['niveau'] = $constructions[$liste['bdd']];
+                        $niveauActuel['niveau'] = $currentLevel;
                     }
 
                     $newNiveau = $niveauActuel['niveau'] + 1;
@@ -335,6 +345,8 @@ function traitementConstructions($liste)
                     }
                     $adjustedConstructionTime = round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')));
                     $finTemps = $tempsDebut + $adjustedConstructionTime;
+                    // Note: no FOR UPDATE needed here — the COUNT(*) FOR UPDATE above already
+                    // serializes concurrent queue insertions for this player.
                     dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siisisi',
                         $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
 
@@ -366,7 +378,7 @@ if ($nb > 0) {
     foreach ($actionsconstructionRows as $actionsconstruction) {
         echo '<tr><td>' . $actionsconstruction['affichage'] . ' <strong>niveau ' . $actionsconstruction['niveau'] . '</strong></td><td><span id="affichage' . $actionsconstruction['id'] . '">' . affichageTemps(max(0, $actionsconstruction['fin'] - time())) . '</span></td><td>' . date('H\hi', $actionsconstruction['fin']) . '</td></tr>';
         echo cspScriptTag() . '
-            var valeur' . $actionsconstruction['id'] . ' = ' . ($actionsconstruction['fin'] - time()) . ';
+            var valeur' . $actionsconstruction['id'] . ' = ' . (int)($actionsconstruction['fin'] - time()) . ';
             function tempsDynamique' . $actionsconstruction['id'] . '(){
                 if(valeur' . $actionsconstruction['id'] . ' > 0){
                     valeur' . $actionsconstruction['id'] . ' -= 1;

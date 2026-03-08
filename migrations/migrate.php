@@ -9,6 +9,12 @@
  * Applied migrations are tracked in the `migrations` table.
  */
 
+// INFRA-P9 (MEDIUM): block web execution — CLI only
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require_once __DIR__ . '/../includes/connexion.php';
 
 // Create migrations table if not exists

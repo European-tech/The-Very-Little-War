@@ -11,8 +11,8 @@
 # Disable directory listing
 Options -Indexes
 
-# Deny access to sensitive files, editor backups, and executables (P5-GAP-035, INFRA-P8-001)
-<FilesMatch "\.(sql|psd|md|json|xml|lock|gitignore|bak|swp|swo|orig|env|phar|pem|key|crt)$|~$">
+# Deny access to sensitive files, editor backups, and executables (P5-GAP-035, INFRA-P8-001, INFRA-P9)
+<FilesMatch "\.(sql|psd|md|json|xml|lock|gitignore|bak|swp|swo|orig|env|phar|pem|key|crt|example)$|~$|^\.env">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>
@@ -33,8 +33,14 @@ Options -Indexes
     </IfModule>
 </FilesMatch>
 
-# PHP settings for security
+# PHP settings for security (mod_php for Apache mod_php, mod_php8 for PHP 8.x / PHP-FPM on Debian 12)
 <IfModule mod_php.c>
+    php_flag display_errors off
+    php_flag log_errors on
+    php_value error_reporting 32767
+    php_flag expose_php off
+</IfModule>
+<IfModule mod_php8.c>
     php_flag display_errors off
     php_flag log_errors on
     php_value error_reporting 32767

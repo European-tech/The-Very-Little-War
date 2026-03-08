@@ -15,23 +15,44 @@ require_once(__DIR__ . '/database.php');
 require_once(__DIR__ . '/logger.php');
 
 /**
+ * Normalize and hash an IP address for storage/comparison.
+ * IPv4 and IPv6 addresses are canonical-normalized first, then HMAC-SHA256 hashed.
+ * Uses SECRET_SALT if defined, otherwise falls back to 'tvlw_salt'.
+ */
+function hashIpAddress($ip) {
+    $packed = @inet_pton($ip);
+    $canonicalIp = ($packed !== false) ? inet_ntop($packed) : $ip;
+    $salt = defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt';
+    return hash_hmac('sha256', $canonicalIp, $salt);
+}
+
+/**
  * Log a login/register event and run detection checks.
  */
 function logLoginEvent($base, $login, $eventType = 'login')
 {
+    // Direct connection assumed (TRUSTED_PROXY_IPS is empty in config.php).
+    // If TRUSTED_PROXY_IPS is ever populated, update this line to extract real client IP from X-Forwarded-For.
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    // P9-HIGH-007: Hash IP before storage for GDPR compliance
+    $hashedIp = hashIpAddress($ip);
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
     $fingerprint = hash('sha256', $ua . ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''));
     $timestamp = time();
 
     dbExecute($base,
         'INSERT INTO login_history (login, ip, user_agent, fingerprint, timestamp, event_type) VALUES (?, ?, ?, ?, ?, ?)',
-        'ssssis', $login, $ip, substr($ua, 0, 512), $fingerprint, $timestamp, $eventType
+        'ssssis', $login, $hashedIp, substr($ua, 0, 512), $fingerprint, $timestamp, $eventType
     );
 
-    checkSameIpAccounts($base, $login, $ip, $timestamp);
+    checkSameIpAccounts($base, $login, $hashedIp, $timestamp);
     checkSameFingerprintAccounts($base, $login, $fingerprint, $timestamp);
     checkTimingCorrelation($base, $login, $timestamp);
+
+    // P9-MED-022: Probabilistic GC — purge login_history older than 30 days (1-in-200 chance per login)
+    if (mt_rand(1, 200) === 1) {
+        dbExecute($base, 'DELETE FROM login_history WHERE timestamp < ?', 'i', time() - 30 * SECONDS_PER_DAY);
+    }
 }
 
 /**
@@ -46,12 +67,15 @@ function checkSameIpAccounts($base, $login, $ip, $timestamp)
     );
 
     foreach ($others as $other) {
+        // P9-MED-021: Check both orderings to prevent duplicate flags for A→B and B→A pairs
         $existing = dbFetchOne($base,
-            'SELECT id FROM account_flags WHERE login = ? AND related_login = ? AND flag_type = ? AND status != ?',
-            'ssss', $login, $other['login'], 'same_ip', 'dismissed'
+            'SELECT id FROM account_flags WHERE status != ? AND flag_type = ?
+             AND ((login = ? AND related_login = ?) OR (login = ? AND related_login = ?))',
+            'ssssss', 'dismissed', 'same_ip', $login, $other['login'], $other['login'], $login
         );
         if (!$existing) {
-            $ipDisplay = substr(hash('sha256', $ip . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12);
+            // $ip is already an HMAC-SHA256 hash (from hashIpAddress); use first 12 chars as display token
+            $ipDisplay = substr($ip, 0, 12);
             $evidence = json_encode([
                 'shared_ip' => $ipDisplay,
                 'detection_time' => $timestamp,
@@ -66,7 +90,8 @@ function checkSameIpAccounts($base, $login, $ip, $timestamp)
                 "Comptes sur la même IP: $login et {$other['login']} ($ipDisplay)",
                 $evidence, 'warning'
             );
-            logInfo('MULTIACCOUNT', 'Same IP detected', ['login_a' => $login, 'login_b' => $other['login'], 'ip_hash' => substr(hash('sha256', $ip . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw')), 0, 12)]);
+            // P9-HIGH-008: Use consistent salt via hashIpAddress; $ip is already the hash
+            logInfo('MULTIACCOUNT', 'Same IP detected', ['login_a' => $login, 'login_b' => $other['login'], 'ip_hash' => $ipDisplay]);
         }
     }
 }
@@ -217,21 +242,23 @@ function checkTimingCorrelation($base, $login, $timestamp)
 
     foreach ($related as $rel) {
         $other = $rel['related_login'];
-        // Check overlap: did both accounts have login events within 5 min of each other?
+        // P9-MED-023: Widen simultaneous window to ±15 min (was ±5 min) to reduce false positives
         $overlap = dbFetchOne($base,
             'SELECT COUNT(*) AS cnt FROM login_history a WHERE a.login = ? AND a.timestamp > ?
              AND EXISTS (SELECT 1 FROM login_history b WHERE b.login = ? AND b.timestamp > ?
-                         AND b.timestamp BETWEEN a.timestamp - 300 AND a.timestamp + 300)',
+                         AND b.timestamp BETWEEN a.timestamp - 900 AND a.timestamp + 900)',
             'sisi', $login, $cutoff, $other, $cutoff
         );
 
         $aLogins = dbFetchOne($base, 'SELECT COUNT(*) AS cnt FROM login_history WHERE login = ? AND timestamp > ?', 'si', $login, $cutoff);
         $bLogins = dbFetchOne($base, 'SELECT COUNT(*) AS cnt FROM login_history WHERE login = ? AND timestamp > ?', 'si', $other, $cutoff);
 
-        if ($aLogins && $bLogins && $overlap && $aLogins['cnt'] > 10 && $bLogins['cnt'] > 10 && $overlap['cnt'] == 0) {
+        // P9-MED-023: Raise minimum login count threshold to 20 (was 10) to reduce false positives
+        if ($aLogins && $bLogins && $overlap && $aLogins['cnt'] > 20 && $bLogins['cnt'] > 20 && $overlap['cnt'] == 0) {
+            // P9-MED-023: Exclude dismissed flags from dedup check so they can be re-opened
             $existing = dbFetchOne($base,
-                'SELECT id FROM account_flags WHERE login = ? AND related_login = ? AND flag_type = ?',
-                'sss', $login, $other, 'timing_correlation'
+                'SELECT id FROM account_flags WHERE login = ? AND related_login = ? AND flag_type = ? AND status != ?',
+                'ssss', $login, $other, 'timing_correlation', 'dismissed'
             );
             if (!$existing) {
                 $evidence = json_encode([
@@ -291,5 +318,8 @@ function sendAdminAlertEmail($subject, $body)
     $adminEmail = getenv('ADMIN_ALERT_EMAIL') ?: 'theverylittlewar@gmail.com';
     $subject = str_replace(["\r", "\n"], '', $subject);
     $headers = "From: noreply@theverylittlewar.com\r\nContent-Type: text/plain; charset=UTF-8";
-    @mail($adminEmail, $subject, $body, $headers);
+    $sent = mail($adminEmail, $subject, $body, $headers);
+    if (!$sent) {
+        logWarn('MULTI_ALERT', 'Admin alert email failed to send', ['subject' => $subject]);
+    }
 }

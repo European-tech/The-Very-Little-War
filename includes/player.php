@@ -45,16 +45,19 @@ function inscrire($pseudo, $mdp, $mail)
         }
     }
 
-    $safePseudo = antihtml(trim($pseudo));
-    $safeMail = antihtml(trim($mail));
+    $safePseudo = trim($pseudo);
+    $safeMail = trim($mail);
     $hashedPassword = password_hash($mdp, PASSWORD_DEFAULT);
     $now = time();
     $timestamps = $now . ',' . $now . ',' . $now . ',' . $now;
     $vieGen = pointsDeVie(1);
     $vieCDF = vieChampDeForce(0);
+    // P9-HIGH-007: Hash IP before storage for GDPR compliance
+    require_once(__DIR__ . '/multiaccount.php');
+    $hashedIpForReg = hashIpAddress($_SERVER['REMOTE_ADDR'] ?? 'unknown');
 
     try {
-        withTransaction($base, function() use ($base, $safePseudo, $hashedPassword, $now, $timestamps, $alea, $safeMail, $vieGen, $vieCDF) {
+        withTransaction($base, function() use ($base, $safePseudo, $hashedPassword, $now, $timestamps, $alea, $safeMail, $vieGen, $vieCDF, $hashedIpForReg) {
             // Explicit column lists guard against positional mismatches after schema migrations.
             // Only non-auto-increment, non-defaulted columns are listed; everything else uses DB defaults.
 
@@ -69,7 +72,7 @@ function inscrire($pseudo, $mdp, $mail)
                 throw new \RuntimeException('prepare:membre:' . mysqli_error($base));
             }
             mysqli_stmt_bind_param($stmt, 'ssssiis',
-                $safePseudo, $hashedPassword, $now, $_SERVER['REMOTE_ADDR'], $now, $alea, $safeMail
+                $safePseudo, $hashedPassword, $now, $hashedIpForReg, $now, $alea, $safeMail
             );
             if (!mysqli_stmt_execute($stmt)) {
                 $errno  = mysqli_stmt_errno($stmt);
@@ -95,7 +98,9 @@ function inscrire($pseudo, $mdp, $mail)
                 $safePseudo, $now, $timestamps, 'Pas de description', ''
             );
 
-            // ressources: id=auto_increment; all resource/revenue columns default to their start values
+            // ressources: id=auto_increment; all resource/revenue columns default to their start values.
+            // Starting values: STARTING_ENERGY (64) energy/atoms, STARTING_REVENUE_ENERGY (12)/STARTING_REVENUE_ATOMS (9) revenues.
+            // These must match the DEFAULT clauses in the `ressources` table (see config.php constants).
             dbExecute(
                 $base,
                 'INSERT INTO ressources (login) VALUES (?)',
@@ -482,7 +487,7 @@ function initPlayer($joueur)
             'titre' => 'Ionisateur',
             'bdd' => 'ionisateur',
             'image' => 'images/batiments/ionisateur.png',
-            'progressBar' => false,
+            'progressBar' => true,
             'niveau' => $constructions['ionisateur'],
             'revenu' => chip('+' . floor($bonusDuplicateur * $constructions['ionisateur'] * IONISATEUR_COMBAT_BONUS_PER_LEVEL) . '%', '<img src="images/batiments/sword.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
             'revenu1' => chip('+' . floor($bonusDuplicateur * ($niveauActuelIonisateur['niveau'] + 1) * IONISATEUR_COMBAT_BONUS_PER_LEVEL) . '%', '<img src="images/batiments/sword.png" alt="shield" style="border-radius:0px;height:20px;width:20px" />', "white", "", true),
@@ -490,7 +495,9 @@ function initPlayer($joueur)
             'description' => 'L\'ionisateur améliore votre capacité offensive en donnant un <strong>bonus d\'attaque</strong> à vos molécules.',
             'coutOxygene' => round((1 - ($bonus / 100)) * $BUILDING_CONFIG['ionisateur']['cost_oxygene_base'] * pow($BUILDING_CONFIG['ionisateur']['cost_growth_base'], $niveauActuelIonisateur['niveau'])),
             'points' => $BUILDING_CONFIG['ionisateur']['points_base'] + floor($niveauActuelIonisateur['niveau'] * $BUILDING_CONFIG['ionisateur']['points_level_factor']),
-            'tempsConstruction' => round($BUILDING_CONFIG['ionisateur']['time_base'] * pow($BUILDING_CONFIG['ionisateur']['time_growth_base'], $niveauActuelIonisateur['niveau'] + $BUILDING_CONFIG['ionisateur']['time_level_offset']))
+            'tempsConstruction' => round($BUILDING_CONFIG['ionisateur']['time_base'] * pow($BUILDING_CONFIG['ionisateur']['time_growth_base'], $niveauActuelIonisateur['niveau'] + $BUILDING_CONFIG['ionisateur']['time_level_offset'])),
+            'vie' => $constructions['vieIonisateur'],
+            'vieMax' => vieIonisateur($constructions['ionisateur'])
         ],
 
         'condenseur' => [
@@ -777,7 +784,11 @@ function coordonneesAleatoires()
 
                 $joueursRows = dbFetchAll($base, 'SELECT x,y FROM membre WHERE x >= 0 AND y >= 0', '');
                 foreach ($joueursRows as $joueurs) {
-                    $carte[$joueurs['x']][$joueurs['y']] = 1;
+                    $jx = (int)$joueurs['x'];
+                    $jy = (int)$joueurs['y'];
+                    if ($jx >= 0 && $jx < $inscrits['tailleCarte'] && $jy >= 0 && $jy < $inscrits['tailleCarte']) {
+                        $carte[$jx][$jy] = 1;
+                    }
                 }
 
                 $alea = mt_rand(0, 1);
@@ -1026,6 +1037,8 @@ function performSeasonEnd()
         throw new \RuntimeException('Season reset lock not acquired — another reset in progress');
     }
 
+    logInfo('SEASON', 'Season reset started', ['trigger' => 'admin/auto', 'timestamp' => time()]);
+
     try {
 
     require_once(__DIR__ . '/prestige.php');
@@ -1186,6 +1199,8 @@ function performSeasonEnd()
         dbExecute($base, 'INSERT INTO news VALUES(default, ?, ?, ?)', 'ssi', $titre, $contenu, $now);
     }
 
+    logInfo('SEASON', 'Season reset completed', ['winner' => $vainqueurManche]);
+
     return $vainqueurManche;
 
     } finally {
@@ -1209,8 +1224,11 @@ function performSeasonEnd()
  */
 function processEmailQueue(\mysqli $base, int $limit = 20): void
 {
+    // P9-MED-004: Skip rows older than 24 hours to prevent indefinite retry loops.
+    // Rows with a NULL created_at (schema pre-dates that column) are always included
+    // so legacy rows are not silently dropped.
     $rows = dbFetchAll($base,
-        'SELECT id, recipient_email, subject, body_html FROM email_queue WHERE sent_at IS NULL ORDER BY id ASC LIMIT ?',
+        'SELECT id, recipient_email, subject, body_html FROM email_queue WHERE sent_at IS NULL AND (created_at IS NULL OR created_at > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)) ORDER BY id ASC LIMIT ?',
         'i', $limit
     );
 
@@ -1219,19 +1237,21 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
     }
 
     foreach ($rows as $row) {
-        $recipient = $row['recipient_email'];
-        $subject   = $row['subject'];
+        // EMAIL-P9-001: Strip CRLF from email headers to prevent header injection
+        $recipient = str_replace(["\r", "\n"], '', $row['recipient_email']);
+        $subject   = str_replace(["\r", "\n"], '', $row['subject']);
         $bodyHtml  = $row['body_html'];
         $id        = (int)$row['id'];
 
         // Determine line-ending style based on recipient domain (hotmail/live/msn quirk)
-        if (preg_match("#^[a-z0-9._-]+@(hotmail|live|msn)\.[a-z]{2,4}$#", $recipient)) {
+        // EMAIL-P9-002: case-insensitive flag added; extended to outlook.com
+        if (preg_match("#^[a-z0-9._+-]+@(hotmail|live|msn|outlook)\.[a-z]{2,6}$#i", $recipient)) {
             $eol = "\n";
         } else {
             $eol = "\r\n";
         }
 
-        $boundary = "-----=" . md5((string)$id . (string)time());
+        $boundary = "-----=" . bin2hex(random_bytes(8));
 
         // Plain-text fallback: strip HTML tags for the text part
         $bodyTxt = strip_tags(str_replace(['<br/>', '<br>', '<br />'], "\n", $bodyHtml));
@@ -1255,7 +1275,9 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
         if ($sent) {
             dbExecute($base, 'UPDATE email_queue SET sent_at = ? WHERE id = ?', 'ii', time(), $id);
         } else {
-            logWarn('EMAIL_QUEUE', 'mail() failed for queued email', ['id' => $id, 'recipient' => $recipient]);
+            // P9-LOW-001: Log a short hash of the recipient address rather than the
+            // full email to avoid writing PII to log files.
+            logWarn('EMAIL_QUEUE', 'mail() failed for queued email', ['id' => $id, 'recipient_hash' => substr(hash('sha256', $recipient), 0, 12)]);
         }
     }
 }
@@ -1265,6 +1287,12 @@ function remiseAZero()
     global $base;
     global $nomsRes;
     global $nbRes;
+
+    // Purge processed emails from the queue; unprocessed (sent_at IS NULL) are kept in case
+    // the queue drain runs after this point but before the next season's emails are queued.
+    dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL');
+
+    // login_history and account_flags are intentionally preserved cross-season for ban enforcement
 
     withTransaction($base, function() use ($nomsRes, $nbRes) {
         global $base;

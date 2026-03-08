@@ -26,7 +26,7 @@ debutCarte('Historique des connexions'); ?>
             $onlineThreshold = time() - ONLINE_TIMEOUT_SECONDS;
             $connectesRows = dbFetchAll($base, 'SELECT login, derniereConnexion FROM membre WHERE derniereConnexion > ? ORDER BY derniereConnexion DESC', 'i', $onlineThreshold);
             foreach ($connectesRows as $donnees) {
-                if ($donnees['login'] != "Guortates") {
+                if ($donnees['login'] != ADMIN_LOGIN) {
                     $lastSeen = (int)$donnees['derniereConnexion'];
                     if ($isAdmin) {
                         $displayTime = date('d/m/Y à H\hi', $lastSeen);

@@ -6,12 +6,18 @@ require_once("includes/compounds.php");
 // Handle synthesis
 if (isset($_POST['synthesize'])) {
     csrfCheck();
-    $compoundKey = trim($_POST['compound_key'] ?? '');
-    $result = synthesizeCompound($base, $_SESSION['login'], $compoundKey);
-    if ($result === true) {
-        $information = "Composé synthétisé avec succès !";
+    // P9-MED-013: Rate-limit synthesis to prevent abuse (5 per minute per player)
+    require_once('includes/rate_limiter.php');
+    if (!rateLimitCheck($_SESSION['login'], 'lab_synthesis', 5, 60)) {
+        $erreur = "Trop de synthèses. Attendez une minute.";
     } else {
-        $erreur = $result;
+        $compoundKey = trim($_POST['compound_key'] ?? '');
+        $result = synthesizeCompound($base, $_SESSION['login'], $compoundKey);
+        if ($result === true) {
+            $information = "Composé synthétisé avec succès !";
+        } else {
+            $erreur = $result;
+        }
     }
 }
 

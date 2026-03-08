@@ -1,2 +1,8 @@
-# Block all web access to data directory
-Require all denied
+# Block all web access to data directory (INFRA-P9-001)
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+</IfModule>

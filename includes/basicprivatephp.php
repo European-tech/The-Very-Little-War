@@ -205,7 +205,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // page request. Regular players see the maintenance message instead.
     // This prevents a race where any authenticated player reaching this branch could
     // inadvertently (or maliciously) trigger the season reset.
-    $isAdminRequest = (!isset($_SESSION['login']) || $_SESSION['login'] === ADMIN_LOGIN);
+    $isAdminRequest = (isset($_SESSION['login']) && $_SESSION['login'] === ADMIN_LOGIN);
     if (!$isAdminRequest) {
         // Non-admin player: inform them that maintenance is in progress and skip the reset.
         $erreur = "Une nouvelle partie recommencera dans 24 heures.";
@@ -238,18 +238,34 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // Guard: only queue emails when the reset actually succeeded and we have a winner.
     if ($seasonResetOk && $vainqueurManche !== null) {
     $mailRows = dbFetchAll($base, 'SELECT email, login FROM membre', '');
-    $winnerName = $vainqueurManche ?? 'Personne';
-    $resetDate  = date('d/m/Y à H\hi', time());
-    foreach ($mailRows as $donnees) {
-        $recipientEmail = $donnees['email'];
-        $recipientLogin = $donnees['login'];
+    // P9-HIGH-003: winnerName comes from DB (player-controlled login). htmlspecialchars()
+    // is applied below when embedded in HTML. Also strip CRLF from the raw value to prevent
+    // any header injection if it were ever used in a header context.
+    $winnerNameRaw = $vainqueurManche ?? 'Personne';
+    $winnerName    = str_replace(["\r", "\n"], '', $winnerNameRaw);
 
-        $message_html = "<html><head></head><body>Bonjour " . htmlspecialchars($recipientLogin, ENT_QUOTES, 'UTF-8') . " ! <b>" . htmlspecialchars($winnerName, ENT_QUOTES, 'UTF-8') . "</b> vient de remporter la partie en cours le " . $resetDate . ". Les points de tous les joueurs vont être remis à zéro et"
-            . " vous pourrez commencer à rejouer la nouvelle partie à partir du <b>" . $resetDate . "</b> ! Ne manquez pas cette occasion de prendre la tête du classement. Je vous souhaite donc bonne chance pour la suite"
-            . " et à bientôt sur <a href=\"https://www.theverylittlewar.com\">The Very Little War</a> !<br/><br/><br/><br/>"
+    // P9-HIGH-004: date() produces UTF-8 characters (e.g. "à") which corrupt the latin1
+    // email_queue columns. Use a pure-ASCII date format ("le 01/01/2026 a 14h00") so the
+    // INSERT never introduces a charset mismatch. Migration 0077 will later convert
+    // subject/body_html to utf8mb4, at which point this format remains valid regardless.
+    $resetDate = date('d/m/Y \a H\hi', time()); // ASCII-only: "le 01/01/2026 a 14h00"
+
+    foreach ($mailRows as $donnees) {
+        // P9-HIGH-003: strip CRLF from any user-controlled value used in the email body.
+        $recipientEmail = str_replace(["\r", "\n"], '', $donnees['email']);
+        $recipientLogin = str_replace(["\r", "\n"], '', $donnees['login']);
+
+        // P9-HIGH-003: login and winner names are escaped with htmlspecialchars() so that
+        // a login containing "<script>" or HTML metacharacters cannot inject markup.
+        $safeLogin  = htmlspecialchars($recipientLogin, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $safeWinner = htmlspecialchars($winnerName,    ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        $message_html = "<html><head></head><body>Bonjour " . $safeLogin . " ! <b>" . $safeWinner . "</b> vient de remporter la partie en cours le " . $resetDate . ". Les points de tous les joueurs vont etre remis a zero et"
+            . " vous pourrez commencer a rejouer la nouvelle partie a partir du <b>" . $resetDate . "</b> ! Ne manquez pas cette occasion de prendre la tete du classement. Je vous souhaite donc bonne chance pour la suite"
+            . " et a bientot sur <a href=\"https://www.theverylittlewar.com\">The Very Little War</a> !<br/><br/><br/><br/>"
             . "<i>Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur <a href=\"https://www.theverylittlewar.com\">www.theverylittlewar.com</a> dans la partie \"Mon compte\".</i></body></html>";
 
-        $sujet = "=?UTF-8?B?" . base64_encode("Début d'une nouvelle partie") . "?=";
+        $sujet = "=?UTF-8?B?" . base64_encode("Debut d'une nouvelle partie") . "?=";
 
         dbExecute($base,
             'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, ?)',

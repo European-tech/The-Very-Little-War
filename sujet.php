@@ -45,7 +45,7 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 					// alliance_id column not yet present — all forums public, skip silently
 				}
 			}
-			if (empty($erreur) && !empty($_POST['contenu']) && mb_strlen($_POST['contenu']) <= FORUM_POST_MAX_LENGTH) {
+			if (empty($erreur) && !empty(trim($_POST['contenu'])) && mb_strlen($_POST['contenu']) <= FORUM_POST_MAX_LENGTH) {
 				// Check topic is not locked (P5-GAP-023)
 				$topicStatus = dbFetchOne($base, 'SELECT statut FROM sujets WHERE id = ?', 'i', $sujet_id);
 				if (!$topicStatus) {
@@ -136,7 +136,7 @@ if (isset($_GET['id'])) {
 	}
 
 	$javascript = false;
-	if ($sujet['idforum'] == 8) {
+	if ($sujet['idforum'] == MATH_FORUM_ID) {
 		$javascript = true;
 	}
 

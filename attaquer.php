@@ -383,23 +383,17 @@ if ($_GET['type'] == 0) {
         $carte[] = $temp;
     }
 
-    if (isset($_GET['x'])) {
-        $x = intval($_GET['x']);
-    } else {
-        $x = $centre['x'];
-    }
-
-    if (isset($_GET['y'])) {
-        $y = intval($_GET['y']);
-    } else {
-        $y = $centre['y'];
-    }
+    $mapSize = (int)$tailleCarte['tailleCarte'];
+    $scrollX = isset($_GET['x']) ? max(0, min((int)$_GET['x'], $mapSize - 1)) : $centre['x'];
+    $scrollY = isset($_GET['y']) ? max(0, min((int)$_GET['y'], $mapSize - 1)) : $centre['y'];
+    $x = $scrollX;
+    $y = $scrollY;
 
     // Optimization 5: single JOIN to get all players with their alliance info,
     // then pre-load all active wars and pacts — eliminates ~2 queries per player.
     $myAllianceId = (int) $autre['idalliance'];
 
-    $allPlayers = dbFetchAll($base, 'SELECT m.id, m.login, m.x, m.y, a.points, a.idalliance FROM membre m JOIN autre a ON m.login = a.login', '');
+    $allPlayers = dbFetchAll($base, 'SELECT m.id, m.login, m.x, m.y, a.points, a.idalliance FROM membre m JOIN autre a ON m.login = a.login WHERE m.x >= 0 AND m.y >= 0', '');
 
     // Pre-load active wars and pacts involving my alliance (only meaningful when in an alliance).
     $warAllianceIds = [];
@@ -431,7 +425,11 @@ if ($_GET['type'] == 0) {
         } else {
             $type = 'rien';
         }
-        $carte[$tableau['x']][$tableau['y']] = [$tableau['id'], $tableau['login'], $tableau['points'], $type];
+        $px = (int)$tableau['x'];
+        $py = (int)$tableau['y'];
+        if ($px >= 0 && $px < $mapSize && $py >= 0 && $py < $mapSize) {
+            $carte[$px][$py] = [$tableau['id'], $tableau['login'], $tableau['points'], $type];
+        }
     }
 
 ?>

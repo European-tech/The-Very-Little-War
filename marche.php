@@ -24,7 +24,10 @@ foreach ($nomsRes as $num => $ressource) {
 }
 if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinataire'])) {
     csrfCheck();
-    if (!empty($_POST['destinataire'])) {
+    // MKT-P9-002: rate limit resource transfers
+    if (!rateLimitCheck($_SESSION['login'], 'market_transfer', 10, 60)) {
+        $erreur = "Trop de transferts. Réessayez dans une minute.";
+    } elseif (!empty($_POST['destinataire'])) {
         $_POST['destinataire'] = trim($_POST['destinataire']);
 
         $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=?', 's', $_POST['destinataire']);
@@ -36,9 +39,14 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 
         // Block transfers between flagged multi-account pairs
         require_once('includes/multiaccount.php');
+        // P9-LOW-020: Normalize IPs before comparing so IPv6 variants match
+        $normalizeIp = function($ip) {
+            $packed = @inet_pton($ip);
+            return $packed !== false ? inet_ntop($packed) : $ip;
+        };
         if (areFlaggedAccounts($base, $_SESSION['login'], $_POST['destinataire'])) {
             $erreur = "Transfert bloqué : les comptes sont sous surveillance pour suspicion de multi-compte.";
-        } elseif ($ipmm['ip'] != $ipdd['ip']) {
+        } elseif ($normalizeIp($ipmm['ip']) !== $normalizeIp($ipdd['ip'])) {
             if (empty($_POST['energieEnvoyee'])) {
                 $_POST['energieEnvoyee'] = 0;
             }
@@ -210,8 +218,8 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 
 if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAcheter'])) {
     csrfCheck();
-    // PASS1-LOW-023: Rate limit market buys to prevent automated trading exploits
-    if (!rateLimitCheck($_SESSION['login'], 'market_buy', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW)) {
+    // MKT-P9-001: unified key 'market_op' to prevent double-limit bypass via separate buy/sell keys
+    if (!rateLimitCheck($_SESSION['login'], 'market_op', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW)) {
         $erreur = "Trop d'opérations sur le marché. Attendez avant de réessayer.";
     } else {
     // ECON-NEW-001: Cap before intval() to prevent float-overflow-to-INF making cost=1
@@ -259,6 +267,13 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
                             $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
                             $txTabCours = array_slice($txTabCours, 0, $nbRes);
+                            // P9-LOW-029: Assert slice length matches expected resource count
+                            if (count($txTabCours) !== $nbRes) {
+                                throw new \RuntimeException('corrupt_cours_data: expected ' . $nbRes . ', got ' . count($txTabCours));
+                            }
+                            // P9-LOW-028: Recompute volatility inside the transaction from locked, consistent state
+                            $actifsTx = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=?', 'i', (time() - ACTIVE_PLAYER_THRESHOLD));
+                            $volatilite = MARKET_VOLATILITY_FACTOR / max(1, $actifsTx['nbActifs']);
                             // Recompute cost from the freshly locked price (min 1 to prevent free-atom exploit)
                             $coutAchat = max(1, (int)round($txTabCours[$numRes] * $_POST['nombreRessourceAAcheter']));
                             $diffEnergieAchat = $locked['energie'] - $coutAchat;
@@ -342,8 +357,8 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
 if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVendre'])) {
     csrfCheck();
-    // PASS1-LOW-023: Rate limit market sells to prevent automated trading exploits
-    if (!rateLimitCheck($_SESSION['login'], 'market_sell', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW)) {
+    // MKT-P9-001: same unified key as buy for shared market limit
+    if (!rateLimitCheck($_SESSION['login'], 'market_op', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW)) {
         $erreur = "Trop d'opérations sur le marché. Attendez avant de réessayer.";
     } else {
     // ECON-NEW-001: Cap before intval() to prevent float-overflow-to-INF
@@ -394,6 +409,13 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
                         $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
                         $txTabCours = array_slice($txTabCours, 0, $nbRes);
+                        // P9-LOW-029: Assert slice length matches expected resource count
+                        if (count($txTabCours) !== $nbRes) {
+                            throw new \RuntimeException('corrupt_cours_data: expected ' . $nbRes . ', got ' . count($txTabCours));
+                        }
+                        // P9-LOW-028: Recompute volatility inside the transaction from locked, consistent state
+                        $actifsTx = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=?', 'i', (time() - ACTIVE_PLAYER_THRESHOLD));
+                        $volatilite = MARKET_VOLATILITY_FACTOR / max(1, $actifsTx['nbActifs']);
                         $energySpace = $placeDepotTx - $locked['energie'];
                         if ($energySpace <= 0) {
                             throw new Exception('ENERGY_FULL');
@@ -739,7 +761,10 @@ if ($_GET['sub'] == 0) {
                     } else {
                         $fin = "";
                     }
-                    $tot =  '["' . date('d/m H\hi', $cours['timestamp']) . '",' . $cours['tableauCours'] . ']' . $fin . $tot;
+                    // P9-MED-029: Sanitize stored CSV — cast each token to float to prevent stored XSS
+                    $vals = array_map('floatval', explode(',', $cours['tableauCours']));
+                    $safeVals = implode(',', $vals);
+                    $tot =  '["' . date('d/m H\hi', $cours['timestamp']) . '",' . $safeVals . ']' . $fin . $tot;
                     $c++;
                 }
 

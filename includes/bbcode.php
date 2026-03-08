@@ -25,8 +25,18 @@ $text = preg_replace('!\[center\](.+)\[/center\]!isU', '<div style="text-align: 
 $text = preg_replace('!\[title\](.+)\[/title\]!isU', '<span style="font-size: 130%;">$1</span>', $text);
 $text = preg_replace('!\[joueur=([a-z0-9_-]{3,20})/\]!isU', '<a href="joueur.php?id=$1">$1</a>', $text);
 $text = preg_replace('!\[alliance=([a-z0-9_-]{3,16})/\]!isU', '<a href="alliance.php?id=$1">$1</a>', $text);
-// PASS4-LOW-010: Tightened URL character class to exclude spaces and unsafe chars (matches [img] restriction pattern)
-$text = preg_replace('!\[url=(https?://[^\]\s"<>\']+)\](.+?)\[/url\]!isU', '<a href="$1" rel="nofollow noopener noreferrer" target="_blank">$2</a>', $text);
+// PASS4-LOW-010: Tightened URL character class; MSG-P9-001: domain indicator; FORUM-P9-002: length cap
+$text = preg_replace_callback('!\[url=(https?://[^\]\s"<>\']{1,500})\](.{1,500}?)\[/url\]!isU', function($m) {
+    $href = $m[1];
+    // Strip null bytes before embedding in href
+    $href = str_replace("\0", '', $href);
+    $label = $m[2]; // already htmlspecialchars'd at top of BBCode()
+    $parsed = parse_url($href);
+    $domain = isset($parsed['host']) ? htmlspecialchars($parsed['host'], ENT_QUOTES, 'UTF-8') : '';
+    $safeHref = htmlspecialchars($href, ENT_QUOTES, 'UTF-8');
+    $indicator = $domain ? ' <small>(' . $domain . ')</small>' : '';
+    return '<a href="' . $safeHref . '" rel="nofollow noopener noreferrer" target="_blank">' . $label . $indicator . '</a>';
+}, $text);
 $text = preg_replace_callback('!\[img=([^\]]+)\]!isU', function($matches) {
     $url = $matches[1];
     // Allow self-hosted images: relative paths starting with / or images/
@@ -42,8 +52,9 @@ $text = preg_replace('!\[color=(blue|red|green|white|black|beige|brown|cyan|yell
 
 if ($javascript) {
     $text = preg_replace_callback('!\[latex\](.+)\[/latex\]!isU', function($m) {
-        // HIGH-008: Block all LaTeX macro-definition and external-resource commands to prevent XSS/RCE
-        $blacklist = ['href', 'url', 'unicode', 'cssId', 'class', 'def', 'let', 'gdef', 'edef', 'newcommand', 'renewcommand', 'catcode', 'input', 'include', 'csname', 'expandafter', 'require', 'write', 'special'];
+        // HIGH-008 + FORUM-P9-003: Extended LaTeX macro denylist to prevent XSS/RCE
+        $blacklist = ['href', 'url', 'unicode', 'cssId', 'class', 'def', 'let', 'gdef', 'edef', 'newcommand', 'renewcommand', 'catcode', 'input', 'include', 'csname', 'expandafter', 'require', 'write', 'special',
+            'newenvironment', 'renewenvironment', 'newtheorem', 'htmlData', 'HTML', 'mbox', 'hbox', 'vbox', 'raise', 'lower', 'mkern', 'mskip', 'mathcode', 'delcode', 'sfcode', 'lccode', 'uccode', 'chardef', 'mathchardef', 'futurelet', 'afterassignment', 'aftergroup', 'global', 'long', 'outer', 'protected', 'xdef', 'cdef'];
         $latex = preg_replace('/\\\\(' . implode('|', $blacklist) . ')\b/i', '\\text{blocked}', $m[1]);
         return '$$' . $latex . '$$';
     }, $text);
