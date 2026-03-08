@@ -6,8 +6,9 @@
 
 -- UNIQUE on email (case-insensitive in latin1 collation — duplicate emails
 -- using different casing are rejected at the DB level).
-ALTER TABLE membre
-    ADD CONSTRAINT uq_membre_email UNIQUE (email);
+-- MIG-M-003: Use DROP-then-ADD pattern for idempotency (IF NOT EXISTS not supported
+-- for ADD CONSTRAINT UNIQUE in MariaDB 10.11; CREATE UNIQUE INDEX IF NOT EXISTS works)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_membre_email ON membre (email);
 
 -- UNIQUE on login (belt-and-suspenders: login is referenced by FKs on other
 -- tables but the column itself may not have a UNIQUE index separate from PK).

@@ -282,7 +282,7 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 				if (($classeDefenseur[$j]['nombre'] - ($defenseurMort[$j] ?? 0)) > 0) $liveClassesAhead++;
 			}
 			$classDamage = $sharePerClass;
-			if ($disperseeOverkill > 0 && $liveClassesAhead >= 0) {
+			if ($disperseeOverkill > 0 && $liveClassesAhead > 0) {
 				// Spread accumulated overkill across remaining classes including this one
 				// (this class hasn't died yet, so count it as 1 + ahead)
 				$spreadDenominator = 1 + $liveClassesAhead;
@@ -759,9 +759,10 @@ $guerres = dbFetchAll($base, 'SELECT * FROM declarations WHERE type=0 AND fin=0 
 $guerre = !empty($guerres) ? $guerres[0] : null;
 $nbGuerres = count($guerres);
 if ($nbGuerres >=  1) {
+	// NEW-001: Atomic increments prevent concurrent battle results overwriting each other
 	if ($guerre['alliance1'] == $joueurAlliance) {
-		dbExecute($base, 'UPDATE declarations SET pertes1=?, pertes2=? WHERE id=?', 'ddi', ($guerre['pertes1'] + $pertesAttaquant), ($guerre['pertes2'] + $pertesDefenseur), $guerre['id']);
+		dbExecute($base, 'UPDATE declarations SET pertes1 = pertes1 + ?, pertes2 = pertes2 + ? WHERE id=?', 'ddi', $pertesAttaquant, $pertesDefenseur, $guerre['id']);
 	} else {
-		dbExecute($base, 'UPDATE declarations SET pertes1=?, pertes2=? WHERE id=?', 'ddi', ($guerre['pertes1'] + $pertesDefenseur), ($guerre['pertes2'] + $pertesAttaquant), $guerre['id']);
+		dbExecute($base, 'UPDATE declarations SET pertes1 = pertes1 + ?, pertes2 = pertes2 + ? WHERE id=?', 'ddi', $pertesDefenseur, $pertesAttaquant, $guerre['id']);
 	}
 }

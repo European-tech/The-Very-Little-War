@@ -293,19 +293,32 @@ if ($pacte) {
 	if (isset($_POST['allie']) and !empty($_POST['allie'])) {
 		csrfCheck();
 		$_POST['allie'] = intval($_POST['allie']);
-		$pacteExiste = dbCount($base, 'SELECT count(*) AS pacteExiste FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=1 AND valide!=0', 'iiii', $chef['id'], $_POST['allie'], $chef['id'], $_POST['allie']);
 
-		if ($pacteExiste > 0) {
-			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $_POST['allie']);
-			dbExecute($base, 'DELETE FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=1', 'iiii', $chef['id'], $allianceAdverse['id'], $chef['id'], $allianceAdverse['id']);
-			$now = time();
-			$safePacteTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
-			$rapportTitre = 'L\'alliance ' . $safePacteTag . ' met fin au pacte qui vous alliait.';
-			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safePacteTag . '</a> met fin au pacte qui vous alliait.';
-			dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
-			$information = "Le pacte avec " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " est bien rompu.";
-		} else {
-			$erreur = "Ce pacte n'existe pas.";
+		// NEW-TX-001: Wrap pact-break DELETE+INSERT-report in a transaction for atomicity
+		$pacteRompu = false;
+		try {
+			withTransaction($base, function() use ($base, $chef, &$pacteRompu, &$information, &$erreur) {
+				$allieId = intval($_POST['allie']);
+				// Lock rows to prevent concurrent double-break
+				$pacteExiste = dbCount($base, 'SELECT count(*) AS pacteExiste FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=1 AND valide!=0 FOR UPDATE', 'iiii', $chef['id'], $allieId, $chef['id'], $allieId);
+				if ($pacteExiste > 0) {
+					$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $allieId);
+					dbExecute($base, 'DELETE FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=1', 'iiii', $chef['id'], $allianceAdverse['id'], $chef['id'], $allianceAdverse['id']);
+					$now = time();
+					$safePacteTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
+					$rapportTitre = 'L\'alliance ' . $safePacteTag . ' met fin au pacte qui vous alliait.';
+					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safePacteTag . '</a> met fin au pacte qui vous alliait.';
+					dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
+					$information = "Le pacte avec " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " est bien rompu.";
+					$pacteRompu = true;
+				} else {
+					throw new \RuntimeException('NOT_FOUND');
+				}
+			});
+		} catch (\RuntimeException $e) {
+			if ($e->getMessage() === 'NOT_FOUND') {
+				$erreur = "Ce pacte n'existe pas.";
+			}
 		}
 	}
 }
@@ -359,15 +372,18 @@ if ($guerre) {
 		$guerreExiste = dbCount($base, 'SELECT count(*) AS guerreExiste FROM declarations WHERE alliance1=? AND alliance2=? AND type=0 AND fin=0', 'ii', $chef['id'], $_POST['adversaire']);
 
 		if ($guerreExiste > 0) {
-			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $_POST['adversaire']);
-
-			$now = time();
-			dbExecute($base, 'UPDATE declarations SET fin=? WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'iii', $now, $chef['id'], $allianceAdverse['id']);
-			$safeWarTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
-			$rapportTitre = 'L\'alliance ' . $safeWarTag . ' met fin à la guerre qui vous opposait.';
-			$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeWarTag . '</a> met fin à la guerre qui vous opposait.';
-			dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
-			$information = "La guerre contre " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " a pris fin.";
+			// NEW-TX-002: Wrap war-end UPDATE+INSERT-report in a transaction for atomicity
+			withTransaction($base, function() use ($base, $chef, &$information) {
+				$adversaireId = intval($_POST['adversaire']);
+				$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=? FOR UPDATE', 'i', $adversaireId);
+				$now = time();
+				dbExecute($base, 'UPDATE declarations SET fin=? WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'iii', $now, $chef['id'], $allianceAdverse['id']);
+				$safeWarTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
+				$rapportTitre = 'L\'alliance ' . $safeWarTag . ' met fin à la guerre qui vous opposait.';
+				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeWarTag . '</a> met fin à la guerre qui vous opposait.';
+				dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
+				$information = "La guerre contre " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " a pris fin.";
+			});
 		} else {
 			$erreur = "Cette guerre n'existe pas ou vous n'êtes pas à l'origine de cette déclaration de guerre.";
 		}

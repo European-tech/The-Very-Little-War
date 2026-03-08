@@ -214,7 +214,8 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
     if (!rateLimitCheck($_SESSION['login'], 'market_buy', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW)) {
         $erreur = "Trop d'opérations sur le marché. Attendez avant de réessayer.";
     } else {
-    $_POST['nombreRessourceAAcheter'] = intval(transformInt($_POST['nombreRessourceAAcheter']));
+    // ECON-NEW-001: Cap before intval() to prevent float-overflow-to-INF making cost=1
+    $_POST['nombreRessourceAAcheter'] = min(intval(transformInt($_POST['nombreRessourceAAcheter'])), 10000000);
     $_POST['typeRessourceAAcheter'] = trim($_POST['typeRessourceAAcheter']);
     if ($_POST['nombreRessourceAAcheter'] <= 0) {
         $erreur = "Quantité invalide (doit être > 0)";
@@ -292,7 +293,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             $tradeVolumeDelta = round($coutAchat * $reseauBonus);
                             dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
                             // HIGH-039: Enforce MARKET_POINTS_MAX cap atomically to prevent buy-sell cycling inflation
-                            dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'ds', MARKET_POINTS_MAX, $_SESSION['login']);
+                            dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'is', MARKET_POINTS_MAX, $_SESSION['login']);
                             recalculerTotalPointsJoueur($base, $_SESSION['login']);
                         });
                         logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
@@ -331,7 +332,8 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
     if (!rateLimitCheck($_SESSION['login'], 'market_sell', RATE_LIMIT_MARKET_MAX, RATE_LIMIT_MARKET_WINDOW)) {
         $erreur = "Trop d'opérations sur le marché. Attendez avant de réessayer.";
     } else {
-    $_POST['nombreRessourceAVendre'] = intval(transformInt($_POST['nombreRessourceAVendre']));
+    // ECON-NEW-001: Cap before intval() to prevent float-overflow-to-INF
+    $_POST['nombreRessourceAVendre'] = min(intval(transformInt($_POST['nombreRessourceAVendre'])), 10000000);
     $_POST['typeRessourceAVendre'] = trim($_POST['typeRessourceAVendre']);
     if ($_POST['nombreRessourceAVendre'] <= 0) {
         $erreur = "Quantité invalide (doit être > 0)";

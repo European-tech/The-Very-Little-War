@@ -74,7 +74,7 @@ ALTER TABLE constructions
 -- PREFIX 16 chars is enough for equality lookups (token is a hex/random string).
 -- ---------------------------------------------------------------------------
 
-ALTER TABLE membre ADD INDEX idx_session_token (session_token(16));
+ALTER TABLE membre ADD INDEX IF NOT EXISTS idx_session_token (session_token(16));
 
 -- ---------------------------------------------------------------------------
 -- PASS1-MEDIUM-057: alliance_left_at

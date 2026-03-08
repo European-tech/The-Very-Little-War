@@ -39,8 +39,10 @@ function getActiveCompounds($base, $login, bool $forUpdate = false)
  */
 function countStoredCompounds($base, $login)
 {
+    // NEW-002: FOR UPDATE serializes concurrent synthesis requests so both can't
+    // read count=N-1 and both insert, exceeding COMPOUND_MAX_STORED by 1.
     return (int)dbCount($base,
-        'SELECT COUNT(*) as cnt FROM player_compounds WHERE login = ? AND activated_at IS NULL',
+        'SELECT COUNT(*) as cnt FROM player_compounds WHERE login = ? AND activated_at IS NULL FOR UPDATE',
         's', $login
     );
 }

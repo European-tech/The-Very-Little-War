@@ -8,7 +8,8 @@
 -- compound_def_bonus: defense_boost compound value active for the defender at launch time
 --   (defender snapshot is best-effort; attacker snapshotting is the primary fix)
 
+-- MIG-M-004: Use IF NOT EXISTS for idempotency on re-runs
 ALTER TABLE `actionsattaques`
-    ADD COLUMN `compound_atk_bonus` DECIMAL(5,4) NOT NULL DEFAULT 0.0000 AFTER `nombreneutrinos`,
-    ADD COLUMN `compound_spd_bonus` DECIMAL(5,4) NOT NULL DEFAULT 0.0000 AFTER `compound_atk_bonus`,
-    ADD COLUMN `compound_def_bonus` DECIMAL(5,4) NOT NULL DEFAULT 0.0000 AFTER `compound_spd_bonus`;
+    ADD COLUMN IF NOT EXISTS `compound_atk_bonus` DECIMAL(5,4) NOT NULL DEFAULT 0.0000 AFTER `nombreneutrinos`,
+    ADD COLUMN IF NOT EXISTS `compound_spd_bonus` DECIMAL(5,4) NOT NULL DEFAULT 0.0000 AFTER `compound_atk_bonus`,
+    ADD COLUMN IF NOT EXISTS `compound_def_bonus` DECIMAL(5,4) NOT NULL DEFAULT 0.0000 AFTER `compound_spd_bonus`;

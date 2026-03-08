@@ -109,6 +109,6 @@ ALTER TABLE `membre`
     MODIFY `vacance` TINYINT(1) NOT NULL DEFAULT 0,
     MODIFY `moderateur` INT(11) NOT NULL DEFAULT 0;
 
--- Add index on membre.login now that it is VARCHAR
-ALTER TABLE `membre` ADD INDEX `idx_membre_login` (`login`);
-ALTER TABLE `membre` ADD INDEX `idx_membre_derniereConnexion` (`derniereConnexion`);
+-- Add index on membre.login now that it is VARCHAR (MIG-M-001: IF NOT EXISTS for idempotency)
+ALTER TABLE `membre` ADD INDEX IF NOT EXISTS `idx_membre_login` (`login`);
+ALTER TABLE `membre` ADD INDEX IF NOT EXISTS `idx_membre_derniereConnexion` (`derniereConnexion`);
