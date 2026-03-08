@@ -116,8 +116,13 @@ if ($gradeChef) {
 						else $droit_description = 0;
 
 						$gradeStr = $droit_inviter . '.' . $droit_guerre . '.' . $droit_pacte . '.' . $droit_bannir . '.' . $droit_description;
-						dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $_POST['personnegrade'], $gradeStr, $chef['id'], $_POST['nomgrade']);
-						$information = "" . htmlspecialchars($_POST['personnegrade'], ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($_POST['nomgrade'], ENT_QUOTES, 'UTF-8') . ".";
+						// ALL-P7-005: check INSERT result to catch race-condition duplicate (no transaction needed — duplicate key returns false)
+						$gradeInsert = dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $_POST['personnegrade'], $gradeStr, $chef['id'], $_POST['nomgrade']);
+						if ($gradeInsert !== false) {
+							$information = "" . htmlspecialchars($_POST['personnegrade'], ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($_POST['nomgrade'], ENT_QUOTES, 'UTF-8') . ".";
+						} else {
+							$erreur = "Cette personne est déjà gradée (conflit de concurrent).";
+						}
 					} else {
 						$erreur = "Cette personne n'existe pas ou n'est pas dans votre alliance.";
 					}
@@ -387,7 +392,19 @@ if ($guerre) {
 				$adversaireId = intval($_POST['adversaire']);
 				$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=? FOR UPDATE', 'i', $adversaireId);
 				$now = time();
-				dbExecute($base, 'UPDATE declarations SET fin=? WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'iii', $now, $chef['id'], $allianceAdverse['id']);
+				// ALL-P7-002: Compute winner from molecule losses; award pointsVictoire
+				$warData = dbFetchOne($base, 'SELECT pertes1, pertes2 FROM declarations WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'ii', $chef['id'], $allianceAdverse['id']);
+				$winner = 0; // draw by default
+				if ($warData) {
+					if ($warData['pertes1'] < $warData['pertes2']) {
+						$winner = 1; // declaring alliance wins (fewer losses)
+						dbExecute($base, 'UPDATE alliances SET pointsVictoire = pointsVictoire + 1 WHERE id=?', 'i', $chef['id']);
+					} elseif ($warData['pertes1'] > $warData['pertes2']) {
+						$winner = 2; // defending alliance wins
+						dbExecute($base, 'UPDATE alliances SET pointsVictoire = pointsVictoire + 1 WHERE id=?', 'i', $allianceAdverse['id']);
+					}
+				}
+				dbExecute($base, 'UPDATE declarations SET fin=?, winner=? WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'iiii', $now, $winner, $chef['id'], $allianceAdverse['id']);
 				$safeWarTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
 				$rapportTitre = 'L\'alliance ' . $safeWarTag . ' met fin à la guerre qui vous opposait.';
 				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeWarTag . '</a> met fin à la guerre qui vous opposait.';

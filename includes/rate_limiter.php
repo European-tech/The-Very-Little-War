@@ -21,7 +21,8 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
         $maxWindow = max(
             defined('RATE_LIMIT_LOGIN_WINDOW') ? RATE_LIMIT_LOGIN_WINDOW : 900,
             defined('RATE_LIMIT_ADMIN_WINDOW') ? RATE_LIMIT_ADMIN_WINDOW : 3600,
-            defined('RATE_LIMIT_REGISTER_WINDOW') ? RATE_LIMIT_REGISTER_WINDOW : 3600
+            defined('RATE_LIMIT_REGISTER_WINDOW') ? RATE_LIMIT_REGISTER_WINDOW : 3600,
+            defined('RATE_LIMIT_MARKET_WINDOW') ? RATE_LIMIT_MARKET_WINDOW : 60
         ) * 2; // double the max window to avoid deleting still-active files
         foreach (glob($dir . '/*.json') ?: [] as $file) {
             if (filemtime($file) < time() - $maxWindow) {

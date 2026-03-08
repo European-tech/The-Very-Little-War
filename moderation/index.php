@@ -45,6 +45,13 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 	</form> <?php
 		} else {
 			$_SESSION['mod_last_activity'] = time();
+			// IP binding: reject if session IP doesn't match current IP (SEC-P6-001/SESS-P7-003)
+			if (isset($_SESSION['mod_ip']) && !hash_equals((string)$_SESSION['mod_ip'], (string)($_SERVER['REMOTE_ADDR'] ?? ''))) {
+				session_unset();
+				session_destroy();
+				header('Location: index.php');
+				exit();
+			}
 
 			if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				csrfCheck();

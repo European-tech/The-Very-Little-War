@@ -35,6 +35,13 @@ if (isset($_SESSION['motdepasseadmin']) && isset($_SESSION['admin_last_activity'
 }
 if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === true) {
 	$_SESSION['admin_last_activity'] = time();
+	// IP binding: reject if session IP doesn't match current IP (SESS-P7-003)
+	if (isset($_SESSION['admin_ip']) && !hash_equals((string)$_SESSION['admin_ip'], (string)($_SERVER['REMOTE_ADDR'] ?? ''))) {
+		session_unset();
+		session_destroy();
+		header('Location: index.php');
+		exit();
+	}
 	// CSRF check for admin actions (not the login form itself)
 	if (isset($_POST['supprimercompte']) || isset($_POST['maintenance']) || isset($_POST['plusmaintenance']) || isset($_POST['miseazero'])) {
 		csrfCheck();

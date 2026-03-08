@@ -901,7 +901,7 @@ function supprimerAlliance($alliance)
         }
         dbExecute($base, 'UPDATE autre SET energieDonnee=0 WHERE idalliance=?', 'i', $alliance);
         dbExecute($base, 'DELETE FROM alliances WHERE id=?', 'i', $alliance);
-        dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE idalliance=?', 'i', $alliance);
+        dbExecute($base, 'UPDATE autre SET idalliance=0, alliance_left_at=NULL WHERE idalliance=?', 'i', $alliance);
         dbExecute($base, 'DELETE FROM invitations WHERE idalliance=?', 'i', $alliance);
         dbExecute($base, 'DELETE FROM declarations WHERE (alliance1=? OR alliance2=?)', 'ii', $alliance, $alliance);
         dbExecute($base, 'DELETE FROM grades WHERE idalliance=?', 'i', $alliance);
