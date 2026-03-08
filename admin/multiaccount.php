@@ -77,8 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// View mode
-$view = isset($_GET['view']) ? $_GET['view'] : 'alerts';
+// View mode — ADMIN12-006: whitelist allowed views to prevent future injection bugs
+$view = in_array($_GET['view'] ?? '', ['alerts', 'flags', 'stats', 'manual', 'md5accounts'], true)
+    ? $_GET['view']
+    : 'alerts';
 $detailLogin = isset($_GET['login']) ? $_GET['login'] : '';
 if (!empty($detailLogin) && (strlen($detailLogin) > 20 || !preg_match('/^[a-zA-Z0-9_-]+$/', $detailLogin))) {
     $detailLogin = '';

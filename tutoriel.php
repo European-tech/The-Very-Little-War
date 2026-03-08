@@ -79,7 +79,9 @@ $tutorielMissions[] = [
 ];
 
 // --- Mission 4: Create your first molecule ---
-$exMolecules = dbFetchOne($base, 'SELECT count(*) AS nb FROM molecules WHERE proprietaire=? AND formule != ?', 'ss', $_SESSION['login'], 'Vide ');
+// SEASON12-003: 'Vide ' had a trailing space — molecules reset to 'Vide' (no space) so the
+// old query never matched, making all fresh molecules count as "created".
+$exMolecules = dbFetchOne($base, 'SELECT count(*) AS nb FROM molecules WHERE proprietaire=? AND formule != ?', 'ss', $_SESSION['login'], 'Vide');
 $nbMoleculesCreees = $exMolecules ? intval($exMolecules['nb']) : 0;
 
 $tutorielMissions[] = [
@@ -99,7 +101,7 @@ $tutorielMissions[] = [
     'recompense_energie' => TUTORIAL_REWARDS[3],
     'condition'   => ($nbMoleculesCreees > 0),
     'verify_db'   => function($base, $login) {
-        $r = dbFetchOne($base, "SELECT COUNT(*) AS nb FROM molecules WHERE proprietaire = ? AND formule != ?", 'ss', $login, 'Vide ');
+        $r = dbFetchOne($base, "SELECT COUNT(*) AS nb FROM molecules WHERE proprietaire = ? AND formule != ?", 'ss', $login, 'Vide');
         return $r && (int)$r['nb'] > 0;
     },
 ];

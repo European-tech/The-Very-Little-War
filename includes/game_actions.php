@@ -161,7 +161,9 @@ function updateActions($joueur)
                                 $rawMolVal = 0;
                             }
                             $moleculesRestantes = (pow(coefDisparition($actions['attaquant'], $compteur), $nbsecondes) * $rawMolVal);
-                            $chaine = $chaine . $moleculesRestantes . ';';
+                            // GA12-001: troupes string expects integers — cast float to int via round() to prevent
+                            // format corruption (e.g. "49.9999999" in place of "50") when string is re-parsed.
+                            $chaine = $chaine . (int)round($moleculesRestantes) . ';';
                             $totalMoleculesPerdues += ($rawMolVal - $moleculesRestantes);
                             $compteur++;
                         }

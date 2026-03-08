@@ -13,6 +13,17 @@ if (!$val) {
     $tabCours = array_fill(0, count($nomsRes), 1.0);
 } else {
     $tabCours = explode(",", $val['tableauCours']);
+    // ECO12-001: Validate array length — a corrupted/short CSV would make $tabCours[$numRes]
+    // return NULL, causing round(NULL * qty) = 0 (free resources). Pad to count($nomsRes)
+    // with MARKET_PRICE_FLOOR so all indices are always valid numeric values.
+    $expectedCount = count($nomsRes);
+    while (count($tabCours) < $expectedCount) {
+        $tabCours[] = (string)MARKET_PRICE_FLOOR;
+    }
+    // Cast all values to float and clamp to valid range
+    foreach ($tabCours as $k => $v) {
+        $tabCours[$k] = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, (float)$v));
+    }
 }
 
 

@@ -34,7 +34,13 @@ function csrfCheck() {
         if (isset($_SERVER['HTTP_ORIGIN'])) {
             // INFRA-P10-001: Use SERVER_NAME (not HTTP_HOST) — HTTP_HOST is client-controlled
             // and can be spoofed to bypass origin checks; SERVER_NAME is set by Apache config.
-            $expectedOrigin = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['SERVER_NAME'];
+            // AUTH12-001: Include port for non-standard ports (browsers omit default 80/443).
+            $isHttps = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+            $scheme = $isHttps ? 'https' : 'http';
+            $port = (int)($_SERVER['SERVER_PORT'] ?? ($isHttps ? 443 : 80));
+            $defaultPort = $isHttps ? 443 : 80;
+            $portSuffix = ($port !== $defaultPort) ? ':' . $port : '';
+            $expectedOrigin = $scheme . '://' . $_SERVER['SERVER_NAME'] . $portSuffix;
             if ($_SERVER['HTTP_ORIGIN'] !== $expectedOrigin) {
                 if (function_exists('logWarn')) {
                     logWarn('SECURITY', 'CSRF origin mismatch', [

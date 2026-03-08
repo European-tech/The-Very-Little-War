@@ -302,7 +302,9 @@ if ($playerPos && $playerPos['x'] >= 0 && $playerPos['y'] >= 0) {
     $allNodes = getActiveResourceNodes($base);
     foreach ($allNodes as $node) {
         $dist = sqrt(pow($playerPos['x'] - $node['x'], 2) + pow($playerPos['y'] - $node['y'], 2));
-        if ($dist <= $node['radius']) {
+        // MISC12-003: Add epsilon tolerance so floating-point rounding (e.g. 19.9999999 vs 20)
+        // does not cause border-case nodes to be incorrectly excluded from the bonus display.
+        if ($dist <= (float)$node['radius'] + 0.001) {
             $node['distance'] = round($dist, 1);
             $nearbyNodes[] = $node;
         }

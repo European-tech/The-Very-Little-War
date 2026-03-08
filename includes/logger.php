@@ -28,7 +28,8 @@ function gameLog($level, $category, $message, $context = []) {
     $salt = defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt';
     $hashedIp = ($rawIp !== 'unknown') ? substr(hash_hmac('sha256', $rawIp, $salt), 0, 12) : 'unknown';
 
-    $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
+    // LOG12-001: Strip newlines from context JSON to prevent log injection via crafted context values.
+    $contextStr = !empty($context) ? ' | ' . str_replace(["\r", "\n"], ' ', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) : '';
     $safeCategory = str_replace(["\r", "\n"], ' ', $category);
     $safeMessage = str_replace(["\r", "\n"], ' ', $message);
     $line = "[$timestamp] [$levelName] [$safeCategory] [$login@$hashedIp] $safeMessage$contextStr\n";

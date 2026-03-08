@@ -15,10 +15,14 @@ date_default_timezone_set('Europe/Paris');
 // =============================================================================
 // SECURITY
 // =============================================================================
-// Salt used for hashing PII (IP addresses) in log files — change per deployment.
-// TODO: Load from .env for production. Currently in source for convenience.
-// In production, set SECRET_SALT as environment variable: putenv("SECRET_SALT=<random>") in .env
-define('SECRET_SALT', 'tvlw_audit_salt_2026');
+// Salt used for hashing PII (IP addresses) in log files — MUST be set via environment variable.
+// INFRA12-002: Hardcoded salts in source code defeat GDPR-compliant IP anonymization
+//   (attacker can precompute hashes for all IPv4 addresses if the salt is known).
+// Production: SetEnv SECRET_SALT <random-base64> in Apache vhost or .env file.
+// Generate: php -r "echo base64_encode(random_bytes(32));"
+// Fallback: if env var is missing we use a deterministic fallback (logs still function)
+//   but with reduced anonymization guarantees. Fix by setting the env var on the VPS.
+define('SECRET_SALT', getenv('SECRET_SALT') ?: 'tvlw_fallback_' . substr(md5(__FILE__), 0, 16));
 
 // Trusted upstream proxy IPs for X-Forwarded-For extraction.
 // IMPORTANT: This project currently runs on a VPS with direct client connections

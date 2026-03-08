@@ -1377,9 +1377,9 @@ function remiseAZero()
     // M-008: Wrap in try/catch so a failure here does not abort the season reset transaction.
     try {
         dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL');
-        // EMAIL11-001: Also purge stale unsent emails (>24h) to comply with GDPR data minimization.
-        // processEmailQueue() skips these old entries but never deletes them, causing PII accumulation.
-        dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NULL AND created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)');
+        // EMAIL11-001/EMAIL12-001: Purge stale unsent emails (>24h) for GDPR data minimization.
+        // Simplified query: the OR on sent_at IS NOT NULL was already handled above.
+        dbExecute($base, 'DELETE FROM email_queue WHERE created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)');
     } catch (\Exception $e) {
         logError('remiseAZero: email_queue cleanup failed (non-fatal): ' . $e->getMessage());
     }
