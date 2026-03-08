@@ -17,7 +17,7 @@ class GameFormulasTest extends TestCase
         global $nomsRes, $nbRes, $nbClasses;
 
         $this->assertCount(8, $nomsRes);
-        $this->assertEquals(7, $nbRes); // sizeof(8 elements) - 1
+        $this->assertEquals(8, $nbRes); // MARKET-CRIT-001: count(nomsRes) = 8, all atoms incl. iode
         $this->assertEquals(4, $nbClasses);
     }
 

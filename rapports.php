@@ -61,7 +61,7 @@ if(isset($_GET['rapport'])) {
 
 		echo $content;
         finContent();
-        finCarte('<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.(int)$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="imageSousMenu"> Supprimer</button></form>');
+        finCarte('<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.(int)$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="Supprimer ce rapport" class="imageSousMenu"> Supprimer</button></form>');
 
 		// Post-defeat recovery card (P1-D8-045)
 		if (strpos($rapports['titre'], 'perdez') !== false) {
@@ -122,7 +122,7 @@ else {
 				echo '<td><strong><a href="rapports.php?rapport='.$rapports['id'].'">'.htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8').'</a></strong></td>';
 			}
 			echo '<td><em>'.date('d/m/Y à H\hi', $rapports['timestamp']).'</em></td>';
-			echo '<td><form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="w32"></button></form></td></tr>';
+			echo '<td><form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.(int)$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="Supprimer ce rapport" class="w32"></button></form></td></tr>';
 		}
 		echo '</tbody></table></div>';
         $supprimer = '<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="1"><button type="submit" style="background:none;border:none;cursor:pointer;text-decoration:underline;">Supprimer tous les rapports</button></form>';

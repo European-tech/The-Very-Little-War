@@ -10,7 +10,7 @@ $volatilite = MARKET_VOLATILITY_FACTOR / max(1, $actifs['nbActifs']);
 $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
 if (!$val) {
     // No market data yet — initialize with default prices (1.0 per resource)
-    $tabCours = array_fill(0, $nbRes + 1, 1.0);
+    $tabCours = array_fill(0, count($nomsRes), 1.0);
 } else {
     $tabCours = explode(",", $val['tableauCours']);
 }
@@ -266,10 +266,10 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             // HIGH-003: Re-read current market price with lock
                             $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
                             $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
-                            $txTabCours = array_slice($txTabCours, 0, $nbRes);
+                            $txTabCours = array_slice($txTabCours, 0, count($nomsRes));
                             // P9-LOW-029: Assert slice length matches expected resource count
-                            if (count($txTabCours) !== $nbRes) {
-                                throw new \RuntimeException('corrupt_cours_data: expected ' . $nbRes . ', got ' . count($txTabCours));
+                            if (count($txTabCours) !== count($nomsRes)) {
+                                throw new \RuntimeException('corrupt_cours_data: expected ' . count($nomsRes) . ', got ' . count($txTabCours));
                             }
                             // P9-LOW-028: Recompute volatility inside the transaction from locked, consistent state
                             $actifsTx = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=?', 'i', (time() - ACTIVE_PLAYER_THRESHOLD));
@@ -408,10 +408,10 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         // PASS1-MEDIUM-018: Use freshly locked price for sell calculations
                         $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
                         $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
-                        $txTabCours = array_slice($txTabCours, 0, $nbRes);
+                        $txTabCours = array_slice($txTabCours, 0, count($nomsRes));
                         // P9-LOW-029: Assert slice length matches expected resource count
-                        if (count($txTabCours) !== $nbRes) {
-                            throw new \RuntimeException('corrupt_cours_data: expected ' . $nbRes . ', got ' . count($txTabCours));
+                        if (count($txTabCours) !== count($nomsRes)) {
+                            throw new \RuntimeException('corrupt_cours_data: expected ' . count($nomsRes) . ', got ' . count($txTabCours));
                         }
                         // P9-LOW-028: Recompute volatility inside the transaction from locked, consistent state
                         $actifsTx = dbFetchOne($base, 'SELECT count(*) AS nbActifs FROM membre WHERE derniereConnexion >=?', 'i', (time() - ACTIVE_PLAYER_THRESHOLD));

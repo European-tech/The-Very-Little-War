@@ -858,6 +858,11 @@ function coordonneesAleatoires()
 
                 dbExecute($base, 'UPDATE statistiques SET tailleCarte=?, nbDerniere=?', 'ii', $inscrits['tailleCarte'], ($inscrits['nbDerniere'] + 1));
 
+                // MAPS-MED-002: (0,0) is the "empty" sentinel; force minimum to (1,1).
+                if ($x === 0 && $y === 0) { $x = 1; $y = 1; }
+                $x = max(1, $x);
+                $y = max(1, $y);
+
                 return ['x' => $x, 'y' => $y];
             });
             return $coords;
@@ -945,7 +950,8 @@ function supprimerAlliance($alliance)
         }
         dbExecute($base, 'UPDATE autre SET energieDonnee=0 WHERE idalliance=?', 'i', $alliance);
         dbExecute($base, 'DELETE FROM alliances WHERE id=?', 'i', $alliance);
-        dbExecute($base, 'UPDATE autre SET idalliance=0, alliance_left_at=NULL WHERE idalliance=?', 'i', $alliance);
+        // ALLIANCE-MED-001: Use UNIX_TIMESTAMP() so 24h rejoin cooldown applies after dissolution.
+        dbExecute($base, 'UPDATE autre SET idalliance=0, alliance_left_at=UNIX_TIMESTAMP() WHERE idalliance=?', 'i', $alliance);
         dbExecute($base, 'DELETE FROM invitations WHERE idalliance=?', 'i', $alliance);
         dbExecute($base, 'DELETE FROM declarations WHERE (alliance1=? OR alliance2=?)', 'ii', $alliance, $alliance);
         dbExecute($base, 'DELETE FROM grades WHERE idalliance=?', 'i', $alliance);

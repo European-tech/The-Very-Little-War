@@ -4,6 +4,10 @@ require_once(__DIR__ . '/mdp.php');
 include("../includes/connexion.php");
 require_once("../includes/database.php");
 require_once("../includes/multiaccount.php");
+// ADMIN-HIGH-002: Add CSP header to moderation page.
+require_once(__DIR__ . '/../includes/csp.php');
+$nonce = cspNonce();
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; form-action 'self';");
 ?>
 <!DOCTYPE html>
 <html lang="fr">

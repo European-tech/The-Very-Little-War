@@ -45,8 +45,9 @@ function ajouter($champ, $bdd, $nombre, $joueur)
 
     // Use atomic increment instead of read-then-write.
     // MED-051: use 'i' for integer values and 'd' for float/non-integer to match column type.
+    // ECONOMY-MED-001: Prevent resource columns going below zero.
     $bindType = is_int($nombre) ? 'i' : 'd';
-    dbExecute($base, "UPDATE $bdd SET $champ = $champ + ? WHERE login=?", $bindType . 's', $nombre, $joueur);
+    dbExecute($base, "UPDATE $bdd SET $champ = GREATEST(0, $champ + ?) WHERE login=?", $bindType . 's', $nombre, $joueur);
 }
 
 function alliance($alliance)

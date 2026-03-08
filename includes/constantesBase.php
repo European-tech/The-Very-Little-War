@@ -16,7 +16,7 @@ $aidesAtomes = ['Le carbone augmente la défense de votre molécule. Ce sont les
                'Le soufre vous permet de piller l\'adversaire lors d\'une des vos attaques. Vous récupérez ainsi une partie de ses ressources pour vous.',
                'Le brome augmente les points de vie de vos molécules. Lors d\'une attaque, les dégâts infligés par les molécules adverses seront comparés à la vie de vos molécules pour déterminer le nombre de morts.',
                'L\'iode est particulier, cela permet de produire de l\'énergie. Ces molécules seront plutôt destinées à rester chez vous mais devront être défendues par des molécules carbonées pour éviter que vous perdiez toute votre production sur une attaque surprise.'];
-$nbRes = count($nomsRes)-1;
+$nbRes = count($nomsRes); // MARKET-CRIT-001: 8 atoms incl. iode at index 7
 $nbClasses = MAX_MOLECULE_CLASSES;
 $nbPointsVictoire = VICTORY_POINTS_TOTAL;
 

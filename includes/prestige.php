@@ -163,17 +163,21 @@ function awardPrestigePoints() {
     }
 
     // MEDIUM-014: Apply all PP awards atomically in a single transaction
+    // SEASON-HIGH-001: Mark season as awarded INSIDE transaction — atomic with PP grants.
     if (!empty($awards)) {
-        withTransaction($base, function() use ($base, $awards) {
+        withTransaction($base, function() use ($base, $awards, $currentSeason) {
             foreach ($awards as $award) {
                 // Ensure prestige row exists, then add PP
                 dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $award['login'], $award['pp'], $award['pp']);
             }
+            // P9-INFO-004: Mark this season as awarded so retries are idempotent.
+            // Inside the transaction so idempotency flag and PP grants are atomic.
+            dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
         });
+    } else {
+        // No awards but still mark to prevent re-checking next cron tick.
+        dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
     }
-
-    // P9-INFO-004: Mark this season as awarded so retries are idempotent.
-    dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
 }
 
 /**

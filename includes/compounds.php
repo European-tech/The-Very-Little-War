@@ -201,10 +201,14 @@ function activateCompound($base, $login, $compoundId)
             $now = time();
             $duration = $COMPOUNDS[$key]['duration'];
 
-            dbExecute($base,
+            $affected = dbExecute($base,
                 'UPDATE player_compounds SET activated_at = ?, expires_at = ? WHERE id = ?',
                 'iii', $now, $now + $duration, $compoundId
             );
+            // COMPOUNDS-MED-001: 0 rows = compound already activated or not found (race condition).
+            if ($affected === 0) {
+                throw new \RuntimeException('COMPOUND_NOT_FOUND');
+            }
         });
     } catch (\RuntimeException $e) {
         $msg = $e->getMessage();

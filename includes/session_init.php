@@ -13,6 +13,10 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.gc_maxlifetime', SESSION_IDLE_TIMEOUT);
     ini_set('session.use_only_cookies', 1);
     ini_set('session.use_trans_sid', 0);
-    session_name('TVLW_SESSION'); // MEDIUM-042: Custom session name avoids fingerprinting via default PHPSESSID
+    // INFRA-SEC-HIGH-001: Only set session name if not already customized by calling page
+    // (e.g. moderation pages pre-set 'TVLW_MOD' before including session_init.php).
+    if (session_name() === 'PHPSESSID') {
+        session_name('TVLW_SESSION');
+    }
     session_start();
 }

@@ -12,6 +12,17 @@ if (!$db_user || $db_name === false) {
 }
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+// INFRA-DB-HIGH-001: Catch all uncaught mysqli exceptions to prevent schema info leaking.
+// database.php's if(!$stmt) guards are dead code under STRICT mode — exceptions always fire first.
+set_exception_handler(function(\Throwable $e) {
+    if ($e instanceof \mysqli_sql_exception) {
+        error_log('DB Exception [' . $e->getCode() . ']: ' . $e->getMessage());
+        http_response_code(500);
+        die('<h1>Erreur interne</h1><p>Une erreur de base de données s\'est produite. Veuillez réessayer.</p>');
+    }
+    // Re-throw non-DB exceptions
+    throw $e;
+});
 $base = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
 
 if (!$base) {

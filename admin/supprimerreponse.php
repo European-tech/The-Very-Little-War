@@ -3,6 +3,10 @@ include("../includes/connexion.php");
 
 include("redirectionmotdepasse.php");
 require_once(__DIR__ . '/../includes/csrf.php');
+// ADMIN-HIGH-001: Add CSP headers to admin page.
+require_once(__DIR__ . '/../includes/csp.php');
+$nonce = cspNonce();
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; form-action 'self';");
 
 if (isset($_POST['supprimer'])) {
     csrfCheck();
@@ -12,7 +16,8 @@ if (isset($_POST['supprimer'])) {
     dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $supprimerId);
     if ($replyRow && !empty($replyRow['auteur'])) {
         $authorLogin = $replyRow['auteur'];
-        dbExecute($base, 'UPDATE membre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $authorLogin);
+        // FORUM-MED-002: nbMessages lives on autre, not membre.
+        dbExecute($base, 'UPDATE autre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $authorLogin);
     }
 }
 ?>

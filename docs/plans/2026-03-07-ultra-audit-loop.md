@@ -6,8 +6,12 @@
 
 **Architecture:** Each audit pass is structured in 5 phases: (1) Parallel domain audits by fresh agents, (2) Consolidated remediation plan, (3) Plan review by independent reviewers, (4) Fix implementation by specialist agents, (5) Verification by spec/code reviewers. The loop terminates when a full pass finds zero issues.
 
-**Domain taxonomy (17 domains as of Pass 10):**
-AUTH · FORUM · COMBAT · ESPIONAGE · ECONOMY · MARKET · COMPOUNDS · BUILDINGS · SOCIAL · ALLIANCE_MANAGEMENT · GAME_CORE · PRESTIGE · ADMIN · SEASON_RESET · ANTI_CHEAT · INFRA-SECURITY · INFRA-DATABASE · INFRA-TEMPLATES
+**Domain taxonomy (35 domains as of Pass 9):**
+BATCH A (Security & Infra): AUTH · INFRA-SECURITY · INFRA-DATABASE · ANTI_CHEAT · ADMIN · SEASON_RESET · FORUM
+BATCH B (Combat & Economy): COMBAT · ESPIONAGE · ECONOMY · MARKET · BUILDINGS · COMPOUNDS · MAPS
+BATCH C (Social & Cross-cutting): SOCIAL · ALLIANCE_MANAGEMENT · GAME_CORE · PRESTIGE · RANKINGS · NOTIFICATIONS · INFRA-TEMPLATES
+BATCH D (Data Flow — cross-domain): TAINT-USER-INPUT · TAINT-DB-OUTPUT · TAINT-CROSS-MODULE · SCHEMA-USAGE · TAINT-EMAIL · TAINT-SESSION · TAINT-API
+BATCH E (User Flows — cross-domain): FLOW-REGISTRATION · FLOW-COMBAT · FLOW-MARKET · FLOW-ALLIANCE · FLOW-SEASON · FLOW-PRESTIGE · FLOW-SOCIAL
 
 **Tech Stack:** PHP 8.2, MariaDB 10.11, Apache 2, Framework7 CSS, jQuery 3.7.1, PHPUnit
 
@@ -79,6 +83,12 @@ scripts/cleanup_old_data.php
 │     ↓  (wait for all 7 to finish)                │
 │  Phase 1C: BATCH C — 7 agents in parallel        │
 │     ↓  (wait for all 7 to finish)                │
+│  Phase 1D: BATCH D — 7 DATA FLOW agents          │
+│     (cross-domain: taint analysis, schema usage) │
+│     ↓  (wait for all 7 to finish)                │
+│  Phase 1E: BATCH E — 7 USER FLOW agents          │
+│     (cross-domain: end-to-end journey testing)   │
+│     ↓  (wait for all 7 to finish)                │
 │  Phase 2: CONSOLIDATE (remediation plan)         │
 │     ↓                                            │
 │  Phase 3: REVIEW PLAN (2 reviewer agents)        │
@@ -98,11 +108,11 @@ scripts/cleanup_old_data.php
 
 ---
 
-## Phase 1: Domain Audits (21 Agents in 3 Batches)
+## Phase 1: Domain Audits (35 Agents in 5 Batches)
 
-To avoid CPU/resource pressure, the 21 domain agents are dispatched in **3 sequential batches of 7**. All agents within a batch run in parallel. Wait for each batch to complete before launching the next.
+To avoid CPU/resource pressure, the 35 domain agents are dispatched in **5 sequential batches of 7**. All agents within a batch run in parallel. Wait for each batch to complete before launching the next.
 
-**Domain taxonomy (21 domains as of Pass 11):**
+**Domain taxonomy (35 domains as of Pass 9):**
 ```
 BATCH A — Security & Infrastructure (7 agents)
  1. AUTH              — Login, registration, session lifecycle
@@ -130,6 +140,24 @@ BATCH C — Social & Cross-Cutting (7 agents)
 19. RANKINGS          — Leaderboard, sqrt ranking, daily/seasonal toggle
 20. NOTIFICATIONS     — Email queue, combat reports display, historique
 21. INFRA-TEMPLATES   — Layout, display, UI components, meta, countdown
+
+BATCH D — End-to-End Data Flows (7 agents, cross-domain)
+22. TAINT-USER-INPUT  — All $_POST/$_GET/$_COOKIE → DB write paths: validation coverage, bypass vectors
+23. TAINT-DB-OUTPUT   — All DB reads → HTML/JSON/email output: escaping coverage per column
+24. TAINT-CROSS-MODULE— Data passed between includes/modules (e.g. game_resources→combat, player→display)
+25. SCHEMA-USAGE      — DB schema ↔ PHP usage correlation: orphaned columns, trusted-but-dirty columns
+26. TAINT-EMAIL       — Data flowing into mail() headers, subjects, bodies: injection, encoding
+27. TAINT-SESSION     — $_SESSION keys: what's stored, how trusted, re-validation coverage
+28. TAINT-API         — api.php + json_encode paths: fields exposed, escaping, auth on each endpoint
+
+BATCH E — End-to-End User Flows (7 agents, cross-domain)
+29. FLOW-REGISTRATION — Register → verify → login → tutorial → first action: full new-player journey
+30. FLOW-COMBAT       — Compose army → launch attack → flight → resolve → reports → notification: full cycle
+31. FLOW-MARKET       — Browse prices → buy → storage update → price volatile → sell: full trade cycle
+32. FLOW-ALLIANCE     — Create → invite → join → research → war declare → war end → leave → dissolve
+33. FLOW-SEASON       — Season wind-down → maintenance → reset cascade → VP/prestige awards → new season
+34. FLOW-PRESTIGE     — Earn PP (combat/streak/donation) → purchase unlock → bonus applied → season carryover
+35. FLOW-SOCIAL       — Send message → read → delete → forum post → BBCode render → moderate → appeal
 ```
 
 **Adaptive agent dispatch rules (apply each pass):**
@@ -835,13 +863,417 @@ version.php                   — version/build info page
 
 ---
 
+## BATCH D — End-to-End Data Flow Agents (7 Agents, Cross-Domain)
+
+These agents perform **taint analysis** across the entire codebase — tracing data from origin to destination regardless of domain boundaries. Each agent reads ALL relevant files to follow the complete data pipeline.
+
+---
+
+### Domain 22: TAINT-USER-INPUT — All User-Controlled Input → DB Write Paths
+**Scope:** Every `$_POST`, `$_GET`, `$_COOKIE`, `$_SERVER` value that eventually reaches a DB write. Verify each has appropriate validation, sanitization, and type-casting before insertion.
+**Agent type:** `comprehensive-review:security-auditor`
+
+**What to trace:**
+- `$_POST['login']`, `$_POST['motdepasse']` → `inscription.php` → `membre` INSERT
+- `$_POST['contenu']` (forum) → `sujet.php`/`editer.php` → `messages` INSERT
+- `$_POST['description']` (alliance) → `allianceadmin.php` → `alliances` UPDATE
+- `$_POST['nbclasse*']` (army) → `armee.php` → `actionsattaques` INSERT
+- `$_GET['page']`, `$_GET['clas']` → classement/rapports → SQL LIMIT/OFFSET
+- `$_SERVER['HTTP_X_FORWARDED_FOR']` → ip logging → potential injection
+- ALL other user-controlled parameters in the codebase
+
+**Checklist:**
+- [ ] Every `$_POST`/`$_GET` value goes through validation before DB use
+- [ ] Integer parameters use `(int)` cast or `intval()` — no string passed as int
+- [ ] String parameters use prepared statements — never concatenated into SQL
+- [ ] Login/username inputs validated via `validateLogin()` before INSERT
+- [ ] Email inputs validated via `validateEmail()` before INSERT
+- [ ] Text content inputs have max-length enforced (mb_strlen check before INSERT)
+- [ ] File uploads (if any) — mime type verified, not just extension
+- [ ] `$_SERVER['HTTP_*']` headers treated as user-controlled (never trusted without validation)
+- [ ] No `extract($_POST)` or `$$varname` variable variable patterns
+
+---
+
+### Domain 23: TAINT-DB-OUTPUT — All DB Read → HTML/JSON/Email Output Paths
+**Scope:** Every value read from the database that is eventually rendered to the user (HTML, JSON response, email body). Verify that each value is escaped at the output layer appropriate to its context.
+**Agent type:** `comprehensive-review:security-auditor`
+
+**What to trace (sample — agent must trace ALL):**
+- `membre.login` → rendered in player lists, profiles, leaderboards → must use `htmlspecialchars`
+- `alliances.description` → rendered via BBCode → must sanitize BBCode output
+- `messages.contenu` → rendered in message inbox → BBCode or htmlspecialchars
+- `rapports.contenu` → rendered in combat reports → strip_tags + event handler strip
+- `autre.specialisation` → rendered in bilan.php → must escape
+- `actualites.contenu` → rendered in news/index → BBCode
+- `statistiques.vainqueur` → rendered in season history → htmlspecialchars
+- DB values inserted into JavaScript via `json_encode` → verify no raw injection
+
+**Checklist:**
+- [ ] Every DB string value rendered in HTML goes through `htmlspecialchars(ENT_QUOTES, 'UTF-8')` OR BBCode pipeline that starts with htmlspecialchars
+- [ ] Integer/float values cast to `(int)` or `(float)` before HTML output (no type confusion)
+- [ ] BBCode output: htmlspecialchars applied at START of bbcode() before tag parsing (not after)
+- [ ] Values embedded in JS via `json_encode()` — confirm json_encode flags include `JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP`
+- [ ] Email body: user-controlled values escaped with htmlspecialchars before HTML email body embed
+- [ ] Email subject: user-controlled values stripped of CRLF and MIME-encoded
+- [ ] No `echo $row['column']` without escaping anywhere in the codebase
+
+---
+
+### Domain 24: TAINT-CROSS-MODULE — Data Flow Between PHP Includes and Functions
+**Scope:** Data passed between modules (includes) as function parameters, global variables, or return values. Find cases where a module receives data it cannot verify is clean.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**What to trace:**
+- `game_actions.php::updateActions()` → reads from `actionsattaques` → passes to `combat.php::resoudreCombat()` — are values trusted without re-validation?
+- `player.php::updateLoginStreak()` return value → used in `basicprivatephp.php` — is PP grant always atomic?
+- `compounds.php::getCompoundBonus()` → called in `game_resources.php` AND `combat.php` — same instance or different?
+- `formulas.php` functions → receive `$joueur` array — is the array always fresh or could be stale?
+- `resource_nodes.php::getResourceNodeBonus()` → called from `game_resources.php` → parameters validated?
+- `multiaccount.php::areFlaggedAccounts()` → called from `marche.php` — what if it throws?
+
+**Checklist:**
+- [ ] No function receives user-controlled string and embeds it in SQL without prepared statement
+- [ ] No function returns mixed type (string|false|null) where caller assumes specific type
+- [ ] Global variables (`$base`, `$joueur`, `$inscrits`) — verify they are always initialized before use in every include path
+- [ ] Functions that modify state (DB writes) are not called multiple times due to include-order bugs
+- [ ] Return values from external functions always checked before use (no unchecked `false`)
+- [ ] No circular include dependencies (A includes B which includes A)
+- [ ] Constants defined in config.php are always available in every include (no "undefined constant" risk)
+
+---
+
+### Domain 25: SCHEMA-USAGE — DB Schema ↔ PHP Code Correlation
+**Scope:** Compare the actual database schema (tables, columns, types) against how PHP code reads and writes those columns. Find mismatches, orphaned columns, and columns used in unexpected ways.
+**Agent type:** `voltagent-data-ai:data-analyst`
+
+**What to check:**
+- Every table column in the schema → is it read anywhere in PHP? Written anywhere? (Orphaned columns)
+- Every column written from PHP → is the data type match correct? (Writing string to INT column)
+- Every column displayed to the user → was it originally stored with `htmlspecialchars` (double-escape risk) or raw (XSS risk)?
+- Columns assumed to be clean (coming from DB) but storing raw user input: e.g., `membre.description`, `alliances.description`, `rapports.contenu`
+- Foreign key relationships defined in schema vs PHP-enforced orphan cleanup in `supprimerJoueur()`
+
+**Checklist:**
+- [ ] Map every table → list of columns → PHP files that write to each column
+- [ ] Map every table → list of columns → PHP files that read each column for display
+- [ ] Identify columns where PHP stores raw user input (no htmlspecialchars on write) — these MUST be escaped on read
+- [ ] Identify columns where PHP stores htmlspecialchars-encoded values — these must NOT be double-escaped on read
+- [ ] Orphaned columns: columns in schema not referenced in any PHP file (candidates for removal)
+- [ ] Columns used with wrong type: INT columns written with string concatenation, TINYINT used as bitmask without masking
+- [ ] VARCHAR length in schema matches PHP validation max-length (no truncation on INSERT)
+- [ ] NULL vs NOT NULL: PHP code that reads a NOT NULL column should not guard for null; PHP that reads a nullable column must guard
+
+---
+
+### Domain 26: TAINT-EMAIL — Data Flowing Into Email Headers, Subjects & Bodies
+**Scope:** Trace every value that ends up in a `mail()` call — recipient address, subject, headers, body. Ensure no injection is possible and all encoding is correct.
+**Agent type:** `comprehensive-review:security-auditor`
+
+**Files to trace:**
+```
+includes/player.php        — processEmailQueue(): mail() call, all email construction
+includes/basicprivatephp.php — email queue population (queueEmail() calls)
+includes/config.php        — EMAIL_FROM, EMAIL_REPLY_TO, EMAIL_FROM_NAME constants
+```
+
+**Checklist:**
+- [ ] Recipient email address: sourced from DB (membre.email) — stored with validation on registration
+- [ ] Recipient email: CRLF-stripped before use in mail() `$to` parameter
+- [ ] Subject: CRLF-stripped AND MIME-encoded with `mb_encode_mimeheader()`
+- [ ] From header: RFC 5322 compliant format `"Name" <addr>` with space before `<`
+- [ ] Reply-To header: same CRLF + MIME encoding as From
+- [ ] Email body: any user-controlled values (login, winner name) escaped with `htmlspecialchars` before embedding in HTML body
+- [ ] MIME boundary: generated with `random_bytes()` (not predictable)
+- [ ] No user-controlled data flows into header lines (only into body after encoding)
+- [ ] Email queue populated only with sanitized content (trace queueEmail() call sites)
+- [ ] No raw PHP `mail()` calls outside `processEmailQueue()` (centralized mail sending)
+
+---
+
+### Domain 27: TAINT-SESSION — Session Data: What's Stored, How Trusted
+**Scope:** Every `$_SESSION` key — what data is stored, where it's set, where it's read, and whether reads correctly re-validate or blindly trust session values.
+**Agent type:** `comprehensive-review:security-auditor`
+
+**What to trace (map all $_SESSION keys):**
+- `$_SESSION['login']` → used as DB primary key in most queries — if this changes?
+- `$_SESSION['session_token']` → validated against DB on every private page load?
+- `$_SESSION['idalliance']` → used for alliance auth checks — refreshed after alliance change?
+- `$_SESSION['moderateur']` → used for moderation gate — validated each request or just set at login?
+- `$_SESSION['flash_message']` → read once and unset? Or can persist and be re-shown?
+- `$_SESSION['csrf_token']` → matches entre requests, not leaked?
+- `$_SESSION['streak_pp_today']` → used to prevent double PP award — can be cleared by other means?
+
+**Checklist:**
+- [ ] `$_SESSION['login']` — is it re-verified against DB on every page load, or trusted from login?
+- [ ] `$_SESSION['session_token']` — DB validation runs on EVERY private page (basicprivatephp.php check)
+- [ ] `$_SESSION['idalliance']` — refreshed from DB when alliance membership changes (not stale after kick)
+- [ ] `$_SESSION['moderateur']` — validated against DB each request (not just at login, stale after removal)
+- [ ] Flash messages: read-once (unset after display), never reflected directly as HTML without escaping
+- [ ] No sensitive data in session (passwords, raw IPs, full email addresses)
+- [ ] Session data used in DB queries uses prepared statements (even though session values are "internal")
+- [ ] No session data embedded in HTML without `htmlspecialchars`
+- [ ] Session fixation prevented: `session_regenerate_id(true)` called after login
+- [ ] No session data stored in client-controlled cookies (only session ID in cookie)
+
+---
+
+### Domain 28: TAINT-API — api.php Endpoints and json_encode Output
+**Scope:** The `api.php` dispatch table — every endpoint, what data it reads from DB, and what it exposes in the JSON response. Also any other `json_encode()` output sites in the codebase.
+**Agent type:** `comprehensive-review:security-auditor`
+
+**Files to trace:**
+```
+api.php                    — dispatch table, all API endpoints
+includes/game_resources.php — may produce data consumed by API
+Any file with json_encode()
+```
+
+**Checklist:**
+- [ ] Every API endpoint requires authentication (no unauthenticated endpoints except health/public data)
+- [ ] API rate-limited (rateLimitCheck per endpoint per player)
+- [ ] CSRF token or session-only validation on state-changing API calls
+- [ ] Sensitive fields NOT exposed in API responses (email, IP hash, session token, password hash)
+- [ ] All string values in JSON responses are HTML-safe (json_encode with JSON_HEX_TAG etc. OR rendered in non-HTML context)
+- [ ] API endpoints validate all input parameters (type, range, ownership)
+- [ ] Error responses never reveal stack traces, SQL queries, or table names
+- [ ] API dispatch table: no dynamic method dispatch using user-controlled action name (whitelist-only)
+- [ ] Integer values in JSON: cast to (int)/(float) not raw string
+- [ ] No JSONP or cross-origin data exposure
+
+---
+
+## BATCH E — End-to-End User Flow Agents (7 Agents, Cross-Domain)
+
+These agents trace **complete user journeys** through the game, checking for logical correctness, broken flows, state inconsistencies, and race conditions that only appear when multiple systems interact. Each agent reads ALL files involved in the flow.
+
+---
+
+### Domain 29: FLOW-REGISTRATION — New Player Registration to First Action
+**Scope:** The complete new player journey: landing page → registration form → account creation → first login → tutorial start → first resource production → first molecule creation.
+**Agent type:** `voltagent-qa-sec:qa-expert`
+
+**Flow to trace:**
+```
+index.php (landing) → inscription.php (registration) → basicpublicphp.php (login)
+→ basicprivatephp.php (session init) → updateLoginStreak() → checkComebackBonus()
+→ tutoriel.php (mission 1) → constructions.php (first build) → armee.php (first molecule)
+→ updateRessources() (first production tick)
+```
+
+**Checklist:**
+- [ ] Registration → DB: all fields validated, duplicate login/email rejected, bcrypt applied
+- [ ] First login: session_regenerate_id() called, session_token written to DB
+- [ ] `updateLoginStreak()` called on first private page load: streak_days set to 1, PP earned
+- [ ] Tutorial mission 1 available immediately after login (no prerequisite)
+- [ ] First resource production: updateRessources() returns positive values (no negative on new account)
+- [ ] First molecule creation: atom costs deducted correctly, molecule row inserted
+- [ ] New player registration: `coordonneesAleatoires()` places player at valid (≥1,≥1) coordinates
+- [ ] STARTING_ENERGY and STARTING_ATOMS from config.php correctly applied on registration
+- [ ] Rate limiter prevents mass registration (3 accounts/hour/IP)
+- [ ] Duplicate email rejected even with different casing (LOWER() comparison)
+- [ ] New player cannot attack others until beginner protection expires
+- [ ] Registration generates `inscription` type audit log entry
+
+---
+
+### Domain 30: FLOW-COMBAT — Full Attack Cycle End-to-End
+**Scope:** The complete combat cycle: army composition → attack launch → flight period → combat resolution → report generation → defender notification → resource transfer.
+**Agent type:** `voltagent-qa-sec:qa-expert`
+
+**Flow to trace:**
+```
+armee.php (compose army) → attaquer.php (launch, type=1) → actionsattaques INSERT
+→ [time passes] → basicprivatephp.php triggers updateActions()
+→ game_actions.php::updateActions() → combat.php::resoudreCombat()
+→ rapports INSERT (attacker + defender) → game_actions.php::notifyDefender()
+→ ressources UPDATE (pillage) → molecules DELETE (casualties)
+→ rapports.php (display) → attaque.php (detail view)
+```
+
+**Checklist:**
+- [ ] Army composition validated: can't send more molecules than owned (pre-flight check)
+- [ ] Attack energy cost deducted atomically (FOR UPDATE on ressources)
+- [ ] Attack inserted into `actionsattaques` with correct arrival time
+- [ ] `updateActions()` processes attack only once (CAS guard: `WHERE attaqueFaite=0`)
+- [ ] Combat resolution: damage formula produces non-negative casualties
+- [ ] Defender casualties: correct molecule types destroyed (not attacker's molecules)
+- [ ] Pillage: only on attacker victory, vault-protected amount excluded, storage cap respected
+- [ ] Both attacker AND defender reports created in single transaction
+- [ ] Defender notification: defender receives report in rapports (ESPIONAGE-HIGH-001 fix verified)
+- [ ] Return trip: attacker's surviving molecules returned even if target account deleted
+- [ ] Building damage: random building selected, level never below 1 for core buildings
+- [ ] Combat stats: `pointsAttaque`/`pointsDefense` incremented for correct player
+- [ ] Beginner protection: neither attacker nor defender in beginner window
+- [ ] Comeback shield: attack blocked if defender has active comeback shield
+
+---
+
+### Domain 31: FLOW-MARKET — Full Trade Cycle End-to-End
+**Scope:** The complete market cycle: price display → buy transaction → storage validation → price volatility update → sell transaction → player-to-player transfer.
+**Agent type:** `voltagent-qa-sec:qa-expert`
+
+**Flow to trace:**
+```
+marche.php GET (price display) → cours table SELECT
+→ marche.php POST buy → ressources FOR UPDATE → cours FOR UPDATE
+→ ressources UPDATE (deduct energy, add atoms) → cours UPDATE (volatility)
+→ marche.php POST sell → reverse direction
+→ marche.php POST transfer → areFlaggedAccounts() → actionsenvoi INSERT
+→ [time passes] → updateActions() → actionsenvoi delivery
+```
+
+**Checklist:**
+- [ ] Buy: energy deducted AND atoms added in single transaction (no partial state)
+- [ ] Buy: storage cap enforced (can't receive more atoms than available space)
+- [ ] Buy: iode (index 7) correctly priced — array_slice fix verified (MARKET-CRIT-001)
+- [ ] Sell: atoms deducted AND energy added in single transaction
+- [ ] Sell: energy cap enforced (can't receive more energy than max)
+- [ ] Price volatility: updated INSIDE transaction with FOR UPDATE on cours (no TOCTOU)
+- [ ] Transfer: flagged multi-account pairs blocked by `areFlaggedAccounts()`
+- [ ] Transfer: can't transfer to self
+- [ ] Transfer: rate limited (10/60s per player)
+- [ ] Transfer delivery: recipient storage cap enforced on delivery (not just on send)
+- [ ] Price chart: timestamps correctly encoded (no Ã→à mojibake)
+- [ ] Market tutorial hint: shown correctly for new players
+
+---
+
+### Domain 32: FLOW-ALLIANCE — Full Alliance Lifecycle End-to-End
+**Scope:** The complete alliance lifecycle: creation → member invitation → member joins → research upgrade → war declaration → war resolution → member leaves → dissolution.
+**Agent type:** `voltagent-qa-sec:qa-expert`
+
+**Flow to trace:**
+```
+alliance.php (create) → alliances INSERT → autre UPDATE (idalliance)
+→ allianceadmin.php (invite) → invitations INSERT
+→ alliance.php (accept invite) → autre UPDATE (join) → alliance_left_at = NULL
+→ alliance.php (research upgrade) → alliances UPDATE → FOR UPDATE
+→ guerre.php (war declare) → declarations INSERT
+→ [combat resolves war] → declarations UPDATE (fin, winner)
+→ allianceadmin.php (member leave/kick) → autre UPDATE + alliance_left_at = UNIX_TIMESTAMP()
+→ allianceadmin.php (dissolve) → supprimerAlliance() → cascade cleanup
+```
+
+**Checklist:**
+- [ ] Alliance creation: tag uniqueness enforced with FOR UPDATE
+- [ ] Alliance join: cooldown enforced (alliance_left_at checked correctly)
+- [ ] Alliance join: member count cap enforced before INSERT
+- [ ] Research upgrade: energy deducted from alliance, not from player (correct table)
+- [ ] War declaration: can't declare war on own alliance
+- [ ] War declaration: can't declare war on ally (active pact check)
+- [ ] Pact acceptance: grade permission verified before accepting
+- [ ] Pact: duplicate pact prevention (can't have two active pacts with same alliance)
+- [ ] War resolution: winner determined by losses (pertes1 vs pertes2)
+- [ ] Member kick: alliance_left_at set to UNIX_TIMESTAMP() (ALLIANCE-MED-001 fix verified)
+- [ ] Alliance dissolution: cascade cleanup of grades, invitations, declarations, research, messages
+- [ ] Alliance dissolution: all members' idalliance reset to 0, alliance_left_at set (ALLIANCE-MED-001)
+- [ ] Grade permissions: chef can always act; graded members limited to their permission bits
+
+---
+
+### Domain 33: FLOW-SEASON — Full Season End-to-End Transition
+**Scope:** The complete season transition: detection → maintenance phase → 24h pause → reset cascade → VP awards → prestige awards → email notifications → new season start.
+**Agent type:** `voltagent-qa-sec:qa-expert`
+
+**Flow to trace:**
+```
+basicprivatephp.php (any page load) → isSeasonEnd() check
+→ phase 1: maintenance flag set, timestamp recorded
+→ [24h pause] → phase 2: GET_LOCK acquired
+→ archiveSeasonData() → season_recap INSERT
+→ awardPrestigePoints() → prestige UPDATE (inside transaction) → idempotency flag SET
+→ processEmailQueue() → mail() to top players
+→ remiseAZero() → 15-table wipe → resource node generation → session invalidation
+→ first page load after reset → new season state
+```
+
+**Checklist:**
+- [ ] Phase 1: maintenance flag set before any reset operations
+- [ ] Phase 2: GET_LOCK prevents concurrent reset (double-reset protection)
+- [ ] archiveSeasonData() runs BEFORE remiseAZero() (data preserved before wipe)
+- [ ] Winner determined from DB (not $_SESSION) — correct player name in emails
+- [ ] awardPrestigePoints(): idempotency flag inside transaction (SEASON-HIGH-001 fix verified)
+- [ ] remiseAZero(): all 15 tables wiped completely (verify completeness)
+- [ ] Session tokens set to NULL after reset (forces all players to re-login)
+- [ ] Resource nodes regenerated after reset (new season starts with fresh nodes)
+- [ ] New season: STARTING_ENERGY and STARTING_ATOMS applied to all players
+- [ ] Email notifications: winner + top players notified correctly
+- [ ] Season recap page: readable after reset with correct archived data
+- [ ] No page serves stale pre-reset data after the transition (session invalidation effective)
+
+---
+
+### Domain 34: FLOW-PRESTIGE — Full Prestige Point Lifecycle
+**Scope:** The complete prestige journey: earning PP through multiple sources → purchasing an unlock → bonus applied in game → surviving season reset → carryover to next season.
+**Agent type:** `voltagent-qa-sec:qa-expert`
+
+**Flow to trace:**
+```
+[combat win] → ajouterPoints() → prestige INSERT ON DUPLICATE KEY UPDATE
+[login streak] → updateLoginStreak() → prestige UPDATE (atomic)
+[season end] → awardPrestigePoints() → prestige UPDATE (inside tx, idempotent)
+prestige.php (shop) → purchasePrestigeUnlock() → FOR UPDATE → unlocks UPDATE
+[next page load] → hasPrestigeUnlock() → bonus applied in production/combat
+[season reset] → remiseAZero() → prestige table NOT wiped (carries over)
+```
+
+**Checklist:**
+- [ ] PP earned via combat: `ajouterPoints()` correctly writes to prestige table
+- [ ] PP earned via login streak: milestone awards match STREAK_MILESTONES config
+- [ ] PP earned at season end: rank-based awards match PRESTIGE_RANK_BONUSES config
+- [ ] Double-award prevention: idempotency check covers all PP sources, not just season-end
+- [ ] Unlock purchase: FOR UPDATE prevents double-spend race condition
+- [ ] Unlock purchase: sufficient PP verified inside transaction (not pre-checked then spent)
+- [ ] Unlock effects: `prestigeProductionBonus()` and `prestigeCombatBonus()` return correct multipliers
+- [ ] Unlocks applied in correct domain: production bonus in game_resources.php, combat bonus in combat.php
+- [ ] Season reset: prestige table intact (not in remiseAZero() wipe list)
+- [ ] Unlock carryover: purchases from previous season still active in new season
+- [ ] PP balance display: reads from prestige.total_pp minus prestige.spent_pp (or verify schema)
+
+---
+
+### Domain 35: FLOW-SOCIAL — Full Social Interaction Lifecycle
+**Scope:** The complete social flow: send message → inbox → read → delete → forum post → BBCode render → moderator review → sanction → appeal.
+**Agent type:** `voltagent-qa-sec:qa-expert`
+
+**Flow to trace:**
+```
+ecriremessage.php (compose) → messages INSERT + rate limit check
+→ messages.php (inbox) → SELECT with ownership filter → mark read → soft delete
+→ listesujets.php (new topic) → messages INSERT (type=forum)
+→ sujet.php (reply) → messages INSERT + nbMessages UPDATE (autre, not membre)
+→ editer.php (edit post) → rate limit check → messages UPDATE
+→ moderationForum.php (sanction) → sanctions INSERT → ban check
+→ [player posts again] → ban check blocks (dateFin check)
+→ [ban expires] → probabilistic GC removes old sanctions
+→ admin/supprimerreponse.php (admin delete) → messages DELETE + nbMessages UPDATE (autre)
+```
+
+**Checklist:**
+- [ ] Message send: rate limit correctly enforced (identifier=login, action=key — FORUM-MED-001 fix verified)
+- [ ] Message inbox: ownership filter `WHERE destinataire = $_SESSION['login']`
+- [ ] Message read: marks read only if current user is recipient
+- [ ] Soft delete: both `deleted_by_sender` and `deleted_by_recipient` flags used correctly
+- [ ] Cascade delete: message hard-deleted when BOTH soft-delete flags set
+- [ ] Forum reply: `nbMessages` incremented on `autre` table (not `membre`) — FORUM-MED-002 fix verified
+- [ ] Admin delete: `nbMessages` decremented on `autre` table (not `membre`) — FORUM-MED-002 fix verified
+- [ ] BBCode: htmlspecialchars applied at start of bbcode() (before tag parsing, not after)
+- [ ] BBCode [img]: restricted to relative paths or whitelisted domains
+- [ ] Forum ban: `dateFin >= CURDATE()` check runs before any POST action allowed
+- [ ] Moderation sanction: rate-limited (20/3600s per moderator)
+- [ ] Alliance-private forum: access check correctly compares viewer's idalliance with forum's alliance_id
+- [ ] editer.php: edit only allowed for post author OR moderator (not any logged-in player)
+
+---
+
 ## Phase 2: Consolidation (1 Agent)
 
 ### Task: Build Remediation Plan
 
 **Agent type:** `voltagent-meta:knowledge-synthesizer`
 
-**Input:** All 21 domain audit outputs from Phase 1.
+**Input:** All 35 domain audit outputs from Phase 1 (Batches A–E).
 
 **Prompt template:**
 ```
@@ -1072,15 +1504,23 @@ Step 4:  Launch BATCH B in parallel — 7 agents (Combat, Espionage, Economy, Ma
 Step 5:  Launch BATCH C in parallel — 7 agents (Social, Alliance-Mgmt, Game-Core, Prestige,
          Rankings, Notifications, Infra-Templates). Wait for ALL to complete before Step 6.
 
-Step 6:  Collect all 21 reports. Launch consolidation agent (Phase 2).
-Step 7:  Launch 2 plan reviewers IN PARALLEL (Phase 3).
-Step 8:  If reviewers find gaps → fix plan → re-review.
-Step 9:  Launch fix agents per batch (Phase 4) — parallel where possible.
-Step 10: Launch 2 verifiers IN PARALLEL (Phase 5).
-Step 11: If verifiers find issues → fix and re-verify.
-Step 12: Run PHPUnit, commit, deploy (Phase 6).
-Step 13: If Pass N found issues → go to Step 1 for Pass N+1.
-Step 14: If Pass N found 0 issues → DONE.
+Step 6:  Launch BATCH D in parallel — 7 DATA FLOW agents (Taint-User-Input, Taint-DB-Output,
+         Taint-Cross-Module, Schema-Usage, Taint-Email, Taint-Session, Taint-API).
+         Wait for ALL to complete before Step 7.
+
+Step 7:  Launch BATCH E in parallel — 7 USER FLOW agents (Flow-Registration, Flow-Combat,
+         Flow-Market, Flow-Alliance, Flow-Season, Flow-Prestige, Flow-Social).
+         Wait for ALL to complete before Step 8.
+
+Step 8:  Collect all 35 reports. Launch consolidation agent (Phase 2).
+Step 9:  Launch 2 plan reviewers IN PARALLEL (Phase 3).
+Step 10: If reviewers find gaps → fix plan → re-review.
+Step 11: Launch fix agents per batch (Phase 4) — parallel where possible.
+Step 12: Launch 2 verifiers IN PARALLEL (Phase 5).
+Step 13: If verifiers find issues → fix and re-verify.
+Step 14: Run PHPUnit, commit, deploy (Phase 6).
+Step 15: If Pass N found issues → go to Step 1 for Pass N+1.
+Step 16: If Pass N found 0 issues → DONE.
 ```
 
 ### Agent Count Per Pass
@@ -1089,11 +1529,13 @@ Step 14: If Pass N found 0 issues → DONE.
 | 1A — Batch A | 7-9 | Domain specialists (Security & Infra) | Yes — all 7 at once |
 | 1B — Batch B | 7-9 | Domain specialists (Combat & Economy) | Yes — all 7 at once, after 1A |
 | 1C — Batch C | 7-9 | Domain specialists (Social & Cross-cutting) | Yes — all 7 at once, after 1B |
-| 2 — Consolidate | 1 | Knowledge synthesizer | Sequential, after 1C |
+| 1D — Batch D | 7 | Data flow / taint analysis agents (cross-domain) | Yes — all 7 at once, after 1C |
+| 1E — Batch E | 7 | User flow / journey agents (cross-domain) | Yes — all 7 at once, after 1D |
+| 2 — Consolidate | 1 | Knowledge synthesizer | Sequential, after 1E |
 | 3 — Review Plan | 2 | Architect + Code reviewer | Yes, both |
 | 4 — Fix | 1-8 | PHP specialist (per batch) | Parallel where independent |
 | 5 — Verify | 2 | Spec + Integration reviewer | Yes, both |
-| **Total per pass** | **~27-40** | | |
+| **Total per pass** | **~41-55** | | |
 
 ### Convergence Expectation
 - Pass 11+: Expect 10-30 findings (first pass with full 21-domain taxonomy — fresh eyes on 8 new domains)

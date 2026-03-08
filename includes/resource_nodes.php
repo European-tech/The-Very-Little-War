@@ -130,7 +130,7 @@ function getResourceNodeBonus($base, $px, $py, $resourceName)
     }
 
     $totalBonus = 0.0;
-    $mapBound = defined('MAP_SIZE') ? MAP_SIZE : 100;
+    $mapBound = defined('MAP_SIZE') ? MAP_SIZE : 200;
     foreach ($nodesCache as $node) {
         if ($node['resource_type'] !== $resourceName) {
             continue;

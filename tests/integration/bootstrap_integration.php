@@ -17,7 +17,10 @@ require_once __DIR__ . '/../../includes/validation.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/display.php';
 require_once __DIR__ . '/../../includes/formulas.php';
-require_once __DIR__ . '/../../includes/database.php';
+// Only load real database.php if stubs haven't been loaded yet by unit test bootstrap
+if (!function_exists('dbQuery')) {
+    require_once __DIR__ . '/../../includes/database.php';
+}
 
 // Mock session
 $_SESSION = [];

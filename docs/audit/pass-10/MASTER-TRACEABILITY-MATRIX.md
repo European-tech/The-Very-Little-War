@@ -387,7 +387,9 @@ See part1-output.md for complete list.
 | **SOCIAL** | 9 | 7 | 14 player | None found |
 | **GAME_CORE** | 10 | 6 | 12 player + 4 admin | None found |
 | **ADMIN** | 8 | 3 | 10 admin | Weak auth gate on supprimercompte.php |
-| **INFRA** | 20+ | 2 | 5 API | Cookie secure pending HTTPS |
+| **INFRA-SECURITY** | 8 | — | — | — |
+| **INFRA-DATABASE** | 6 + 80 migrations | 2 | — | — |
+| **INFRA-TEMPLATES** | 5 | — | 5 API (api.php) | Cookie secure pending HTTPS |
 
 ---
 
@@ -427,6 +429,17 @@ See part1-output.md for complete list.
 | P10-INFO-002 | INFO | ADMIN | — | No queryable audit log table for admin actions | Consider audit_log table |
 | P10-INFO-003 | INFO | AUTH | — | Moderator IP binding breaks on VPN | Consider session re-auth |
 | P10-INFO-004 | INFO | INFRA | — | No centralized permission matrix | Consider dispatcher pattern |
+
+## TABLE 5-C — HIGH-RISK CROSS-DOMAIN SEAMS (from cross-domain mapping agents)
+
+> These are architectural risks found during TABLE 7 mapping — not bugs, but dangerous coupling points worth tracking.
+
+| ID | Severity | Domain Seam | File | Risk | Recommendation |
+|----|----------|------------|------|------|----------------|
+| P10-SEAM-001 | MEDIUM | ADMIN → AUTH | admin/index.php:60 | `supprimerJoueur()` called without `withTransaction()` — if mid-deletion fails (e.g., FK on molecules), partial records remain orphaned | Wrap in `withTransaction()` |
+| P10-SEAM-002 | MEDIUM | INFRA-SEC → ALL | includes/rate_limiter.php | File-based rate limit GC is probabilistic (1/200 requests) and fails silently on permission error — no DB fallback, potential open-rate after disk fill | Add db-backed fallback or log GC failures |
+| P10-SEAM-003 | LOW | GAME_CORE → AUTH | includes/player.php:1174 | Season reset clears ALL session_tokens atomically — player mid-attack POST gets logged out, CSRF token becomes invalid, state may be inconsistent | Document as known; add server maintenance banner pre-reset |
+| P10-SEAM-004 | LOW | INFRA-SEC → ALL | includes/basicprivatephp.php | Acts as implicit state mutation hub (updateRessources + updateActions + streak + comeback + season trigger) — all called on every private page load, no circuit breaker | Add error boundary around each hook; log individually |
 
 ## TABLE 6 — DB TABLE CORRECTIONS (from Review Agent 3)
 
@@ -483,3 +496,109 @@ See part1-output.md for complete list.
 | **Fix this pass** | 6 | P10-MED-001 through P10-MED-006 |
 | **Fix if time** | 4 | P10-LOW-001 through P10-LOW-004 |
 | **Track/defer** | 4 | P10-INFO-001 through P10-INFO-004 |
+
+---
+
+## TABLE 7 — CROSS-DOMAIN INTERACTION MAP
+
+> Source: 3 parallel cross-domain mapping agents (aad6637d = AUTH/FORUM/COMBAT, ae94d786 = ECONOMY/SOCIAL/GAME_CORE, a5366944 = ADMIN/INFRA)
+
+### 7A — Write Dependencies (Domain X writes to Domain Y's tables)
+
+| Source Domain | Target Domain | Function/Table Written | Caller File | Notes |
+|---------------|--------------|----------------------|-------------|-------|
+| **AUTH** | GAME_CORE | `actionsformation` INSERT | compte.php (vacation) | Vacation mode inserts into GAME_CORE action table |
+| **AUTH** | GAME_CORE | `vacances` INSERT | compte.php (vacation) | Vacation block written cross-domain |
+| **AUTH** | ADMIN | `login_history` INSERT | basicpublicphp.php | Every login writes to fraud-detection table |
+| **AUTH** | ADMIN | `account_flags` INSERT | multiaccount.php | IP/fingerprint collision → ADMIN's anti-cheat table |
+| **FORUM** | SOCIAL | `autre.nbMessages` UPDATE | sujet.php (reply) | Reply count stored in SOCIAL's `autre` stats table |
+| **COMBAT** | ECONOMY | `ressources` UPDATE | attaquer.php → updateRessources() | Combat outcome modifies ECONOMY resource rows |
+| **COMBAT** | GAME_CORE | `actionsconstruction` via updateActions() | attaquer.php | Combat tick advances building queues (GAME_CORE) |
+| **COMBAT** | ECONOMY | `molecules` DELETE | armee.php → molecule deletion tx | Army changes cascade to ECONOMY's molecule tracking |
+| **ECONOMY** | COMBAT | `ressources` FOR UPDATE | constructions.php | Building upgrade locks combat-critical resource row |
+| **ECONOMY** | GAME_CORE | `autre.nbDons` counter | don.php | Donation increments GAME_CORE's medal counter |
+| **ECONOMY** | ADMIN | `trade_volume` tracking | marche.php | Market transfers feed ADMIN anti-cheat analysis |
+| **SOCIAL** | AUTH | `membre.alliances` UPDATE | alliance.php (join/leave) | Alliance membership written to AUTH's membre table |
+| **SOCIAL** | GAME_CORE | `declarations` | alliance.php → validerpacte.php | Pact/war stored in GAME_CORE's declarations table |
+| **GAME_CORE** | ALL | 15-table wipe | performSeasonEnd() | Season reset touches every domain's primary tables |
+| **GAME_CORE** | ECONOMY | `ressources` + `constructions` zero-fill | performSeasonEnd() → remiseAZero() | Economy fully reset cross-domain |
+| **GAME_CORE** | COMBAT | `molecules` + `attaques` DELETE | performSeasonEnd() | Combat state wiped |
+| **GAME_CORE** | SOCIAL | `messages` + `alliances` purge | performSeasonEnd() | Social data wiped on season end |
+| **ADMIN** | AUTH | `membre` DELETE (8-table cascade) | supprimerJoueur() | Account deletion cascades across every domain |
+| **INFRA-SECURITY** | ALL | called on every private page | basicprivatephp.php | Auth hub that also triggers: updateRessources (ECONOMY), updateActions (GAME_CORE), updateLoginStreak (GAME_CORE), checkComebackBonus (GAME_CORE), performSeasonEnd (GAME_CORE), processEmailQueue |
+
+### 7B — Read Dependencies (Domain X reads Domain Y's tables)
+
+| Source Domain | Reads From | Table | Purpose |
+|---------------|-----------|-------|---------|
+| COMBAT | ECONOMY | `ressources`, `constructions` | Energy, atoms, building levels for attack calculation |
+| COMBAT | ECONOMY | `player_compounds` | Active compound buffs modify attack/defense |
+| COMBAT | GAME_CORE | `declarations` | War/pact status determines valid targets |
+| FORUM | AUTH | `membre` | Moderator flag check, ban target lookup |
+| SOCIAL | AUTH | `membre` | Profile lookup, alliance membership |
+| ECONOMY | COMBAT | `actionsformation` | Formation completion affects production |
+| GAME_CORE | ECONOMY | `constructions` + `ressources` | Bilan.php reads all economy data for bonus calc |
+| GAME_CORE | COMBAT | `molecules`, `attaques` | Medal counters read combat history |
+| ADMIN | ALL | ALL | Admin dashboard aggregates cross-domain stats |
+| INFRA-SECURITY | AUTH | `membre.session_token` | Session token validated against DB on every request |
+
+### 7C — Hub Functions (Cross-cutting, called from many domains)
+
+| Function | Defined In | Called By Domains | Tables Touched |
+|---------|-----------|-------------------|----------------|
+| `updateRessources()` | includes/game_resources.php | INFRA-SEC (every page), COMBAT, ECONOMY | `ressources`, `constructions` |
+| `updateActions()` | includes/game_actions.php | INFRA-SEC (every page), COMBAT | `actionsformation`, `actionsrecherche`, `actionsconstruction`, `attaques` |
+| `initPlayer()` | includes/player.php | AUTH, INFRA-SEC | `membre`, `ressources`, `autre` |
+| `performSeasonEnd()` | includes/player.php | ADMIN, GAME_CORE | ALL 15 tables |
+| `supprimerJoueur()` | includes/player.php | ADMIN, AUTH | 8 tables cascade |
+| `csrfCheck()` | includes/csrf.php | ALL domains | `membre.csrf_token` |
+| `rateLimitCheck()` | includes/rate_limiter.php | AUTH, FORUM, ECONOMY, SOCIAL, INFRA | `data/rates/` files |
+| `logInfo/logError()` | includes/logger.php | ALL domains | `logs/` files |
+| `getCompoundBonus()` | includes/compounds.php | COMBAT, ECONOMY | `player_compounds` |
+| `getSpecModifier()` | includes/game_resources.php | COMBAT, ECONOMY | `membre.specialisation` |
+
+---
+
+## TABLE 8 — PROPOSED NEW DOMAINS
+
+> Synthesized from 3 cross-domain mapping agents. Each proposal includes rationale, files to migrate, cross-domain interactions, and priority score.
+
+| # | Proposed Domain | Split From | Priority | Rationale | Files to Move |
+|---|----------------|-----------|----------|-----------|---------------|
+| 1 | **SEASON_RESET** | GAME_CORE + ADMIN | ★★★ HIGH | performSeasonEnd() touches 15 tables across all domains; it's a lifecycle event that deserves its own bounded context. Currently scattered between player.php and admin/index.php | performSeasonEnd(), archiveSeasonData(), remiseAZero() (all in player.php), season_recap.php, migrations/0029 |
+| 2 | **ANTI_CHEAT** | ADMIN | ★★★ HIGH | Multi-account detection, IP logging, fingerprinting, and admin flagging are a distinct security subdomain. Currently mixed into ADMIN + AUTH login flow | includes/multiaccount.php, admin/multiaccount.php, login_history writes in basicpublicphp.php, account_flags table |
+| 3 | **ALLIANCE_MANAGEMENT** | SOCIAL | ★★ MEDIUM | Alliance governance (chef, grades, members, cooldowns, duplicateur upgrades) is more complex than "social" implies. Currently shares domain with player profiles and messaging | allianceadmin.php, don.php, war/pact initiation in alliance.php, validerpacte.php |
+| 4 | **ESPIONAGE** | COMBAT | ★★ MEDIUM | Espionage (attaquer.php type=2) has its own neutrino cost, rate limit, report type, and formula set. Logically distinct from direct combat (type=1) | Espionage branch in attaquer.php, espionage entries in rapports.php, neutrino deduction |
+| 5 | **MARKET** | ECONOMY | ★★ MEDIUM | Market trading (buy/sell/transfer) has its own rate limits, price volatility, multi-account checks, and FOR UPDATE patterns. Currently diluted inside ECONOMY with buildings and labs | marche.php, market pricing functions in includes/game_resources.php |
+| 6 | **COMPOUNDS** | ECONOMY | ★★ MEDIUM | Compound synthesis (laboratoire.php) and active buffs (player_compounds) are a cross-cutting game mechanic that affects COMBAT, ECONOMY, and GAME_CORE. Separating would clarify the buff lifecycle | laboratoire.php, includes/compounds.php, player_compounds table |
+| 7 | **RANKINGS** | SOCIAL / GAME_CORE | ★ LOW | Leaderboard logic reads from multiple domains. Currently in SOCIAL (classement.php) but is more of a cross-domain aggregator | classement.php, sqrt ranking functions |
+| 8 | **PRESTIGE** | GAME_CORE | ★ LOW | Prestige point tracking, unlocks, and season rewards are distinct from tutorial/war/medals. Would benefit from isolated testing | prestige.php, includes/prestige.php (if extracted), awardPrestigePoints() in player.php |
+| 9 | **MAPS** | COMBAT / ECONOMY | ★ LOW | Resource nodes, map display, coordinate generation are a standalone subsystem | includes/resource_nodes.php, map view in attaquer.php type=0, coordonneesAleatoires() |
+| 10 | **NOTIFICATIONS** | INFRA | ★ LOW | Email queue processing (processEmailQueue) and historique.php event log are notification concerns, not core game logic or infrastructure | historique.php, processEmailQueue() in player.php, email templates |
+
+### Current 10-Domain Structure vs Proposed Extended Structure
+
+| Current Domain | Status | Action |
+|---------------|--------|--------|
+| AUTH | Stable | Keep; absorb ANTI_CHEAT boundary |
+| FORUM | Stable | Keep |
+| COMBAT | Stable | Consider ESPIONAGE split later |
+| ECONOMY | Stable | Consider MARKET + COMPOUNDS splits |
+| SOCIAL | Stable | Consider ALLIANCE_MANAGEMENT split |
+| GAME_CORE | Overloaded | Extract SEASON_RESET (★★★), PRESTIGE, RANKINGS |
+| ADMIN | Overloaded | Extract ANTI_CHEAT (★★★), SEASON_RESET boundary |
+| INFRA-SECURITY | Stable | Keep |
+| INFRA-DATABASE | Stable | Keep |
+| INFRA-TEMPLATES | Stable | Keep |
+| **SEASON_RESET** (NEW) | **Proposed ★★★** | Extract immediately — reduces coupling dramatically |
+| **ANTI_CHEAT** (NEW) | **Proposed ★★★** | Extract immediately — security domain deserves isolation |
+| **ALLIANCE_MANAGEMENT** (NEW) | Proposed ★★ | Extract in next audit pass |
+| **ESPIONAGE** (NEW) | Proposed ★★ | Low risk split |
+| **MARKET** (NEW) | Proposed ★★ | Natural boundary already present |
+| **COMPOUNDS** (NEW) | Proposed ★★ | Buff lifecycle is cross-cutting |
+| **RANKINGS** (NEW) | Proposed ★ | Nice-to-have |
+| **PRESTIGE** (NEW) | Proposed ★ | Nice-to-have |
+| **MAPS** (NEW) | Proposed ★ | Low priority |
+| **NOTIFICATIONS** (NEW) | Proposed ★ | Low priority |
+
+**Recommended immediate action:** Adopt SEASON_RESET and ANTI_CHEAT as formal domains in Pass 11 matrix — both are already architecturally isolated, just not labeled. The remaining 8 proposals are valid long-term refactoring goals but not urgent.

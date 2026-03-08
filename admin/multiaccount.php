@@ -53,16 +53,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $manualRelated = trim($_POST['manual_related']);
         $manualNote = trim($_POST['manual_note'] ?? '');
         if (!empty($manualLogin) && !empty($manualRelated)) {
-            $evidence = json_encode([
-                'note' => $manualNote,
-                'added_by' => 'admin',
-                'added_at' => time()
-            ]);
-            dbExecute($base,
-                'INSERT INTO account_flags (login, flag_type, related_login, evidence, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                'sssssi', $manualLogin, 'manual', $manualRelated, $evidence, 'high', time()
-            );
-            logInfo('ADMIN', "Manual flag added: $manualLogin <-> $manualRelated");
+            // ANTI-CHEAT-HIGH-001: Validate both players exist before creating a flag.
+            $loginExists   = dbCount($base, 'SELECT COUNT(*) FROM membre WHERE login = ?', 's', $manualLogin);
+            $relatedExists = dbCount($base, 'SELECT COUNT(*) FROM membre WHERE login = ?', 's', $manualRelated);
+            if (!$loginExists || !$relatedExists) {
+                if (function_exists('logWarn')) {
+                    logWarn('ADMIN', "Manual flag rejected: player not found", ['login' => $manualLogin, 'related' => $manualRelated]);
+                }
+                // fall through without INSERT; $information stays empty
+            } else {
+                $evidence = json_encode([
+                    'note' => $manualNote,
+                    'added_by' => 'admin',
+                    'added_at' => time()
+                ]);
+                dbExecute($base,
+                    'INSERT INTO account_flags (login, flag_type, related_login, evidence, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                    'sssssi', $manualLogin, 'manual', $manualRelated, $evidence, 'high', time()
+                );
+                logInfo('ADMIN', "Manual flag added: $manualLogin <-> $manualRelated");
+            }
         }
     }
 }

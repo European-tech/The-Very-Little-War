@@ -12,7 +12,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 // nonce in style-src is still meaningful for that block). Inline style="" attrs remain
 // covered by unsafe-inline until the refactor is completed.
 // TODO: progressively replace inline style="" attrs with CSS classes, then drop unsafe-inline.
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'nonce-$nonce' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https://www.theverylittlewar.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'nonce-$nonce' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' https://www.theverylittlewar.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()');

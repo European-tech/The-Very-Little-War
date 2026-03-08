@@ -489,12 +489,13 @@ function updateActions($joueur)
                     withTransaction($base, function() use ($base, $espActionId, $espActions, $titreRapportJoueur, $contenuRapportJoueur, $espionageThreshold) {
                         dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $espActions['attaquant'], 'espionage');
 
-                        // Notify defender only on FAILED espionage (successful spying is silent to defender)
-                        if ($espionageThreshold >= $espActions['nombreneutrinos']) {
-                            $titreRapportEspionDef   = 'Tentative d\'espionnage détectée';
-                            $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
-                            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $espActions['defenseur'], 'defense');
-                        }
+                        // ESPIONAGE-HIGH-001: Notify defender unconditionally on espionage success.
+                        // Previous condition was inverted (>= instead of <), making this dead code.
+                        // We are already inside the success branch (threshold < nombreneutrinos),
+                        // so the defender is always notified when espionage succeeds.
+                        $titreRapportEspionDef   = 'Tentative d\'espionnage détectée';
+                        $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
+                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $espActions['defenseur'], 'defense');
 
                         dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
                     });

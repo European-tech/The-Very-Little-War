@@ -6,8 +6,14 @@ include("includes/bbcode.php");
 csrfCheck();
 
 if (isset($_POST['verification']) and isset($_POST['oui'])) {
-    supprimerJoueur($_SESSION['login']);
-    header("Location: deconnexion.php"); exit;
+    // AUTH-HIGH-001: Re-check 7-day cooldown on POST path — not just in view rendering.
+    $memberTimestamp = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    if (!$memberTimestamp || (time() - (int)$memberTimestamp['timestamp']) <= SECONDS_PER_WEEK) {
+        $erreur = "Le compte ne peut être supprimé qu'au bout d'une semaine.";
+    } else {
+        supprimerJoueur($_SESSION['login']);
+        header("Location: deconnexion.php"); exit;
+    }
 }
 
 if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais

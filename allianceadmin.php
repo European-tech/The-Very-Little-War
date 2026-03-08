@@ -94,42 +94,56 @@ if ($gradeChef) {
 			} elseif (dbCount($base, 'SELECT COUNT(*) FROM grades WHERE idalliance=? AND nom=?', 'is', $chef['id'], $_POST['nomgrade']) > 0) {
 				$erreur = "Un grade avec ce nom existe déjà dans votre alliance.";
 			} else {
-				// SOC-P6-005: Cap grades per alliance to prevent unbounded growth
-				$gradeCount = dbCount($base, 'SELECT COUNT(*) AS cnt FROM grades WHERE idalliance=?', 'i', $chef['id']);
-				if ($gradeCount >= MAX_ALLIANCE_MEMBERS) {
-					$erreur = "Nombre maximum de grades atteint pour cette alliance.";
-				} else {
-				$gradee = dbCount($base, 'SELECT count(*) as nb FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
-				if ($_POST['personnegrade'] != $chef['chef'] and $gradee < 1) {
-					$existe = dbCount($base, 'SELECT count(*) as nb FROM membre WHERE login=?', 's', $_POST['personnegrade']);
-					$inAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
-					if ($existe >= 1 && $inAlliance >= 1) {
-						if (isset($_POST['inviterDroit']) and $_POST['inviterDroit']) $droit_inviter = 1;
-						else $droit_inviter = 0;
-						if (isset($_POST['guerreDroit']) and $_POST['guerreDroit']) $droit_guerre = 1;
-						else $droit_guerre = 0;
-						if (isset($_POST['pacteDroit']) and $_POST['pacteDroit']) $droit_pacte = 1;
-						else $droit_pacte = 0;
-						if (isset($_POST['bannirDroit']) and $_POST['bannirDroit']) $droit_bannir = 1;
-						else $droit_bannir = 0;
-						if (isset($_POST['descriptionDroit']) and $_POST['descriptionDroit']) $droit_description = 1;
-						else $droit_description = 0;
+				// ALLIANCE-MED-002: Wrap grade creation in a transaction and re-check uniqueness inside
+				// to prevent TOCTOU race where two concurrent requests both pass the pre-check and both INSERT.
+				$nomgrade = $_POST['nomgrade'];
+				$personnegrade = $_POST['personnegrade'];
+				$chefId = $chef['id'];
+				$chefChef = $chef['chef'];
+				$droit_inviter    = (isset($_POST['inviterDroit'])    && $_POST['inviterDroit'])    ? 1 : 0;
+				$droit_guerre     = (isset($_POST['guerreDroit'])     && $_POST['guerreDroit'])     ? 1 : 0;
+				$droit_pacte      = (isset($_POST['pacteDroit'])      && $_POST['pacteDroit'])      ? 1 : 0;
+				$droit_bannir     = (isset($_POST['bannirDroit'])     && $_POST['bannirDroit'])     ? 1 : 0;
+				$droit_description= (isset($_POST['descriptionDroit'])&& $_POST['descriptionDroit'])? 1 : 0;
+				$gradeStr = $droit_inviter . '.' . $droit_guerre . '.' . $droit_pacte . '.' . $droit_bannir . '.' . $droit_description;
 
-						$gradeStr = $droit_inviter . '.' . $droit_guerre . '.' . $droit_pacte . '.' . $droit_bannir . '.' . $droit_description;
-						// ALL-P7-005: check INSERT result to catch race-condition duplicate (no transaction needed — duplicate key returns false)
-						$gradeInsert = dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $_POST['personnegrade'], $gradeStr, $chef['id'], $_POST['nomgrade']);
-						if ($gradeInsert !== false) {
-							$information = "" . htmlspecialchars($_POST['personnegrade'], ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($_POST['nomgrade'], ENT_QUOTES, 'UTF-8') . ".";
-						} else {
-							$erreur = "Ce joueur est déjà gradé dans cette alliance.";
+				try {
+					withTransaction($base, function() use ($base, $chefId, $chefChef, $nomgrade, $personnegrade, $gradeStr, &$erreur, &$information) {
+						// SOC-P6-005: Cap grades per alliance to prevent unbounded growth
+						$gradeCount = dbCount($base, 'SELECT COUNT(*) AS cnt FROM grades WHERE idalliance=?', 'i', $chefId);
+						if ($gradeCount >= MAX_ALLIANCE_MEMBERS) {
+							$erreur = "Nombre maximum de grades atteint pour cette alliance.";
+							return;
 						}
-					} else {
-						$erreur = "Cette personne n'existe pas ou n'est pas dans votre alliance.";
-					}
-				} else {
-					$erreur = "Cette personne est déjà gradée.";
+
+						// Re-check uniqueness inside transaction (ALLIANCE-MED-002 TOCTOU guard)
+						$dup = dbCount($base, 'SELECT COUNT(*) FROM grades WHERE idalliance=? AND nom=?', 'is', $chefId, $nomgrade);
+						if ($dup > 0) {
+							$erreur = "Un grade avec ce nom existe déjà dans votre alliance.";
+							return;
+						}
+
+						$gradee = dbCount($base, 'SELECT count(*) as nb FROM grades WHERE login=? AND idalliance=?', 'si', $personnegrade, $chefId);
+						if ($personnegrade != $chefChef and $gradee < 1) {
+							$existe = dbCount($base, 'SELECT count(*) as nb FROM membre WHERE login=?', 's', $personnegrade);
+							$inAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=? AND idalliance=?', 'si', $personnegrade, $chefId);
+							if ($existe >= 1 && $inAlliance >= 1) {
+								$gradeInsert = dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $personnegrade, $gradeStr, $chefId, $nomgrade);
+								if ($gradeInsert !== false) {
+									$information = "" . htmlspecialchars($personnegrade, ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($nomgrade, ENT_QUOTES, 'UTF-8') . ".";
+								} else {
+									$erreur = "Ce joueur est déjà gradé dans cette alliance.";
+								}
+							} else {
+								$erreur = "Cette personne n'existe pas ou n'est pas dans votre alliance.";
+							}
+						} else {
+							$erreur = "Cette personne est déjà gradée.";
+						}
+					});
+				} catch (\Throwable $e) {
+					$erreur = "Erreur lors de la création du grade.";
 				}
-				} // end SOC-P6-005 grade count cap
 			} // end MED-026 validation
 		} else {
 			$erreur = "Tout les champs ne sont pas remplis";

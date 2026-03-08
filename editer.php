@@ -95,8 +95,10 @@ if ($type == 4 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if (isset($_POST['contenu']) AND !empty(trim($_POST['contenu'])) AND $id > 0 AND $type > 0) {
 	csrfCheck();
-	// LOW-013: Rate-limit forum edits to 10 per 5 minutes per user.
-	rateLimitCheck('forum_edit', $_SESSION['login'], 10, 300);
+	// FORUM-MED-001: Correct arg order (identifier=login first, action second) + check return value.
+	if (!rateLimitCheck($_SESSION['login'], 'forum_edit', 10, 300)) {
+		$erreur = "Trop de modifications. Veuillez patienter avant de modifier à nouveau.";
+	}
 	$contenu = $_POST['contenu'];
 	if (isset($_POST['titre']) AND !empty(trim($_POST['titre']))) { // alors c'est un sujet
 		$titre = $_POST['titre'];

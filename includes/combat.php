@@ -188,7 +188,8 @@ $degatsDefenseur *= prestigeCombatBonus($actions['defenseur']);
 $compoundAttackBonus  = (float)($actions['compound_atk_bonus'] ?? 0.0);
 $compoundDefenseBonus = (float)($actions['compound_def_bonus'] ?? 0.0);
 if ($compoundAttackBonus > 0) $degatsAttaquant *= (1 + $compoundAttackBonus);
-if ($compoundDefenseBonus > 0) $degatsDefenseur *= (1 + $compoundDefenseBonus);
+// COMBAT-HIGH-001: compound_def_bonus reduces attacker's effective damage (applied before casualty loop).
+// Do NOT amplify $degatsDefenseur here — that is the defender's counter-damage, not their damage reduction.
 
 // Specialization combat modifiers (MEDIUM-018: cross-role modifiers added)
 // HIGH-002: Cast all getSpecModifier() returns to float with null-coalesce
@@ -208,6 +209,12 @@ $degatsDefenseur *= (1 + (float)(catalystEffect('attack_bonus') ?? 0.0));
 
 // Apply Embuscade bonus to defender's effective damage (FIX FINDING-GAME-018)
 $degatsDefenseur *= $embuscadeDefBoost;
+
+// COMBAT-HIGH-001: Defense boost reduces attacker's effective damage (not boost counter-damage).
+// Applied here, after all attacker damage calculations are complete but before the casualty loop.
+if ($compoundDefenseBonus > 0) {
+    $degatsAttaquant /= (1.0 + $compoundDefenseBonus);
+}
 
 // --- Attacker casualties — V4 OVERKILL CASCADE ---
 // LOW-015: Explicit arrays replace variable-variables for kills tracking
@@ -580,12 +587,16 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 	}
 
 	//gestion des destructions de batiments
+	$alreadyDamaged = []; // BUILDINGS-MED-001: track which buildings took damage this combat
 
 	if ($degatsGenEnergie > 0) {
 		// LOW-014: Show only damage status to attacker, not exact HP values (defender intel)
 		if ($degatsGenEnergie >= $constructions['vieGenerateur']) {
 			if ($constructions['generateur'] > 1) {
-				diminuerBatiment("generateur", $actions['defenseur']);
+				if (!isset($alreadyDamaged['generateur'])) {
+					diminuerBatiment("generateur", $actions['defenseur']);
+					$alreadyDamaged['generateur'] = true;
+				}
 				$destructionGenEnergie = "détruit";
 			} else {
 				$degatsGenEnergie = 0;
@@ -600,7 +611,10 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 		// LOW-014: Show only damage status to attacker, not exact HP values (defender intel)
 		if ($degatschampdeforce >= $constructions['vieChampdeforce']) {
 			if ($constructions['champdeforce'] > 1) {
-				diminuerBatiment("champdeforce", $actions['defenseur']);
+				if (!isset($alreadyDamaged['champdeforce'])) {
+					diminuerBatiment("champdeforce", $actions['defenseur']);
+					$alreadyDamaged['champdeforce'] = true;
+				}
 				$destructionchampdeforce = "détruit";
 			} else {
 				$degatschampdeforce = 0;
@@ -615,7 +629,10 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 		// LOW-014: Show only damage status to attacker, not exact HP values (defender intel)
 		if ($degatsProducteur >= $constructions['vieProducteur']) {
 			if ($constructions['producteur'] > 1) {
-				diminuerBatiment("producteur", $actions['defenseur']);
+				if (!isset($alreadyDamaged['producteur'])) {
+					diminuerBatiment("producteur", $actions['defenseur']);
+					$alreadyDamaged['producteur'] = true;
+				}
 				$destructionProducteur = "détruit";
 			} else {
 				$degatsProducteur = 0;
@@ -630,7 +647,10 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 		// LOW-014: Show only damage status to attacker, not exact HP values (defender intel)
 		if ($degatsDepot >= $constructions['vieDepot']) {
 			if ($constructions['depot'] > 1) {
-				diminuerBatiment("depot", $actions['defenseur']);
+				if (!isset($alreadyDamaged['depot'])) {
+					diminuerBatiment("depot", $actions['defenseur']);
+					$alreadyDamaged['depot'] = true;
+				}
 				$destructionDepot = "détruit";
 			} else {
 				$degatsDepot = 0;
@@ -645,7 +665,10 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 		// LOW-014: Show only damage status to attacker, not exact HP values (defender intel)
 		if ($degatsIonisateur >= $constructions['vieIonisateur']) {
 			if ($constructions['ionisateur'] > 1) {
-				diminuerBatiment("ionisateur", $actions['defenseur']);
+				if (!isset($alreadyDamaged['ionisateur'])) {
+					diminuerBatiment("ionisateur", $actions['defenseur']);
+					$alreadyDamaged['ionisateur'] = true;
+				}
 				$destructionIonisateur = "détruit";
 			} else {
 				$degatsIonisateur = 0;

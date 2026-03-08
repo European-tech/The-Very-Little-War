@@ -36,7 +36,10 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 						dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $titreMsg, $contenuMsg, $expediteur, $destinataire['login']);
 					}
 				});
-				$information = "Le message a bien été envoyé à toute l'alliance.";
+				// SOCIAL-LOW-001: PRG pattern — store success in session and redirect to prevent duplicate POST on refresh.
+				$_SESSION['flash_message'] = "Le message a bien été envoyé à toute l'alliance.";
+				header('Location: ecriremessage.php');
+				exit();
 			}
 		} elseif ($_POST['destinataire'] == "[all]") {
 			$isAdmin = ($_SESSION['login'] === ADMIN_LOGIN);
@@ -55,7 +58,10 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 						dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $titreAll, $contenuAll, $expediteurAll, $destinataire['login']);
 					}
 				});
-				$information = "Le message a bien été envoyé à tous les joueurs.";
+				// SOCIAL-LOW-001: PRG pattern — store success in session and redirect to prevent duplicate POST on refresh.
+				$_SESSION['flash_message'] = "Le message a bien été envoyé à tous les joueurs.";
+				header('Location: ecriremessage.php');
+				exit();
 			}
 		} else {
 			if (!rateLimitCheck($_SESSION['login'], 'private_msg', 10, 300)) {
@@ -84,6 +90,12 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 	} else {
 		$erreur = "Tous les champs ne sont pas remplis.";
 	}
+}
+
+// SOCIAL-LOW-001: Consume flash message from PRG redirect and expose as $information for display.
+if (isset($_SESSION['flash_message']) && !isset($information)) {
+	$information = $_SESSION['flash_message'];
+	unset($_SESSION['flash_message']);
 }
 
 include("includes/layout.php");

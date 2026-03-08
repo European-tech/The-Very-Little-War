@@ -500,9 +500,10 @@ class ConfigConsistencyTest extends TestCase
     {
         global $nomsRes, $nbRes;
 
-        // nbRes = sizeof(nomsRes) - 1 = 7
-        $this->assertEquals(sizeof($nomsRes) - 1, $nbRes);
-        $this->assertEquals(7, $nbRes);
+        // MARKET-CRIT-001: nbRes = count(nomsRes) = 8 (all atoms incl. iode at index 7)
+        // Previously was count($nomsRes)-1 = 7, which caused iode to always cost 1 energy.
+        $this->assertEquals(count($nomsRes), $nbRes);
+        $this->assertEquals(8, $nbRes);
     }
 
     // =========================================================================

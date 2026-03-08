@@ -713,6 +713,7 @@ $MAP_ICON_DIVISORS = [16, 8, 4, 2]; // Fractions of VICTORY_POINTS_TOTAL for ico
 // Resource nodes generated at season reset use this boundary so nodes span the full
 // starting map rather than a hardcoded 20×20 tile area.
 define('MAP_INITIAL_SIZE', 20);
+define('MAP_SIZE', 200); // MAPS-MED-001: max map dimension for resource node bounds-checking
 
 // =============================================================================
 // RESOURCE NODES (map bonuses)
