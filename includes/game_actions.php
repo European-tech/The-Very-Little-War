@@ -122,6 +122,27 @@ function updateActions($joueur)
                             throw new \RuntimeException('cas_skip');
                         }
 
+                        // Re-validate alliance membership at resolution time (FLOW-CMB-P10-001)
+                        // Prevents friendly-fire if attacker/defender joined the same alliance after attack launch
+                        $attAllianceId = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
+                        $defAllianceId = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['defenseur']);
+                        if ($attAllianceId && $defAllianceId
+                            && (int)$attAllianceId['idalliance'] > 0
+                            && (int)$attAllianceId['idalliance'] === (int)$defAllianceId['idalliance']) {
+                            // Both now in same alliance — abort attack, refund molecules, delete action
+                            $troupesArr = explode(';', $actions['troupes'] ?? '');
+                            $moleculesOwned = dbFetchAll($base, 'SELECT id, classe FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
+                            foreach ($moleculesOwned as $idx => $mol) {
+                                $nb = isset($troupesArr[$idx]) && is_numeric($troupesArr[$idx]) ? (int)$troupesArr[$idx] : 0;
+                                if ($nb > 0) {
+                                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ii', $nb, $mol['id']);
+                                }
+                            }
+                            dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                            logInfo('SECURITY', 'Friendly fire aborted at resolution', ['attacker' => $actions['attaquant'], 'defender' => $actions['defenseur']]);
+                            throw new \RuntimeException('cas_skip'); // reuse cas_skip to cleanly exit tx
+                        }
+
                         // Decay loop now inside the transaction
                         $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
 

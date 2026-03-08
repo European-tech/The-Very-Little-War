@@ -42,7 +42,13 @@ $response = [
 // Only expose detailed info to localhost
 // LOW-029: PHP version and disk info are restricted to 127.0.0.1/::1 (low-risk).
 // Ensure this endpoint is not reachable via a reverse proxy that rewrites REMOTE_ADDR.
-if (in_array($_SERVER['REMOTE_ADDR'], ['127.0.0.1', '::1'], true)) {
+$remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+// Normalize IPv6-mapped IPv4 addresses (e.g. ::ffff:127.0.0.1) to prevent bypass
+if (strpos($remoteAddr, '::ffff:') === 0) {
+    $remoteAddr = substr($remoteAddr, 7);
+}
+$isLocalhost = in_array($remoteAddr, ['127.0.0.1', '::1'], true);
+if ($isLocalhost) {
     $response['db'] = $db_ok;
     $response['disk_free_gb'] = round(disk_free_space('/') / 1073741824, 1);
     // PHP version included only for localhost health checks (not accessible from internet).

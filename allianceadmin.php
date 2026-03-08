@@ -451,31 +451,62 @@ if ($inviter) {
 	if (isset($_POST['inviterpersonne'])) {
 		csrfCheck();
 		if (!empty($_POST['inviterpersonne'])) {
-			// SOC-P6-008: Re-fetch live count to avoid TOCTOU race with $nombreJoueurs fetched at page load
-			$liveCount = dbCount($base, 'SELECT COUNT(*) AS cnt FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
-			if ($liveCount < $joueursEquipe) {
-				$_POST['inviterpersonne'] = ucfirst(trim($_POST['inviterpersonne']));
-				$joueurExiste = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=?', 's', $_POST['inviterpersonne']);
+			$_POST['inviterpersonne'] = ucfirst(trim($_POST['inviterpersonne']));
+			$personneAInviter = $_POST['inviterpersonne'];
+			$allianceId = $currentAlliance['idalliance'];
+			$chefTag = $chef['tag'];
 
-				$invitationDejaEnvoye = dbCount($base, 'SELECT count(*) as nb FROM invitations WHERE invite=? AND idalliance=?', 'si', $_POST['inviterpersonne'], $currentAlliance['idalliance']);
-				if ($invitationDejaEnvoye == 0) {
-					if ($joueurExiste > 0) {
-						// HIGH-036: Block invite if target player is already in an alliance
-						$targetAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_POST['inviterpersonne']);
-						if ($targetAlliance && (int)$targetAlliance['idalliance'] !== 0) {
-							$erreur = "Ce joueur est déjà dans une alliance.";
-						} else {
-							dbExecute($base, 'INSERT INTO invitations VALUES (default, ?, ?, ?)', 'iss', $currentAlliance['idalliance'], $chef['tag'], $_POST['inviterpersonne']);
-							$information = 'Vous avez invité ' . htmlspecialchars($_POST['inviterpersonne'], ENT_QUOTES, 'UTF-8') . '';
-						}
-					} else {
-						$erreur = "Ce joueur n'existe pas.";
+			// ALLIANCE-P10-001/002: Wrap all invite checks + INSERT in a transaction
+			// to prevent duplicate invites and TOCTOU on member count / target alliance status.
+			// INSERT IGNORE relies on the UNIQUE KEY uk_invite_alliance (migration 0098).
+			try {
+				$inviteResult = withTransaction($base, function() use ($base, $personneAInviter, $allianceId, $chefTag, $joueursEquipe) {
+					// Re-check member count under lock
+					$memberCount = dbCount($base, 'SELECT COUNT(*) FROM autre WHERE idalliance=? FOR UPDATE', 'i', $allianceId);
+					if ($memberCount >= $joueursEquipe) {
+						throw new \RuntimeException('alliance_full');
 					}
-				} else {
-					$erreur = "Vous avez déja envoyé une invitation à ce joueur.";
+
+					// Verify target player exists
+					$joueurExiste = dbCount($base, 'SELECT COUNT(*) FROM autre WHERE login=?', 's', $personneAInviter);
+					if ($joueurExiste === 0) {
+						throw new \RuntimeException('player_not_found');
+					}
+
+					// Re-check: target must not already be in an alliance (FOR UPDATE locks the row)
+					$targetCheck = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=? FOR UPDATE', 's', $personneAInviter);
+					if (!$targetCheck || (int)$targetCheck['idalliance'] !== 0) {
+						throw new \RuntimeException('already_in_alliance');
+					}
+
+					// Re-check: no pending invite already exists (FOR UPDATE locks the rows)
+					$invitationDejaEnvoye = dbCount($base, 'SELECT COUNT(*) FROM invitations WHERE invite=? AND idalliance=? FOR UPDATE', 'si', $personneAInviter, $allianceId);
+					if ($invitationDejaEnvoye > 0) {
+						throw new \RuntimeException('invite_already_sent');
+					}
+
+					// INSERT IGNORE: UNIQUE constraint (uk_invite_alliance) prevents duplicates even under concurrent load
+					dbExecute($base, 'INSERT IGNORE INTO invitations VALUES (default, ?, ?, ?)', 'iss', $allianceId, $chefTag, $personneAInviter);
+					return true;
+				});
+				$information = 'Vous avez invité ' . htmlspecialchars($personneAInviter, ENT_QUOTES, 'UTF-8') . '';
+			} catch (\RuntimeException $e) {
+				switch ($e->getMessage()) {
+					case 'alliance_full':
+						$erreur = "Le nombre maximal de joueurs est atteint dans l'équipe";
+						break;
+					case 'player_not_found':
+						$erreur = "Ce joueur n'existe pas.";
+						break;
+					case 'already_in_alliance':
+						$erreur = "Ce joueur est déjà dans une alliance.";
+						break;
+					case 'invite_already_sent':
+						$erreur = "Vous avez déjà envoyé une invitation à ce joueur.";
+						break;
+					default:
+						$erreur = "Une erreur est survenue lors de l'invitation.";
 				}
-			} else {
-				$erreur = "Le nombre maximal de joueurs est atteint dans l'équipe";
 			}
 		} else {
 			$erreur = "Je crois qu'une personne sans nom, ça n'existe pas.";

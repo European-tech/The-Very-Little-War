@@ -203,6 +203,10 @@ function updateRessources($joueur)
         return; // Too fast, skip update
     }
 
+    // ECO-001: Cap offline time to prevent total molecule wipeout after very long absences.
+    // Without this cap, a player offline for weeks would lose all molecules to exponential decay.
+    $nbsecondes = min($nbsecondes, MAX_OFFLINE_SECONDS);
+
     // Atomic: only update if tempsPrecedent hasn't changed since we read it
     dbExecute($base, 'UPDATE autre SET tempsPrecedent=? WHERE login=? AND tempsPrecedent=?', 'isi', time(), $joueur, $donnees['tempsPrecedent']);
     if (mysqli_affected_rows($base) === 0) {

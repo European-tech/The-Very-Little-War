@@ -152,29 +152,35 @@ function withTransaction($base, callable $fn) {
     }
     // Increment only after the DB operation confirmed success.
     $depth++;
+    $committed = false;
     try {
         $result = $fn();
-        $depth--;
         if ($useSavepoint) {
             mysqli_query($base, "RELEASE SAVEPOINT $sp");
         } else {
             mysqli_commit($base);
         }
+        $committed = true;
         return $result;
     } catch (\Throwable $e) {
-        $depth--;
-        if ($useSavepoint) {
-            // LOW-010: log the savepoint name so failures are traceable in error logs.
-            if (function_exists('logError')) {
-                logError('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
+        if (!$committed) {
+            if ($useSavepoint) {
+                // LOW-010: log the savepoint name so failures are traceable in error logs.
+                if (function_exists('logError')) {
+                    logError('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
+                } else {
+                    error_log('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
+                }
+                mysqli_query($base, "ROLLBACK TO SAVEPOINT $sp");
             } else {
-                error_log('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
+                mysqli_rollback($base);
             }
-            mysqli_query($base, "ROLLBACK TO SAVEPOINT $sp");
-        } else {
-            mysqli_rollback($base);
         }
         throw $e;
+    } finally {
+        // INFRA-DB-H-001: Use finally so $depth is decremented exactly once regardless
+        // of how the function exits (normal return, exception, or COMMIT failure).
+        $depth--;
     }
 }
 endif;

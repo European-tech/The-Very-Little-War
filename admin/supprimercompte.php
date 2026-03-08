@@ -2,9 +2,11 @@
 include("../includes/connexion.php");
 include("redirectionmotdepasse.php");
 require_once(__DIR__ . '/../includes/database.php');
-// P10-HIGH-001: Require ADMIN_LOGIN session match in addition to the password gate
-if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {
-    header('Location: ../index.php');
+// ADMIN-C-001: Admin session uses TVLW_ADMIN session name with motdepasseadmin flag.
+// The redirectionmotdepasse.php include above already guards access via motdepasseadmin,
+// but we add a redundant explicit check here as defence-in-depth.
+if (!isset($_SESSION['motdepasseadmin']) || $_SESSION['motdepasseadmin'] !== true) {
+    header('Location: index.php');
     exit;
 }
 include("../includes/fonctions.php");

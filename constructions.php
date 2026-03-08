@@ -171,7 +171,10 @@ function mepConstructions($liste)
 
     $nbResult = dbFetchOne($base, 'SELECT count(*) as nb FROM actionsconstruction WHERE login=?', 's', $_SESSION['login']);
     $nb = $nbResult;
-    if ($nb['nb'] < 2) {
+    // BLDG-P10-003: Block upgrade button when building is already at max level.
+    if ($niveauActuel['niveau'] >= MAX_BUILDING_LEVEL) {
+        $augmenter = '<strong>Niveau maximum atteint (' . MAX_BUILDING_LEVEL . ')</strong>';
+    } elseif ($nb['nb'] < 2) {
         if ($liste['coutEnergie'] > $ressources['energie'] or $bool == 0) {
             $bool1 = 1;
 

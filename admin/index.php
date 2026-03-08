@@ -9,6 +9,7 @@ require_once(__DIR__ . '/../includes/logger.php');
 require_once(__DIR__ . '/../includes/csrf.php');
 require_once(__DIR__ . '/../includes/rate_limiter.php');
 require_once(__DIR__ . '/../includes/csp.php');
+require_once(__DIR__ . '/../includes/multiaccount.php');
 $nonce = cspNonce();
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
 
@@ -52,7 +53,9 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 		if (!filter_var($ip, FILTER_VALIDATE_IP)) {
 			$erreur = "Format d'IP invalide.";
 		} else {
-			$rows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $ip);
+			// MKT-P10-H01: ip column stores HMAC-SHA256 hashes (Pass 9 migration) — hash before querying.
+			$hashedIp = hashIpAddress($ip);
+			$rows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $hashedIp);
 			if (count($rows) > 5) {
 				$erreur = "Trop de comptes correspondants (" . count($rows) . "). Opération refusée.";
 			} else {

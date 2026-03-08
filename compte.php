@@ -82,12 +82,16 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
             }
             if (empty($erreur) && $verified) {
                 $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+                // SESSION-H-001: Invalidate ALL existing sessions for this user first,
+                // then set a new token — this logs out any other active sessions/devices.
+                dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE login = ?', 's', $_SESSION['login']);
                 dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $newHash, $_SESSION['login']);
                 // Regenerate session ID to prevent fixation after credential change
                 session_regenerate_id(true);
                 // Regenerate session token so session validation keeps working
                 $newToken = bin2hex(random_bytes(32));
                 $_SESSION['session_token'] = $newToken;
+                $_SESSION['session_created'] = time(); // Reset absolute lifetime on password change
                 dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $newToken, $_SESSION['login']);
 
                 $information = "Votre mot de passe a &eacute;t&eacute; chang&eacute;.";

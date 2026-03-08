@@ -65,6 +65,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 				$sessionToken = bin2hex(random_bytes(32));
 				$_SESSION['session_token'] = $sessionToken;
 				$_SESSION['last_activity'] = time();
+				$_SESSION['session_created'] = time(); // SESSION-P10-001: absolute lifetime anchor
 				dbExecute($base, 'UPDATE membre SET session_token=? WHERE login=?', 'ss', $sessionToken, $loginInput);
 
 				// P9-HIGH-007: Hash IP before storage for GDPR compliance

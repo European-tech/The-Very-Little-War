@@ -82,10 +82,23 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 
 			if (isset($_POST['supprimersujet'])) {
 				$supprimersujet = (int)$_POST['supprimersujet'];
-				withTransaction($base, function() use ($base, $supprimersujet) {
+				// F10-003: Fetch reply authors and topic author before deletion to decrement nbMessages
+				$replyAuthors = dbFetchAll($base, 'SELECT auteur FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
+				$topicRow = dbFetchOne($base, 'SELECT auteur FROM sujets WHERE id = ?', 'i', $supprimersujet);
+				withTransaction($base, function() use ($base, $supprimersujet, $replyAuthors, $topicRow) {
 					dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
 					dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
 					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
+					// Decrement nbMessages for each reply author
+					foreach ($replyAuthors as $authorRow) {
+						if (!empty($authorRow['auteur'])) {
+							dbExecute($base, 'UPDATE autre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $authorRow['auteur']);
+						}
+					}
+					// Decrement nbMessages for the topic author (the original post counts as a message)
+					if ($topicRow && !empty($topicRow['auteur'])) {
+						dbExecute($base, 'UPDATE autre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $topicRow['auteur']);
+					}
 				});
 			}
 			if (isset($_POST['verouillersujet'])) {

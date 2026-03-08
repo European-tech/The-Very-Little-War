@@ -199,7 +199,8 @@ function ajouterPoints($nb, $joueur, $type = 0)
             $result = -pointsDefense($points['pointsDefense']) + pointsDefense($newPoints);
         }
         if ($type == 3) {
-            $newPillage = $points['ressourcesPillees'] + $nb;
+            // RANK-P10-001: Floor pillage points at 0 to prevent negative ranking scores
+            $newPillage = max(0, $points['ressourcesPillees'] + $nb);
             dbExecute($base, 'UPDATE autre SET ressourcesPillees=? WHERE login=?', 'ds', $newPillage, $joueur);
             recalculerTotalPointsJoueur($base, $joueur);
             $result = chiffrePetit($nb, 0);
@@ -1039,7 +1040,7 @@ function archiveSeasonData($base)
     withTransaction($base, function() use ($base, $allPlayers, $nextSeason) {
         foreach ($allPlayers as $p) {
             dbExecute($base,
-                'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
+                'INSERT IGNORE INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
                  points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
                  molecules_perdues, alliance_name, streak_max) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 'isiiiidiiiisi', // MEDIUM-019: moleculesPerdues is BIGINT, use 'i' not 'd'

@@ -80,6 +80,15 @@ if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 			}
 		}
 		if ($deleteAllowed) {
+			// F10-001: Log moderator delete_post action for audit trail
+			if ($isModo) {
+				logInfo('MODERATION', 'Moderator action', [
+					'moderator' => $_SESSION['login'],
+					'action' => 'delete_post',
+					'target_id' => $id,
+					'author' => $deletedAuthor,
+				]);
+			}
 			header("Location: sujet.php?id=" . $deleteSubjectId); exit;
 		}
 	}
@@ -94,6 +103,12 @@ if ($type == 5 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 			$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
 		} else {
 			dbExecute($base, 'UPDATE reponses SET visibilite = 0 WHERE id = ?', 'i', $id);
+			// F10-001: Log moderator hide action for audit trail
+			logInfo('MODERATION', 'Moderator action', [
+				'moderator' => $_SESSION['login'],
+				'action' => 'hide',
+				'target_id' => $id,
+			]);
 			$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
 			header("Location: sujet.php?id=" . (int)$sujetId); exit;
 		}
@@ -108,6 +123,12 @@ if ($type == 4 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 			$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
 		} else {
 			dbExecute($base, 'UPDATE reponses SET visibilite = 1 WHERE id = ?', 'i', $id);
+			// F10-001: Log moderator show action for audit trail
+			logInfo('MODERATION', 'Moderator action', [
+				'moderator' => $_SESSION['login'],
+				'action' => 'show',
+				'target_id' => $id,
+			]);
 			$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
 			header("Location: sujet.php?id=" . (int)$sujetId); exit;
 		}
@@ -130,11 +151,19 @@ if (isset($_POST['contenu']) AND !empty(trim($_POST['contenu'])) AND $id > 0 AND
 				$erreur = "Le titre est trop long (" . FORUM_TITLE_MAX_LENGTH . " caractères max).";
 			}
 		}
-		$auteur = dbFetchOne($base, 'SELECT auteur FROM sujets WHERE id = ?', 'i', $id);
+		$auteur = dbFetchOne($base, 'SELECT auteur, statut FROM sujets WHERE id = ?', 'i', $id);
 		if ($type == 1) {
 			if (!empty($erreur)) {
 				// fall through to display form with error
 			} elseif ($auteur && $auteur['auteur'] == $_SESSION['login']) {
+				// F10-002: Topic author cannot edit a locked topic
+				if ($auteur['statut'] == 1) {
+					$erreur = "Ce sujet est verrouillé et ne peut pas être modifié.";
+				}
+			}
+			if (!empty($erreur)) {
+				// fall through to display form with error
+			} elseif ($auteur && $auteur['auteur'] == $_SESSION['login'] && $auteur['statut'] != 1) {
 				dbExecute($base, 'UPDATE sujets SET contenu = ?, titre = ? WHERE id = ?', 'ssi', $contenu, $titre, $id);
 				$information = "Le sujet a bien été modifié";
 				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $id);

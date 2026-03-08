@@ -32,7 +32,9 @@ function csrfCheck() {
         // MEDIUM-026: Secondary defense — validate Origin header if present.
         // This catches browsers that send Origin (all modern browsers on cross-origin POSTs).
         if (isset($_SERVER['HTTP_ORIGIN'])) {
-            $expectedOrigin = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+            // INFRA-P10-001: Use SERVER_NAME (not HTTP_HOST) — HTTP_HOST is client-controlled
+            // and can be spoofed to bypass origin checks; SERVER_NAME is set by Apache config.
+            $expectedOrigin = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['SERVER_NAME'];
             if ($_SERVER['HTTP_ORIGIN'] !== $expectedOrigin) {
                 if (function_exists('logWarn')) {
                     logWarn('SECURITY', 'CSRF origin mismatch', [

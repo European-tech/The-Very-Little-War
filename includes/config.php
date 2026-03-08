@@ -68,6 +68,7 @@ define('MAX_ATOMS_PER_ELEMENT', 200);    // max atoms of one type in a molecule
 define('MAX_ALLIANCE_MEMBERS', 20);      // $joueursEquipe
 define('BEGINNER_PROTECTION_SECONDS', 3 * SECONDS_PER_DAY);
 define('ABSENCE_REPORT_THRESHOLD_HOURS', 6); // hours offline before loss report
+define('MAX_OFFLINE_SECONDS', 7 * SECONDS_PER_DAY); // ECO-001: max time delta for resource/molecule decay (7 days)
 define('ONLINE_TIMEOUT_SECONDS', 300);   // 60 * 5 = 5 minutes for online status
 define('VICTORY_POINTS_TOTAL', 1000);    // $nbPointsVictoire
 define('MAX_BUILDING_LEVEL', 50);        // Hard cap on building upgrades (defense-in-depth)
@@ -662,6 +663,7 @@ define('CATCHUP_WEEKEND_END_DAY', 21);      // Season day 21 = end of week 3
 // SESSION & SECURITY
 // =============================================================================
 define('SESSION_IDLE_TIMEOUT', SECONDS_PER_HOUR);        // 3600s = 1 hour
+define('SESSION_ABSOLUTE_TIMEOUT', SECONDS_PER_DAY);     // 24h max regardless of activity (SESSION-P10-001)
 define('SESSION_REGEN_INTERVAL', 1800);                   // 30 minutes
 define('ONLINE_UPDATE_THROTTLE_SECONDS', 60);             // Throttle online status updates
 define('SEASON_MAINTENANCE_PAUSE_SECONDS', SECONDS_PER_DAY); // 24h between season phases

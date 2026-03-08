@@ -1267,6 +1267,141 @@ ecriremessage.php (compose) → messages INSERT + rate limit check
 
 ---
 
+## BATCH F — Static Analysis: Concurrency, Config Drift, Coverage & Dead Code (4 Agents, Cross-Domain)
+
+These agents perform **static correctness analysis** — they don't audit a feature domain but instead examine systemic properties of the codebase that no domain-specific agent can catch.
+
+---
+
+### Domain 36: CONCURRENCY — Race Conditions Across Code Paths
+**Scope:** Find race conditions that arise from the *intersection* of two simultaneous user actions, not just missing locks within a single action. Focus on shared state (DB rows, files) modified by paths that each look correct in isolation.
+**Agent type:** `comprehensive-review:architect-review`
+
+**What to analyze:**
+- Two players simultaneously joining the same alliance (member cap enforcement)
+- Two players simultaneously buying the last unit of a resource on the market
+- Player A attacks Player B while Player B is deleting their account
+- Two requests triggering `updateRessources()` for the same player at the same millisecond
+- Admin triggering season reset while a player is mid-combat resolution
+- Two moderators simultaneously banning the same player
+- Player activating vacation mode while an incoming attack is in-flight
+
+**Method:** For each shared resource (DB row/table), enumerate all code paths that write to it. For each pair of write paths, reason: "if both execute concurrently, can the result be wrong?" Specifically look for:
+- Read-then-write without FOR UPDATE (TOCTOU between two different endpoints)
+- Transaction A commits, then Transaction B reads stale cached data
+- Two paths that each check a condition and pass, but together violate an invariant
+- `session_start()` + DB session token check: gap between session read and DB validation
+
+**Checklist:**
+- [ ] Alliance join: member cap check + INSERT in same transaction with FOR UPDATE on alliances row
+- [ ] Market buy: cours FOR UPDATE covers both price read and stock deduction
+- [ ] Account deletion mid-combat: `supprimerJoueur()` cascade deletes actionsattaques — does `updateActions()` handle missing defender gracefully?
+- [ ] `updateRessources()`: tempsPrecedent CAS pattern — is it truly atomic against concurrent calls?
+- [ ] Season reset + active combat: GET_LOCK prevents reset, but does combat resolution run after lock release?
+- [ ] Vacation mode + incoming attack: both checked at attack-launch time, but what if vacation activated after launch?
+- [ ] Two simultaneous `purchasePrestigeUnlock()` calls: FOR UPDATE on prestige row covers both reads
+- [ ] `rateLimitCheck()` file-based: file locking used? Two concurrent requests could both pass
+- [ ] `coordonneesAleatoires()`: two new players registering simultaneously — can they get same coordinates?
+
+---
+
+### Domain 37: CONFIG-DRIFT — config.php Constants vs Actual Usage
+**Scope:** Every constant defined in `includes/config.php` — verify it matches exactly what the PHP code uses in formulas, queries, and display. Find constants that are defined but unused, used with wrong name, or where the code has drifted to a different hardcoded value.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Method:**
+1. Extract every `define(...)` from `config.php` — list of constant name + value
+2. For each constant, grep the entire codebase for its usage
+3. For each usage, verify the formula matches the intent documented in config.php comments
+4. Also grep for numeric literals that match config values (e.g., `0.05`, `86400`, `30`) — check if these should be referencing a constant instead
+
+**Checklist:**
+- [ ] Every constant in config.php is referenced at least once in PHP code (no orphaned constants)
+- [ ] Every formula using a config constant uses the CORRECT constant (e.g., VAULT_PERCENT not DEFENSE_REWARD)
+- [ ] No numeric literals in game logic that duplicate a config constant value (hardcoded drift)
+- [ ] BUILDING_CONFIG array: every building's cost/time/bonus used correctly in constructions.php + game_actions.php
+- [ ] PRESTIGE_RANK_BONUSES array: values match what's displayed in prestige.php UI
+- [ ] COMPOUND_* constants: synthesis costs in UI match config, activation durations match config
+- [ ] MARKET_* constants: spread, slippage, volatility values consistent between formula and display
+- [ ] SEASON_DURATION_DAYS: used consistently in all season-end detection logic
+- [ ] STREAK_MILESTONES: displayed milestones in prestige.php match config array exactly
+- [ ] LOGIN_MAX_LENGTH / ALLIANCE_TAG_MAX_LENGTH: HTML maxlength attributes match config values
+- [ ] EMAIL_QUEUE_DRAIN_PROB_DENOM: the `1 in N` probability matches config
+- [ ] Any `//TODO` or `//FIXME` comments referencing a different value than what's in config
+
+---
+
+### Domain 38: TEST-COVERAGE — PHPUnit Suite Quality Audit
+**Scope:** The test suite itself — not running it, but reading it. Find: untested critical paths, assertions that don't actually verify correctness, tests that could never fail, and missing edge case coverage.
+**Agent type:** `voltagent-qa-sec:qa-expert`
+
+**Files to read:**
+```
+tests/unit/*.php       — all unit test files
+tests/integration/*.php — all integration test files
+```
+
+**Also read the critical source files to understand what SHOULD be tested:**
+```
+includes/combat.php, includes/game_actions.php, includes/prestige.php,
+marche.php, includes/player.php, includes/compounds.php
+```
+
+**Checklist:**
+- [ ] Combat damage formula: test asserts specific numeric output, not just "is numeric"
+- [ ] Market buy/sell: test covering iode (index 7) specifically — MARKET-CRIT-001 regression guard
+- [ ] Espionage success: test verifies defender report IS created — ESPIONAGE-HIGH-001 regression guard
+- [ ] CSRF verification: test that invalid token returns 403, not just that valid token passes
+- [ ] Rate limiter: test that Nth+1 request is actually blocked (not just that first N pass)
+- [ ] Account deletion cooldown: test that POST within 7 days is rejected
+- [ ] Prestige idempotency: test that calling awardPrestigePoints() twice gives same result as once
+- [ ] Defense boost: test that attacker takes 15% more casualties vs defender with active defense compound
+- [ ] `ajouter()` floor: test that negative delta cannot bring column below 0
+- [ ] Alliance cooldown: test that supprimerAlliance() sets alliance_left_at (not NULL)
+- [ ] Tests with no assertions: find and flag `testXxx()` methods that assert nothing
+- [ ] Tests that always pass: assertions like `assertTrue(true)` or `assertNotNull($x)` on a literal
+- [ ] Missing error path tests: functions that return false on error — is the false case tested?
+- [ ] Integration test coverage: which pages have no HTTP-level test at all
+
+---
+
+### Domain 39: DEAD-CODE — Unreachable Paths, Unused Functions & Stale Branches
+**Scope:** Code that can never execute, functions that are never called, conditions that are always true/false, and variables that are written but never read. Dead code is a hiding place for bugs (they matter if the code ever becomes reachable) and a sign of past fixes that weren't cleaned up properly.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Method:** For each file, read the code and reason about reachability:
+- Conditions that are structurally impossible (like the ESPIONAGE-HIGH-001 inverted condition we fixed)
+- Functions defined in includes/ that are never called anywhere
+- Variables assigned inside an `if` branch that is always true/false
+- `return` statements followed by more code
+- `switch` cases that can never be reached given the input domain
+- Class/function definitions in files that are included but the class is never instantiated
+- Config constants that reference removed features
+
+**Files to focus on (highest risk of dead code):**
+```
+includes/game_actions.php   — large, complex, historic accumulation
+includes/player.php         — 1500+ lines, many old functions
+includes/combat.php         — multiple formation/isotope branches
+includes/formulas.php       — some formula variants may be unused
+includes/prestige.php       — seasonal logic with many guard clauses
+includes/multiaccount.php   — detection functions may not all be called
+```
+
+**Checklist:**
+- [ ] Every function defined in includes/ files is called from at least one PHP page or other include
+- [ ] No `if (false)` or `if (0)` or always-false compound conditions
+- [ ] No `if (true)` or always-true conditions masking dead `else` branches
+- [ ] No code after unconditional `return`, `exit`, or `die`
+- [ ] Switch statements: every `case` is reachable given the actual values passed to the switch
+- [ ] No assigned variables that are never subsequently read (write-only variables)
+- [ ] `supprimerJoueur()` cascade: every DELETE references a table that still exists in schema
+- [ ] `remiseAZero()` table list: every table in the wipe list still exists in current schema
+- [ ] Old TODO/FIXME comments referencing issues that have already been fixed (stale noise)
+- [ ] `comptetest.php`: is this file still needed? Should it be deleted or web-restricted?
+
+---
+
 ## Phase 2: Consolidation (1 Agent)
 
 ### Task: Build Remediation Plan

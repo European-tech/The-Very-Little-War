@@ -16,6 +16,13 @@ if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) >
     exit();
 }
 
+// SESSION-P10-001: Absolute session lifetime — force re-login after 24h regardless of activity.
+if (!empty($_SESSION['session_created']) && (time() - (int)$_SESSION['session_created']) > SESSION_ABSOLUTE_TIMEOUT) {
+    session_destroy();
+    header('Location: index.php?erreur=' . urlencode('Session expirée (durée maximale dépassée). Veuillez vous reconnecter.'));
+    exit();
+}
+
 if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
     // H-007: Include AND estExclu = 0 so banned accounts cannot maintain valid sessions.
     // A banned player's session_token still matches in the DB, but this query now returns
@@ -40,7 +47,7 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
         if (!isset($_SESSION['mod_ip'])) {
             // First page load as moderator — record the IP
             $_SESSION['mod_ip'] = $_SERVER['REMOTE_ADDR'];
-        } elseif ($_SESSION['mod_ip'] !== $_SERVER['REMOTE_ADDR']) {
+        } elseif (!hash_equals((string)($_SESSION['mod_ip'] ?? ''), (string)($_SERVER['REMOTE_ADDR'] ?? ''))) { // SESSION-P10-002: timing-safe comparison
             // IP changed — destroy session and redirect for security
             session_destroy();
             header('Location: index.php?erreur=' . urlencode('Session invalide. Veuillez vous reconnecter.'));
@@ -56,11 +63,17 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
 $_SESSION['last_activity'] = time();
 
 // si c'est la premiere connexion depuis la derniere partie, on le replace
-$posAct = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login = ?', 's', $_SESSION['login']);
-if ($posAct && $posAct['x'] == -1000) {
-    $position = coordonneesAleatoires();
-    dbExecute($base, 'UPDATE membre SET x = ?, y = ? WHERE login = ?', 'iis', $position['x'], $position['y'], $_SESSION['login']);
-}
+// MAPS-HIGH-001: Wrap the -1000 check + coordinate assign + UPDATE in a transaction
+// with FOR UPDATE so two concurrent logins for the same player cannot both assign
+// coordinates (TOCTOU race between SELECT x=-1000 and UPDATE membre SET x,y).
+$sessionLogin = $_SESSION['login'];
+withTransaction($base, function() use ($base, $sessionLogin) {
+    $posAct = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login = ? FOR UPDATE', 's', $sessionLogin);
+    if ($posAct && $posAct['x'] == -1000) {
+        $position = coordonneesAleatoires();
+        dbExecute($base, 'UPDATE membre SET x = ?, y = ? WHERE login = ?', 'iis', $position['x'], $position['y'], $sessionLogin);
+    }
+});
 require_once(__DIR__ . '/constantesBase.php');
 initPlayer($_SESSION['login']);
 

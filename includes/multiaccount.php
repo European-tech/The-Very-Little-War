@@ -101,7 +101,7 @@ function checkSameIpAccounts($base, $login, $ip, $timestamp)
             );
             createAdminAlert($base, 'same_ip',
                 "Comptes sur la même IP: $login et {$other['login']} ($ipDisplay)",
-                $evidence, 'warning'
+                $evidence, 'warning', $login, $other['login']
             );
             // P9-HIGH-008: Use consistent salt via hashIpAddress; $ip is already the hash
             logInfo('MULTIACCOUNT', 'Same IP detected', ['login_a' => $login, 'login_b' => $other['login'], 'ip_hash' => $ipDisplay]);
@@ -139,7 +139,7 @@ function checkSameFingerprintAccounts($base, $login, $fingerprint, $timestamp)
             );
             createAdminAlert($base, 'same_fingerprint',
                 "Même empreinte navigateur: $login et {$other['login']}",
-                $evidence, 'warning'
+                $evidence, 'warning', $login, $other['login']
             );
             logInfo('MULTIACCOUNT', 'Same fingerprint detected', ['login_a' => $login, 'login_b' => $other['login']]);
         }
@@ -185,7 +185,7 @@ function checkCoordinatedAttacks($base, $attacker, $defender, $timestamp)
                 );
                 createAdminAlert($base, 'coord_attack',
                     "ALERTE: Attaque coordonnée sur $defender par $attacker et {$other['attaquant']} (même IP)",
-                    $evidence, 'critical'
+                    $evidence, 'critical', $attacker, $other['attaquant']
                 );
                 logWarn('MULTIACCOUNT', 'Coordinated attack detected', [
                     'attacker_a' => $attacker, 'attacker_b' => $other['attaquant'], 'defender' => $defender
@@ -233,7 +233,7 @@ function checkTransferPatterns($base, $sender, $receiver, $timestamp)
                 );
                 createAdminAlert($base, 'coord_transfer',
                     "Transferts suspects: $sender → $receiver ({$transferCount['cnt']}x en 7j, quasi aucun retour)",
-                    $evidence, 'warning'
+                    $evidence, 'warning', $sender, $receiver
                 );
                 logWarn('MULTIACCOUNT', 'One-sided transfers detected', [
                     'sender' => $sender, 'receiver' => $receiver, 'count' => $transferCount['cnt']
@@ -290,7 +290,7 @@ function checkTimingCorrelation($base, $login, $timestamp)
                 );
                 createAdminAlert($base, 'timing_correlation',
                     "ALERTE: $login et $other jamais en ligne en même temps (multi-compte probable)",
-                    $evidence, 'critical'
+                    $evidence, 'critical', $login, $other
                 );
                 logWarn('MULTIACCOUNT', 'Timing correlation detected', ['login_a' => $login, 'login_b' => $other]);
             }
@@ -312,18 +312,29 @@ function areFlaggedAccounts($base, $loginA, $loginB)
 
 /**
  * Create an admin alert. Sends email for critical alerts.
+ *
+ * @param string      $login1    First player login involved (for pair-specific dedup)
+ * @param string      $login2    Second player login involved (for pair-specific dedup)
  */
-function createAdminAlert($base, $alertType, $message, $details, $severity = 'warning')
+function createAdminAlert($base, $alertType, $message, $details, $severity = 'warning', $login1 = '', $login2 = '')
 {
-    // MEDIUM-019: Deduplicate alerts — skip if same type alerted within last 24 hours
-    $existing = dbCount($base,
-        'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND created_at > UNIX_TIMESTAMP() - 86400',
-        's', $alertType);
-    if ($existing > 0) return; // Already alerted within 24 hours
+    // ANTI-P10-001: Deduplicate per-pair, not per-type — avoids silencing ALL same-type alerts
+    // when any single pair triggered one within 24h.
+    if ($login1 !== '' && $login2 !== '') {
+        $existing = dbCount($base,
+            'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND login1 = ? AND login2 = ? AND created_at > UNIX_TIMESTAMP() - 86400',
+            'sss', $alertType, $login1, $login2);
+    } else {
+        // Fallback for alerts without a player pair: dedup by type only (original behavior)
+        $existing = dbCount($base,
+            'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND login1 IS NULL AND created_at > UNIX_TIMESTAMP() - 86400',
+            's', $alertType);
+    }
+    if ($existing > 0) return; // Already alerted for this pair/type within 24 hours
 
     dbExecute($base,
-        'INSERT INTO admin_alerts (alert_type, message, details, severity, created_at) VALUES (?, ?, ?, ?, ?)',
-        'ssssi', $alertType, $message, $details, $severity, time()
+        'INSERT INTO admin_alerts (alert_type, message, details, login1, login2, severity, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'ssssssi', $alertType, $message, $details, $login1 ?: null, $login2 ?: null, $severity, time()
     );
 
     if ($severity === 'critical') {
@@ -338,6 +349,8 @@ function sendAdminAlertEmail($subject, $body)
 {
     $adminEmail = getenv('ADMIN_ALERT_EMAIL') ?: 'theverylittlewar@gmail.com';
     $subject = str_replace(["\r", "\n"], '', $subject);
+    // EMAIL-P10-001: Strip CRLF from body to prevent header injection via body parameter.
+    $body = str_replace(["\r\n", "\r", "\n"], ' ', $body);
     $headers = "From: noreply@theverylittlewar.com\r\nContent-Type: text/plain; charset=UTF-8";
     $sent = mail($adminEmail, $subject, $body, $headers);
     if (!$sent) {

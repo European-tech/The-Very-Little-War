@@ -45,6 +45,19 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
             } elseif (hasActiveShield($base, $_POST['joueurAEspionner'])) {
                 // Comeback shield blocks espionage as well as direct attacks (P2-HIGH-013)
                 $erreur = "Ce joueur est sous protection de retour. Revenez plus tard.";
+            } elseif ($autre['idalliance'] > 0 && (function() use ($base, $autre) {
+                $targetAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_POST['joueurAEspionner']);
+                return $targetAlliance && (int)$targetAlliance['idalliance'] === (int)$autre['idalliance'];
+            })()) {
+                // ESP-002: Alliance members cannot spy on each other
+                $erreur = "Vous ne pouvez pas espionner un membre de votre alliance.";
+            } elseif ((function() use ($base) {
+                // ESP-001: Check attacker's own beginner protection (cannot spy while under protection)
+                $attackerInfo = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login=?', 's', $_SESSION['login']);
+                $veteranBonus = hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0;
+                return $attackerInfo && (time() - (int)$attackerInfo['timestamp']) < (BEGINNER_PROTECTION_SECONDS + $veteranBonus);
+            })()) {
+                $erreur = "Vous ne pouvez pas espionner pendant votre période de protection des débutants.";
             } elseif (preg_match("#^[0-9]*$#", (string)$_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
                 // MED-043: Cast to string before preg_match to avoid PHP 8.2 deprecation on integer subject.
                 $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
@@ -56,19 +69,26 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                 $tempsTrajet = round($distance / $vitesseEspionnage * SECONDS_PER_HOUR);
 
                 $now = time();
+                // GAMECORE-P10-001: Capture pre-validated values before the closure to prevent
+                // double-spend race — the closure must not read $_POST directly, as $_SESSION
+                // and superglobals are shared state and not re-validated under the DB lock.
+                $capturedNeutrinos = (int)$_POST['nombreneutrinos'];
+                $capturedCible = $_POST['joueurAEspionner'];
+                $capturedLogin = $_SESSION['login'];
                 // Wrap espionage in transaction with FOR UPDATE (P5-GAP-004)
                 try {
-                    withTransaction($base, function() use ($base, $now, $tempsTrajet) {
-                        $autreRow = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
-                        if ($autreRow['neutrinos'] < $_POST['nombreneutrinos']) {
+                    withTransaction($base, function() use ($base, $now, $tempsTrajet, $capturedNeutrinos, $capturedCible, $capturedLogin) {
+                        $autreRow = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=? FOR UPDATE', 's', $capturedLogin);
+                        // Re-validate against the locked DB value (not the pre-closure check)
+                        if ($autreRow['neutrinos'] < $capturedNeutrinos) {
                             throw new \RuntimeException('NOT_ENOUGH_NEUTRINOS');
                         }
                         dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,?,?)', 'ssiiisii',
-                            $_SESSION['login'], $_POST['joueurAEspionner'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), "Espionnage", 0, $_POST['nombreneutrinos']);
-                        $newNeutrinos = $autreRow['neutrinos'] - $_POST['nombreneutrinos'];
-                        dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $_SESSION['login']);
+                            $capturedLogin, $capturedCible, $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), "Espionnage", 0, $capturedNeutrinos);
+                        $newNeutrinos = $autreRow['neutrinos'] - $capturedNeutrinos;
+                        dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $capturedLogin);
                     });
-                    $autre['neutrinos'] -= $_POST['nombreneutrinos'];
+                    $autre['neutrinos'] -= $capturedNeutrinos;
                     $information = 'Vous avez lancé l\'espionnage de ' . htmlspecialchars($_POST['joueurAEspionner'], ENT_QUOTES, 'UTF-8') . ' !';
                 } catch (\RuntimeException $e) {
                     if ($e->getMessage() === 'NOT_ENOUGH_NEUTRINOS') {
@@ -498,9 +518,13 @@ if ($_GET['type'] == 0) {
         }
 
         // Render resource nodes as diamond markers on top of tiles
+        // MAPS-HIGH-002: At season start tailleCarte is reset to 1, but nodes are generated
+        // using MAP_INITIAL_SIZE as the boundary. Use the larger of the two so nodes are
+        // visible on the map from the very first login of a new season.
+        $effectiveMapBound = max((int)$tailleCarte['tailleCarte'], MAP_INITIAL_SIZE);
         foreach ($mapNodes as $node) {
             // MEDIUM-032: Also reject negative coordinates (sentinel values or corrupt data)
-            if ($node['x'] < 0 || $node['y'] < 0 || $node['x'] >= $tailleCarte['tailleCarte'] || $node['y'] >= $tailleCarte['tailleCarte']) continue;
+            if ($node['x'] < 0 || $node['y'] < 0 || $node['x'] >= $effectiveMapBound || $node['y'] >= $effectiveMapBound) continue;
             $color = $nodeColors[$node['resource_type']] ?? '#fff';
             $safeType = htmlspecialchars(ucfirst($node['resource_type']), ENT_QUOTES, 'UTF-8');
             $nodeSize = 16;

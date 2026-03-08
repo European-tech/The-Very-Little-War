@@ -3,6 +3,7 @@ require_once("includes/session_init.php");
 include("includes/connexion.php");
 require_once("includes/database.php");
 require_once("includes/csrf.php");
+require_once("includes/rate_limiter.php");
 
 // Auth check: must be logged in
 if (!isset($_SESSION['login'])) {
@@ -33,6 +34,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 // POST only with CSRF — GET vote support removed (P5-GAP-009)
 $reponse = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // API-P10-001: Rate limit POST votes to 5 per minute per user
+    if (!rateLimitCheck($_SESSION['login'], 'poll_vote', 5, 60)) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode(['error' => 'Trop de votes. Réessayez dans une minute.']));
+    }
     csrfCheck();
     $reponse = intval($_POST['reponse'] ?? 0);
 } else {
