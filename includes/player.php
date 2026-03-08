@@ -98,14 +98,33 @@ function inscrire($pseudo, $mdp, $mail)
                 $safePseudo, $now, $timestamps, 'Pas de description', ''
             );
 
-            // ressources: id=auto_increment; all resource/revenue columns default to their start values.
-            // Starting values: STARTING_ENERGY (64) energy/atoms, STARTING_REVENUE_ENERGY (12)/STARTING_REVENUE_ATOMS (9) revenues.
-            // These must match the DEFAULT clauses in the `ressources` table (see config.php constants).
+            // LOW-034: Explicitly set starting resource values using config constants instead of relying on SQL DEFAULTs.
+            // Column names are the 8 atom types from $RESOURCE_NAMES: carbone, azote, hydrogene, oxygene, chlore, soufre, brome, iode.
+            // Revenue column names are prefixed with "revenu" (e.g. revenucarbone).
+            // STARTING_ENERGY = 64, STARTING_ATOMS = 64, STARTING_REVENUE_ENERGY = 12, STARTING_REVENUE_ATOMS = 9.
             dbExecute(
                 $base,
-                'INSERT INTO ressources (login) VALUES (?)',
-                's',
-                $safePseudo
+                'INSERT INTO ressources
+                    (login, energie, terrain,
+                     carbone, azote, hydrogene, oxygene, chlore, soufre, brome, iode,
+                     revenuenergie,
+                     revenucarbone, revenuazote, revenuhydrogene, revenuoxygene,
+                     revenuchlore, revenusoufre, revenubrome, revenuiode,
+                     niveauclasse)
+                 VALUES (?, ?, 0,
+                         ?, ?, ?, ?, ?, ?, ?, ?,
+                         ?,
+                         ?, ?, ?, ?,
+                         ?, ?, ?, ?,
+                         1)',
+                'siiiiiiiiiiiiiiiiii',
+                $safePseudo,
+                STARTING_ENERGY,
+                STARTING_ATOMS, STARTING_ATOMS, STARTING_ATOMS, STARTING_ATOMS,
+                STARTING_ATOMS, STARTING_ATOMS, STARTING_ATOMS, STARTING_ATOMS,
+                STARTING_REVENUE_ENERGY,
+                STARTING_REVENUE_ATOMS, STARTING_REVENUE_ATOMS, STARTING_REVENUE_ATOMS, STARTING_REVENUE_ATOMS,
+                STARTING_REVENUE_ATOMS, STARTING_REVENUE_ATOMS, STARTING_REVENUE_ATOMS, STARTING_REVENUE_ATOMS
             );
 
             // Atomic increment: avoids TOCTOU race when two registrations happen concurrently.
@@ -596,11 +615,19 @@ function invalidatePlayerCache($joueur)
 
 function augmenterBatiment($nom, $joueur)
 { // BUG listeconstructions
-    static $allowedBuildings = ['generateur', 'producteur', 'depot', 'champdeforce', 'ionisateur', 'condenseur', 'lieur', 'stabilisateur', 'coffrefort'];
-    if (!in_array($nom, $allowedBuildings, true)) {
-        error_log("Invalid building name in augmenterBatiment: " . $nom);
+    // PASS7-CRITICAL-003: explicit map prevents dynamic SQL column interpolation
+    $columnMap = [
+        'generateur' => 'generateur', 'producteur' => 'producteur', 'depot' => 'depot',
+        'champdeforce' => 'champdeforce', 'ionisateur' => 'ionisateur',
+        'condenseur' => 'condenseur', 'lieur' => 'lieur',
+        'stabilisateur' => 'stabilisateur', 'coffrefort' => 'coffrefort'
+    ];
+    if (!isset($columnMap[$nom])) {
+        logError("augmenterBatiment: invalid building: " . $nom);
         return;
     }
+    $safeCol = $columnMap[$nom];
+    $safeVieCol = 'vie' . ucfirst($safeCol);
     global $base;
     global $listeConstructions;
     global $points;
@@ -626,7 +653,6 @@ function augmenterBatiment($nom, $joueur)
         }
 
         if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
-            $vieCol = 'vie' . ucfirst($nom);
             if ($nom == "champdeforce") {
                 $vieVal = vieChampDeForce($batiments[$nom] + 1, $joueur);
             } elseif ($nom == "ionisateur") {
@@ -634,9 +660,9 @@ function augmenterBatiment($nom, $joueur)
             } else {
                 $vieVal = pointsDeVie($batiments[$nom] + 1, $joueur);
             }
-            dbExecute($base, "UPDATE constructions SET $nom=?, $vieCol=? WHERE login=?", 'ids', ($batiments[$nom] + 1), $vieVal, $joueur);
+            dbExecute($base, "UPDATE constructions SET $safeCol=?, $safeVieCol=? WHERE login=?", 'ids', ($batiments[$nom] + 1), $vieVal, $joueur);
         } else {
-            dbExecute($base, "UPDATE constructions SET $nom=? WHERE login=?", 'is', ($batiments[$nom] + 1), $joueur);
+            dbExecute($base, "UPDATE constructions SET $safeCol=? WHERE login=?", 'is', ($batiments[$nom] + 1), $joueur);
         }
         ajouterPoints($listeConstructions[$nom]['points'], $joueur);
     });
@@ -648,11 +674,19 @@ function augmenterBatiment($nom, $joueur)
 
 function diminuerBatiment($nom, $joueur)
 { // pour résoudre les bugs, construire un objet PLAYER qui initialise toutes ses constantes
-    static $allowedBuildings = ['generateur', 'producteur', 'depot', 'champdeforce', 'ionisateur', 'condenseur', 'lieur', 'stabilisateur', 'coffrefort'];
-    if (!in_array($nom, $allowedBuildings, true)) {
-        error_log("Invalid building name in diminuerBatiment: " . $nom);
+    // PASS7-CRITICAL-003: explicit map prevents dynamic SQL column interpolation
+    $columnMap = [
+        'generateur' => 'generateur', 'producteur' => 'producteur', 'depot' => 'depot',
+        'champdeforce' => 'champdeforce', 'ionisateur' => 'ionisateur',
+        'condenseur' => 'condenseur', 'lieur' => 'lieur',
+        'stabilisateur' => 'stabilisateur', 'coffrefort' => 'coffrefort'
+    ];
+    if (!isset($columnMap[$nom])) {
+        logError("diminuerBatiment: invalid building: " . $nom);
         return;
     }
+    $safeCol = $columnMap[$nom];
+    $safeVieCol = 'vie' . ucfirst($safeCol);
     global $nomsRes;
     global $points;
     global $constructions;
@@ -669,9 +703,9 @@ function diminuerBatiment($nom, $joueur)
 
     // Wrap entire function body in a transaction to prevent race conditions
     // between the SELECT and the subsequent UPDATE statements.
-    withTransaction($base, function() use ($base, $nom, $joueur, $nomsRes, $points, $constructions, $listeConstructions) {
+    withTransaction($base, function() use ($base, $nom, $joueur, $nomsRes, $points, $constructions, $listeConstructions, $safeCol, $safeVieCol) {
         // FOR UPDATE locks the row so concurrent requests wait rather than reading stale data.
-        $batiments = dbFetchOne($base, "SELECT $nom, pointsProducteurRestants, pointsProducteur, pointsCondenseurRestants, pointsCondenseur FROM constructions WHERE login=? FOR UPDATE", 's', $joueur);
+        $batiments = dbFetchOne($base, "SELECT $safeCol, pointsProducteurRestants, pointsProducteur, pointsCondenseurRestants, pointsCondenseur FROM constructions WHERE login=? FOR UPDATE", 's', $joueur);
 
         // Parse allocation strings from the locked DB row.
         // PHP closures cannot capture variable-variables (${'points'.$x}) — reading them
@@ -736,7 +770,6 @@ function diminuerBatiment($nom, $joueur)
             }
 
             if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
-                $vieCol = 'vie' . ucfirst($nom);
                 if ($nom == "champdeforce") {
                     $vieVal = vieChampDeForce($batiments[$nom] - 1);
                 } elseif ($nom == "ionisateur") {
@@ -744,9 +777,9 @@ function diminuerBatiment($nom, $joueur)
                 } else {
                     $vieVal = pointsDeVie($batiments[$nom] - 1);
                 }
-                dbExecute($base, "UPDATE constructions SET $nom=?, $vieCol=? WHERE login=?", 'ids', ($batiments[$nom] - 1), $vieVal, $joueur);
+                dbExecute($base, "UPDATE constructions SET $safeCol=?, $safeVieCol=? WHERE login=?", 'ids', ($batiments[$nom] - 1), $vieVal, $joueur);
             } else {
-                dbExecute($base, "UPDATE constructions SET $nom=? WHERE login=?", 'is', ($batiments[$nom] - 1), $joueur);
+                dbExecute($base, "UPDATE constructions SET $safeCol=? WHERE login=?", 'is', ($batiments[$nom] - 1), $joueur);
             }
             ajouterPoints(-$listeConstructions[$nom]['points'], $joueur);
         }
@@ -1067,7 +1100,8 @@ function performSeasonEnd()
             foreach ($molRows as $donnees4) {
                 $nb_molecules = $nb_molecules + $donnees4['nombre'];
             }
-            $chaine = $chaine . '[' . $data['login'] . ',' . $data['totalPoints'] . ',' . $alliance['tag'] . ',' . $data['points'] . ',' . pointsAttaque($data['pointsAttaque']) . ',' . pointsDefense($data['pointsDefense']) . ',' . $data['ressourcesPillees'] . ',' . $data['victoires'] . '';
+            // LOW-019: Archive string uses both opening '[' and closing ']' delimiters — confirmed correct.
+            $chaine = $chaine . '[' . $data['login'] . ',' . $data['totalPoints'] . ',' . $alliance['tag'] . ',' . $data['points'] . ',' . pointsAttaque($data['pointsAttaque']) . ',' . pointsDefense($data['pointsDefense']) . ',' . $data['ressourcesPillees'] . ',' . $data['victoires'] . ']';
 
             if ($compteur == 0) {
                 $vainqueurManche = $data['login'];
@@ -1083,7 +1117,8 @@ function performSeasonEnd()
             $membresAlliance = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
             $nbjoueurs = count($membresAlliance);
             if ($nbjoueurs != 0) {
-                $chaine1 = $chaine1 . '[' . $data['tag'] . ',' . $nbjoueurs . ',' . $data['pointstotaux'] . ',' . $data['pointstotaux'] / $nbjoueurs . ',' . $data['totalConstructions'] . ',' . pointsAttaque($data['totalAttaque']) . ',' . pointsDefense($data['totalDefense']) . ',' . $data['totalPillage'] . ',' . $data['pointsVictoire'] . '';
+                // LOW-019: Alliance archive string uses both '[' and ']' delimiters — confirmed correct.
+                $chaine1 = $chaine1 . '[' . $data['tag'] . ',' . $nbjoueurs . ',' . $data['pointstotaux'] . ',' . $data['pointstotaux'] / $nbjoueurs . ',' . $data['totalConstructions'] . ',' . pointsAttaque($data['totalAttaque']) . ',' . pointsDefense($data['totalDefense']) . ',' . $data['totalPillage'] . ',' . $data['pointsVictoire'] . ']';
             }
         }
 
@@ -1093,10 +1128,13 @@ function performSeasonEnd()
         foreach ($guerreClassement as $data) {
             $alliance1 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id = ?', 'i', $data['alliance1']);
             $alliance2 = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id = ?', 'i', $data['alliance2']);
-            $membresGuerre = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['id']);
-            $nbjoueurs = count($membresGuerre);
+            // MEDIUM-011: Use alliance1 and alliance2 IDs (not the declaration PK) to count members.
+            $membresAlliance1 = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['alliance1']);
+            $membresAlliance2 = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $data['alliance2']);
+            $nbjoueurs = count($membresAlliance1) + count($membresAlliance2);
             if ($nbjoueurs != 0) {
-                $chaine2 = $chaine2 . '[' . $alliance1['tag'] . ' contre ' . $alliance2['tag'] . ',' . $data['pertesTotales'] . ',' . (($data['fin'] - $data['timestamp']) / SECONDS_PER_DAY) . ',' . $data['id'] . '';
+                // LOW-019: War archive string uses both '[' and ']' delimiters — confirmed correct.
+                $chaine2 = $chaine2 . '[' . $alliance1['tag'] . ' contre ' . $alliance2['tag'] . ',' . $data['pertesTotales'] . ',' . (($data['fin'] - $data['timestamp']) / SECONDS_PER_DAY) . ',' . $data['id'] . ']';
             }
         }
 
@@ -1224,6 +1262,14 @@ function performSeasonEnd()
  */
 function processEmailQueue(\mysqli $base, int $limit = 20): void
 {
+    // LOW-021: Guard against an unexpectedly large queue (e.g. due to a bug or spam).
+    // Count only recent unsent emails to avoid false-positives from old stuck rows.
+    $queueSize = dbCount($base, 'SELECT COUNT(*) FROM email_queue WHERE sent_at IS NULL AND (created_at IS NULL OR created_at > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR))');
+    if ($queueSize > MAX_EMAIL_QUEUE_DRAIN) {
+        logError('EMAIL_QUEUE', 'Email queue unexpectedly large: ' . $queueSize . ' items. Skipping drain.');
+        return;
+    }
+
     // P9-MED-004: Skip rows older than 24 hours to prevent indefinite retry loops.
     // Rows with a NULL created_at (schema pre-dates that column) are always included
     // so legacy rows are not silently dropped.
@@ -1239,7 +1285,7 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
     foreach ($rows as $row) {
         // EMAIL-P9-001: Strip CRLF from email headers to prevent header injection
         $recipient = str_replace(["\r", "\n"], '', $row['recipient_email']);
-        $subject   = str_replace(["\r", "\n"], '', $row['subject']);
+        $subject   = mb_encode_mimeheader(str_replace(["\r", "\n"], '', $row['subject']), 'UTF-8');
         $bodyHtml  = $row['body_html'];
         $id        = (int)$row['id'];
 
@@ -1256,8 +1302,9 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
         // Plain-text fallback: strip HTML tags for the text part
         $bodyTxt = strip_tags(str_replace(['<br/>', '<br>', '<br />'], "\n", $bodyHtml));
 
-        $header  = "From: \"The Very Little War\"<noreply@theverylittlewar.com>" . $eol;
-        $header .= "Reply-to: \"The Very Little War\" <theverylittlewar@gmail.com>" . $eol;
+        // MEDIUM-023: Use config constants instead of hardcoded addresses
+        $header  = "From: \"" . EMAIL_FROM_NAME . "\" <" . EMAIL_FROM . ">" . $eol;
+        $header .= "Reply-to: \"" . EMAIL_FROM_NAME . "\" <" . EMAIL_REPLY_TO . ">" . $eol;
         $header .= "MIME-Version: 1.0" . $eol;
         $header .= "Content-Type: multipart/alternative;" . $eol . " boundary=\"$boundary\"" . $eol;
 
@@ -1314,7 +1361,15 @@ function remiseAZero()
             }
             $chaine = $chaine . '' . $ressource . '=default' . $plus;
         }
-        $sql = 'UPDATE ressources SET energie=default, terrain=default, revenuenergie=default, niveauclasse=1, ' . $chaine . '';
+        // LOW-026: Reset revenu* (atom revenue) columns alongside atom storage columns.
+        // Column names confirmed from migrations/0002_fix_column_types.sql:
+        // revenucarbone, revenuazote, revenuhydrogene, revenuoxygene,
+        // revenuchlore, revenusoufre, revenubrome, revenuiode.
+        $revenuChaine = '';
+        foreach ($nomsRes as $num => $ressource) {
+            $revenuChaine .= ', revenu' . $ressource . '=default';
+        }
+        $sql = 'UPDATE ressources SET energie=default, terrain=default, revenuenergie=default, niveauclasse=1' . $revenuChaine . ', ' . $chaine . '';
         dbExecute($base, $sql);
         dbExecute($base, 'DELETE FROM declarations');
         dbExecute($base, 'DELETE FROM invitations');

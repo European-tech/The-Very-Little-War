@@ -114,7 +114,7 @@ if (isset($_POST['joueurAAttaquer'])) {
             } elseif (time() - $enVac['timestamp'] < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_POST['joueurAAttaquer'], 'veteran') ? SECONDS_PER_DAY : 0)) {
                 $erreur = "Le joueur est encore sous protection des débutants.";
             } elseif (time() - $attackerTimestamp < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0)) {
-                $attackerProtectionLeft = BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0) - time() + $attackerTimestamp;
+                $attackerProtectionLeft = $attackerTimestamp + BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_SESSION['login'], 'veteran') ? SECONDS_PER_DAY : 0) - time();
                 $erreur = "Votre protection de débutant est encore active (encore <strong>" . affichageTemps($attackerProtectionLeft) . " h</strong>) et vous ne pouvez donc pas attaquer.";
             } elseif (hasActiveShield($base, $_POST['joueurAAttaquer'])) {
                 // Comeback shield protection (P1-D8-044)
@@ -393,7 +393,9 @@ if ($_GET['type'] == 0) {
     // then pre-load all active wars and pacts — eliminates ~2 queries per player.
     $myAllianceId = (int) $autre['idalliance'];
 
-    $allPlayers = dbFetchAll($base, 'SELECT m.id, m.login, m.x, m.y, a.points, a.idalliance FROM membre m JOIN autre a ON m.login = a.login WHERE m.x >= 0 AND m.y >= 0', '');
+    // MEDIUM-033: Use > 0 instead of >= 0 — sentinel for inactive players is x=-1000,y=-1000.
+    // Coordinate (0,0) is not a valid player position (map starts at 1,1), so > 0 excludes all negative coords and the origin.
+    $allPlayers = dbFetchAll($base, 'SELECT m.id, m.login, m.x, m.y, a.points, a.idalliance FROM membre m JOIN autre a ON m.login = a.login WHERE m.x > 0 AND m.y > 0', '');
 
     // Pre-load active wars and pacts involving my alliance (only meaningful when in an alliance).
     $warAllianceIds = [];
@@ -480,7 +482,8 @@ if ($_GET['type'] == 0) {
 
         // Render resource nodes as diamond markers on top of tiles
         foreach ($mapNodes as $node) {
-            if ($node['x'] >= $tailleCarte['tailleCarte'] || $node['y'] >= $tailleCarte['tailleCarte']) continue;
+            // MEDIUM-032: Also reject negative coordinates (sentinel values or corrupt data)
+            if ($node['x'] < 0 || $node['y'] < 0 || $node['x'] >= $tailleCarte['tailleCarte'] || $node['y'] >= $tailleCarte['tailleCarte']) continue;
             $color = $nodeColors[$node['resource_type']] ?? '#fff';
             $safeType = htmlspecialchars(ucfirst($node['resource_type']), ENT_QUOTES, 'UTF-8');
             $nodeSize = 16;

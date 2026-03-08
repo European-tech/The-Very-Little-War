@@ -81,9 +81,11 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 
 			if (isset($_POST['supprimersujet'])) {
 				$supprimersujet = (int)$_POST['supprimersujet'];
-				dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
-				dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
-				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
+				withTransaction($base, function() use ($base, $supprimersujet) {
+					dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
+					dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
+					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
+				});
 			}
 			if (isset($_POST['verouillersujet'])) {
 				$verouillersujet = (int)$_POST['verouillersujet'];
@@ -215,6 +217,9 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 					<a href="index.php">Accueil modération (bombe + sujets)</a><br />
 				</p>
 				<?php
+				// LOW-017: $erreur is constructed only from hardcoded strings or values already escaped
+				// via htmlspecialchars() (e.g. player names, resource amounts). Any HTML (img tags etc.)
+				// is built from safe, server-controlled values. Raw echo is intentional here.
 				if (isset($erreur)) {
 					echo $erreur;
 				}
@@ -230,7 +235,13 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 							foreach ($ipRows as $donnees) {
 							?>
 								<tr>
-									<td><?php echo '<a href="ip.php?ip=' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '</a>'; ?></td>
+									<td>
+							<form method="post" action="ip.php" style="display:inline">
+								<?php echo csrfField(); ?>
+								<input type="hidden" name="ip" value="<?php echo htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8'); ?>" />
+								<button type="submit"><?php echo htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8'); ?></button>
+							</form>
+						</td>
 								</tr>
 							<?php
 							}

@@ -7,7 +7,13 @@ require_once(__DIR__ . '/../includes/csrf.php');
 if (isset($_POST['supprimer'])) {
     csrfCheck();
     $supprimerId = (int)$_POST['supprimer'];
+    // LOW-011: Fetch author before deletion so we can decrement their message counter.
+    $replyRow = dbFetchOne($base, 'SELECT auteur FROM reponses WHERE id = ?', 'i', $supprimerId);
     dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $supprimerId);
+    if ($replyRow && !empty($replyRow['auteur'])) {
+        $authorLogin = $replyRow['auteur'];
+        dbExecute($base, 'UPDATE membre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $authorLogin);
+    }
 }
 ?>
 

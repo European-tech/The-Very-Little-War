@@ -15,7 +15,7 @@ ALTER TABLE declarations ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swe
 
 -- Add FK on alliance1 (idempotent via information_schema check)
 SET @exist1 = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
-    WHERE TABLE_SCHEMA='tvlw' AND TABLE_NAME='declarations'
+    WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='declarations'
     AND CONSTRAINT_NAME='fk_declarations_alliance_a');
 SET @sql1 = IF(@exist1 = 0,
     'ALTER TABLE declarations ADD CONSTRAINT fk_declarations_alliance_a FOREIGN KEY (alliance1) REFERENCES alliances(id) ON DELETE CASCADE',
@@ -24,7 +24,7 @@ PREPARE stmt1 FROM @sql1; EXECUTE stmt1; DEALLOCATE PREPARE stmt1;
 
 -- Add FK on alliance2 (idempotent via information_schema check)
 SET @exist2 = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
-    WHERE TABLE_SCHEMA='tvlw' AND TABLE_NAME='declarations'
+    WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='declarations'
     AND CONSTRAINT_NAME='fk_declarations_alliance_b');
 SET @sql2 = IF(@exist2 = 0,
     'ALTER TABLE declarations ADD CONSTRAINT fk_declarations_alliance_b FOREIGN KEY (alliance2) REFERENCES alliances(id) ON DELETE CASCADE',

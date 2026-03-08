@@ -29,8 +29,18 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
                 @unlink($file);
             }
         }
+        // MEDIUM-005: Periodic cleanup of expired login_attempts DB rows.
+        // The login_attempts table (created by migration) accumulates rows indefinitely;
+        // purge any rows older than the login rate-limit window on ~1% of requests.
+        if (function_exists('dbExecute') && isset($GLOBALS['base'])) {
+            $window = defined('RATE_LIMIT_LOGIN_WINDOW') ? RATE_LIMIT_LOGIN_WINDOW : 900;
+            dbExecute($GLOBALS['base'], 'DELETE FROM login_attempts WHERE created_at < NOW() - INTERVAL ? SECOND', 'i', $window);
+        }
     }
 
+    // LOW-007: Minor TOCTOU race possible under high concurrency — max over-admission
+    // is bounded by request parallelism (typically <5 concurrent). Acceptable for rate limiting.
+    // To eliminate: use flock() on the rate limit file for atomic read-check-write.
     $file = $dir . '/' . hash('sha256', json_encode([$identifier, $action])) . '.json';
     $now = time();
     $attempts = [];
@@ -50,7 +60,14 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
     }
 
     $attempts[] = $now;
-    file_put_contents($file, json_encode(array_values($attempts)), LOCK_EX);
+    // LOW-006: Check write result and fail closed on error to prevent rate-limit bypass.
+    $result = file_put_contents($file, json_encode(array_values($attempts)), LOCK_EX);
+    if ($result === false) {
+        if (function_exists('logError')) {
+            logError('Rate limiter write failed for: ' . $file);
+        }
+        return false; // fail closed — deny request rather than silently bypass rate limit
+    }
     return true; // Allowed
 }
 

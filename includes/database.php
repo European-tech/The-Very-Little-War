@@ -121,6 +121,8 @@ function withTransaction($base, callable $fn) {
     static $depth = 0;
     $useSavepoint = $depth > 0;
     $sp = 'sp_' . $depth;
+    // MEDIUM-001: only increment $depth after the START TRANSACTION / SAVEPOINT
+    // succeeds, so a connection failure cannot leave $depth permanently incremented.
     if ($useSavepoint) {
         if (!mysqli_query($base, "SAVEPOINT $sp")) {
             throw new \RuntimeException('savepoint_failed');
@@ -130,6 +132,7 @@ function withTransaction($base, callable $fn) {
             throw new \RuntimeException('transaction_begin_failed');
         }
     }
+    // Increment only after the DB operation confirmed success.
     $depth++;
     try {
         $result = $fn();
@@ -143,6 +146,12 @@ function withTransaction($base, callable $fn) {
     } catch (\Throwable $e) {
         $depth--;
         if ($useSavepoint) {
+            // LOW-010: log the savepoint name so failures are traceable in error logs.
+            if (function_exists('logError')) {
+                logError('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
+            } else {
+                error_log('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
+            }
             mysqli_query($base, "ROLLBACK TO SAVEPOINT $sp");
         } else {
             mysqli_rollback($base);

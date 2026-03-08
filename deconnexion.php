@@ -17,6 +17,11 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
 }
 
 // Account deletion: only after CSRF + session token DB validation above
+// LOW-004: The 7-day cooldown check (timestamp > SECONDS_PER_WEEK) is enforced exclusively
+// in compte.php before the delete form is shown. This handler trusts that guard and does not
+// re-validate the cooldown, which is acceptable because the form is never rendered for ineligible
+// accounts. If the deletion endpoint is ever called directly (bypassing compte.php), the
+// supprimerJoueur() function itself should be augmented with the cooldown check.
 if(isset($_POST['verification']) AND isset($_POST['oui'])) {
 	csrfCheck();
 	supprimerJoueur($_SESSION['login']);

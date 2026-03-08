@@ -575,7 +575,7 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 		<td><?php echo alliance($alliance1['tag']); ?> contre <?php echo alliance($alliance2['tag']); ?></td>
 		<td><?php echo number_format($donnees['pertes1'] + $donnees['pertes2'], 0 , ' ', ' '); ?></td>
 		<td><?php echo round(($donnees['fin'] - $donnees['timestamp'])/SECONDS_PER_DAY);?></td>
-		<td><a href="guerre.php?id=<?php echo $donnees['id']; ?>" class="lienVisible"><img src="images/classement/details.png" alt="details" title="Détails"/></a></td>
+		<td><a href="guerre.php?id=<?php echo (int)$donnees['id']; ?>" class="lienVisible"><img src="images/classement/details.png" alt="details" title="Détails"/></a></td>
 		</tr>
 		<?php
 		$compteur++;

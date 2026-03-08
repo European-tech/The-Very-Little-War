@@ -56,11 +56,19 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 			if (count($rows) > 5) {
 				$erreur = "Trop de comptes correspondants (" . count($rows) . "). Opération refusée.";
 			} else {
+				$logins_deleted = array_column($rows, 'login');
+				// MEDIUM-014: supprimerJoueur() uses SAVEPOINT nesting via withTransaction() —
+				// each individual deletion is atomically rollbackable via SAVEPOINT, but the
+				// outer transaction is not atomic across all deletions (partial batch deletes
+				// are possible if an inner SAVEPOINT rolls back while others committed).
 				withTransaction($base, function() use ($base, $rows) {
 					foreach ($rows as $loginRow) {
+						// supprimerJoueur() uses SAVEPOINT nesting via withTransaction() — each deletion is individually atomic.
 						supprimerJoueur($loginRow['login']);
 					}
 				});
+				// MEDIUM-040: Consolidated audit log entry for batch IP deletion.
+				logInfo('ADMIN_BATCH_DELETE', 'Batch IP deletion completed', ['ip' => $ip, 'count' => count($logins_deleted)]);
 				$succes = count($rows) . " compte(s) supprimé(s) pour IP " . htmlspecialchars($ip);
 			}
 		}
@@ -150,7 +158,13 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 				if ($a) {
 			?>
 					<tr>
-						<td><?php echo '<a href="ip.php?ip=' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8') . '</a>'; ?></td>
+						<td>
+						<form method="post" action="ip.php" style="display:inline">
+							<?php echo csrfField(); ?>
+							<input type="hidden" name="ip" value="<?php echo htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8'); ?>" />
+							<button type="submit"><?php echo htmlspecialchars($donnees['ip'], ENT_QUOTES, 'UTF-8'); ?></button>
+						</form>
+					</td>
 						<td>
 							<form action="index.php" method="post" style="display:inline">
 								<?php echo csrfField(); ?>

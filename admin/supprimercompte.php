@@ -23,12 +23,20 @@ if (isset($_POST['supprimercompte'])) {
     if (empty($loginToDelete) || strlen($loginToDelete) > 20 || !preg_match('/^[a-zA-Z0-9_-]+$/', $loginToDelete)) {
         echo "Login invalide.";
     } else {
-        $joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $loginToDelete);
-        if ($joueurExiste > 0) {
-            supprimerJoueur($loginToDelete);
-            // P10-MED-004: Structured audit log for admin deletions (logged after to confirm deletion occurred)
-            logInfo('ADMIN', 'Player account deleted', ['target_login' => $loginToDelete, 'admin' => $_SESSION['login']]);
-        } else {
+        // LOW-018: Use FOR UPDATE inside a transaction to eliminate TOCTOU between existence
+        // check and deletion. The row lock prevents concurrent deletion or modification.
+        withTransaction($base, function() use ($base, $loginToDelete) {
+            global $joueurExiste;
+            $exists = dbFetchOne($base, 'SELECT 1 FROM membre WHERE login = ? FOR UPDATE', 's', $loginToDelete);
+            if ($exists) {
+                $joueurExiste = 1;
+                supprimerJoueur($loginToDelete);
+                logInfo('ADMIN', 'Player account deleted', ['target_login' => $loginToDelete, 'admin' => $_SESSION['login']]);
+            } else {
+                $joueurExiste = 0;
+            }
+        });
+        if (!$joueurExiste) {
             echo "Ce joueur n'existe pas.";
         }
     }

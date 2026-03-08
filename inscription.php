@@ -25,12 +25,10 @@ if (isset($_POST['login'])) {
 		$passConfirm = $_POST['pass_confirm'];
 		$emailInput = trim($_POST['email']);
 
-		if (mb_strlen($passInput) > PASSWORD_BCRYPT_MAX_LENGTH) {
-			$erreur = 'Le mot de passe est trop long (' . PASSWORD_BCRYPT_MAX_LENGTH . ' caract&egrave;res max).';
-		} elseif (mb_strlen($passInput) < PASSWORD_MIN_LENGTH) {
-			$erreur = 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caract&egrave;res.';
-		} elseif ($passInput != $passConfirm) {
-			$erreur = 'Les deux mots de passe sont diff&eacute;rents.';
+		// MEDIUM-027: Use shared validatePassword() from validation.php
+		$passErrors = validatePassword($passInput, $passConfirm);
+		if (!empty($passErrors)) {
+			$erreur = htmlspecialchars($passErrors[0], ENT_QUOTES, 'UTF-8');
 		} else {
 			if (!validateLogin($loginInput)) {
 				$erreur = 'Vous ne pouvez pas utiliser de caract&egrave;res sp&eacute;ciaux dans votre login (3-20 caract&egrave;res alphanum&eacute;riques).';

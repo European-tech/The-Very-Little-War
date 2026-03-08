@@ -71,7 +71,7 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
                     $hoursLeft = floor(($secondsLeft % SECONDS_PER_DAY) / SECONDS_PER_HOUR);
                     $minutesLeft = floor(($secondsLeft % SECONDS_PER_HOUR) / 60);
                     ?>
-                    <span id="season-countdown-navbar" data-end="<?php echo (int)$seasonEndTimestamp; ?>"
+                    <span id="season-countdown-navbar" data-end="<?php echo htmlspecialchars((int)$seasonEndTimestamp, ENT_QUOTES, 'UTF-8'); ?>"
                           style="font-size:10px;color:#aaa;cursor:pointer;"
                           title="Fin de manche"><?php echo $daysLeft . 'j ' . $hoursLeft . 'h ' . $minutesLeft . 'm'; ?></span>
                 </div>

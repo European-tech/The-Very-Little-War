@@ -67,13 +67,14 @@ if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_
 
             if (!$verified) {
                 $erreur = "Le mot de passe actuel est incorrect.";
-            } elseif (mb_strlen($newPassword) > PASSWORD_BCRYPT_MAX_LENGTH) {
-                $erreur = "Le mot de passe ne peut pas d&eacute;passer " . PASSWORD_BCRYPT_MAX_LENGTH . " caract&egrave;res.";
-            } elseif (mb_strlen($newPassword) < PASSWORD_MIN_LENGTH) {
-                $erreur = "Le mot de passe doit contenir au moins 8 caract&egrave;res.";
-            } elseif ($newPassword != $newPasswordConfirm) {
-                $erreur = "Les deux mots de passe ne sont pas les m&ecirc;mes.";
             } else {
+                // MEDIUM-027: Use shared validatePassword() from validation.php
+                $passErrors = validatePassword($newPassword, $newPasswordConfirm);
+                if (!empty($passErrors)) {
+                    $erreur = htmlspecialchars($passErrors[0], ENT_QUOTES, 'UTF-8');
+                }
+            }
+            if (empty($erreur) && $verified) {
                 $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
                 dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $newHash, $_SESSION['login']);
                 // Regenerate session ID to prevent fixation after credential change
@@ -95,7 +96,20 @@ if (isset($_POST['changermail'])) {
     if (!empty($_POST['changermail']) && !empty($_POST['mot_de_passe_actuel'])) {
         // Require current password before changing email (PASS1-MEDIUM-004)
         $membreData = dbFetchOne($base, 'SELECT pass_md5 FROM membre WHERE login = ?', 's', $_SESSION['login']);
-        if (!$membreData || !password_verify($_POST['mot_de_passe_actuel'], $membreData['pass_md5'])) {
+        $emailPasswordOk = false;
+        if ($membreData) {
+            $submittedPassword = $_POST['mot_de_passe_actuel'];
+            $storedHash = $membreData['pass_md5'];
+            if (password_verify($submittedPassword, $storedHash)) {
+                $emailPasswordOk = true;
+            } elseif (hash_equals(md5($submittedPassword), $storedHash)) {
+                // MEDIUM-028: MD5 fallback — migrate to bcrypt on successful verify
+                $newHash = password_hash($submittedPassword, PASSWORD_BCRYPT);
+                dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $newHash, $_SESSION['login']);
+                $emailPasswordOk = true;
+            }
+        }
+        if (!$emailPasswordOk) {
             $erreur = "Mot de passe incorrect.";
         } elseif (mb_strlen($_POST['changermail']) > EMAIL_MAX_LENGTH) {
             $erreur = "Email trop long.";

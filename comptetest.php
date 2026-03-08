@@ -7,7 +7,15 @@ require_once("includes/database.php");
 require_once("includes/rate_limiter.php");
 require_once("includes/validation.php");
 
-if (isset($_GET['inscription'])) {
+// MEDIUM-030: Visitor account creation must be POST + CSRF to prevent CSRF-triggered creation.
+if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
+	// Require POST method — reject GET to enforce CSRF token requirement.
+	if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+		header('Location: index.php');
+		exit();
+	}
+	// CSRF check — must come before any state mutation.
+	csrfCheck();
 	// Rate limit visitor account creation: 3 per 5 minutes per IP
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'visitor_reg', 3, 300)) {
 		header('Location: index.php?att=1');
@@ -23,8 +31,8 @@ if (isset($_GET['inscription'])) {
 		inscrire("Visiteur" . $visitorNum, "Visiteur" . $visitorNum, "Visiteur" . $visitorNum . "@tvlw.com");
 		session_regenerate_id(true);
 		$_SESSION['login'] = ucfirst(mb_strtolower("Visiteur" . $visitorNum));
-		// Use password_hash for visitor accounts too
-		$visitorPass = "Visiteur" . $visitorNum;
+		// LOW-001: Use a random password for visitor accounts (not predictable username-as-password).
+		$visitorPass = bin2hex(random_bytes(8));
 		$hashedPass = password_hash($visitorPass, PASSWORD_DEFAULT);
 		dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $hashedPass, "Visiteur" . $visitorNum);
 		$sessionToken = bin2hex(random_bytes(32));

@@ -1,6 +1,6 @@
 <?php
 // P9-HIGH-009: Use standard moderation auth guard (replaces legacy mdp.php include)
-include("redirectionmotdepasse.php");
+require_once(__DIR__ . '/mdp.php');
 include("../includes/connexion.php");
 require_once("../includes/database.php");
 require_once("../includes/multiaccount.php");

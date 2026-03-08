@@ -121,7 +121,7 @@ if ($gradeChef) {
 						if ($gradeInsert !== false) {
 							$information = "" . htmlspecialchars($_POST['personnegrade'], ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($_POST['nomgrade'], ENT_QUOTES, 'UTF-8') . ".";
 						} else {
-							$erreur = "Cette personne est déjà gradée (conflit de concurrent).";
+							$erreur = "Ce joueur est déjà gradé dans cette alliance.";
 						}
 					} else {
 						$erreur = "Cette personne n'existe pas ou n'est pas dans votre alliance.";

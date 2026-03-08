@@ -16,6 +16,20 @@ if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !ha
     exit(json_encode(["erreur" => true]));
 }
 
+// GET: Return aggregated poll results (no individual voter identities exposed)
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $activePoll = dbFetchOne($base, 'SELECT id FROM sondages WHERE active = 1 ORDER BY date DESC LIMIT 1');
+    if (!$activePoll) {
+        header('Content-Type: application/json');
+        exit(json_encode(['success' => false, 'results' => []]));
+    }
+    $results = dbFetchAll($base,
+        'SELECT reponse AS option_id, COUNT(*) AS votes FROM reponses_sondage WHERE sondage = ? GROUP BY reponse',
+        'i', $activePoll['id']);
+    header('Content-Type: application/json');
+    exit(json_encode(['success' => true, 'results' => $results]));
+}
+
 // POST only with CSRF — GET vote support removed (P5-GAP-009)
 $reponse = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -75,8 +75,11 @@ if (isset($_GET['erreur'])) {
 // Throttle: only update once per 60 seconds to reduce DB writes
 if (!isset($_SESSION['last_online_update']) || time() - $_SESSION['last_online_update'] > ONLINE_UPDATE_THROTTLE_SECONDS) {
     // LOW-003: ON DUPLICATE KEY UPDATE avoids SELECT+INSERT/UPDATE race condition
+    // LOW-002: Hash IP address before storing to avoid plaintext PII in connectes table.
+    require_once(__DIR__ . '/multiaccount.php');
     $now = time();
-    dbExecute($base, 'INSERT INTO connectes (ip, timestamp) VALUES (?, ?) ON DUPLICATE KEY UPDATE timestamp=VALUES(timestamp)', 'si', $_SERVER['REMOTE_ADDR'], $now);
+    $hashedIpForConnectes = hashIpAddress($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    dbExecute($base, 'INSERT INTO connectes (ip, timestamp) VALUES (?, ?) ON DUPLICATE KEY UPDATE timestamp=VALUES(timestamp)', 'si', $hashedIpForConnectes, $now);
 
     $_SESSION['last_online_update'] = time();
 }
@@ -344,8 +347,9 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     }
 }
 
-// HIGH-017: Probabilistic email queue drain (1% of requests).
+// HIGH-017: Probabilistic email queue drain (1-in-EMAIL_QUEUE_DRAIN_PROB_DENOM requests).
 // Keeps the queue draining without dedicating a cron job or blocking any single request.
-if (mt_rand(1, 100) === 1) {
+// MEDIUM-024: denominator is now a config constant (default 100 = 1%).
+if (mt_rand(1, EMAIL_QUEUE_DRAIN_PROB_DENOM) === 1) {
     processEmailQueue($base);
 }

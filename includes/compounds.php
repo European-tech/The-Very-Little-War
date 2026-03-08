@@ -107,16 +107,29 @@ function synthesizeCompound($base, $login, $compoundKey)
                 // a race between the FOR UPDATE read and this UPDATE (belt-and-suspenders).
                 // The FOR UPDATE above serializes concurrent synthesis, but GREATEST()
                 // adds a hard floor as a final safety net.
-                dbExecute($base,
+                // HIGH-005: Check return value — silent UPDATE failure would grant a free compound.
+                $updated = dbExecute($base,
                     "UPDATE ressources SET $resource = GREATEST($resource - ?, 0) WHERE login = ?",
                     'ds', (float)$cost, $login
                 );
+                if ($updated === false) {
+                    throw new \RuntimeException('UPDATE_FAILED:' . $resource);
+                }
+                // MEDIUM-031: Log diagnostic if GREATEST() clamped to 0 (indicates a race slipped past FOR UPDATE)
+                $newVal = dbFetchOne($base, "SELECT $resource FROM ressources WHERE login = ?", 's', $login);
+                if ($newVal !== false && (float)($newVal[$resource] ?? 1) == 0.0 && $cost > 0) {
+                    logError('Compound synthesis: GREATEST clamped to 0 for ' . $resource . ' for player ' . $login);
+                }
             }
 
-            dbExecute($base,
+            // CRITICAL-004: Check INSERT return — resource loss without compound creation if INSERT fails.
+            $result = dbExecute($base,
                 'INSERT INTO player_compounds (login, compound_key) VALUES (?, ?)',
                 'ss', $login, $compoundKey
             );
+            if ($result === false) {
+                throw new \RuntimeException('INSERT_FAILED');
+            }
         });
     } catch (\RuntimeException $e) {
         $msg = $e->getMessage();
@@ -135,6 +148,14 @@ function synthesizeCompound($base, $login, $compoundKey)
             $parts = explode(':', $msg);
             $resName = strtolower(substr($parts[0], strlen('INSUFFICIENT_')));
             return "Pas assez de " . $resName . " (besoin: " . ($parts[1] ?? '?') . ", disponible: " . ($parts[2] ?? '?') . ").";
+        }
+        if (str_starts_with($msg, 'UPDATE_FAILED:')) {
+            logError("synthesizeCompound() UPDATE failed: " . $msg);
+            return "Erreur lors de la déduction des ressources.";
+        }
+        if ($msg === 'INSERT_FAILED') {
+            logError("synthesizeCompound() INSERT failed for login=$login compound=$compoundKey");
+            return "Erreur lors de la création du composé.";
         }
         throw $e;
     }
@@ -212,7 +233,8 @@ function invalidateCompoundBonusCache($login = null)
         $_compoundBonusCache = [];
     } else {
         foreach (array_keys($_compoundBonusCache) as $key) {
-            if (str_starts_with($key, $login . '-')) {
+            // LOW-022: Use ':' separator to avoid collision when login contains '-'
+            if (str_starts_with($key, $login . ':')) {
                 unset($_compoundBonusCache[$key]);
             }
         }
@@ -229,7 +251,8 @@ function getCompoundBonus($base, $login, $effectType)
 {
     global $COMPOUNDS, $_compoundBonusCache;
 
-    $cacheKey = $login . '-' . $effectType;
+    // LOW-023: Use ':' separator to avoid collision when login contains '-'
+    $cacheKey = $login . ':' . $effectType;
     if (isset($_compoundBonusCache[$cacheKey])) return $_compoundBonusCache[$cacheKey];
 
     $activeCompounds = getActiveCompounds($base, $login);

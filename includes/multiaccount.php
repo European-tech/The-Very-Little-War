@@ -28,6 +28,10 @@ function hashIpAddress($ip) {
 
 /**
  * Log a login/register event and run detection checks.
+ *
+ * NOTE: Detection runs synchronously on login. For high-traffic servers, consider
+ * deferring to an async job queue or caching result in session for the day.
+ * Current latency impact is acceptable at current player count (Pass 7 LOW-035).
  */
 function logLoginEvent($base, $login, $eventType = 'login')
 {
@@ -40,9 +44,18 @@ function logLoginEvent($base, $login, $eventType = 'login')
     $fingerprint = hash('sha256', $ua . ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''));
     $timestamp = time();
 
+    // MEDIUM-018: Store only browser family instead of full User-Agent (GDPR compliance)
+    $browserFamily = 'Unknown';
+    if (strpos($ua, 'Firefox/') !== false) $browserFamily = 'Firefox';
+    elseif (strpos($ua, 'Chrome/') !== false) $browserFamily = 'Chrome';
+    elseif (strpos($ua, 'Safari/') !== false) $browserFamily = 'Safari';
+    elseif (strpos($ua, 'Edge/') !== false) $browserFamily = 'Edge';
+    elseif (strpos($ua, 'MSIE') !== false || strpos($ua, 'Trident/') !== false) $browserFamily = 'IE';
+    $storedUa = $browserFamily;
+
     dbExecute($base,
         'INSERT INTO login_history (login, ip, user_agent, fingerprint, timestamp, event_type) VALUES (?, ?, ?, ?, ?, ?)',
-        'ssssis', $login, $hashedIp, substr($ua, 0, 512), $fingerprint, $timestamp, $eventType
+        'ssssis', $login, $hashedIp, $storedUa, $fingerprint, $timestamp, $eventType
     );
 
     checkSameIpAccounts($base, $login, $hashedIp, $timestamp);
@@ -108,9 +121,10 @@ function checkSameFingerprintAccounts($base, $login, $fingerprint, $timestamp)
     );
 
     foreach ($others as $other) {
+        // MEDIUM-025: Symmetric dedup — check both orderings (A→B and B→A) to avoid duplicate flags
         $existing = dbFetchOne($base,
-            'SELECT id FROM account_flags WHERE login = ? AND related_login = ? AND flag_type = ? AND status != ?',
-            'ssss', $login, $other['login'], 'same_fingerprint', 'dismissed'
+            'SELECT id FROM account_flags WHERE ((login = ? AND related_login = ?) OR (login = ? AND related_login = ?)) AND flag_type = ? AND status != ?',
+            'ssssss', $login, $other['login'], $other['login'], $login, 'same_fingerprint', 'dismissed'
         );
         if (!$existing) {
             $evidence = json_encode([
@@ -151,9 +165,10 @@ function checkCoordinatedAttacks($base, $attacker, $defender, $timestamp)
         );
 
         if ($ipOverlap && $ipOverlap['cnt'] > 0) {
+            // MEDIUM-034: Symmetric dedup — check both orderings to avoid duplicate flags
             $existing = dbFetchOne($base,
-                'SELECT id FROM account_flags WHERE login = ? AND related_login = ? AND flag_type = ? AND status != ?',
-                'ssss', $attacker, $other['attaquant'], 'coord_attack', 'dismissed'
+                'SELECT id FROM account_flags WHERE ((login = ? AND related_login = ?) OR (login = ? AND related_login = ?)) AND flag_type = ? AND status != ?',
+                'ssssss', $attacker, $other['attaquant'], $other['attaquant'], $attacker, 'coord_attack', 'dismissed'
             );
             if (!$existing) {
                 $evidence = json_encode([
@@ -166,7 +181,7 @@ function checkCoordinatedAttacks($base, $attacker, $defender, $timestamp)
                 ]);
                 dbExecute($base,
                     'INSERT INTO account_flags (login, flag_type, related_login, evidence, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                    'sssssi', $attacker, 'coord_attack', $other['attaquant'], $evidence, 'critical', time()
+                    'sssssi', $attacker, 'coord_attack', $other['attaquant'], $evidence, 'critical', $timestamp
                 );
                 createAdminAlert($base, 'coord_attack',
                     "ALERTE: Attaque coordonnée sur $defender par $attacker et {$other['attaquant']} (même IP)",
@@ -298,15 +313,21 @@ function areFlaggedAccounts($base, $loginA, $loginB)
 /**
  * Create an admin alert. Sends email for critical alerts.
  */
-function createAdminAlert($base, $type, $message, $details, $severity = 'warning')
+function createAdminAlert($base, $alertType, $message, $details, $severity = 'warning')
 {
+    // MEDIUM-019: Deduplicate alerts — skip if same type alerted within last 24 hours
+    $existing = dbCount($base,
+        'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND created_at > NOW() - INTERVAL 24 HOUR',
+        's', $alertType);
+    if ($existing > 0) return; // Already alerted within 24 hours
+
     dbExecute($base,
         'INSERT INTO admin_alerts (alert_type, message, details, severity, created_at) VALUES (?, ?, ?, ?, ?)',
-        'ssssi', $type, $message, $details, $severity, time()
+        'ssssi', $alertType, $message, $details, $severity, time()
     );
 
     if ($severity === 'critical') {
-        sendAdminAlertEmail("[TVLW] $type", $message);
+        sendAdminAlertEmail("[TVLW] $alertType", $message);
     }
 }
 

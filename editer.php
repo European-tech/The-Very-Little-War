@@ -1,6 +1,7 @@
 <?php
 include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
+require_once("includes/rate_limiter.php");
 
 // Validate and sanitize ID early — prefer POST body (hidden fields) over GET to prevent
 // action="" XSS routing bypass (MED-033). GET params are still accepted for link-based
@@ -20,6 +21,29 @@ if ($activeBan) {
 // On recherche le sujet que l'on souhaite éditer
 $sujet = dbFetchOne($base, 'SELECT idsujet FROM reponses WHERE id = ?', 'i', $id);
 
+/**
+ * MEDIUM-017: Helper — check alliance-private forum access for a reply row.
+ * Returns true if the current user may act on this reply, false otherwise.
+ * Non-moderators are always allowed (they are gated by authorship separately).
+ * Moderators are denied if the reply belongs to an alliance-private forum they
+ * are not a member of — site-wide moderation does not grant cross-alliance access.
+ */
+function checkAllianceForumAccess($base, $replyId, $moderatorLogin) {
+    $replyTopicRow = dbFetchOne($base, 'SELECT s.idforum FROM reponses r JOIN sujets s ON s.id = r.idsujet WHERE r.id = ?', 'i', $replyId);
+    if (!$replyTopicRow) return true; // row not found — let caller handle
+    try {
+        $forumMeta = dbFetchOne($base, 'SELECT alliance_id FROM forums WHERE id = ?', 'i', $replyTopicRow['idforum']);
+        if ($forumMeta && !empty($forumMeta['alliance_id'])) {
+            $modAllianceRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $moderatorLogin);
+            $modAllianceId = $modAllianceRow ? (int)$modAllianceRow['idalliance'] : 0;
+            return $modAllianceId === (int)$forumMeta['alliance_id'];
+        }
+    } catch (\Exception $e) {
+        // alliance_id column not yet present — all forums public
+    }
+    return true;
+}
+
 // Suppression - require POST with CSRF
 if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
@@ -27,7 +51,10 @@ if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 	// Use pre-fetched $moderateur (ban-aware) instead of fresh DB query to prevent banned-mod bypass
 	$isModo = ($moderateur && $moderateur['moderateur'] != '0') ? 1 : 0;
-	if ($auteur && ($auteur['auteur'] == $_SESSION['login'] OR $isModo >= 1)) {
+	// MEDIUM-017: Block moderators from deleting replies in alliance-private forums they don't belong to.
+	if ($isModo && !checkAllianceForumAccess($base, $id, $_SESSION['login'])) {
+		$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
+	} elseif ($auteur && ($auteur['auteur'] == $_SESSION['login'] OR $isModo >= 1)) {
 		dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $id);
 		dbExecute($base, 'UPDATE autre SET nbMessages = nbMessages - 1 WHERE login = ? AND nbMessages > 0', 's', $auteur['auteur']);
 		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
@@ -40,24 +67,36 @@ if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 // Si on souhaite masquer un message - moderator only (P5-GAP-014)
 if ($type == 5 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
+	// MEDIUM-017: Alliance-private forum access check for hide action.
 	if ($moderateur && $moderateur['moderateur'] != '0') {
-		dbExecute($base, 'UPDATE reponses SET visibilite = 0 WHERE id = ?', 'i', $id);
-		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
-		header("Location: sujet.php?id=" . (int)$sujetId); exit;
+		if (!checkAllianceForumAccess($base, $id, $_SESSION['login'])) {
+			$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
+		} else {
+			dbExecute($base, 'UPDATE reponses SET visibilite = 0 WHERE id = ?', 'i', $id);
+			$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
+			header("Location: sujet.php?id=" . (int)$sujetId); exit;
+		}
 	}
 }
 // Si on souhaite afficher un message - moderator only (P5-GAP-014)
 if ($type == 4 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
+	// MEDIUM-017: Alliance-private forum access check for show action.
 	if ($moderateur && $moderateur['moderateur'] != '0') {
-		dbExecute($base, 'UPDATE reponses SET visibilite = 1 WHERE id = ?', 'i', $id);
-		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
-		header("Location: sujet.php?id=" . (int)$sujetId); exit;
+		if (!checkAllianceForumAccess($base, $id, $_SESSION['login'])) {
+			$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
+		} else {
+			dbExecute($base, 'UPDATE reponses SET visibilite = 1 WHERE id = ?', 'i', $id);
+			$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
+			header("Location: sujet.php?id=" . (int)$sujetId); exit;
+		}
 	}
 }
 
 if (isset($_POST['contenu']) AND !empty(trim($_POST['contenu'])) AND $id > 0 AND $type > 0) {
 	csrfCheck();
+	// LOW-013: Rate-limit forum edits to 10 per 5 minutes per user.
+	rateLimitCheck('forum_edit', $_SESSION['login'], 10, 300);
 	$contenu = $_POST['contenu'];
 	if (isset($_POST['titre']) AND !empty(trim($_POST['titre']))) { // alors c'est un sujet
 		$titre = $_POST['titre'];
@@ -77,8 +116,38 @@ if (isset($_POST['contenu']) AND !empty(trim($_POST['contenu'])) AND $id > 0 AND
 				$information = "Le sujet a bien été modifié";
 				dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $id);
 				header("Location: sujet.php?id=" . (int)$id); exit;
+			} elseif ($moderateur && $moderateur['moderateur'] != '0') {
+				// MEDIUM-016: Moderator path for type=1 (topic title/content edit).
+				// Mirrors type=2 moderator logic: alliance-private access check, audit log, then update.
+				$topicForumRow = dbFetchOne($base, 'SELECT idforum FROM sujets WHERE id = ?', 'i', $id);
+				if ($topicForumRow) {
+					try {
+						$forumMeta = dbFetchOne($base, 'SELECT alliance_id FROM forums WHERE id = ?', 'i', $topicForumRow['idforum']);
+						if ($forumMeta && !empty($forumMeta['alliance_id'])) {
+							$modAllianceRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
+							$modAllianceId = $modAllianceRow ? (int)$modAllianceRow['idalliance'] : 0;
+							if ($modAllianceId !== (int)$forumMeta['alliance_id']) {
+								$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
+							}
+						}
+					} catch (\Exception $e) {
+						// alliance_id column not yet present — all forums public
+					}
+				}
+				if (empty($erreur)) {
+					$originalRow = dbFetchOne($base, 'SELECT titre, contenu FROM sujets WHERE id = ?', 'i', $id);
+					$originalContent = $originalRow ? $originalRow['titre'] . "\n" . $originalRow['contenu'] : '';
+					dbExecute($base,
+						'INSERT INTO moderation_log (moderator_login, target_post_id, post_type, original_content, new_content, action_at) VALUES (?, ?, ?, ?, ?, ?)',
+						'sisssi', $_SESSION['login'], $id, 'sujet', $originalContent, $titre . "\n" . $contenu, time()
+					);
+					dbExecute($base, 'UPDATE sujets SET contenu = ?, titre = ? WHERE id = ?', 'ssi', $contenu, $titre, $id);
+					$information = "Le sujet a bien été modifié";
+					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $id);
+					header("Location: sujet.php?id=" . (int)$id); exit;
+				}
 			} else {
-				$erreur = "Vous ne pouvez modifier un sujet donc vous n'êtes pas l'auteur";
+				$erreur = "Vous ne pouvez modifier un sujet dont vous n'êtes pas l'auteur";
 			}
 		}
 	}

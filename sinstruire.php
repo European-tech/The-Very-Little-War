@@ -324,6 +324,8 @@ if($cours_id < $totalCours - 1) {
 echo '</div>';
 finListe();
 finCarte();
+// MEDIUM-041: Course selection is intentionally GET-only (read-only navigation, no state mutation).
+// Do NOT change to POST without adding csrfCheck().
 echo cspScriptTag() . '
     document.getElementById("numeroCours").addEventListener("change", function() {
         document.location = "sinstruire.php" + this.options[this.selectedIndex].value;

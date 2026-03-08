@@ -17,9 +17,9 @@ $autre = dbFetchOne($base, 'SELECT * FROM autre WHERE login = ?', 's', $login);
 // Resources
 $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ?', 's', $login);
 
-// Molecules (4 classes)
+// Molecules (MAX_MOLECULE_CLASSES classes)
 $molecules = [];
-for ($i = 1; $i <= 4; $i++) {
+for ($i = 1; $i <= MAX_MOLECULE_CLASSES; $i++) {
     $mol = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire = ? AND numeroclasse = ?', 'si', $login, $i);
     $molecules[$i] = $mol;
 }
@@ -127,7 +127,7 @@ debutCarte("Production d'Energie");
 
     // Step 2: Iode catalyst
     $totalIodeAtoms = 0;
-    for ($i = 1; $i <= 4; $i++) {
+    for ($i = 1; $i <= MAX_MOLECULE_CLASSES; $i++) {
         if ($molecules[$i]) {
             $totalIodeAtoms += $molecules[$i]['iode'] * $molecules[$i]['nombre'];
         }
@@ -622,7 +622,7 @@ debutCarte("Declin des Molecules");
 
     // Per-class half-lives
     $hasAnyMolecule = false;
-    for ($i = 1; $i <= 4; $i++) {
+    for ($i = 1; $i <= MAX_MOLECULE_CLASSES; $i++) {
         if ($molecules[$i] && $molecules[$i]['formule'] !== 'Vide') {
             $hasAnyMolecule = true;
             break;
@@ -636,7 +636,7 @@ debutCarte("Declin des Molecules");
         echo '<tbody>';
 
         global $ISOTOPES;
-        for ($i = 1; $i <= 4; $i++) {
+        for ($i = 1; $i <= MAX_MOLECULE_CLASSES; $i++) {
             if ($molecules[$i] && $molecules[$i]['formule'] !== 'Vide') {
                 $halfLife = demiVie($login, $i);
                 $halfLifeDisplay = ($halfLife >= PHP_INT_MAX) ? 'Infinie' : affichageTemps($halfLife);

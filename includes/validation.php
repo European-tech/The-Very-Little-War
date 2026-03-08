@@ -4,7 +4,34 @@ function validateLogin($login) {
 }
 
 function validateEmail($email) {
-    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false
+        && mb_strlen($email) <= (defined('EMAIL_MAX_LENGTH') ? EMAIL_MAX_LENGTH : 254);
+}
+
+/**
+ * MEDIUM-027 / LOW-005: Shared password validation.
+ * Returns an array of error strings (empty array = valid).
+ *
+ * @param string $password      The proposed password.
+ * @param string $confirm       Optional confirmation password to match against.
+ * @return string[]             List of validation errors (empty = OK).
+ */
+function validatePassword($password, $confirm = null) {
+    $errors = [];
+    $maxLen = defined('PASSWORD_BCRYPT_MAX_LENGTH') ? PASSWORD_BCRYPT_MAX_LENGTH : 72;
+    $minLen = defined('PASSWORD_MIN_LENGTH') ? PASSWORD_MIN_LENGTH : 8;
+
+    if (mb_strlen($password) > $maxLen) {
+        $errors[] = 'Le mot de passe est trop long (' . $maxLen . ' caractères max).';
+    } elseif (mb_strlen($password) < $minLen) {
+        $errors[] = 'Le mot de passe doit contenir au moins ' . $minLen . ' caractères.';
+    }
+
+    if ($confirm !== null && $password !== $confirm) {
+        $errors[] = 'Les deux mots de passe sont différents.';
+    }
+
+    return $errors;
 }
 
 function validatePositiveInt($value) {

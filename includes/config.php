@@ -34,6 +34,17 @@ define('TRUSTED_PROXY_IPS', []); // empty = direct connect assumed; add proxy IP
 define('ADMIN_RESOURCE_GRANT_DEFAULT', 100000);
 define('ADMIN_RESOURCE_GRANT_MAX', 500000);
 
+// MEDIUM-023: Email sender addresses — used in processEmailQueue()
+define('EMAIL_FROM', 'noreply@theverylittlewar.com');
+define('EMAIL_REPLY_TO', 'theverylittlewar@gmail.com');
+define('EMAIL_FROM_NAME', 'The Very Little War');
+
+// MEDIUM-024: Email queue drain probability denominator (1-in-N chance per request)
+define('EMAIL_QUEUE_DRAIN_PROB_DENOM', 100);
+
+// LOW-021: Maximum email queue size before skipping drain to prevent runaway processing
+define('MAX_EMAIL_QUEUE_DRAIN', 500);
+
 // =============================================================================
 // GAME VERSION
 // =============================================================================
@@ -680,6 +691,7 @@ define('MESSAGE_MAX_LENGTH', 5000); // Max length for admin broadcast and privat
 define('FORUM_POST_MAX_LENGTH', 10000);  // max characters per forum post
 define('FORUM_TITLE_MAX_LENGTH', 200);   // max characters per forum title
 define('MATH_FORUM_ID', 8);             // Forum category ID where MathJax rendering is enabled
+define('BBCODE_URL_MAX_LENGTH', 500);   // LOW-031: Max URL length in [url=...] BBCode tags
 
 // =============================================================================
 // ACCOUNT / VACATION / PROFILE

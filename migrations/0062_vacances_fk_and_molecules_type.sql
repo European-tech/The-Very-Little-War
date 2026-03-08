@@ -7,7 +7,7 @@ DELETE FROM vacances WHERE idJoueur NOT IN (SELECT id FROM membre);
 
 -- 2. Add FK from vacances.idJoueur → membre.id
 SET @existFk = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
-    WHERE TABLE_SCHEMA='tvlw' AND TABLE_NAME='vacances'
+    WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vacances'
     AND CONSTRAINT_NAME='fk_vacances_joueur');
 SET @addFk = IF(@existFk = 0,
     'ALTER TABLE vacances ADD CONSTRAINT fk_vacances_joueur FOREIGN KEY (idJoueur) REFERENCES membre(id) ON DELETE CASCADE',

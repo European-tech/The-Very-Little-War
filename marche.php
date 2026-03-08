@@ -762,8 +762,10 @@ if ($_GET['sub'] == 0) {
                         $fin = "";
                     }
                     // P9-MED-029: Sanitize stored CSV — cast each token to float to prevent stored XSS
-                    $vals = array_map('floatval', explode(',', $cours['tableauCours']));
+                    // MEDIUM-039: Use sprintf('%.15g') to avoid precision loss from floatval+implode
+                    $vals = array_map(function($v) { return sprintf('%.15g', floatval($v)); }, explode(',', $cours['tableauCours']));
                     $safeVals = implode(',', $vals);
+                    // LOW-033: Timezone is set to TIMEZONE (Europe/Paris) via config.php loaded in basicprivatephp.php
                     $tot =  '["' . date('d/m H\hi', $cours['timestamp']) . '",' . $safeVals . ']' . $fin . $tot;
                     $c++;
                 }

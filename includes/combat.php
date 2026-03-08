@@ -140,6 +140,11 @@ if ($defHasCatalytique) {
 
 // Defensive Formation — use hoisted $constructionsDef (MED-024)
 $defenderFormation = isset($constructionsDef['formation']) ? intval($constructionsDef['formation']) : FORMATION_DISPERSEE;
+// HIGH-001: Validate formation is within known range [0..2]
+if ($defenderFormation < 0 || $defenderFormation > 2) {
+	logError("Combat: invalid formation ID " . intval($constructionsDef['formation'] ?? -1) . " for " . $actions['defenseur']);
+	$defenderFormation = FORMATION_DISPERSEE;
+}
 
 // Formation bonuses — Embuscade now applied as $embuscadeDefBoost after damage calc (FIX FINDING-GAME-018)
 
@@ -160,7 +165,8 @@ if ($defenderFormation == FORMATION_EMBUSCADE) {
 }
 
 // Calcul des dégâts totaux — V4: covalent synergy formulas + formation bonuses + catalyst
-$catalystAttackBonus = 1 + catalystEffect('attack_bonus');
+// HIGH-003: Cast catalystEffect() return to float with null-coalesce
+$catalystAttackBonus = 1 + (float)(catalystEffect('attack_bonus') ?? 0.0);
 $degatsAttaquant = 0;
 $degatsDefenseur = 0;
 for ($c = 1; $c <= $nbClasses; $c++) {
@@ -178,16 +184,18 @@ $degatsDefenseur *= prestigeCombatBonus($actions['defenseur']);
 // migration 0039) rather than re-querying live compound state. This prevents a player
 // from activating a compound AFTER launching an attack to retroactively benefit from it.
 // Rows inserted before migration 0039 have DEFAULT 0.0, so legacy attacks are unaffected.
-$compoundAttackBonus  = isset($actions['compound_atk_bonus']) ? (float)$actions['compound_atk_bonus'] : 0.0;
-$compoundDefenseBonus = isset($actions['compound_def_bonus']) ? (float)$actions['compound_def_bonus'] : 0.0;
+// HIGH-004: Null-coalesce all compound bonus array keys
+$compoundAttackBonus  = (float)($actions['compound_atk_bonus'] ?? 0.0);
+$compoundDefenseBonus = (float)($actions['compound_def_bonus'] ?? 0.0);
 if ($compoundAttackBonus > 0) $degatsAttaquant *= (1 + $compoundAttackBonus);
 if ($compoundDefenseBonus > 0) $degatsDefenseur *= (1 + $compoundDefenseBonus);
 
 // Specialization combat modifiers (MEDIUM-018: cross-role modifiers added)
-$specAttackMod      = getSpecModifier($actions['attaquant'], 'attack');   // attacker's attack spec → more attacker damage
-$specDefenseMod     = getSpecModifier($actions['defenseur'], 'defense');  // defender's defense spec → more defender counter-damage
-$specAttackMod_def  = getSpecModifier($actions['defenseur'], 'attack');   // defender's attack spec → boosts their counter-damage
-$specDefenseMod_att = getSpecModifier($actions['attaquant'], 'defense');  // attacker's defense spec → reduces damage they take
+// HIGH-002: Cast all getSpecModifier() returns to float with null-coalesce
+$specAttackMod      = (float)(getSpecModifier($actions['attaquant'], 'attack') ?? 0.0);   // attacker's attack spec → more attacker damage
+$specDefenseMod     = (float)(getSpecModifier($actions['defenseur'], 'defense') ?? 0.0);  // defender's defense spec → more defender counter-damage
+$specAttackMod_def  = (float)(getSpecModifier($actions['defenseur'], 'attack') ?? 0.0);   // defender's attack spec → boosts their counter-damage
+$specDefenseMod_att = (float)(getSpecModifier($actions['attaquant'], 'defense') ?? 0.0);  // attacker's defense spec → reduces damage they take
 $degatsAttaquant *= (1 + $specAttackMod);
 $degatsDefenseur *= (1 + $specDefenseMod);
 $degatsDefenseur *= (1 + $specAttackMod_def);                              // defender's attack specialization boosts counter-damage
@@ -195,7 +203,8 @@ $degatsDefenseur /= max(1.0, 1.0 + $specDefenseMod_att);                  // att
 
 // MEDIUM-017: Apply global catalyst attack bonus to defender's counter-damage too
 // The weekly catalyst (e.g., Combustion +10% attack) is a global effect — symmetrical for both sides
-$degatsDefenseur *= (1 + catalystEffect('attack_bonus'));
+// HIGH-003: Cast catalystEffect() return to float with null-coalesce
+$degatsDefenseur *= (1 + (float)(catalystEffect('attack_bonus') ?? 0.0));
 
 // Apply Embuscade bonus to defender's effective damage (FIX FINDING-GAME-018)
 $degatsDefenseur *= $embuscadeDefBoost;
@@ -359,7 +368,7 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 }
 
 for ($i = 1; $i <= $nbClasses; $i++) {
-	$defenseursRestants += $classeDefenseur[$i]['nombre'] - $defenseurMort[$i];
+	$defenseursRestants += $classeDefenseur[$i]['nombre'] - ($defenseurMort[$i] ?? 0);
 }
 
 if ($attaquantsRestants == 0) {
@@ -435,6 +444,11 @@ if (!$ressourcesJoueur) {
 $vaultLevel   = isset($constructionsDef['coffrefort']) ? (int)$constructionsDef['coffrefort'] : 0;
 $depotDefLevel = isset($constructionsDef['depot'])     ? (int)$constructionsDef['depot']      : 1;
 $vaultProtection = capaciteCoffreFort($vaultLevel, $depotDefLevel);
+// MEDIUM-001: Validate vault protection is numeric and non-negative
+if (!is_numeric($vaultProtection) || $vaultProtection < 0) {
+	$vaultProtection = 0;
+	logError("Combat: invalid vault protection for " . $actions['defenseur']);
+}
 
 if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 	$ressourcesTotalesDefenseur = 0;
@@ -450,7 +464,8 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 		}
 
 		// V4: Apply weekly catalyst pillage bonus (migrated from pillage() which is now pure)
-		$catalystPillageBonus = 1 + catalystEffect('pillage_bonus');
+		// HIGH-003: Cast catalystEffect() return to float with null-coalesce
+		$catalystPillageBonus = 1 + (float)(catalystEffect('pillage_bonus') ?? 0.0);
 		$ressourcesAPiller *= $catalystPillageBonus;
 
 		// Compound synthesis pillage boost.
@@ -458,6 +473,7 @@ if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
 		// (column added by migration 0053) rather than querying live compound state.
 		// This prevents retroactive activation of H2SO4 after the attack is already in-flight.
 		// Rows inserted before migration 0053 have DEFAULT 0.0, so legacy attacks are unaffected.
+		// HIGH-004: Null-coalesce compound pillage bonus key
 		$compoundPillageBonus = (float)($actions['compound_pillage_bonus'] ?? 0.0);
 		if ($compoundPillageBonus > 0) $ressourcesAPiller *= (1 + $compoundPillageBonus);
 

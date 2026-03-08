@@ -26,7 +26,9 @@ $text = preg_replace('!\[title\](.+)\[/title\]!isU', '<span style="font-size: 13
 $text = preg_replace('!\[joueur=([a-z0-9_-]{3,20})/\]!isU', '<a href="joueur.php?id=$1">$1</a>', $text);
 $text = preg_replace('!\[alliance=([a-z0-9_-]{3,16})/\]!isU', '<a href="alliance.php?id=$1">$1</a>', $text);
 // PASS4-LOW-010: Tightened URL character class; MSG-P9-001: domain indicator; FORUM-P9-002: length cap
-$text = preg_replace_callback('!\[url=(https?://[^\]\s"<>\']{1,500})\](.{1,500}?)\[/url\]!isU', function($m) {
+// LOW-031: URL length limit driven by BBCODE_URL_MAX_LENGTH constant (config.php)
+$urlMaxLen = defined('BBCODE_URL_MAX_LENGTH') ? (int)BBCODE_URL_MAX_LENGTH : 500;
+$text = preg_replace_callback('!\[url=(https?://[^\]\s"<>\']{1,' . $urlMaxLen . '})\](.{1,500}?)\[/url\]!isU', function($m) {
     $href = $m[1];
     // Strip null bytes before embedding in href
     $href = str_replace("\0", '', $href);

@@ -36,9 +36,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['supprimersujet'])) {
         $supprimersujet = (int)$_POST['supprimersujet'];
-        dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
-        dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
-        dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
+        // LOW-012: Fetch all reply authors before deletion so we can decrement their message counters.
+        $replyAuthors = dbFetchAll($base, 'SELECT auteur FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
+        withTransaction($base, function() use ($base, $supprimersujet, $replyAuthors) {
+            dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
+            dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
+            dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
+            // Decrement nbMessages for each reply author.
+            foreach ($replyAuthors as $authorRow) {
+                if (!empty($authorRow['auteur'])) {
+                    dbExecute($base, 'UPDATE membre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $authorRow['auteur']);
+                }
+            }
+        });
     }
     if (isset($_POST['verouillersujet'])) {
         $verouillersujet = (int)$_POST['verouillersujet'];

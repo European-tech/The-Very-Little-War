@@ -17,7 +17,7 @@ ALTER TABLE season_recap
 
 -- Add UNIQUE constraint (idempotent via information_schema check)
 SET @existUq = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
-    WHERE TABLE_SCHEMA='tvlw' AND TABLE_NAME='season_recap'
+    WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='season_recap'
     AND CONSTRAINT_NAME='uq_season_login');
 SET @addUq = IF(@existUq = 0,
     'ALTER TABLE season_recap ADD UNIQUE KEY uq_season_login (login, season_number)',

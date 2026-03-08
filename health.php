@@ -40,9 +40,13 @@ $response = [
 ];
 
 // Only expose detailed info to localhost
+// LOW-029: PHP version and disk info are restricted to 127.0.0.1/::1 (low-risk).
+// Ensure this endpoint is not reachable via a reverse proxy that rewrites REMOTE_ADDR.
 if (in_array($_SERVER['REMOTE_ADDR'], ['127.0.0.1', '::1'], true)) {
     $response['db'] = $db_ok;
     $response['disk_free_gb'] = round(disk_free_space('/') / 1073741824, 1);
+    // PHP version included only for localhost health checks (not accessible from internet).
+    // Monitor: ensure this endpoint is not accessible via a proxy.
     $response['php'] = PHP_VERSION;
 }
 

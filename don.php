@@ -2,6 +2,9 @@
 include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 
+// MEDIUM-035: Load multiaccount module so areFlaggedAccounts() is available
+require_once __DIR__ . '/includes/multiaccount.php';
+
 if(isset($_POST['energieEnvoyee'])) {
 	csrfCheck();
 	// MED-073: Rate limit donations to prevent spam/abuse (10 per hour per player)

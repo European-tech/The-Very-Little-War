@@ -6,6 +6,9 @@
 
 **Architecture:** Each audit pass is structured in 5 phases: (1) Parallel domain audits by fresh agents, (2) Consolidated remediation plan, (3) Plan review by independent reviewers, (4) Fix implementation by specialist agents, (5) Verification by spec/code reviewers. The loop terminates when a full pass finds zero issues.
 
+**Domain taxonomy (17 domains as of Pass 10):**
+AUTH · FORUM · COMBAT · ESPIONAGE · ECONOMY · MARKET · COMPOUNDS · BUILDINGS · SOCIAL · ALLIANCE_MANAGEMENT · GAME_CORE · PRESTIGE · ADMIN · SEASON_RESET · ANTI_CHEAT · INFRA-SECURITY · INFRA-DATABASE · INFRA-TEMPLATES
+
 **Tech Stack:** PHP 8.2, MariaDB 10.11, Apache 2, Framework7 CSS, jQuery 3.7.1, PHPUnit
 
 ---
@@ -70,8 +73,12 @@ scripts/cleanup_old_data.php
 ┌─────────────────────────────────────────────────┐
 │                 AUDIT PASS N                     │
 │                                                  │
-│  Phase 1: AUDIT (12 fresh domain agents)         │
-│     ↓                                            │
+│  Phase 1A: BATCH A — 7 agents in parallel        │
+│     ↓  (wait for all 7 to finish)                │
+│  Phase 1B: BATCH B — 7 agents in parallel        │
+│     ↓  (wait for all 7 to finish)                │
+│  Phase 1C: BATCH C — 7 agents in parallel        │
+│     ↓  (wait for all 7 to finish)                │
 │  Phase 2: CONSOLIDATE (remediation plan)         │
 │     ↓                                            │
 │  Phase 3: REVIEW PLAN (2 reviewer agents)        │
@@ -91,407 +98,740 @@ scripts/cleanup_old_data.php
 
 ---
 
-## Phase 1: Domain Audits (12 Parallel Agents)
+## Phase 1: Domain Audits (21 Agents in 3 Batches)
 
-Each audit pass dispatches **13+ fresh agents**, one per domain (with doubled agents for high-finding domains). Every agent reads the FULL file list relevant to its domain. No agent reuses context from prior passes — they are always fresh.
+To avoid CPU/resource pressure, the 21 domain agents are dispatched in **3 sequential batches of 7**. All agents within a batch run in parallel. Wait for each batch to complete before launching the next.
+
+**Domain taxonomy (21 domains as of Pass 11):**
+```
+BATCH A — Security & Infrastructure (7 agents)
+ 1. AUTH              — Login, registration, session lifecycle
+ 2. INFRA-SECURITY    — CSRF, rate limiter, CSP, validation, logger
+ 3. INFRA-DATABASE    — DB helpers, migrations, connexion, column whitelists
+ 4. ANTI_CHEAT        — Multi-account detection, IP flagging, admin alerts
+ 5. ADMIN             — Admin dashboard, news, deletion, maintenance mode
+ 6. SEASON_RESET      — Season end orchestration, archive, reset cascade
+ 7. FORUM             — Topics, replies, moderation, bans
+
+BATCH B — Combat & Economy (7 agents)
+ 8. COMBAT            — Direct attacks, army, formations, damage
+ 9. ESPIONAGE         — Spy missions, neutrino cost, spy reports
+10. ECONOMY           — Resource production, storage, energy regeneration
+11. MARKET            — Trading, price volatility, transfer security
+12. BUILDINGS         — Construction queue, upgrade costs, building damage
+13. COMPOUNDS         — Synthesis lab, timed compound buffs
+14. MAPS              — Resource nodes, coordinates, proximity bonus
+
+BATCH C — Social & Cross-Cutting (7 agents)
+15. SOCIAL            — Player profiles, private messaging, online list
+16. ALLIANCE_MGMT     — Governance, grades, research, war/pact diplomacy
+17. GAME_CORE         — Tutorial, medals, voter, vacation, bilan
+18. PRESTIGE          — PP earning/spending, login streak, comeback bonus
+19. RANKINGS          — Leaderboard, sqrt ranking, daily/seasonal toggle
+20. NOTIFICATIONS     — Email queue, combat reports display, historique
+21. INFRA-TEMPLATES   — Layout, display, UI components, meta, countdown
+```
 
 **Adaptive agent dispatch rules (apply each pass):**
 - **Skip** domains that produced only INFO findings in the prior pass (no real bugs found)
-- **Double agents** for domains with HIGH/CRITICAL findings in the prior pass (two independent agents, findings merged)
-- Domains always doubled in practice: Domain 2 (Combat), Domain 10 (Database), Domain 12 (Molecules)
+- **Double agents** for domains with HIGH/CRITICAL findings in the prior pass (two independent agents, findings merged) — counts as 2 agents in the batch, so that batch becomes 8
+- Domains always doubled in practice: Domain 8 (Combat), Domain 15 (Season Reset), Domain 3 (INFRA-DATABASE) — these always run 2 agents
 - If a domain was CLEAN in the prior pass, still run it (fresh eyes catch regressions)
+- **Collect all 3 batch outputs before proceeding to Phase 2**
 
 Each agent produces a structured finding list in this format:
 
 ```markdown
 ### [SEVERITY]-[NNN]: Short title
 - **File:** path/to/file.php:LINE
-- **Domain:** Security | Logic | Data | ...
-- **Description:** What is wrong
+- **Domain:** AUTH | FORUM | COMBAT | ...
+- **Description:** What is wrong (quote the actual code)
 - **Impact:** What happens if not fixed
-- **Suggested fix:** Concrete code change
+- **Suggested fix:** Concrete code change (before/after)
 ```
 
 Severity levels: `CRITICAL` > `HIGH` > `MEDIUM` > `LOW`
 
 ---
 
-### Domain 1: Security & Authentication
+### Domain 1: AUTH — Authentication & Session Lifecycle
+**Scope:** Login flow, registration, logout, account settings, session validation, password management.
 **Agent type:** `comprehensive-review:security-auditor`
 
 **Files to audit (ALL of these):**
 ```
-includes/basicpublicphp.php, includes/basicprivatephp.php,
-includes/session_init.php, includes/csrf.php, includes/validation.php,
-includes/rate_limiter.php, includes/csp.php, includes/env.php,
-includes/connexion.php, includes/database.php, includes/logger.php,
-includes/multiaccount.php,
-inscription.php, deconnexion.php, compte.php, api.php,
-admin/index.php, admin/supprimercompte.php, admin/redirectionmotdepasse.php,
-admin/multiaccount.php, admin/ip.php
+includes/basicpublicphp.php   — login form handler, bcrypt verify, session init
+includes/basicprivatephp.php  — session guard for all private pages (idle timeout, token DB check)
+includes/session_init.php     — secure session config (httponly, samesite, name)
+inscription.php               — player registration (input validation, rate limit, uniqueness)
+deconnexion.php               — logout (session destroy, token wipe, cookie erasure)
+compte.php                    — account settings (pw change, email change, avatar, vacation, delete)
+comptetest.php                — debug tool (should be gated or removed in production)
 ```
 
 **Checklist:**
-- [ ] Session fixation / regeneration on login
-- [ ] CSRF token on every POST form and AJAX call
-- [ ] Input validation on every user-supplied parameter (GET, POST, COOKIE)
-- [ ] SQL injection — all queries use prepared statements, no string concat
-- [ ] XSS — all output uses htmlspecialchars() or equivalent
-- [ ] Authentication bypass — every private page includes basicprivatephp.php
-- [ ] Authorization — admin pages check admin status
-- [ ] Rate limiting on login, registration, password reset
-- [ ] CSP headers present and correct (no unsafe-inline without nonce)
-- [ ] Sensitive data in logs (passwords, tokens, emails)
-- [ ] Cookie flags (httponly, secure when HTTPS, samesite)
-- [ ] Password hashing (bcrypt, no MD5/SHA1)
-- [ ] File upload restrictions (if any upload exists)
-- [ ] Directory traversal in any file path parameter
-- [ ] HTTP header injection in any redirect
+- [ ] Session fixation prevented (session_regenerate_id after login)
+- [ ] Session idle timeout enforced (SESSION_IDLE_TIMEOUT from config)
+- [ ] Session token validated against DB on every private page load
+- [ ] CSRF on all POST forms in this domain (inscription, compte, deconnexion)
+- [ ] Password hashing is bcrypt (no MD5/SHA1 for new passwords, MD5 auto-upgrade on login)
+- [ ] Registration rate limiting enforced (3 accounts/hour/IP)
+- [ ] Login rate limiting enforced (10 attempts/5min/IP)
+- [ ] validateLogin() / validateEmail() used on all registration inputs
+- [ ] Account deletion has 7-day cooldown
+- [ ] Cookie flags: httponly=true, samesite=Strict, secure when HTTPS
+- [ ] comptetest.php: is this behind auth? Is it accessible from web? Should it be deleted?
+- [ ] Vacation mode cannot be enabled during active combat
+- [ ] Password change requires current password verification
+- [ ] Email change requires current password verification
 
 ---
 
-### Domain 2: Combat System
+### Domain 2: FORUM — Topics, Replies, Moderation & Bans
+**Scope:** Forum listing, topic creation, replies, editing, hiding, moderator sanctions.
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-includes/combat.php, includes/formulas.php, includes/config.php,
-attaquer.php, attaque.php, rapports.php, armee.php, historique.php,
-includes/game_actions.php (attack-related functions),
-includes/player.php (army/HP functions)
+forum.php                     — forum category listing (alliance-private filtering)
+listesujets.php               — topic list + new topic form (rate limit 10/300s)
+sujet.php                     — topic thread + reply form (rate limit 10/300s, ban check)
+editer.php                    — edit/delete/hide/show forum post (author + moderator gate)
+moderationForum.php           — moderator panel: ban list, create/remove sanctions
+includes/bbcode.php           — BBCode parser ([img] restriction, [url] sanitization)
+admin/listesujets.php         — admin topic management
+admin/supprimerreponse.php    — admin reply deletion
 ```
 
 **Checklist:**
-- [ ] Damage formula correctness (attacker vs defender variables not swapped)
-- [ ] Formation modifiers applied correctly (phalanx, dispersed, embuscade)
-- [ ] Isotope combat modifiers (stable HP bonus, radioactive decay)
-- [ ] Beginner protection window respected
-- [ ] Pillage only on attacker victory (not draw)
-- [ ] Vault percentage applied correctly
-- [ ] Overkill cascade logic (no negative HP, proper kill counting)
-- [ ] Building damage (weighted targeting, level >= 1 floor)
-- [ ] Ionisateur HP system (damageable flag, HP tracking)
-- [ ] Return trip guard (army returns even if target disappears)
-- [ ] Combat cooldown enforcement
-- [ ] Covalent synergy bonus applied correctly
-- [ ] Defense reward calculation
-- [ ] Combat report variables (winner/loser names, correct stats)
-- [ ] Transaction safety (withTransaction wrapping combat resolution)
-- [ ] Army count validation (can't attack with more than you have)
-- [ ] Espionage interaction with combat (spy before attack)
+- [ ] BBCode [img] only allows relative paths or whitelisted domains (no arbitrary URLs)
+- [ ] BBCode output is XSS-safe (htmlspecialchars applied before/after BBCode parsing)
+- [ ] Forum access by alliance_id correctly filters private forums
+- [ ] Reply rate limit enforced (10/300s per player, via rateLimitCheck)
+- [ ] Topic creation rate limit enforced
+- [ ] CSRF on all POST actions (reply, edit, delete, hide, ban)
+- [ ] editer.php: ban check on moderator happens BEFORE POST['contenu'] handler (not after)
+- [ ] editer.php: author check (can't edit someone else's post unless moderator)
+- [ ] moderationForum.php: rate limit on sanction creation (rateLimitCheck sanction_create 20/3600)
+- [ ] moderationForum.php: moderator gate before any action
+- [ ] sujet.php: expired ban check (GC probabilistic + nightly cron)
+- [ ] Pagination LIMIT/OFFSET values are integer-cast (no SQL injection)
+- [ ] admin/supprimerreponse.php requires admin authentication
 
 ---
 
-### Domain 3: Economy & Resources
+### Domain 3: COMBAT — Direct Attacks, Army & Formations
+**Scope:** Attack launch (type=1), army composition, molecule creation/deletion, formation change, attack resolution, combat reports.
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-includes/game_resources.php, includes/formulas.php, includes/config.php,
-includes/resource_nodes.php, includes/player.php (resource functions),
-includes/ressources.php,
-constructions.php, sinstruire.php, don.php, marche.php
+attaquer.php                  — attack launcher (type=1 branch only; espionage in Domain 4)
+attaque.php                   — single attack report detail viewer
+armee.php                     — army composition, molecule creation, neutrino purchase, formation
+rapports.php                  — combat reports list (attacker/defender entries)
+includes/combat.php           — combat resolution engine (damage, formation, pillage, reports)
+includes/formulas.php         — combat formulas (attaque(), defense(), vitesse(), demiVie())
+includes/config.php           — combat constants (VAULT_PERCENT, DEFENSE_REWARD, BEGINNER_DAYS, etc.)
+includes/game_actions.php     — updateActions(): resolves pending attacks from actionsattaques
+includes/player.php           — army HP functions, supprimerJoueur cascade
 ```
 
 **Checklist:**
-- [ ] Resource production formulas match config.php constants
-- [ ] Storage cap enforcement (can't exceed max)
-- [ ] Building construction cost formulas
-- [ ] Building upgrade time formulas
-- [ ] Exponential economy scaling (config constants used)
-- [ ] Resource node proximity bonus calculation
-- [ ] Donation minimum reserve check
-- [ ] Market buy/sell price calculations (spread, slippage)
-- [ ] Market volume tracking (FOR UPDATE on trade volume)
-- [ ] Energy regeneration formula
-- [ ] Atom gathering rates per type
-- [ ] No negative resources (LEAST/GREATEST guards)
-- [ ] updateRessources() atomicity (single UPDATE, no race)
-- [ ] Building level floor (never below 1 for core buildings, 0 allowed for optional)
-- [ ] Comeback bonus resource grant (correct amounts)
-- [ ] Weekend catchup multiplier logic
+- [ ] Damage formula: correct variable assignment (attacker damage applied to defender, not self)
+- [ ] Formation modifiers: Phalange (+50% HP), Dispersée (equal split), Embuscade (+40% initiative)
+- [ ] Isotope HP bonus: Stable class gets +30% HP; radioactive decay applied correctly
+- [ ] Beginner protection window: BEGINNER_DAYS from config, comparison uses correct timestamp
+- [ ] Pillage only on attacker victory (not on draw or defender win)
+- [ ] Vault percentage (VAULT_PERCENT from config) protects correct portion of resources
+- [ ] Overkill cascade: no negative HP, kill count computed correctly
+- [ ] Building damage: weighted targeting (ionisateur, champdeforce), level floor ≥ 1 for core buildings
+- [ ] Return trip guard: army returns to sender even if target account deleted mid-flight
+- [ ] Combat cooldown enforced between attacks on same target
+- [ ] Covalent synergy bonus: correct element pair detection and bonus application
+- [ ] Defense reward (DEFENSE_REWARD from config) applied when defender wins
+- [ ] Combat report variables: winner/loser names are DB-fetched names, not $_SESSION
+- [ ] withTransaction() wraps full combat resolution (no partial commits)
+- [ ] Army count: can't send more molecules than you own (validated pre-flight)
+- [ ] Molecule creation: energy cost deducted, FOR UPDATE on ressources
+- [ ] Molecule deletion: transaction + cascade to pending attacks removed or returned
+- [ ] Neutrino purchase: FOR UPDATE on ressources, cost deducted atomically
+- [ ] CSRF ×2 on armee.php (molecule creation + neutrino purchase are separate POST actions)
 
 ---
 
-### Domain 4: Alliance System
+### Domain 4: ESPIONAGE — Spy Missions & Intelligence Reports
+**Scope:** Espionage flow (attaquer.php type=2), neutrino deduction, spy report generation and display.
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-alliance.php, allianceadmin.php, alliance_discovery.php,
-guerre.php, validerpacte.php, voter.php, don.php (alliance donations),
-includes/game_actions.php (alliance functions),
-includes/db_helpers.php (alliance queries)
+attaquer.php                  — espionage branch (type=2): neutrino check, rate limit, target validation
+rapports.php                  — spy report display (espionage entries filtered by type)
+includes/config.php           — espionage constants (ESPIONAGE_NEUTRINO_COST, rate limits per formula)
+includes/formulas.php         — espionage formulas (spy success probability, info revealed)
 ```
 
 **Checklist:**
-- [ ] Grade "0" truthy bug (grade checks use === not ==)
-- [ ] Pact duplicate check (can't create same pact twice)
-- [ ] War declaration transaction safety
-- [ ] Alliance tag uniqueness enforcement
-- [ ] Grade permission checks (create/delete/promote/demote)
-- [ ] Alliance cooldown on rejoin
-- [ ] Duplicateur bonus calculation per alliance
-- [ ] Alliance research tree point spending
-- [ ] Alliance victory points calculation
-- [ ] Alliance member count limits
-- [ ] Alliance message board XSS protection
-- [ ] Stale grade access after kick
-- [ ] Alliance dissolution cleanup (related tables)
+- [ ] Neutrino cost deducted via FOR UPDATE on ressources (no race condition)
+- [ ] Espionage rate limit enforced per formula (from config, not hardcoded)
+- [ ] CSRF on espionage POST
+- [ ] Spy can't target self
+- [ ] Beginner protection: espionage blocked during beginner window
+- [ ] Vacation mode: can't spy on vacationing players (or vice versa — check both)
+- [ ] Spy report contents: only reveals what the formula permits (no excessive data leak)
+- [ ] Tutorial espionage step: requires valid target (not a deleted or non-existent account)
+- [ ] Spy report display: XSS-safe (htmlspecialchars on all player-controlled fields in report)
+- [ ] Spy failure: neutrinos still consumed even on failure (by design — verify)
+- [ ] rapports.php pagination: LIMIT/OFFSET integer-cast
 
 ---
 
-### Domain 5: Market & Trading
+### Domain 5: ECONOMY — Resource Production, Storage & Energy
+**Scope:** Energy regeneration, atom production, storage caps, resource update loop, compound/spec/node bonuses.
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-marche.php, includes/formulas.php, includes/config.php,
-includes/game_resources.php (market functions)
+includes/game_resources.php   — updateRessources(), revenuEnergie(), all production formulas
+includes/formulas.php         — production bonus formulas (duplicateur, research, catalyst)
+includes/ressources.php       — resource display helpers
+includes/config.php           — economy constants (ENERGY_BASE, ATOM_RATE_*, STORAGE_*, etc.)
+don.php                       — alliance donation (min reserve check, FOR UPDATE)
+sinstruire.php                — specialization tutorial (condenseur mechanics explanation)
 ```
 
 **Checklist:**
-- [ ] Buy price > sell price (spread always positive)
-- [ ] Global slippage calculation
-- [ ] Trade volume FOR UPDATE (TOCTOU prevention)
-- [ ] Market purchases respect storage limits
-- [ ] Market chart timestamp formatting
-- [ ] Minimum trade amounts
-- [ ] Market tutorial hint for new players
-- [ ] Volatility dampening coefficient
-- [ ] No self-trading exploits
-- [ ] Transaction wrapping for buy/sell operations
-- [ ] Price bounds (no negative or infinite prices)
+- [ ] Energy regeneration formula matches config constants (ENERGY_BASE + building bonuses)
+- [ ] Atom gathering rate per type uses config constants (ATOM_RATE_C/N/H/O/Cl/S/Br/I)
+- [ ] Storage cap enforced: can't exceed placeDepot() for atoms, energy cap for energy
+- [ ] LEAST/GREATEST guards prevent negative resources in updateRessources()
+- [ ] updateRessources() performs a single atomic UPDATE (no read-then-write race)
+- [ ] Resource node proximity bonus: getResourceNodeBonus() called with correct coordinates
+- [ ] Compound bonus: getCompoundBonus() applied to production correctly
+- [ ] Specialization modifier: getSpecModifier() applied without double-counting
+- [ ] Donation minimum reserve: player must keep ≥ MIN_DONATION_RESERVE energy
+- [ ] Donation transaction: withTransaction() + FOR UPDATE on ressources, autre, alliances
+- [ ] donation.nbDons counter incremented (used for medal tracking)
+- [ ] Weekend catchup multiplier: only applies weeks 2-3 of season, correct date check
+- [ ] Comeback bonus resource grant: correct amounts from config, 7-day cooldown respected
 
 ---
 
-### Domain 6: Prestige, Medals & Ranking
+### Domain 6: MARKET — Trading, Price Volatility & Transfer Security
+**Scope:** Resource buy/sell, player-to-player transfers, price volatility, multi-account block.
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-prestige.php, medailles.php, classement.php, bilan.php,
-joueur.php, includes/statistiques.php,
-includes/prestige.php, includes/formulas.php, includes/config.php,
-includes/player.php (ranking functions)
+marche.php                    — market UI: buy, sell, player transfer forms + price chart
+includes/formulas.php         — market pricing (spread, slippage, volatility formulas)
+includes/config.php           — market constants (MARKET_SPREAD, MARKET_SLIPPAGE_*, MARKET_VOLATILITY_*)
+includes/game_resources.php   — getTradeVolume(), updateTradeVolume()
 ```
 
 **Checklist:**
-- [ ] PP earning formulas (combat, economy, medals)
-- [ ] PP spending (unlock shop items, bonuses)
-- [ ] Medal threshold values match config
-- [ ] Medal progress bar calculation
-- [ ] Sqrt ranking formula (category weights)
-- [ ] Daily leaderboard toggle logic
-- [ ] Season-frozen rankings during transition
-- [ ] Prestige bonus stacking rules
-- [ ] Veteran unlock conditions
-- [ ] Login streak PP milestones (1/3/7/14/21/28)
-- [ ] Season recap archiving (archiveSeasonData)
-- [ ] Bilan.php bonus display formulas match actual game formulas
+- [ ] Buy price always > sell price (spread always positive, no arbitrage)
+- [ ] Global slippage calculation uses trade volume FOR UPDATE (TOCTOU prevention)
+- [ ] Volatility dampening coefficient from config (not hardcoded)
+- [ ] Price bounds: no negative prices, no infinite prices (clamp applied)
+- [ ] Market purchases respect storage limits: recipient can't receive more than available space
+- [ ] Player transfer: areFlaggedAccounts() blocks transfers between flagged multi-account pairs
+- [ ] Player transfer: rate limit (10/60s per player, rateLimitCheck)
+- [ ] Player transfer: can't transfer to self
+- [ ] Buy/sell transactions: withTransaction() + FOR UPDATE on ressources
+- [ ] Market chart timestamps: correct timezone formatting (no Ã→à encoding bug)
+- [ ] Minimum trade amount enforced (can't buy/sell 0 or negative)
+- [ ] CSRF on all buy/sell/transfer POSTs
+- [ ] Market tutorial hint: shown for new players (< N days old, from config)
 
 ---
 
-### Domain 7: Session, Season & Time
+### Domain 7: COMPOUNDS — Synthesis Lab & Timed Buffs
+**Scope:** Compound synthesis, atom cost deduction, active buff lifecycle, cache, cleanup.
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-includes/session_init.php, includes/basicpublicphp.php,
-includes/basicprivatephp.php, includes/config.php,
-maintenance.php, season_recap.php, index.php,
-vacance.php, includes/redirectionVacance.php,
-includes/game_actions.php (season functions),
-includes/player.php (login streak, comeback)
+laboratoire.php               — synthesis lab UI: recipes, inventory, activate/synthesize
+includes/compounds.php        — synthesizeCompound(), getStoredCompounds(), getActiveCompounds(),
+                                getCompoundBonus(), cleanupExpiredCompounds()
+includes/config.php           — compound constants (COMPOUND_DURATION_*, COMPOUND_COST_*, 5 compounds)
+includes/catalyst.php         — catalyst weekly rotation (can modify compound costs)
 ```
 
 **Checklist:**
-- [ ] Session token validation flow
-- [ ] Session timeout enforcement
-- [ ] Season end detection (performSeasonEnd)
-- [ ] Two-phase maintenance window
-- [ ] Season countdown timer accuracy (JS)
-- [ ] Full column resets at season end
-- [ ] Winner determination (correct variable, not $_SESSION)
-- [ ] Comeback bonus cooldown (7-day check)
-- [ ] Comeback shield duration
-- [ ] Login streak date comparison (no timezone bugs)
-- [ ] Vacation mode interaction with season end
-- [ ] Monthly reset cycle timing
+- [ ] Synthesis requirements: all 5 compounds have correct atom costs from config
+- [ ] Atom cost deduction: withTransaction() + FOR UPDATE on ressources
+- [ ] Synthesis rate limit: rateLimitCheck('compound_synth', 5, 60)
+- [ ] Buff duration: each compound uses correct COMPOUND_DURATION_* constant
+- [ ] Buff activation: only one active buff of same type at a time (or stackable — verify)
+- [ ] Compound cache: getCompoundBonus() uses global (not static) cache to ensure cross-request invalidation
+- [ ] cleanupExpiredCompounds(): called on lab page load, removes expired player_compounds rows
+- [ ] CSRF on synthesis POST and activate POST
+- [ ] Compound display: correct htmlspecialchars on all user-visible compound fields
+- [ ] Atom cost display in lab UI matches actual synthesis cost (no drift from config)
+- [ ] Catalyst discount on compound cost applied correctly (catalystEffect())
 
 ---
 
-### Domain 8: Forum, Messages & Social
+### Domain 8: BUILDINGS — Construction Queue, Upgrades & Combat Damage
+**Scope:** Building level management, upgrade cost/time formulas, construction queue processing, building HP damage in combat.
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-forum.php, listesujets.php, sujet.php, editer.php,
-ecriremessage.php, messages.php, messagesenvoyes.php,
-messageCommun.php, moderationForum.php,
-includes/bbcode.php, admin/listesujets.php, admin/supprimerreponse.php
+constructions.php             — building UI: current levels, upgrade button, production point allocation,
+                                formation change (all 3 POST actions: upgrade, producteur pts, condenseur pts)
+includes/game_actions.php     — updateActions(): processes actionsconstruction queue (completes upgrades)
+                                augmenterBatiment(), diminuerBatiment()
+includes/combat.php           — building combat damage (diminuerBatiment called after combat)
+includes/config.php           — BUILDING_CONFIG array (all building costs, times, bonuses)
+includes/formulas.php         — building production formulas, storage formulas
 ```
 
 **Checklist:**
-- [ ] BBCode [img] restricted (no arbitrary URLs)
-- [ ] XSS in forum posts (BBCode output sanitized)
-- [ ] XSS in private messages
-- [ ] Forum ID race condition (auto-increment safety)
-- [ ] Moderation charset handling
-- [ ] CSRF on message send / forum post / edit
-- [ ] Message deletion authorization (own messages only, or admin)
-- [ ] Pagination SQL injection (LIMIT/OFFSET validated)
-- [ ] Empty-state messages when no posts/messages
-- [ ] Last seen indicator data source
-- [ ] Unread attack badge accuracy
-- [ ] Forum widget on index.php (latest posts)
+- [ ] All building upgrade costs come from BUILDING_CONFIG (no hardcoded values)
+- [ ] All building upgrade times come from BUILDING_CONFIG (no hardcoded values)
+- [ ] Construction queue uniqueness: can't queue the same building twice (check before INSERT into actionsconstruction)
+- [ ] Construction FOR UPDATE: ressources locked during cost deduction
+- [ ] Production point allocation: total producteur + condenseur ≤ MAX_PRODUCTION_POINTS, FOR UPDATE
+- [ ] Building level floor: champdeforce and producteur can't go below level 1 via combat
+- [ ] diminuerBatiment(): level floor ≥ 1 enforced for core buildings
+- [ ] augmenterBatiment(): level cap enforced (MAX_BUILDING_LEVEL from config)
+- [ ] updateActions() in withTransaction() (building completion is atomic)
+- [ ] Building completion: molecule counts updated correctly after construction finishes
+- [ ] Formation change: valid formation values (Phalange/Dispersée/Embuscade only)
+- [ ] Building damage in combat: weighted targeting respects building weights from config
+- [ ] Ionisateur: damageable flag checked, HP tracking correct, not counted as combat building
+- [ ] CSRF ×3 on constructions.php (upgrade, producteur points, condenseur points are separate)
+- [ ] Building bonus display in UI matches BUILDING_CONFIG values
 
 ---
 
-### Domain 9: Tutorial & New Player
+### Domain 9: SOCIAL — Profiles, Messaging & Online List
+**Scope:** Player profile viewing, private/alliance/broadcast messaging, sent messages, online list.
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-tutoriel.php, inscription.php, sinstruire.php,
-includes/config.php (tutorial constants),
-includes/game_actions.php (tutorial functions),
-regles.php
+joueur.php                    — public player profile (stats, alliance, location, description, medals)
+ecriremessage.php             — compose private/alliance/broadcast message
+messages.php                  — private message inbox + delete + read marking
+messagesenvoyes.php           — sent messages folder
+messageCommun.php             — alliance shared message board (read-only display)
+connectes.php                 — online players list (last seen tracking)
 ```
 
 **Checklist:**
-- [ ] Tutorial mission progression (can't skip steps)
-- [ ] Tutorial reward escalation values
-- [ ] Espionage tutorial step (requires valid target)
-- [ ] Tutorial completion tracking
-- [ ] Registration input validation (length, charset, uniqueness)
-- [ ] Registration rate limiting
-- [ ] Initial resource grants match config
-- [ ] Beginner protection timer start
-- [ ] Market tutorial hint trigger
-- [ ] Rules page accuracy vs actual mechanics
-- [ ] New player map placement (coordonneesAleatoires bounded)
+- [ ] joueur.php: htmlspecialchars on all user-controlled fields (description, login, alliance tag)
+- [ ] joueur.php: rate limit on GET (60/min/IP via rateLimitCheck) — player enumeration prevention
+- [ ] joueur.php: no information disclosure (hidden stats, email not shown, IP not shown)
+- [ ] ecriremessage.php: private message rate limit (10/300s per player)
+- [ ] ecriremessage.php: alliance broadcast rate limit (3/300s per player)
+- [ ] ecriremessage.php: global broadcast is admin-only (check gate)
+- [ ] ecriremessage.php: canonical login resolution (can't spoof login casing)
+- [ ] ecriremessage.php: can't message self
+- [ ] ecriremessage.php: CSRF on send POST
+- [ ] messages.php: soft-delete (deleted_by_sender / deleted_by_recipient flags)
+- [ ] messages.php: cascade delete when both sides deleted (no orphan message rows)
+- [ ] messages.php: authorization — can only delete own messages
+- [ ] messages.php: CSRF on delete POST
+- [ ] messages.php: read marking only sets flag if current user is recipient
+- [ ] connectes.php: no XSS on online player list (login names escaped)
+- [ ] Last seen indicator on joueur.php: sourced from connectes/derniere_connexion (not manipulable)
 
 ---
 
-### Domain 10: Database Integrity
+### Domain 10: ALLIANCE_MANAGEMENT — Governance, Grades, Research & Diplomacy
+**Scope:** Alliance create/join/leave, grade permissions, research upgrades, duplicateur, war/pact declaration and acceptance.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Files to audit (ALL of these):**
+```
+alliance.php                  — alliance home: create, join, leave, duplicateur upgrade, war/pact initiation
+allianceadmin.php             — admin panel: invite/remove members, assign grades, name/description change,
+                                delete alliance
+alliance_discovery.php        — public alliance browser (read-only, alliance stats)
+validerpacte.php              — pact/war acceptance (grade-based auth, FOR UPDATE declaration lock)
+guerre.php                    — war declaration detail + accept UI
+don.php                       — alliance donation (also in Domain 5 — check the donation security here)
+includes/game_actions.php     — alliance-related action functions
+```
+
+**Checklist:**
+- [ ] Grade "0" truthy bug: all grade comparisons use strict === not loose == or truthy check
+- [ ] Pact duplicate check: can't create same pact twice (pre-INSERT SELECT check)
+- [ ] War declaration: withTransaction() wrapping
+- [ ] Alliance tag: uniqueness enforced, preg_match validates tag format
+- [ ] Grade permission bits: create/delete/promote/demote use correct bit masks
+- [ ] Cooldown on rejoin after leaving alliance (ALLIANCE_REJOIN_COOLDOWN from config)
+- [ ] Duplicateur bonus: bonusDuplicateur() formula uses correct duplicateur level
+- [ ] Research tree: point spending deducted from alliance energy, each branch capped
+- [ ] Victory points calculation correct at season end
+- [ ] Alliance member count: enforced via max_membres check before invite
+- [ ] Alliance dissolution: cleanup cascades (grades, invitations, declarations, messages)
+- [ ] Stale grade access: player kicked from alliance loses grade immediately (no stale session)
+- [ ] validerpacte.php: grade-based auth checked (not just any logged-in player)
+- [ ] validerpacte.php: FOR UPDATE on declarations (prevents double-acceptance race)
+- [ ] CSRF on all alliance POST actions (create, leave, upgrade, invite, remove, assign grade)
+- [ ] alliance_discovery.php: read-only, no mutations
+
+---
+
+### Domain 11: GAME_CORE — Tutorial, Medals, Voter, Vacation & Bilan
+**Scope:** Tutorial missions, medal display, sondage/voter, vacation mode, specialization UI, molecule reference, bonus summary.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Files to audit (ALL of these):**
+```
+tutoriel.php                  — tutorial missions (progression, claim reward, espionage step)
+medailles.php                 — medal display and progress bars (reads autre counters)
+voter.php                     — poll voting (INSERT IGNORE, FOR UPDATE, CSRF, session token)
+vacance.php                   — vacation mode activation/deactivation
+includes/redirectionVacance.php — vacation mode redirect guard (included by action pages)
+bilan.php                     — comprehensive bonus summary page (all formulas and modifiers)
+molecule.php                  — molecule/unit stat viewer (public reference, read-only)
+sinstruire.php                — chemistry specialization tutorial (read-only)
+```
+
+**Checklist:**
+- [ ] Tutorial mission progression: can't claim step N without completing step N-1
+- [ ] Tutorial reward escalation: reward values match config escalation table
+- [ ] Tutorial espionage step: requires a valid (existing, non-self) target
+- [ ] Tutorial reward claim: DB re-verified inside transaction before awarding
+- [ ] Medal thresholds: all thresholds sourced from config (not hardcoded in medailles.php)
+- [ ] Medal progress bar: correct percentage calculation (no divide-by-zero)
+- [ ] voter.php: INSERT IGNORE prevents duplicate votes
+- [ ] voter.php: FOR UPDATE on sondages row prevents TOCTOU on vote count
+- [ ] voter.php: session token validated (not just session)
+- [ ] voter.php: CSRF on vote POST
+- [ ] Vacation mode: cannot activate during active combat (pending attacks out/in)
+- [ ] Vacation mode: blocks all resource-producing actions while active
+- [ ] bilan.php: every displayed formula matches the actual formula in game_resources.php / combat.php
+- [ ] bilan.php: specialization choice is irreversible (locked after first pick)
+- [ ] molecule.php: read-only, no auth required, no mutations
+
+---
+
+### Domain 12: PRESTIGE — PP Earning, Spending, Login Streak & Comeback Bonus
+**Scope:** Prestige point lifecycle (earn via medals/combat/activity, spend on unlocks), login streak rewards, comeback bonus.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Files to audit (ALL of these):**
+```
+prestige.php                  — prestige UI: PP balance, unlock shop, earning guide, bonus display
+includes/prestige.php         — getPrestige(), calculatePrestigePoints(), purchasePrestigeUnlock(),
+                                hasPrestigeUnlock(), awardPrestigePoints(), isPrestigeLegend()
+includes/player.php           — updateLoginStreak(), checkComebackBonus()
+includes/config.php           — prestige constants (PRESTIGE_UNLOCK_*, STREAK_MILESTONES, COMEBACK_*)
+```
+
+**Checklist:**
+- [ ] PP earning formulas: each source (medals, combat wins, economy, streak) uses config constants
+- [ ] PP spending: purchasePrestigeUnlock() deducts PP atomically (FOR UPDATE on prestige row)
+- [ ] Double-season guard: awardPrestigePoints() can't run twice in same season
+- [ ] Prestige unlocks: each unlock's bonus is applied in the correct domain (production, combat, etc.)
+- [ ] Prestige bonus stacking: bonuses don't double-count when multiple unlocks active
+- [ ] Veteran unlock: conditions correct (N seasons played, from config)
+- [ ] Login streak: updateLoginStreak() uses DATE() comparison (timezone-safe)
+- [ ] Streak milestones: PP awards at 1/3/7/14/21/28 days match STREAK_MILESTONES config
+- [ ] Streak reset: streak_days reset to 1 (not 0) when gap > 1 day
+- [ ] Comeback bonus: 3-day absence threshold from config (COMEBACK_ABSENCE_DAYS)
+- [ ] Comeback bonus: 7-day cooldown enforced (COMEBACK_COOLDOWN_DAYS from config)
+- [ ] Comeback bonus: energy + atom grant amounts from config (COMEBACK_ENERGY, COMEBACK_ATOMS)
+- [ ] Comeback shield: 24h shield duration from config (COMEBACK_SHIELD_HOURS)
+- [ ] CSRF on prestige unlock purchase POST
+
+---
+
+### Domain 13: RANKINGS — Leaderboard, Sqrt Formula & Seasonal Toggle
+**Scope:** Player rankings across 4 categories (points, attack, defense, pillage), daily/seasonal display, frozen rankings during season end.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Files to audit (ALL of these):**
+```
+classement.php                — ranking page (4 leaderboards, daily/seasonal toggle)
+includes/statistiques.php     — player stats aggregation helpers
+includes/formulas.php         — ranking score formula (sqrt weighting)
+includes/config.php           — ranking constants (category weights, season freeze window)
+```
+
+**Checklist:**
+- [ ] Sqrt ranking formula applied correctly (weights from config, not hardcoded)
+- [ ] Category weights match documented game rules
+- [ ] Daily toggle: daily scores sourced correctly (separate column or daily snapshot)
+- [ ] Seasonal toggle: full-season cumulative score sourced correctly
+- [ ] Rankings frozen during season transition window (no misleading partial-reset data)
+- [ ] ORDER BY column: uses whitelist (no SQL injection via user-supplied column name)
+- [ ] LIMIT/OFFSET pagination: integer-cast (no SQL injection)
+- [ ] No auth required (classement.php is public) — confirmed read-only, no mutations
+- [ ] XSS: login names, alliance tags escaped with htmlspecialchars
+
+---
+
+### Domain 14: ADMIN — Dashboard, News, Account Deletion & Maintenance
+**Scope:** Admin authentication, admin dashboard stats, news management, manual account deletion, maintenance mode toggle.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Files to audit (ALL of these):**
+```
+admin/index.php               — admin dashboard (auth gate, stats, deletion by IP, maintenance toggle)
+admin/supprimercompte.php     — single account deletion (auth gate, CSRF, audit log)
+admin/redirectionmotdepasse.php — admin password gate (legacy — should not be the sole auth for actions)
+admin/tableau.php             — admin data tables (stats display, broken query cleanup)
+admin/listenews.php           — news listing (requires admin auth)
+admin/redigernews.php         — news creation/editing (requires admin auth, CSRF)
+maintenance.php               — maintenance mode toggle page
+moderation/index.php          — moderator panel
+moderation/ip.php             — IP lookup tool
+moderation/mdp.php            — moderator password tool
+scripts/cleanup_old_data.php  — nightly cleanup script (expired sanctions, rate limit files)
+```
+
+**Checklist:**
+- [ ] admin/supprimercompte.php: auth gate is basicprivatephp.php + ADMIN_LOGIN check (NOT redirectionmotdepasse only)
+- [ ] admin/supprimercompte.php: csrfCheck() called FIRST inside POST block (before supprimerJoueur)
+- [ ] admin/supprimercompte.php: logInfo('ADMIN', 'Player deleted', ...) called after deletion
+- [ ] admin/supprimercompte.php: supprimerJoueur() wrapped in withTransaction()
+- [ ] admin/tableau.php: no queries referencing non-existent tables (signalement, lieux — must be removed)
+- [ ] admin/index.php: supprimerJoueur() for IP-batch deletion also wrapped in withTransaction()
+- [ ] admin/index.php: manual season reset calls performSeasonEnd() correctly (with advisory lock)
+- [ ] admin/listenews.php + redigernews.php: require admin authentication, CSRF on POST
+- [ ] moderation/* files: require appropriate auth level (moderator or admin)
+- [ ] maintenance.php: CSRF on toggle POST, admin auth required
+- [ ] scripts/cleanup_old_data.php: not callable via HTTP (CLI-only guard, e.g., php_sapi_name() check)
+- [ ] cleanup_old_data.php: includes `DELETE FROM sanctions WHERE dateFin < CURDATE()` (nightly ban GC)
+
+---
+
+### Domain 15: SEASON_RESET — Season End Orchestration, Archive & Cascade Reset
+**Scope:** End-of-season detection, winner determination, archiving, 15-table wipe, VP awards, session invalidation, post-reset setup.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Files to audit (ALL of these):**
+```
+includes/player.php           — performSeasonEnd(), remiseAZero(), archiveSeasonData(),
+                                awardPrestigePoints() (season-end batch), processEmailQueue()
+includes/basicprivatephp.php  — season end trigger logic (maintenance check + performSeasonEnd call)
+season_recap.php              — past season history display (reads season_recap table)
+includes/config.php           — season constants (SEASON_DURATION_DAYS, MAINTENANCE_DURATION_HOURS, etc.)
+```
+
+**Checklist:**
+- [ ] Winner determination: uses DB-fetched winner login (NOT $_SESSION['login'])
+- [ ] Advisory lock: performSeasonEnd() acquires GET_LOCK before proceeding (prevents double-reset)
+- [ ] Archive phase: archiveSeasonData() runs BEFORE remiseAZero() (data preserved before wipe)
+- [ ] 15-table reset completeness: all tables wiped in remiseAZero() (check against full table list)
+- [ ] VP awards: awardPrestigePoints() called with correct winner list before reset
+- [ ] Session invalidation: all session_tokens set to NULL post-reset (forces re-login)
+- [ ] Resource node generation: generateResourceNodes() called post-reset for new season map
+- [ ] Winner news post: inserted into news table post-reset with correct winner name
+- [ ] Email queue: queued notifications sent to top players post-reset
+- [ ] Two-phase maintenance: phase 1 (maintenance flag set) → 24h pause → phase 2 (reset runs)
+- [ ] season_recap table: populated correctly with archived stats
+- [ ] season_recap.php: read-only, requires auth, XSS-safe output
+- [ ] processEmailQueue(): probabilistic drain (not blocking, no infinite loop)
+- [ ] No nested transaction risk: each reset step's failure is logged but doesn't rollback prior steps (by design — verify this is acceptable)
+
+---
+
+### Domain 16: ANTI_CHEAT — Multi-Account Detection & Admin Alerts
+**Scope:** Login event logging, same-IP/fingerprint detection, coordinated attack patterns, admin alert dashboard.
+**Agent type:** `comprehensive-review:security-auditor`
+
+**Files to audit (ALL of these):**
+```
+includes/multiaccount.php     — logLoginEvent(), checkSameIpAccounts(), checkSameFingerprintAccounts(),
+                                checkTimingCorrelation(), checkCoordinatedAttacks(), checkTransferPatterns(),
+                                areFlaggedAccounts(), createAdminAlert()
+includes/basicpublicphp.php   — calls logLoginEvent() on successful login (line ~74)
+admin/multiaccount.php        — admin flag dashboard: view alerts, mark read, update flag status, add manual flag
+admin/ip.php                  — IP lookup tool
+```
+
+**Checklist:**
+- [ ] logLoginEvent(): inserts login_history row on every successful login (not just first)
+- [ ] IP hashing: GDPR-compliant — raw IP is NOT stored, only hash (verify in logLoginEvent)
+- [ ] Fingerprint: UA + accept-language hash used (not full UA string stored raw)
+- [ ] Same-IP detection: 30-day window check, correct flag creation in account_flags
+- [ ] Fingerprint collision: creates flag only when both accounts have logged in (not hypothetical)
+- [ ] Timing correlation: accounts never online simultaneously → flag (check the query logic)
+- [ ] Coordinated attacks: reads actionsattaques — cross-referencing same-IP attack patterns
+- [ ] Transfer patterns: one-sided resource flows flagged (reads actionsenvoi or marche history)
+- [ ] areFlaggedAccounts(): used by marche.php before transfer — verify it's actually called
+- [ ] createAdminAlert(): deduplicates alerts (no flood of same-type alerts)
+- [ ] admin/multiaccount.php: requires admin authentication
+- [ ] admin/multiaccount.php: CSRF on status update + manual flag creation POSTs
+- [ ] Flag resolution: flags can be marked resolved/false-positive (not just accumulating)
+- [ ] Detection functions called in background (non-blocking) or in login flow (check impact on login latency)
+
+---
+
+### Domain 17: MAPS — Resource Nodes, Coordinates & Proximity Bonus
+**Scope:** Map display, player coordinate placement, resource node generation and proximity bonus calculation.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Files to audit (ALL of these):**
+```
+attaquer.php                  — map display (type=0 branch): scrollable map, resource node markers,
+                                war/pact indicators, player coordinates
+includes/resource_nodes.php   — generateResourceNodes(), getResourceNodeBonus(), node type definitions
+includes/player.php           — coordonneesAleatoires() (bounded random placement)
+includes/game_resources.php   — getResourceNodeBonus() call in updateRessources()
+includes/config.php           — map constants (MAP_WIDTH, MAP_HEIGHT, RESOURCE_NODE_COUNT, NODE_PROXIMITY_RADIUS)
+```
+
+**Checklist:**
+- [ ] coordonneesAleatoires(): bounded loop with MAX_ATTEMPTS (no infinite loop on full map)
+- [ ] coordonneesAleatoires(): coordinates within MAP_WIDTH × MAP_HEIGHT bounds
+- [ ] Resource node generation: NODE_COUNT from config (not hardcoded)
+- [ ] Resource node amounts: per-node amounts from config ranges (not hardcoded)
+- [ ] Proximity bonus formula: correct distance calculation (Euclidean or Manhattan — verify consistency)
+- [ ] NODE_PROXIMITY_RADIUS from config (not hardcoded radius)
+- [ ] Map display: player coordinates are integer-cast before use in HTML (no XSS via coordinates)
+- [ ] Map display: resource node markers correctly filtered (only active nodes shown)
+- [ ] War/pact indicators on map: sourced from declarations table with correct status filter
+- [ ] Travel time: distance formula matches the speed formula in formulas.php (consistent)
+- [ ] Post-season reset: generateResourceNodes() called to place fresh nodes (verify in season_reset flow)
+- [ ] No auth required for basic map view within attaquer.php type=0 (player must still be logged in)
+
+---
+
+### Domain 18: NOTIFICATIONS — Email Queue, Combat Reports & Event History
+**Scope:** Email notification queue, combat report display, historique event log.
+**Agent type:** `voltagent-qa-sec:code-reviewer`
+
+**Files to audit (ALL of these):**
+```
+rapports.php                  — combat and espionage reports list (player's own reports only)
+historique.php                — event history log (attacks, trades, donations, etc.)
+includes/player.php           — processEmailQueue() (probabilistic drain, 1/50 requests)
+includes/config.php           — notification constants (EMAIL_FROM, EMAIL_QUEUE_DRAIN_PROB)
+```
+
+**Checklist:**
+- [ ] rapports.php: auth required, player can only see their own reports (WHERE login = ?)
+- [ ] rapports.php: XSS-safe display of all report fields (opponent name, resource amounts, etc.)
+- [ ] rapports.php: pagination LIMIT/OFFSET integer-cast
+- [ ] rapports.php: espionage vs combat reports correctly filtered by type
+- [ ] historique.php: auth required, player can only see their own history
+- [ ] historique.php: pagination LIMIT/OFFSET integer-cast
+- [ ] historique.php: XSS-safe output on all event descriptions
+- [ ] historique.php: alliance-specific events only shown to alliance members
+- [ ] processEmailQueue(): no infinite loop (LIMIT clause on batch drain)
+- [ ] processEmailQueue(): email headers properly encoded (no header injection)
+- [ ] Email addresses from DB escaped before use in mail() headers
+- [ ] Email date/subject encoding: no Ã→à garbling (use mb_encode_mimeheader or iconv)
+- [ ] Email from address uses EMAIL_FROM constant (not hardcoded)
+- [ ] Drain probability from config (EMAIL_QUEUE_DRAIN_PROB, not hardcoded 1/50)
+
+---
+
+### Domain 19: INFRA-SECURITY — CSRF, Rate Limiter, CSP, Validation & Logger
+**Scope:** All shared security infrastructure: token generation/verification, request throttling, Content Security Policy, input validators, event logging.
+**Agent type:** `comprehensive-review:security-auditor`
+
+**Files to audit (ALL of these):**
+```
+includes/csrf.php             — csrfToken(), csrfCheck(), csrfField() — token gen/verify
+includes/rate_limiter.php     — rateLimitCheck() — file-based token bucket per key+window
+includes/csp.php              — cspNonce(), cspScriptTag() — per-request CSP nonce
+includes/validation.php       — validateLogin(), validateEmail(), validatePassword(), transformInt()
+includes/logger.php           — logError(), logWarn(), logInfo() — file-based event log
+includes/env.php              — environment variable loading (no secrets in code)
+```
+
+**Checklist:**
+- [ ] csrfCheck(): uses hash_equals() (timing-safe comparison, not == or ===)
+- [ ] csrfCheck(): also validates same-origin referer (defense in depth)
+- [ ] CSRF token: generated with random_bytes() or equivalent (not mt_rand)
+- [ ] Rate limiter: GC (1/200 requests) failure handled gracefully (log error, don't crash)
+- [ ] Rate limiter: if data/rates directory unwritable, fails closed (blocks request) not open
+- [ ] Rate limiter: key includes both identifier AND bucket name (no cross-action collisions)
+- [ ] CSP nonce: generated fresh per request with random_bytes() (not session-based)
+- [ ] CSP header: script-src uses 'nonce-{X}' only (no unsafe-inline, no unsafe-eval)
+- [ ] validateLogin(): correct length bounds (LOGIN_MIN_LENGTH, LOGIN_MAX_LENGTH from config)
+- [ ] validateEmail(): FILTER_VALIDATE_EMAIL + length check
+- [ ] validatePassword(): PASSWORD_MIN_LENGTH, PASSWORD_BCRYPT_MAX_LENGTH enforced
+- [ ] transformInt(): iterative suffix parsing (K/M/B), no infinite loop
+- [ ] logger.php: does NOT log passwords, session tokens, or raw IPs
+- [ ] logger.php: log files not web-accessible (check .htaccess or Apache config)
+- [ ] env.php: no credentials hardcoded; all secrets from environment or .env file not in web root
+
+---
+
+### Domain 20: INFRA-DATABASE — DB Helpers, Migrations, Connexion & Integrity
+**Scope:** Prepared statement helpers, all database migrations (schema + indexes + constraints), DB connection config, column whitelists.
 **Agent type:** `voltagent-lang:sql-pro`
 
 **Files to audit (ALL of these):**
 ```
-ALL 32 migration files (migrations/0001-0032),
-includes/database.php, includes/db_helpers.php,
-includes/connexion.php, includes/config.php
+includes/database.php         — withTransaction(), dbQuery(), dbFetchOne(), dbFetchAll(),
+                                dbExecute(), dbCount() — prepared statement helpers
+includes/db_helpers.php       — column whitelists for ORDER BY, higher-level query helpers
+includes/connexion.php        — mysqli connection setup, charset, error mode
+ALL migrations/*.sql          — all 29+ migration files (schema, indexes, FK, CHECK constraints)
 ```
 
 **Checklist:**
-- [ ] All tables use latin1 charset (FK compatibility)
-- [ ] Foreign keys reference valid columns with matching types
-- [ ] CHECK constraints cover all non-negative resource columns
-- [ ] Indexes exist for all frequently-queried columns (WHERE, JOIN, ORDER BY)
-- [ ] Migration ordering (no forward references)
-- [ ] Column type mismatches between PHP code and schema
-- [ ] Missing NOT NULL where required
-- [ ] Default values match application expectations
-- [ ] Primary keys on all tables
-- [ ] Unique constraints where business logic demands
-- [ ] No orphan data possible (cascade or application cleanup)
-- [ ] Transaction isolation level appropriate for concurrent access
+- [ ] All migrations use latin1 charset (required for FK compatibility with membre table)
+- [ ] Foreign keys reference valid columns with matching types (varchar(30) ↔ varchar(30))
+- [ ] CHECK constraints on all resource columns (no negative values in ressources, autre)
+- [ ] Indexes exist for all frequent WHERE, JOIN, ORDER BY columns (check EXPLAIN on top queries)
+- [ ] Migration ordering: no migration references a table/column not yet created
+- [ ] Column type mismatches: PHP code TINYINT(1) used as bool, INT(11) for IDs — verify consistency
+- [ ] NOT NULL where application requires it (login, login_cible, etc.)
+- [ ] Default values match application expectations (e.g., 0 for counters, '' for strings)
+- [ ] Primary keys on ALL tables (no table without PK)
+- [ ] Unique constraints where business logic demands (membre.login, alliances.tag, etc.)
+- [ ] No orphan data possible: cascade deletes defined for critical FK relationships
+- [ ] db_helpers.php: ORDER BY column whitelist covers all columns used dynamically in app
+- [ ] withTransaction(): uses proper BEGIN/COMMIT/ROLLBACK (not savepoints for nested calls)
+- [ ] connexion.php: mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT) set for exception mode
+- [ ] scripts/cleanup_old_data.php migration: DELETE FROM sanctions WHERE dateFin < CURDATE() present
 
 ---
 
-### Domain 11: UI, Display & Client-Side
+### Domain 21: INFRA-TEMPLATES — Layout, Display, UI Components & Client-Side
+**Scope:** Page template (navbar, toolbar), display helpers, UI component rendering, SEO meta tags, CSP header injection, JavaScript (countdown).
 **Agent type:** `voltagent-qa-sec:code-reviewer`
 
 **Files to audit (ALL of these):**
 ```
-includes/layout.php, includes/style.php, includes/ui_components.php,
-includes/cardsprivate.php, includes/display.php, includes/meta.php,
-includes/copyright.php, includes/csp.php,
-js/countdown.js,
-index.php (public landing page), credits.php, version.php, health.php
+includes/layout.php           — global page wrapper (navbar, toolbar, season countdown, CSP header)
+includes/display.php          — number formatting, htmlspecialchars wrappers, image display
+includes/ui_components.php    — card rendering, list rendering, form helpers
+includes/cardsprivate.php     — player stats card (private page sidebar)
+includes/meta.php             — <meta> tags, Open Graph, SEO, canonical URL
+includes/style.php            — CSS helper (inline style generation)
+includes/copyright.php        — footer copyright
+includes/bbcode.php           — BBCode renderer (also in Domain 2 — here check template usage)
+includes/csp.php              — cspNonce() usage in layout + CSP header output
+js/countdown.js               — season countdown timer (client-side)
+index.php                     — public landing page (hero, features, login form, forum widget)
+credits.php                   — credits page (static)
+health.php                    — health check endpoint (returns JSON with DB status)
+version.php                   — version/build info page
 ```
 
 **Checklist:**
-- [ ] CSP nonce on all inline scripts
-- [ ] No inline event handlers (onclick, onload, etc.)
-- [ ] jQuery loaded with SRI hash
-- [ ] Framework7 CSS/JS loaded correctly
-- [ ] Responsive layout on mobile (Framework7 grid)
-- [ ] SEO meta tags and Open Graph present
-- [ ] Countdown timer handles season boundary correctly
-- [ ] Formula tooltips render properly
-- [ ] Empty-state messages on all list pages
-- [ ] HTML maxlength matches PHP validation constants
-- [ ] No hardcoded French strings that should be constants
-- [ ] Health endpoint returns valid JSON
-- [ ] Version page shows current build info
-- [ ] CSP header blocks eval/unsafe-inline
-
----
-
-### Domain 12: Molecules, Compounds & Specializations
-**Agent type:** `voltagent-qa-sec:code-reviewer`
-
-**Files to audit (ALL of these):**
-```
-molecule.php, laboratoire.php,
-includes/compounds.php, includes/catalyst.php,
-includes/atomes.php, includes/formulas.php,
-includes/config.php (molecule/compound constants),
-includes/player.php (specialization functions)
-```
-
-**Checklist:**
-- [ ] 4 molecule classes (stats, creation requirements)
-- [ ] 8 atom types (C, N, H, O, Cl, S, Br, I) — all handled
-- [ ] Molecule stat formulas (HP, attack, defense, speed)
-- [ ] Molecule decay formula (asymptotic, radioactive vs stable)
-- [ ] Compound synthesis requirements and buff durations
-- [ ] Compound cache invalidation (global vs static)
-- [ ] Catalyst weekly rotation logic
-- [ ] Catalyst buff stacking rules
-- [ ] Atom specialization effects wired correctly
-- [ ] Condenseur redistribution (no negatives)
-- [ ] Iode catalyst interaction
-- [ ] Neutrino decay formula
-- [ ] Isotope stable buff values (-5% atk / +30% HP)
-- [ ] transformInt iterative suffix (K, M, B)
-
----
-
-### Domain 13: Admin, Player Utilities & Maintenance
-**Agent type:** `voltagent-qa-sec:code-reviewer`
-
-**Files to audit (ALL of these):**
-```
-joueur.php (player profile — if not covered by Domain 6),
-vacance.php, includes/redirectionVacance.php,
-voter.php (if not covered by Domain 4),
-historique.php (if not covered by Domain 2),
-comptetest.php,
-includes/ressources.php, includes/statistiques.php,
-admin/tableau.php, admin/listenews.php, admin/redigernews.php,
-moderation/index.php, moderation/ip.php, moderation/mdp.php,
-scripts/cleanup_old_data.php
-```
-
-**Checklist:**
-- [ ] Admin dashboard (tableau.php) requires admin authentication
-- [ ] News management (listenews/redigernews) requires admin auth + CSRF
-- [ ] Moderation panel (moderation/) requires appropriate auth level
-- [ ] vacation mode (vacance.php) cannot be activated during active combat
-- [ ] Vacation mode exit correctly restores player state
-- [ ] Player profile (joueur.php) — XSS on all rendered fields
-- [ ] Player profile — no information disclosure (hidden stats, etc.)
-- [ ] voter.php — authorization (only alliance members can vote)
-- [ ] voter.php — TOCTOU prevention on vote counting
-- [ ] historique.php — pagination security (no SQL injection via LIMIT/OFFSET)
-- [ ] historique.php — authorization (can only see own history)
-- [ ] comptetest.php — is this production code? Should it be gated or removed?
-- [ ] statistics.php — no raw DB queries (uses prepared statements)
-- [ ] cleanup_old_data.php — CLI-only execution guard (not callable via HTTP)
-- [ ] Admin/moderation pages — all POST actions have CSRF protection
+- [ ] CSP nonce: cspNonce() called once per request, same nonce used in header and all script tags
+- [ ] CSP header: set via header() (not meta tag), includes script-src nonce, no unsafe-inline
+- [ ] No inline event handlers in layout.php or any template (no onclick=, onload=, etc.)
+- [ ] jQuery loaded with SRI hash attribute (integrity= sha256/sha384)
+- [ ] Framework7 CSS/JS loaded correctly (version pinned, SRI if CDN)
+- [ ] Countdown timer: handles season boundary correctly (doesn't show negative time)
+- [ ] Countdown timer: correctly reads season end date from PHP-injected variable
+- [ ] SEO: meta description, Open Graph og:title / og:description / og:image present on index.php
+- [ ] Canonical URL: correct domain in og:url and canonical link
+- [ ] HTML maxlength attributes: match PHP validation constants (LOGIN_MAX_LENGTH, ALLIANCE_TAG_MAX_LENGTH)
+- [ ] Formula tooltips: rendered client-side with nonce-tagged script (no unsafe-inline)
+- [ ] Empty-state messages: present on all list pages when no data (rapports, messages, classement)
+- [ ] health.php: returns valid JSON {"status":"ok","db":"connected"}, no auth required, no data leak
+- [ ] version.php: does not expose server details (PHP version, MariaDB version, paths)
+- [ ] display.php: all number formatting helpers escape output correctly
+- [ ] index.php forum widget: latest posts displayed with htmlspecialchars
 
 ---
 
@@ -501,11 +841,11 @@ scripts/cleanup_old_data.php
 
 **Agent type:** `voltagent-meta:knowledge-synthesizer`
 
-**Input:** All 12 domain audit outputs from Phase 1.
+**Input:** All 21 domain audit outputs from Phase 1.
 
 **Prompt template:**
 ```
-You are given 12 domain audit reports for the TVLW PHP game.
+You are given 21 domain audit reports for the TVLW PHP game.
 Your job is to:
 
 1. Deduplicate findings (same bug reported by multiple domains).
@@ -544,7 +884,7 @@ Two independent reviewers verify the remediation plan is complete and correct.
 **Prompt template:**
 ```
 You are reviewing a remediation plan for the TVLW game codebase.
-You have access to the original 12 domain audit reports and the remediation plan.
+You have access to the original 21 domain audit reports (3 batches) and the remediation plan.
 
 Verify:
 1. Every finding from every domain audit appears in the plan (no dropped issues).
@@ -701,7 +1041,7 @@ done
 
 ### Step 5: Loop Decision
 
-**IF Phase 1 of this pass found 0 issues across all 12 domains:**
+**IF Phase 1 of this pass found 0 issues across all 21 domains:**
 → **DONE. Zero-bug convergence achieved.**
 
 **ELSE:**
@@ -717,48 +1057,122 @@ done
 
 ```
 Step 1:  Announce "Starting Ultra Audit Pass N"
-Step 2:  Determine which domains to run:
-         - Always run all 13 domains
-         - Domains with HIGH/CRITICAL findings in Pass N-1: run 2 agents (in parallel)
+Step 2:  Determine which domains to skip/double:
+         - Always run all 21 domains
+         - Domains with HIGH/CRITICAL findings in Pass N-1: run 2 agents (counts as 2 in batch)
          - Domains with only INFO findings in Pass N-1: still run (fresh eyes catch regressions)
-         - Domains always doubled: Domain 2 (Combat), Domain 10 (Database), Domain 12 (Molecules)
-Step 3:  Launch domain audit agents IN PARALLEL (Phase 1) — 13 to 16 agents
-Step 4:  Collect all reports
-Step 5:  Launch consolidation agent (Phase 2)
-Step 6:  Launch 2 plan reviewers IN PARALLEL (Phase 3)
-Step 7:  If reviewers find gaps → fix plan → re-review
-Step 8:  Launch fix agents per batch (Phase 4) — parallel where possible
-Step 9:  Launch 2 verifiers IN PARALLEL (Phase 5)
-Step 10: If verifiers find issues → fix and re-verify
-Step 11: Run PHPUnit, commit, deploy (Phase 6)
-Step 12: If Pass N found issues → go to Step 1 for Pass N+1
-Step 13: If Pass N found 0 issues → DONE
+         - Domains always doubled: Domain 8 (Combat), Domain 15 (Season Reset), Domain 3 (DB)
+
+Step 3:  Launch BATCH A in parallel — 7 agents (Auth, Infra-Sec, Infra-DB, Anti-Cheat, Admin,
+         Season-Reset, Forum). Wait for ALL to complete before Step 4.
+
+Step 4:  Launch BATCH B in parallel — 7 agents (Combat, Espionage, Economy, Market, Buildings,
+         Compounds, Maps). Wait for ALL to complete before Step 5.
+
+Step 5:  Launch BATCH C in parallel — 7 agents (Social, Alliance-Mgmt, Game-Core, Prestige,
+         Rankings, Notifications, Infra-Templates). Wait for ALL to complete before Step 6.
+
+Step 6:  Collect all 21 reports. Launch consolidation agent (Phase 2).
+Step 7:  Launch 2 plan reviewers IN PARALLEL (Phase 3).
+Step 8:  If reviewers find gaps → fix plan → re-review.
+Step 9:  Launch fix agents per batch (Phase 4) — parallel where possible.
+Step 10: Launch 2 verifiers IN PARALLEL (Phase 5).
+Step 11: If verifiers find issues → fix and re-verify.
+Step 12: Run PHPUnit, commit, deploy (Phase 6).
+Step 13: If Pass N found issues → go to Step 1 for Pass N+1.
+Step 14: If Pass N found 0 issues → DONE.
 ```
 
 ### Agent Count Per Pass
 | Phase | Agents | Type | Parallel? |
 |-------|--------|------|-----------|
-| 1 — Audit | 13-16 | Domain specialists (doubled for DB/Combat/Molecules) | Yes, all |
-| 2 — Consolidate | 1 | Knowledge synthesizer | Sequential |
+| 1A — Batch A | 7-9 | Domain specialists (Security & Infra) | Yes — all 7 at once |
+| 1B — Batch B | 7-9 | Domain specialists (Combat & Economy) | Yes — all 7 at once, after 1A |
+| 1C — Batch C | 7-9 | Domain specialists (Social & Cross-cutting) | Yes — all 7 at once, after 1B |
+| 2 — Consolidate | 1 | Knowledge synthesizer | Sequential, after 1C |
 | 3 — Review Plan | 2 | Architect + Code reviewer | Yes, both |
 | 4 — Fix | 1-8 | PHP specialist (per batch) | Parallel where independent |
 | 5 — Verify | 2 | Spec + Integration reviewer | Yes, both |
-| **Total per pass** | **~20-28** | | |
+| **Total per pass** | **~27-40** | | |
 
 ### Convergence Expectation
-- Pass 1: Expect 20-50 findings (initial sweep)
-- Pass 2: Expect 5-15 findings (regressions from fixes + deep issues)
-- Pass 3: Expect 0-5 findings (edge cases)
-- Pass 4: Expect 0 (convergence) — or continue if new domains reveal issues
-- Pass 5+: Convergence confirmed
+- Pass 11+: Expect 10-30 findings (first pass with full 21-domain taxonomy — fresh eyes on 8 new domains)
+- Pass 12: Expect 5-15 findings (regressions from fixes + deep issues in new domain splits)
+- Pass 13: Expect 0-5 findings (edge cases)
+- Pass 14: Expect 0 (convergence) — or continue if a domain reveals a systemic issue
+- Pass 15+: Convergence confirmed
 
-Typical convergence: 3-5 passes (now with 13 domains and doubled critical agents).
+Typical convergence: 3-5 additional passes from current state (now with 21 domains and doubled critical agents).
+
+---
+
+## Pass Execution History
+
+| Pass | Date | CRITICAL | HIGH | MEDIUM | LOW | Outcome |
+|------|------|----------|------|--------|-----|---------|
+| 1 | 2026-03-07 | ? | ? | ? | ? | Fixed → see pass-1-remediation.md |
+| 2 | 2026-03-07 | ? | ? | ? | ? | Fixed → see pass-2-remediation.md |
+| 3 | 2026-03-08 | ? | ? | ? | ? | Fixed → see pass-3-remediation.md |
+| 4 | 2026-03-08 | ? | ? | ? | ? | Fixed → see pass-4-remediation.md |
+| 5 | 2026-03-08 | ? | ? | ? | ? | Fixed → see pass-5-remediation.md |
+| 6 | 2026-03-08 | 0 | 0 | 2 | 2 | Clean (MEDIUM/LOW deferred) → pass-6-clean.md |
+| 7 | 2026-03-08 | 🔄 | 🔄 | 🔄 | 🔄 | **IN PROGRESS** |
+
+---
+
+## Pass 7 — Live Execution Log
+
+**Date:** 2026-03-08
+**Max agents in parallel:** 7
+
+### Batch A — Security & Infrastructure (7 agents)
+| Domain | Agent | Status |
+|--------|-------|--------|
+| 1. AUTH | `comprehensive-review:security-auditor` | ✅ DONE — 0C/0H/4M/4L |
+| 2. INFRA-SECURITY | `comprehensive-review:security-auditor` | ✅ DONE — 0C/0H/2M/3L |
+| 3. INFRA-DATABASE | `voltagent-lang:sql-pro` | ✅ DONE — 0C/3H/10M/4L |
+| 4. ANTI_CHEAT | `comprehensive-review:security-auditor` | ✅ DONE — 0C/0H/5M/3L |
+| 5. ADMIN | `voltagent-qa-sec:code-reviewer` | ✅ DONE — 1C/0H/4M/4L ⚠️ CRITICAL |
+| 6. SEASON_RESET | `voltagent-qa-sec:code-reviewer` | ✅ DONE — 0C/0H/2M/3L |
+| 7. FORUM | `voltagent-qa-sec:code-reviewer` | ✅ DONE — 0C/0H/3M/5L |
+
+### Batch B — Combat & Economy (7 agents)
+| Domain | Agent | Status |
+|--------|-------|--------|
+| 8. COMBAT | `Explore` | ✅ DONE — 0C/4H/2M/2L |
+| 9. ESPIONAGE | `Explore` | ✅ DONE — 1C/0H/0M/1L ⚠️ CRITICAL |
+| 10. ECONOMY | `Explore` | ✅ DONE — 0C/0H/0M/1L |
+| 11. MARKET | `Explore` | ✅ DONE — 0C/0H/1M/1L |
+| 12. BUILDINGS | `Explore` | ✅ DONE — 1C/2H/1M/0L ⚠️ CRITICAL |
+| 13. COMPOUNDS | `Explore` | ✅ DONE — 1C/1H/2M/2L ⚠️ CRITICAL |
+| 14. MAPS | `Explore` | ✅ DONE — 0C/0H/2M/1L |
+
+### Batch C — Social & Cross-Cutting (7 agents)
+| Domain | Agent | Status |
+|--------|-------|--------|
+| 15. SOCIAL | `Explore` | ✅ DONE — 0C/0H/0M/0L (CLEAN) |
+| 16. ALLIANCE_MGMT | `Explore` | ✅ DONE — 0C/0H/0M/1L |
+| 17. GAME_CORE | `Explore` | ✅ DONE — 0C/0H/2M/3L |
+| 18. PRESTIGE | `Explore` | ✅ DONE — 1C/0H/0M/0L ⚠️ UX bug |
+| 19. RANKINGS | `Explore` | ✅ DONE — 0C/0H/0M/1L |
+| 20. NOTIFICATIONS | `Explore` | ✅ DONE — 0C/1H/3M/1L |
+| 21. INFRA-TEMPLATES | `Explore` | ✅ DONE — 0C/0H/1M/3L |
+
+### Triage & Remediation
+| Phase | Status | Output |
+|-------|--------|--------|
+| Consolidate findings | ✅ DONE | `docs/plans/2026-03-08-ultra-audit-pass-7-remediation.md` — 5C/9H/42M/35L |
+| Plan review (2 agents) | 🔄 RUNNING | — |
+| Fix execution | ⏳ PENDING | — |
+| Verification (2 agents) | ⏳ PENDING | — |
+| PHPUnit | ⏳ PENDING | — |
+| Commit + Deploy | ⏳ PENDING | — |
 
 ---
 
 ## Domain Agent Prompt Template
 
-Use this template for ALL 12 domain agents in Phase 1:
+Use this template for ALL 21 domain agents in Phase 1:
 
 ```
 You are a fresh auditor for the TVLW game (The Very Little War).
@@ -799,7 +1213,7 @@ If no issues found, output:
 
 The ultra audit loop terminates when ALL of these are true:
 
-1. All 13 domain agents (and doubled agents) in the latest pass report "DOMAIN CLEAN"
+1. All 21 domain agents (and doubled agents) in the latest pass report "DOMAIN CLEAN"
 2. PHPUnit test suite passes with 0 failures and 0 errors
 3. All VPS pages return HTTP 200
 4. No anti-pattern grep hits in the codebase

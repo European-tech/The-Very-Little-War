@@ -29,6 +29,22 @@ function csrfVerify() {
 
 function csrfCheck() {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // MEDIUM-026: Secondary defense — validate Origin header if present.
+        // This catches browsers that send Origin (all modern browsers on cross-origin POSTs).
+        if (isset($_SERVER['HTTP_ORIGIN'])) {
+            $expectedOrigin = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+            if (strpos($_SERVER['HTTP_ORIGIN'], $expectedOrigin) !== 0) {
+                if (function_exists('logWarn')) {
+                    logWarn('SECURITY', 'CSRF origin mismatch', [
+                        'origin' => $_SERVER['HTTP_ORIGIN'],
+                        'expected' => $expectedOrigin,
+                        'uri' => $_SERVER['REQUEST_URI'] ?? 'unknown'
+                    ]);
+                }
+                http_response_code(403);
+                exit('CSRF origin mismatch');
+            }
+        }
         if (!csrfVerify()) {
             if (function_exists('logWarn')) {
                 logWarn('SECURITY', 'CSRF token validation failed', [

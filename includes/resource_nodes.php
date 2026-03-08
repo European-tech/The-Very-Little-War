@@ -130,8 +130,15 @@ function getResourceNodeBonus($base, $px, $py, $resourceName)
     }
 
     $totalBonus = 0.0;
+    $mapBound = defined('MAP_SIZE') ? MAP_SIZE : 100;
     foreach ($nodesCache as $node) {
         if ($node['resource_type'] !== $resourceName) {
+            continue;
+        }
+        // LOW-024: Skip nodes with invalid/out-of-bounds coordinates (corrupt DB rows)
+        if ($node['x'] < 0 || $node['y'] < 0 ||
+            $node['x'] >= $mapBound ||
+            $node['y'] >= $mapBound) {
             continue;
         }
         $dist = sqrt(pow($px - $node['x'], 2) + pow($py - $node['y'], 2));

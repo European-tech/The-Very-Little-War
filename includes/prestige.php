@@ -114,6 +114,10 @@ function awardPrestigePoints() {
     // The current season number is MAX(season_number)+1 from season_recap (consistent
     // with archiveSeasonData()). We store the last awarded season in statistiques so
     // a retry or double-call within the same season is a no-op.
+    // NOTE: Season number here is +1 vs season_recap table. Season N in prestige log = Season N-1 in recap.
+    // This offset is intentional and documented (Pass 7 LOW-027).
+    // Explanation: season_recap stores the season that just ENDED (MAX(season_number) = last completed season).
+    // prestige_awarded_season stores the season for which PP was just AWARDED, which is MAX+1 (the one ending now).
     $lastRecap  = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
     $currentSeason = ($lastRecap && $lastRecap['max_s']) ? (int)$lastRecap['max_s'] + 1 : 1;
     $statsRow = dbFetchOne($base, 'SELECT prestige_awarded_season FROM statistiques', '', '');

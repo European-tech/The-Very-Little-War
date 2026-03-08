@@ -42,7 +42,9 @@ $_GET['id'] = trim($_GET['id']);
 
 if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 	csrfCheck();
-	if (!rateLimitCheck($_SESSION['login'], 'forum_topic', 5, 300)) {
+	// MEDIUM-015: Rate limit runs only for authenticated users to avoid consuming
+	// unauthenticated visitors' slots, and only inside the login check.
+	if (isset($_SESSION['login']) && !rateLimitCheck($_SESSION['login'], 'forum_topic', 5, 300)) {
 		$erreur = "Vous créez des sujets trop rapidement. Veuillez patienter.";
 	}
 	if (isset($_SESSION['login']) && empty($erreur)) {

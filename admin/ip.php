@@ -15,7 +15,26 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
 <?php
 include("../includes/connexion.php");
 require_once(__DIR__ . '/../includes/multiaccount.php');
-$ip = isset($_GET['ip']) ? trim($_GET['ip']) : '';
+require_once(__DIR__ . '/../includes/csrf.php');
+
+// LOW-014: Accept IP via POST to avoid leaking raw IP in GET URL/referer/server logs.
+// GET is still supported for backwards compatibility with existing links (read-only display).
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrfCheck();
+    $ip = filter_input(INPUT_POST, 'ip', FILTER_VALIDATE_IP);
+    if ($ip === false || $ip === null) {
+        http_response_code(400);
+        echo '<p>Adresse IP invalide.</p></body></html>';
+        exit;
+    }
+} else {
+    $rawIp = isset($_GET['ip']) ? trim($_GET['ip']) : '';
+    $ip = filter_var($rawIp, FILTER_VALIDATE_IP) ? $rawIp : '';
+    if ($ip === '') {
+        echo '<p>Adresse IP invalide ou manquante.</p></body></html>';
+        exit;
+    }
+}
 echo '<h4>Pseudos avec l\'ip '.htmlspecialchars($ip, ENT_QUOTES, 'UTF-8').'\'<p>';
 
 // IP addresses are stored as hashed values in the membre table (via hashIpAddress())
