@@ -9,7 +9,7 @@ $rowsDefenseur = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=?
 $classeDefenseur = []; // LOW-015: array-based class storage
 $c = 1;
 foreach ($rowsDefenseur as $defRow) {
-	$defRow['nombre'] = ceil($defRow['nombre']);
+	$defRow['nombre'] = (int)ceil($defRow['nombre']); // M-011: ceil() returns float, cast to int
 	$classeDefenseur[$c] = $defRow;
 	$c++;
 }
@@ -20,7 +20,13 @@ $classeAttaquant = []; // LOW-015: array-based class storage
 $c = 1;
 $chaineExplosee = explode(";", $actions['troupes']);
 foreach ($rowsAttaquant as $attRow) {
-	$attRow['nombre'] = ceil($chaineExplosee[$c - 1]); // on prends le nombre d'unites en attaque
+	// M-018: Guard against empty/non-numeric segments in the troupes string
+	$rawVal = $chaineExplosee[$c - 1] ?? '';
+	if (!is_numeric($rawVal)) {
+		logError('COMBAT', 'Non-numeric troupes segment', ['val' => $rawVal, 'action_id' => $actions['id'] ?? 'unknown', 'class' => $c]);
+		$rawVal = 0;
+	}
+	$attRow['nombre'] = (int)ceil($rawVal); // M-011: ceil() returns float, cast to int
 	$classeAttaquant[$c] = $attRow;
 	$c++;
 }
@@ -430,8 +436,9 @@ $actions['troupes'] = $chaine;
 dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chaine, $actions['id']);
 
 // defenseur
+// M-003: Wrap surviving count in max(0,...) to guard against float precision going slightly negative
 for ($di = 1; $di <= $nbClasses; $di++) {
-	dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($classeDefenseur[$di]['nombre'] - $defenseurMort[$di]), $classeDefenseur[$di]['id']);
+	dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', max(0, $classeDefenseur[$di]['nombre'] - $defenseurMort[$di]), $classeDefenseur[$di]['id']);
 }
 
 // Gestion du pillage
@@ -603,7 +610,8 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 				$destructionGenEnergie = "Niveau minimum";
 			}
 		} else {
-			dbExecute($base, 'UPDATE constructions SET vieGenerateur=? WHERE login=?', 'ds', ($constructions['vieGenerateur'] - $degatsGenEnergie), $actions['defenseur']);
+			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
+		dbExecute($base, 'UPDATE constructions SET vieGenerateur=GREATEST(0, vieGenerateur - ?) WHERE login=?', 'ds', $degatsGenEnergie, $actions['defenseur']);
 			$destructionGenEnergie = "endommagé";
 		}
 	}
@@ -621,7 +629,8 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 				$destructionchampdeforce = "Niveau minimum";
 			}
 		} else {
-			dbExecute($base, 'UPDATE constructions SET vieChampdeforce=? WHERE login=?', 'ds', ($constructions['vieChampdeforce'] - $degatschampdeforce), $actions['defenseur']);
+			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
+		dbExecute($base, 'UPDATE constructions SET vieChampdeforce=GREATEST(0, vieChampdeforce - ?) WHERE login=?', 'ds', $degatschampdeforce, $actions['defenseur']);
 			$destructionchampdeforce = "endommagé";
 		}
 	}
@@ -639,7 +648,8 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 				$destructionProducteur = "Niveau minimum";
 			}
 		} else {
-			dbExecute($base, 'UPDATE constructions SET vieProducteur=? WHERE login=?', 'ds', ($constructions['vieProducteur'] - $degatsProducteur), $actions['defenseur']);
+			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
+		dbExecute($base, 'UPDATE constructions SET vieProducteur=GREATEST(0, vieProducteur - ?) WHERE login=?', 'ds', $degatsProducteur, $actions['defenseur']);
 			$destructionProducteur = "endommagé";
 		}
 	}
@@ -657,7 +667,8 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 				$destructionDepot = "Niveau minimum";
 			}
 		} else {
-			dbExecute($base, 'UPDATE constructions SET vieDepot=? WHERE login=?', 'ds', ($constructions['vieDepot'] - $degatsDepot), $actions['defenseur']);
+			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
+		dbExecute($base, 'UPDATE constructions SET vieDepot=GREATEST(0, vieDepot - ?) WHERE login=?', 'ds', $degatsDepot, $actions['defenseur']);
 			$destructionDepot = "endommagé";
 		}
 	}
@@ -675,7 +686,8 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 				$destructionIonisateur = "Niveau minimum";
 			}
 		} else {
-			dbExecute($base, 'UPDATE constructions SET vieIonisateur=? WHERE login=?', 'ds', ($constructions['vieIonisateur'] - $degatsIonisateur), $actions['defenseur']);
+			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
+		dbExecute($base, 'UPDATE constructions SET vieIonisateur=GREATEST(0, vieIonisateur - ?) WHERE login=?', 'ds', $degatsIonisateur, $actions['defenseur']);
 			$destructionIonisateur = "endommagé";
 		}
 	}

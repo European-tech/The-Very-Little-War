@@ -615,6 +615,7 @@ define('PRESTIGE_PP_ATTACK_BONUS', 5);        // PP for reaching attack threshol
 define('PRESTIGE_PP_TRADE_THRESHOLD', 20);    // Min trade volume for trade activity bonus
 define('PRESTIGE_PP_TRADE_BONUS', 3);         // PP for reaching trade threshold
 define('PRESTIGE_PP_DONATION_BONUS', 2);      // PP for donating energy
+define('PRESTIGE_PP_PER_MEDAL_TIER', 1);     // L-003: PP awarded per medal tier reached in each category
 define('PP_DONATION_MIN_THRESHOLD', 10);      // Min energy donation to qualify for PP bonus
 define('DONATION_MIN_ENERGY_RESERVE', 100);   // Min energy a player must keep after donating
 define('MAX_DONATION', 1000000);              // Maximum energy a player can donate in a single transaction

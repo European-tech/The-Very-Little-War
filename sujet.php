@@ -17,6 +17,9 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 		$erreur = "Identifiant de sujet invalide.";
 	} elseif (!rateLimitCheck($_SESSION['login'], 'forum_reply', 10, 300)) {
 		$erreur = "Vous répondez trop rapidement. Veuillez patienter.";
+	} elseif (!rateLimitCheck($_SESSION['login'], 'forum_reply_hourly', 60, 3600)) {
+		// M-012: Secondary hourly limit (60 replies/hour) to prevent sustained flooding
+		$erreur = "Trop de messages envoyés cette heure-ci. Attendez avant de poster à nouveau.";
 	} else {
 		if (isset($_SESSION['login']) && empty($erreur)) {
 			// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())

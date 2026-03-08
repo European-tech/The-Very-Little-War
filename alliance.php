@@ -78,6 +78,16 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
         if ($allianceCheck && $allianceCheck['chef'] == $_SESSION['login']) {
             $erreur = "Le chef ne peut pas quitter l'alliance. Transférez d'abord le leadership.";
         } else {
+            // M-005: Block leaving during an active war
+            $leaveAllianceId = $allianceCheck ? (int)$allianceCheck['idalliance'] : 0;
+            $activeWarLeave = ($leaveAllianceId > 0)
+                ? dbFetchOne($base,
+                    'SELECT COUNT(*) as cnt FROM declarations WHERE (alliance1=? OR alliance2=?) AND type=0 AND fin=0',
+                    'ii', $leaveAllianceId, $leaveAllianceId)
+                : null;
+            if ($activeWarLeave && $activeWarLeave['cnt'] > 0) {
+                $erreur = "Vous ne pouvez pas quitter l'alliance pendant une guerre active.";
+            } else {
             withTransaction($base, function() use ($base) {
                 dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $_SESSION['login']);
                 dbExecute($base, 'DELETE FROM grades WHERE login=?', 's', $_SESSION['login']);
@@ -85,6 +95,7 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
                 dbExecute($base, 'DELETE FROM invitations WHERE invite=?', 's', $_SESSION['login']);
                 dbExecute($base, 'UPDATE autre SET alliance_left_at=UNIX_TIMESTAMP() WHERE login=?', 's', $_SESSION['login']);
             });
+            } // end active-war else
         }
     }
 

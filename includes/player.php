@@ -145,8 +145,8 @@ function inscrire($pseudo, $mdp, $mail)
                 $base,
                 'INSERT INTO constructions (login, vieGenerateur, vieChampdeforce, vieProducteur, vieDepot)
                  VALUES (?, ?, ?, ?, ?)',
-                'sdddd',
-                $safePseudo, $vieGen, $vieCDF, $vieGen, $vieGen
+                'siiii', // M-010: vieGenerateur/vieChampdeforce/vieProducteur/vieDepot are BIGINT, use 'i' not 'd'
+                $safePseudo, (int)$vieGen, (int)$vieCDF, (int)$vieGen, (int)$vieGen
             );
 
             dbExecute($base, 'INSERT IGNORE INTO prestige (login) VALUES(?)', 's', $safePseudo);
@@ -660,7 +660,7 @@ function augmenterBatiment($nom, $joueur)
             } else {
                 $vieVal = pointsDeVie($batiments[$nom] + 1, $joueur);
             }
-            dbExecute($base, "UPDATE constructions SET $safeCol=?, $safeVieCol=? WHERE login=?", 'ids', ($batiments[$nom] + 1), $vieVal, $joueur);
+            dbExecute($base, "UPDATE constructions SET $safeCol=?, $safeVieCol=? WHERE login=?", 'iis', ($batiments[$nom] + 1), (int)$vieVal, $joueur);
         } else {
             dbExecute($base, "UPDATE constructions SET $safeCol=? WHERE login=?", 'is', ($batiments[$nom] + 1), $joueur);
         }
@@ -777,7 +777,7 @@ function diminuerBatiment($nom, $joueur)
                 } else {
                     $vieVal = pointsDeVie($batiments[$nom] - 1);
                 }
-                dbExecute($base, "UPDATE constructions SET $safeCol=?, $safeVieCol=? WHERE login=?", 'ids', ($batiments[$nom] - 1), $vieVal, $joueur);
+                dbExecute($base, "UPDATE constructions SET $safeCol=?, $safeVieCol=? WHERE login=?", 'iis', ($batiments[$nom] - 1), (int)$vieVal, $joueur);
             } else {
                 dbExecute($base, "UPDATE constructions SET $safeCol=? WHERE login=?", 'is', ($batiments[$nom] - 1), $joueur);
             }
@@ -1047,7 +1047,7 @@ function archiveSeasonData($base)
                 (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
                 (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
                 (int)$p['nbattaques'], (int)$p['victoires'],
-                (int)$p['moleculesPerdues'], $p['alliance_name'] ?? '',
+                (int)round($p['moleculesPerdues']), $p['alliance_name'] ?? '', // L-002: round before cast to avoid truncating decimals
                 (int)($p['streak_days'] ?? 0)
             );
         }
@@ -1091,8 +1091,9 @@ function performSeasonEnd()
     $allianceRankingsForVP = [];
     withTransaction($base, function() use ($base, &$vainqueurManche, &$playerRankingsForVP, &$allianceRankingsForVP) {
         // Archive top players
+        // H-013: Join membre to exclude sentinel/inactive players (x = INACTIVE_PLAYER_X = -1000)
         $chaine = '';
-        $classementRows = dbFetchAll($base, 'SELECT * FROM autre ORDER BY totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N, '');
+        $classementRows = dbFetchAll($base, 'SELECT a.* FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N, '');
         $compteur = 0;
         foreach ($classementRows as $data) {
             $molRows = dbFetchAll($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $data['login']);
@@ -1145,7 +1146,8 @@ function performSeasonEnd()
         }
 
         // Freeze rankings into arrays (ranking read done inside this transaction to ensure consistency)
-        $playerRankingsForVP = dbFetchAll($base, 'SELECT login, totalPoints FROM autre ORDER BY totalPoints DESC');
+        // H-013: Exclude sentinel/inactive players from VP ranking snapshot
+        $playerRankingsForVP = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC');
         $allianceRankingsForVP = dbFetchAll($base, 'SELECT id, pointsVictoire, pointstotaux FROM alliances ORDER BY pointstotaux DESC');
 
         // Insert season archive record
@@ -1172,7 +1174,13 @@ function performSeasonEnd()
     foreach ($playerChunks as $chunk) {
         withTransaction($base, function() use ($base, $chunk) {
             foreach ($chunk as $pointsVictoire) {
-                ajouter('victoires', 'autre', pointsVictoireJoueur($pointsVictoire['dense_rank']), $pointsVictoire['login']);
+                $vpAmount = pointsVictoireJoueur($pointsVictoire['dense_rank']);
+                // H-022: Idempotency guard -- only award VP once per season per player.
+                // Uses vp_awarded flag (migration 0095); if already 1, the UPDATE is a no-op.
+                dbExecute($base,
+                    'UPDATE autre SET victoires = victoires + ?, vp_awarded = 1 WHERE login = ? AND vp_awarded = 0',
+                    'is', $vpAmount, $pointsVictoire['login']
+                );
             }
         });
     }
@@ -1343,7 +1351,12 @@ function remiseAZero()
 
     // Purge processed emails from the queue; unprocessed (sent_at IS NULL) are kept in case
     // the queue drain runs after this point but before the next season's emails are queued.
-    dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL');
+    // M-008: Wrap in try/catch so a failure here does not abort the season reset transaction.
+    try {
+        dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL');
+    } catch (\Exception $e) {
+        logError('remiseAZero: email_queue cleanup failed (non-fatal): ' . $e->getMessage());
+    }
 
     // login_history and account_flags are intentionally preserved cross-season for ban enforcement
 
@@ -1353,8 +1366,8 @@ function remiseAZero()
         // LOW-023: victoires=0 reset is intentional — historical medals are archived to season_recap
         // (via archiveSeasonData() in Phase 0 of performSeasonEnd()) before this point.
         // Alliance pointsVictoire is preserved across seasons (not reset here).
-        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'\', image=NULL, timeMolecule=0');
-        dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'ddddd', pointsDeVie(1), vieChampDeForce(0), pointsDeVie(1), pointsDeVie(1), vieIonisateur(0));
+        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, vp_awarded=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'\', image=\'defaut.png\', timeMolecule=UNIX_TIMESTAMP()');
+        dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'iiiii', (int)pointsDeVie(1), (int)vieChampDeForce(0), (int)pointsDeVie(1), (int)pointsDeVie(1), (int)vieIonisateur(0)); // M-010: BIGINT vie columns bound as 'i' not 'd'
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0');
         dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0, isotope=0');
         dbExecute($base, 'UPDATE membre SET timestamp=?', 'i', time());
@@ -1400,7 +1413,7 @@ function remiseAZero()
 
         $prestigeRows = dbFetchAll($base, 'SELECT login, unlocks FROM prestige WHERE unlocks LIKE ?', 's', '%debutant_rapide%');
         foreach ($prestigeRows as $pp) {
-            dbExecute($base, 'UPDATE constructions SET generateur=2, vieGenerateur=? WHERE login=?', 'ds', pointsDeVie(2), $pp['login']);
+            dbExecute($base, 'UPDATE constructions SET generateur=2, vieGenerateur=? WHERE login=?', 'is', (int)pointsDeVie(2), $pp['login']);
         }
 
         dbExecute($base, 'DELETE FROM attack_cooldowns');

@@ -10,7 +10,7 @@ if (isset($_POST['login'])) {
 
 	// Rate limit: 3 registrations per hour per IP
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'register', RATE_LIMIT_REGISTER_MAX, RATE_LIMIT_REGISTER_WINDOW)) {
-		logWarn('REGISTER', 'Registration rate limited', ['ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw')), 0, 12)]);
+		logWarn('REGISTER', 'Registration rate limited', ['ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
 		$erreur = 'Trop d\'inscriptions depuis cette adresse. R&eacute;essayez plus tard.';
 	} else {
 
@@ -47,9 +47,15 @@ if (isset($_POST['login'])) {
 						// DB UNIQUE constraint fires (catches concurrent registrations), false on error.
 						$result = inscrire($loginInput, $passInput, $emailInput);
 						if ($result === true) {
-							logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw')), 0, 12)]);
+							logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
 							require_once('includes/multiaccount.php');
-							logLoginEvent($base, $loginInput, 'register');
+							// M-002: Wrap logLoginEvent so a logging failure never aborts the post-registration redirect.
+							try { logLoginEvent($base, $loginInput, 'register'); } catch (\Exception $e) { logWarn('REGISTER', 'logLoginEvent failed', ['error' => $e->getMessage()]); }
+							// H-006: Regenerate session ID after successful registration to prevent session fixation.
+							// An attacker who planted a known session ID before the victim registered can no longer
+							// reuse it after this point.
+							session_regenerate_id(true);
+							$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 							header("Location: index.php?inscrit=1"); exit;
 						} elseif ($result === 'email_taken') {
 							$erreur = 'L\'email est d&eacute;j&agrave; utilis&eacute;.';

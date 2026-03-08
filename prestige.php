@@ -174,7 +174,7 @@ debutCarte("Comment gagner des PP");
         echo important('Sources de points de prestige');
         echo '<ul style="list-style:none;padding-left:5px;">';
         echo '<li style="margin-bottom:8px;"><img src="images/menu/medailles.png" alt="medailles" style="width:20px;height:20px;vertical-align:middle;margin-right:5px;"> ';
-        echo '<strong>Médailles</strong> : +1 PP par palier atteint dans chaque catégorie</li>';
+        echo '<strong>Médailles</strong> : +' . htmlspecialchars((string)PRESTIGE_PP_PER_MEDAL_TIER, ENT_QUOTES, 'UTF-8') . ' PP par palier atteint dans chaque catégorie</li>';
         echo '<li style="margin-bottom:8px;"><img src="images/menu/attaquer.png" alt="attaques" style="width:20px;height:20px;vertical-align:middle;margin-right:5px;"> ';
         echo '<strong>Activité d\'attaque</strong> : +' . htmlspecialchars((string)PRESTIGE_PP_ATTACK_BONUS, ENT_QUOTES, 'UTF-8') . ' PP pour ' . htmlspecialchars((string)PRESTIGE_PP_ATTACK_THRESHOLD, ENT_QUOTES, 'UTF-8') . '+ attaques</li>';
         echo '<li style="margin-bottom:8px;"><img src="images/menu/marche.png" alt="echanges" style="width:20px;height:20px;vertical-align:middle;margin-right:5px;"> ';

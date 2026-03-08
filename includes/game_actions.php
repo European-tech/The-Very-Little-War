@@ -133,9 +133,15 @@ function updateActions($joueur)
                                 logError("Malformed troupes string for action " . $actions['id']);
                                 break;
                             }
-                            $moleculesRestantes = (pow(coefDisparition($actions['attaquant'], $compteur), $nbsecondes) * $molecules[$compteur - 1]);
+                            // M-018: Guard against empty/non-numeric segments in the troupes string
+                            $rawMolVal = $molecules[$compteur - 1];
+                            if (!is_numeric($rawMolVal)) {
+                                logError('GAME_ACTIONS', 'Non-numeric troupes segment in decay loop', ['val' => $rawMolVal, 'action_id' => $actions['id'], 'class' => $compteur]);
+                                $rawMolVal = 0;
+                            }
+                            $moleculesRestantes = (pow(coefDisparition($actions['attaquant'], $compteur), $nbsecondes) * $rawMolVal);
                             $chaine = $chaine . $moleculesRestantes . ';';
-                            $totalMoleculesPerdues += ($molecules[$compteur - 1] - $moleculesRestantes);
+                            $totalMoleculesPerdues += ($rawMolVal - $moleculesRestantes);
                             $compteur++;
                         }
                         // Batch update moleculesPerdues in one atomic statement
@@ -183,7 +189,8 @@ function updateActions($joueur)
                             if ($classeAttaquant[$i]['nombre'] == 0) {
                                 $classeAttaquant[$i]['formuleAfficher'] = "?";
                             } else {
-                                $classeAttaquant[$i]['formuleAfficher'] = couleurFormule($classeAttaquant[$i]['formule']);
+                                // H-004: escape raw DB formula before passing to couleurFormule()
+                                $classeAttaquant[$i]['formuleAfficher'] = couleurFormule(htmlspecialchars($classeAttaquant[$i]['formule'], ENT_QUOTES, 'UTF-8'));
                             }
                         }
 
@@ -256,7 +263,8 @@ function updateActions($joueur)
                         $milieuDefenseur = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
                             $h = '';
                             for ($i = 1; $i <= $nbClasses; $i++) {
-                                $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
+                                // H-004: escape raw DB formula before passing to couleurFormule()
+                                $h .= "<th>" . couleurFormule(htmlspecialchars($classeDefenseur[$i]['formule'], ENT_QUOTES, 'UTF-8')) . "</th>\n";
                             }
                             $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
                             for ($i = 1; $i <= $nbClasses; $i++) {
@@ -285,7 +293,8 @@ function updateActions($joueur)
                         $milieuAttaquant = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
                             $h = '';
                             for ($i = 1; $i <= $nbClasses; $i++) {
-                                $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
+                                // H-004: escape raw DB formula before passing to couleurFormule()
+                                $h .= "<th>" . couleurFormule(htmlspecialchars($classeDefenseur[$i]['formule'], ENT_QUOTES, 'UTF-8')) . "</th>\n";
                             }
                             $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
                             for ($i = 1; $i <= $nbClasses; $i++) {

@@ -38,37 +38,61 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
         }
     }
 
-    // LOW-007: Minor TOCTOU race possible under high concurrency — max over-admission
-    // is bounded by request parallelism (typically <5 concurrent). Acceptable for rate limiting.
-    // To eliminate: use flock() on the rate limit file for atomic read-check-write.
+    // M-001: Use fopen + LOCK_EX for atomic read-check-write to eliminate TOCTOU race.
+    // Previously, file_get_contents (no lock) + file_put_contents (LOCK_EX) left a window
+    // where two concurrent requests could both read "not-yet-limited" state and both proceed.
     $file = $dir . '/' . hash('sha256', json_encode([$identifier, $action])) . '.json';
     $now = time();
-    $attempts = [];
+    $allowed = false;
 
-    if (file_exists($file)) {
-        $data = json_decode(file_get_contents($file), true);
+    $fp = @fopen($file, 'c+');
+    if ($fp === false) {
+        if (function_exists('logError')) {
+            logError('Rate limiter fopen failed for: ' . $file);
+        }
+        return false; // fail closed
+    }
+
+    if (flock($fp, LOCK_EX)) {
+        $raw = stream_get_contents($fp);
+        $data = json_decode($raw, true);
+        $attempts = [];
         if (is_array($data)) {
             // Keep only attempts within the window
             $attempts = array_filter($data, function($t) use ($now, $windowSeconds) {
                 return ($now - $t) < $windowSeconds;
             });
         }
-    }
 
-    if (count($attempts) >= $maxAttempts) {
-        return false; // Rate limited
-    }
-
-    $attempts[] = $now;
-    // LOW-006: Check write result and fail closed on error to prevent rate-limit bypass.
-    $result = file_put_contents($file, json_encode(array_values($attempts)), LOCK_EX);
-    if ($result === false) {
-        if (function_exists('logError')) {
-            logError('Rate limiter write failed for: ' . $file);
+        if (count($attempts) < $maxAttempts) {
+            $attempts[] = $now;
+            rewind($fp);
+            ftruncate($fp, 0);
+            $written = fwrite($fp, json_encode(array_values($attempts)));
+            if ($written === false) {
+                if (function_exists('logError')) {
+                    logError('Rate limiter write failed for: ' . $file);
+                }
+                flock($fp, LOCK_UN);
+                fclose($fp);
+                return false; // fail closed
+            }
+            $allowed = true;
         }
-        return false; // fail closed — deny request rather than silently bypass rate limit
+        // else: rate limited — do not write, $allowed stays false
+
+        flock($fp, LOCK_UN);
+    } else {
+        // Could not acquire lock — fail closed
+        if (function_exists('logError')) {
+            logError('Rate limiter flock failed for: ' . $file);
+        }
+        fclose($fp);
+        return false;
     }
-    return true; // Allowed
+
+    fclose($fp);
+    return $allowed;
 }
 
 function rateLimitRemaining($identifier, $action, $maxAttempts, $windowSeconds) {

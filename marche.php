@@ -98,23 +98,26 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             $maxStorageReceveur = placeDepot($constructionsJoueur['depot']);
                             $ressourcesReceveur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_POST['destinataire']);
                             if ($ressourcesReceveur) {
-                                $noRoomCount = 0;
+                                // M-019: Check for partial overflow — reject if any resource being
+                                // transferred would push the recipient over their storage cap, not
+                                // just if the storage is already full.
+                                $overflowCount = 0;
                                 $sentCount = 0;
                                 if ($_POST['energieEnvoyee'] > 0) {
                                     $sentCount++;
-                                    if ($ressourcesReceveur['energie'] >= $maxStorageReceveur) {
-                                        $noRoomCount++;
+                                    if ($ressourcesReceveur['energie'] + (float)$_POST['energieEnvoyee'] > $maxStorageReceveur) {
+                                        $overflowCount++;
                                     }
                                 }
                                 foreach ($nomsRes as $num => $ressource) {
                                     if ($_POST[$ressource . 'Envoyee'] > 0) {
                                         $sentCount++;
-                                        if ($ressourcesReceveur[$ressource] >= $maxStorageReceveur) {
-                                            $noRoomCount++;
+                                        if ($ressourcesReceveur[$ressource] + (float)$_POST[$ressource . 'Envoyee'] > $maxStorageReceveur) {
+                                            $overflowCount++;
                                         }
                                     }
                                 }
-                                if ($sentCount > 0 && $noRoomCount > 0) {
+                                if ($sentCount > 0 && $overflowCount > 0) {
                                     throw new \RuntimeException('RECIPIENT_STORAGE_FULL');
                                 }
                             }
@@ -284,7 +287,8 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             if ($newResVal > $placeDepotTx) {
                                 throw new Exception('NOT_ENOUGH_STORAGE');
                             }
-                            dbExecute($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?', 'dds', $diffEnergieAchat, $newResVal, $_SESSION['login']);
+                            // H-011: Delta form with GREATEST(0,...) prevents float precision going slightly negative
+                            dbExecute($base, 'UPDATE ressources SET energie=GREATEST(0, energie - ?), ' . $nomsRes[$numRes] . '=? WHERE login=?', 'dds', $coutAchat, $newResVal, $_SESSION['login']);
 
                             $chaine = '';
                             foreach ($txTabCours as $num => $cours) {
@@ -315,6 +319,9 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             // ECO-P6-001: Accumulate raw energy-spent; cap at TRADE_VOLUME_CAP (not MARKET_POINTS_MAX).
                             // The sqrt ranking formula in calculerTotalPoints() applies min($commerce, TRADE_VOLUME_CAP).
                             $tradeVolumeDelta = round($coutAchat * $reseauBonus);
+                            // H-012: Lock autre row before recalculating total points to prevent
+                            // a concurrent transaction reading stale tradeVolume before our UPDATE commits.
+                            dbFetchOne($base, 'SELECT login FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                             dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume + ?, ?) WHERE login=?', 'dds', $tradeVolumeDelta, TRADE_VOLUME_CAP, $_SESSION['login']);
                             recalculerTotalPointsJoueur($base, $_SESSION['login']);
                         });
@@ -472,6 +479,9 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         // ECO-P6-001: Accumulate raw energy-spent; cap at TRADE_VOLUME_CAP (not MARKET_POINTS_MAX).
                         // The sqrt ranking formula in calculerTotalPoints() applies min($commerce, TRADE_VOLUME_CAP).
                         $tradeVolumeDelta = round($energyGained * $reseauBonus);
+                        // H-012: Lock autre row before recalculating total points to prevent
+                        // a concurrent transaction reading stale tradeVolume before our UPDATE commits.
+                        dbFetchOne($base, 'SELECT login FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                         dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume + ?, ?) WHERE login=?', 'dds', $tradeVolumeDelta, TRADE_VOLUME_CAP, $_SESSION['login']);
                         recalculerTotalPointsJoueur($base, $_SESSION['login']);
                     });

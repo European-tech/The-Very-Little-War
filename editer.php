@@ -47,20 +47,41 @@ function checkAllianceForumAccess($base, $replyId, $moderatorLogin) {
 // Suppression - require POST with CSRF
 if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
-	$auteur = dbFetchOne($base, 'SELECT auteur FROM reponses WHERE id = ?', 'i', $id);
-
 	// Use pre-fetched $moderateur (ban-aware) instead of fresh DB query to prevent banned-mod bypass
 	$isModo = ($moderateur && $moderateur['moderateur'] != '0') ? 1 : 0;
 	// MEDIUM-017: Block moderators from deleting replies in alliance-private forums they don't belong to.
 	if ($isModo && !checkAllianceForumAccess($base, $id, $_SESSION['login'])) {
 		$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
-	} elseif ($auteur && ($auteur['auteur'] == $_SESSION['login'] OR $isModo >= 1)) {
-		dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $id);
-		dbExecute($base, 'UPDATE autre SET nbMessages = nbMessages - 1 WHERE login = ? AND nbMessages > 0', 's', $auteur['auteur']);
-		$sujetId = $sujet ? (int)$sujet['idsujet'] : 0;
-		header("Location: sujet.php?id=" . (int)$sujetId); exit;
 	} else {
-		$erreur = "Vous ne pouvez pas supprimer une réponse dont vous n'êtes pas l'auteur.";
+		// M-013: Wrap fetch+delete in a transaction with FOR UPDATE to close the TOCTOU window
+		// between reading the author and performing the DELETE.
+		$deleteAllowed = false;
+		$deletedAuthor = null;
+		$deleteSubjectId = $sujet ? (int)$sujet['idsujet'] : 0;
+		try {
+			withTransaction($base, function() use ($base, $id, $isModo, &$deleteAllowed, &$deletedAuthor) {
+				$auteur = dbFetchOne($base, 'SELECT auteur FROM reponses WHERE id = ? FOR UPDATE', 'i', $id);
+				if (!$auteur) {
+					throw new \RuntimeException('NOT_FOUND');
+				}
+				if ($auteur['auteur'] !== $_SESSION['login'] && $isModo < 1) {
+					throw new \RuntimeException('NOT_AUTHORIZED');
+				}
+				$deletedAuthor = $auteur['auteur'];
+				dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $id);
+				dbExecute($base, 'UPDATE autre SET nbMessages = nbMessages - 1 WHERE login = ? AND nbMessages > 0', 's', $auteur['auteur']);
+				$deleteAllowed = true;
+			});
+		} catch (\RuntimeException $e) {
+			if ($e->getMessage() === 'NOT_AUTHORIZED') {
+				$erreur = "Vous ne pouvez pas supprimer une réponse dont vous n'êtes pas l'auteur.";
+			} elseif ($e->getMessage() !== 'NOT_FOUND') {
+				$erreur = "Une erreur est survenue lors de la suppression.";
+			}
+		}
+		if ($deleteAllowed) {
+			header("Location: sujet.php?id=" . $deleteSubjectId); exit;
+		}
 	}
 }
 

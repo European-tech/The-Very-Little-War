@@ -23,6 +23,13 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
     if (!rateLimitCheck('espionage_' . $_SESSION['login'], 'espionage', ESPIONAGE_RATE_LIMIT, ESPIONAGE_RATE_WINDOW)) {
         $erreur = "Trop d'espionnages récents. Attendez avant d'en lancer un autre.";
     } elseif (!empty($_POST['joueurAEspionner']) && !empty($_POST['nombreneutrinos'])) { // Vérification que la variable n'est pas vide
+        // H-014: Guard against array injection before trim()
+        if (!is_string($_POST['joueurAEspionner'])) {
+            $erreur = 'Joueur invalide.';
+        } elseif (mb_strlen($_POST['joueurAEspionner']) > LOGIN_MAX_LENGTH) {
+            $erreur = 'Nom de joueur invalide.';
+        }
+        if (empty($erreur)) {
         $_POST['joueurAEspionner'] = trim($_POST['joueurAEspionner']);
         $_POST['nombreneutrinos'] = intval($_POST['nombreneutrinos']);
         if ($_POST['joueurAEspionner'] != $_SESSION['login']) {
@@ -77,6 +84,7 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
         } else {
             $erreur = "Vous ne pouvez pas vous espionner.";
         }
+        } // end if (empty($erreur)) — H-014 is_string guard
     } else {
         $erreur = "T'y as cru ?";
     }
@@ -91,7 +99,15 @@ if (isset($_POST['joueurAAttaquer'])) {
     if ($attackerVacCheck && $attackerVacCheck['vacance'] == 1) {
         $erreur = "Vous ne pouvez pas attaquer en mode vacances.";
     } elseif (!empty($_POST['joueurAAttaquer'])) { // Vérification que la variable n'est pas vide
-
+        // H-014/M-007: Guard against array injection and enforce max length before trim()
+        if (!is_string($_POST['joueurAAttaquer'])) {
+            $erreur = 'Joueur invalide.';
+        } elseif (mb_strlen($_POST['joueurAAttaquer']) > LOGIN_MAX_LENGTH) {
+            $erreur = 'Nom de joueur invalide.';
+        }
+        if (!empty($erreur)) {
+            // fall through to display error
+        } else {
         $_POST['joueurAAttaquer'] = trim($_POST['joueurAAttaquer']);
         if ($_POST['joueurAAttaquer'] != $_SESSION['login']) {
 
@@ -269,6 +285,7 @@ if (isset($_POST['joueurAAttaquer'])) {
         } else {
             $erreur = "Vous ne pouvez pas vous attaquer.";
         }
+        } // end else — H-014/M-007 is_string guard
     } else {
         $erreur = "T'y as cru ?";
     }

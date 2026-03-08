@@ -51,10 +51,23 @@ function calculatePrestigePoints($login) {
 
     $pp = 0;
 
-    // Check if player was active in the final week (logged in within last 7 days)
+    // Check if player was active in the final week of the season.
+    // M-014: We must check against the season's final week, NOT 7 days from now.
+    // If admin triggers season-end late (e.g. 10 days after season ended), a wall-clock
+    // check of (time() - derniereConnexion) < SECONDS_PER_WEEK would wrongly exclude
+    // players who were active during the season's last week.
+    // Fix: read the season start timestamp from statistiques.debut, compute season end
+    // as debut + SECONDS_PER_MONTH (31 days), and check whether derniereConnexion falls
+    // within the final week of that computed season interval.
     // Note: 'derniereConnexion' is updated on each page load; 'timestamp' is only set at registration/reset
     $lastActive = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login=?', 's', $login);
-    if ($lastActive && (time() - $lastActive['derniereConnexion']) < SECONDS_PER_WEEK) {
+    $seasonRow  = dbFetchOne($base, 'SELECT debut FROM statistiques LIMIT 1', '');
+    // Compute the season end from the stored debut timestamp; fall back to now if unavailable.
+    $seasonEnd = ($seasonRow && $seasonRow['debut'] > 0)
+        ? (int)$seasonRow['debut'] + SECONDS_PER_MONTH
+        : time();
+    $seasonFinalWeekStart = $seasonEnd - SECONDS_PER_WEEK;
+    if ($lastActive && (int)$lastActive['derniereConnexion'] >= $seasonFinalWeekStart) {
         $pp += PRESTIGE_PP_ACTIVE_FINAL_WEEK;
     }
 
@@ -121,9 +134,20 @@ function awardPrestigePoints() {
     $lastRecap  = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
     $currentSeason = ($lastRecap && $lastRecap['max_s']) ? (int)$lastRecap['max_s'] + 1 : 1;
     $statsRow = dbFetchOne($base, 'SELECT prestige_awarded_season FROM statistiques', '', '');
-    if ($statsRow && (int)$statsRow['prestige_awarded_season'] >= $currentSeason) {
+    // H-009: Handle the case where the statistiques table is empty (no row yet).
+    // If null, the season was never recorded — treat prestige_awarded_season as 0 (proceed with award).
+    // This prevents skipping the idempotency guard when the table row does not exist,
+    // which would allow double-awarding PP on a fresh installation or after a data loss event.
+    if ($statsRow === null) {
+        // No statistiques row exists — table is empty; proceed with award.
+        // The UPDATE at the end will be a no-op (0 rows affected), so we track this
+        // state and INSERT the row instead after the transaction completes.
+        $statsRowMissing = true;
+    } elseif ((int)$statsRow['prestige_awarded_season'] >= $currentSeason) {
         // Already awarded for this season — skip silently.
         return;
+    } else {
+        $statsRowMissing = false;
     }
 
     // Freeze rankings into array to prevent concurrent changes mid-award
@@ -150,6 +174,11 @@ function awardPrestigePoints() {
         $pp = calculatePrestigePoints($player['login']);
 
         // Rank bonus: top players get extra PP (using DENSE_RANK so ties share rank)
+        // M-021/L-005: ksort() ensures ascending cutoff order regardless of insertion order
+        // in config.php — the loop breaks on the first match, so the smallest cutoff (highest
+        // reward) must appear first. Without sort, a reordering in config would silently give
+        // top-5 players the top-50 bonus instead of the top-5 bonus.
+        ksort($PRESTIGE_RANK_BONUSES);
         foreach ($PRESTIGE_RANK_BONUSES as $cutoff => $bonus) {
             if ($player['dense_rank'] <= $cutoff) {
                 $pp += $bonus;
@@ -164,19 +193,32 @@ function awardPrestigePoints() {
 
     // MEDIUM-014: Apply all PP awards atomically in a single transaction
     // SEASON-HIGH-001: Mark season as awarded INSIDE transaction — atomic with PP grants.
+    // H-009: statsRowMissing flag controls whether we UPDATE or INSERT the idempotency stamp.
     if (!empty($awards)) {
-        withTransaction($base, function() use ($base, $awards, $currentSeason) {
+        withTransaction($base, function() use ($base, $awards, $currentSeason, $statsRowMissing) {
             foreach ($awards as $award) {
                 // Ensure prestige row exists, then add PP
                 dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $award['login'], $award['pp'], $award['pp']);
             }
             // P9-INFO-004: Mark this season as awarded so retries are idempotent.
             // Inside the transaction so idempotency flag and PP grants are atomic.
-            dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
+            // H-009: If the statistiques row did not exist, INSERT it; otherwise UPDATE.
+            if ($statsRowMissing) {
+                dbExecute($base, 'INSERT INTO statistiques (inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, prestige_awarded_season) SELECT inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, ? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM statistiques)', 'i', $currentSeason);
+            } else {
+                dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
+            }
         });
     } else {
         // No awards but still mark to prevent re-checking next cron tick.
-        dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
+        // H-009: If the statistiques row did not exist, we cannot INSERT here without knowing all
+        // required NOT NULL column values. In this edge case (no players, no awards, no stats row)
+        // we log a warning and skip — the row will be created by the game on next season start.
+        if ($statsRowMissing) {
+            logWarn('PRESTIGE', 'awardPrestigePoints: statistiques row missing and no awards to grant — idempotency stamp not persisted');
+        } else {
+            dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
+        }
     }
 }
 

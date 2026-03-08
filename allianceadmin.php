@@ -46,9 +46,18 @@ if ($_SESSION['login'] != $chef['chef']) {
 if ($gradeChef) {
 	if (isset($_POST['supprimeralliance1'])) {
 		csrfCheck();
-		logInfo('ALLIANCE', 'Alliance deleted', ['alliance_id' => $currentAlliance['idalliance'], 'deleted_by' => $_SESSION['login']]);
-		supprimerAlliance($currentAlliance['idalliance']);
-		header("Location: alliance.php"); exit;
+		// M-006: Block alliance dissolution during an active war
+		$activeWarDissolve = dbFetchOne($base,
+			'SELECT COUNT(*) as cnt FROM declarations WHERE (alliance1=? OR alliance2=?) AND type=0 AND fin=0',
+			'ii', $currentAlliance['idalliance'], $currentAlliance['idalliance']
+		);
+		if ($activeWarDissolve && $activeWarDissolve['cnt'] > 0) {
+			$erreur = "Votre alliance est en guerre. Vous devez d'abord terminer la guerre avant de dissoudre l'alliance.";
+		} else {
+			logInfo('ALLIANCE', 'Alliance deleted', ['alliance_id' => $currentAlliance['idalliance'], 'deleted_by' => $_SESSION['login']]);
+			supprimerAlliance($currentAlliance['idalliance']);
+			header("Location: alliance.php"); exit;
+		}
 	}
 
 	if (isset($_POST['changernom'])) {
@@ -249,10 +258,14 @@ if ($bannir) {
 			if ($dansLAlliance > 0) {
 				// Cannot ban the alliance chef
 				$allianceData = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=?', 'i', $currentAlliance['idalliance']);
+				// H-020: Officers cannot ban other officers — only the chef can
+				$targetGrade = dbFetchOne($base, 'SELECT id FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['bannirpersonne'], $currentAlliance['idalliance']);
 				if ($_POST['bannirpersonne'] === $_SESSION['login']) {
 					$erreur = "Vous ne pouvez pas vous bannir vous-même.";
 				} elseif ($allianceData && $allianceData['chef'] === $_POST['bannirpersonne']) {
 					$erreur = "Vous ne pouvez pas bannir le chef de l'alliance.";
+				} elseif ($targetGrade && !$gradeChef) {
+					$erreur = "Vous ne pouvez pas bannir un autre officier. Seul le chef peut le faire.";
 				} else {
 				$kickedLogin = $_POST['bannirpersonne'];
 				// AA-002: Wrap all ban operations in a transaction for atomicity
@@ -265,7 +278,8 @@ if ($bannir) {
 					try {
 						dbExecute($base, 'UPDATE autre SET alliance_left_at=UNIX_TIMESTAMP() WHERE login=?', 's', $kickedLogin);
 					} catch (\Exception $e) {
-						// Column not yet present — migration pending, skip silently
+						// L-004: Log the error — non-fatal (ban still succeeded) but worth tracking
+						logError('ALLIANCE', 'Failed to set alliance_left_at on ban', ['error' => $e->getMessage(), 'login' => $kickedLogin]);
 					}
 				});
 				$information = 'Vous avez banni ' . htmlspecialchars($kickedLogin, ENT_QUOTES, 'UTF-8') . '.';
@@ -288,9 +302,8 @@ if ($pacte) {
 		if ($existeAlliance > 0) {
 			$allianceAllie = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['pacte']);
 
-			$nbDeclarations = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance1=? AND alliance2=? AND (fin=0 OR type=1)', 'ii', $allianceAllie['id'], $chef['id']);
-
-			$nbDeclarations1 = dbFetchOne($base, 'SELECT count(*) AS nbDeclarations FROM declarations WHERE alliance2=? AND alliance1=? AND (fin=0 OR type=1)', 'ii', $allianceAllie['id'], $chef['id']);
+			// M-017: Dead pre-check queries removed — authoritative duplicate check happens inside the
+			// withTransaction block below using FOR UPDATE locks.
 
 			// PASS1-MEDIUM-013: Atomic duplicate check + insert via transaction + FOR UPDATE lock
 			try {
@@ -307,7 +320,7 @@ if ($pacte) {
 					$safeTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
 					$rapportTitre = 'L\'alliance ' . $safeTag . ' vous propose un pacte.';
 					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeTag . '</a> vous propose un pacte. [PACT_ID:' . $idDeclaration['id'] . ']';
-					dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAllie['chef']);
+					dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES (?, ?, ?, ?, 0, \'\', \'alliance\')', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAllie['chef']);
 					return true;
 				});
 				$information = "Vous avez proposé un pacte à l'alliance " . htmlspecialchars($_POST['pacte'], ENT_QUOTES, 'UTF-8') . ".";
@@ -337,7 +350,7 @@ if ($pacte) {
 					$safePacteTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
 					$rapportTitre = 'L\'alliance ' . $safePacteTag . ' met fin au pacte qui vous alliait.';
 					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safePacteTag . '</a> met fin au pacte qui vous alliait.';
-					dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
+					dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES (?, ?, ?, ?, 0, \'\', \'alliance\')', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
 					$information = "Le pacte avec " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " est bien rompu.";
 					$pacteRompu = true;
 				} else {
@@ -381,7 +394,7 @@ if ($guerre) {
 					$safeChefTag = htmlspecialchars($chefTag, ENT_QUOTES, 'UTF-8');
 					$rapportTitre = 'L\'alliance ' . $safeChefTag . ' vous déclare la guerre.';
 					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chefTag) . '">' . $safeChefTag . '</a> vous déclare la guerre.';
-					dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverseChef);
+					dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES (?, ?, ?, ?, 0, \'\', \'alliance\')', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverseChef);
 				});
 				$information = "Vous avez déclaré la guerre à l'équipe " . htmlspecialchars($_POST['guerre'], ENT_QUOTES, 'UTF-8') . ".";
 			} catch (\RuntimeException $e) {
@@ -396,14 +409,17 @@ if ($guerre) {
 		csrfCheck();
 		$_POST['adversaire'] = intval($_POST['adversaire']);
 
-		// HIGH-005: Only the declaring alliance (alliance1) may end the war.
-		// This prevents the attacked party from unilaterally cancelling a war they did not start.
-		$guerreExiste = dbCount($base, 'SELECT count(*) AS guerreExiste FROM declarations WHERE alliance1=? AND alliance2=? AND type=0 AND fin=0', 'ii', $chef['id'], $_POST['adversaire']);
-
-		if ($guerreExiste > 0) {
-			// NEW-TX-002: Wrap war-end UPDATE+INSERT-report in a transaction for atomicity
+		// H-017/L-008: Move existence check INSIDE the transaction with FOR UPDATE to prevent
+		// TOCTOU race between the check and the subsequent war-end UPDATE.
+		// The outer check is removed; the transaction itself guards atomicity.
+		try {
 			withTransaction($base, function() use ($base, $chef, &$information) {
 				$adversaireId = intval($_POST['adversaire']);
+				// Lock the war row first to prevent concurrent war-end races
+				$guerreExisteTx = dbFetchOne($base, 'SELECT id FROM declarations WHERE alliance1=? AND alliance2=? AND type=0 AND fin=0 FOR UPDATE', 'ii', $chef['id'], $adversaireId);
+				if (!$guerreExisteTx) {
+					throw new \RuntimeException('WAR_NOT_FOUND');
+				}
 				$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=? FOR UPDATE', 'i', $adversaireId);
 				$now = time();
 				// ALL-P7-002: Compute winner from molecule losses; award pointsVictoire
@@ -422,10 +438,10 @@ if ($guerre) {
 				$safeWarTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
 				$rapportTitre = 'L\'alliance ' . $safeWarTag . ' met fin à la guerre qui vous opposait.';
 				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeWarTag . '</a> met fin à la guerre qui vous opposait.';
-				dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
+				dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES (?, ?, ?, ?, 0, \'\', \'alliance\')', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAdverse['chef']);
 				$information = "La guerre contre " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " a pris fin.";
 			});
-		} else {
+		} catch (\RuntimeException $e) {
 			$erreur = "Cette guerre n'existe pas ou vous n'êtes pas à l'origine de cette déclaration de guerre.";
 		}
 	}

@@ -21,9 +21,13 @@ function validatePassword($password, $confirm = null) {
     $maxLen = defined('PASSWORD_BCRYPT_MAX_LENGTH') ? PASSWORD_BCRYPT_MAX_LENGTH : 72;
     $minLen = defined('PASSWORD_MIN_LENGTH') ? PASSWORD_MIN_LENGTH : 8;
 
-    if (mb_strlen($password) > $maxLen) {
+    // REG-M-005 / H-019: Use strlen() (byte count) not mb_strlen() (character count) to correctly
+    // enforce bcrypt's 72-byte hard limit. A password of 36 × "é" (2 bytes each in UTF-8) is
+    // 72 bytes but only 36 characters — mb_strlen() would accept it and bcrypt would silently
+    // truncate any additional bytes, making longer passwords weaker than users expect.
+    if (strlen($password) > $maxLen) {
         $errors[] = 'Le mot de passe est trop long (' . $maxLen . ' caractères max).';
-    } elseif (mb_strlen($password) < $minLen) {
+    } elseif (strlen($password) < $minLen) {
         $errors[] = 'Le mot de passe doit contenir au moins ' . $minLen . ' caractères.';
     }
 

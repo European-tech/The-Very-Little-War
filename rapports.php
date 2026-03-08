@@ -2,6 +2,69 @@
 include("includes/basicprivatephp.php");
 require_once("includes/csrf.php");
 
+/**
+ * Sanitize report HTML using a DOMDocument attribute whitelist.
+ * Replaces the bypassable regex approach (H-003): <img src="x"onerror=...>
+ * has no space before "onerror" so /[\s\/]+on\w+/ never fires.
+ */
+function sanitizeReportHtml($html) {
+    if (empty(trim($html))) return $html;
+    $allowedTags = ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'span', 'div', 'img', 'a',
+                    'table', 'tr', 'td', 'th', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'hr'];
+    // For attrs whose value is an array: only allowed on those tag names.
+    // For attrs whose value is true: allowed on any tag.
+    $allowedAttrs = [
+        'href'  => ['a'],
+        'src'   => ['img'],
+        'alt'   => ['img'],
+        'class' => true,
+        'id'    => true,
+        'style' => true,
+    ];
+
+    $dom = new DOMDocument();
+    libxml_use_internal_errors(true);
+    $dom->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    libxml_clear_errors();
+
+    $xpath = new DOMXPath($dom);
+    $nodes = iterator_to_array($xpath->query('//*'));
+    foreach ($nodes as $node) {
+        if (!in_array(strtolower($node->nodeName), $allowedTags, true)) {
+            $node->parentNode->replaceChild($dom->createTextNode($node->textContent), $node);
+            continue;
+        }
+        // Collect attributes to remove (can't modify while iterating)
+        $attrsToRemove = [];
+        foreach ($node->attributes as $attr) {
+            $name = strtolower($attr->name);
+            if (!array_key_exists($name, $allowedAttrs)) {
+                $attrsToRemove[] = $name;
+            } elseif (is_array($allowedAttrs[$name]) && !in_array(strtolower($node->nodeName), $allowedAttrs[$name], true)) {
+                $attrsToRemove[] = $name;
+            } elseif ($name === 'href' || $name === 'src') {
+                // Block javascript:, data:, vbscript: URI schemes
+                if (preg_match('/^\s*(javascript|data|vbscript)\s*:/i', $attr->value)) {
+                    $attrsToRemove[] = $name;
+                }
+            }
+        }
+        foreach ($attrsToRemove as $a) {
+            $node->removeAttribute($a);
+        }
+    }
+
+    $body = $dom->getElementsByTagName('body')->item(0);
+    if ($body) {
+        $result = '';
+        foreach ($body->childNodes as $child) {
+            $result .= $dom->saveHTML($child);
+        }
+        return $result;
+    }
+    return $dom->saveHTML();
+}
+
 if(isset($_POST['supprimer']) AND preg_match("#^\d+$#",$_POST['supprimer'])) {
 	csrfCheck();
 	if($_POST['supprimer'] == 1) {
@@ -27,14 +90,10 @@ if(isset($_GET['rapport'])) {
 
         debutCarte(htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8'));
 		debutContent();
-		// Report content is HTML generated server-side by combat/game_actions
-		// Sanitize any residual user-controlled data (player names, alliance tags)
-		$allowedTags = '<a><br><br/><strong><b><i><em><p><div><span><img><table><tr><td><th><ul><ol><li><hr>';
-		$content = strip_tags($rapports['contenu'], $allowedTags);
-		// Strip event handlers, style attributes, and dangerous href values (P5-GAP-010)
-		$content = preg_replace('/[\s\/]+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $content);
-		$content = preg_replace('/\s+style\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $content);
-		$content = preg_replace('/href\s*=\s*["\']?\s*javascript\s*:/i', 'href="', $content);
+		// Report content is HTML generated server-side by combat/game_actions.
+		// Use DOMDocument-based attribute whitelist (H-003): the old regex approach
+		// was bypassable by <img src="x"onerror=...> (no space before event handler).
+		$content = sanitizeReportHtml($rapports['contenu']);
 
 		// SOC-P6-002: Pact accept/refuse form — injected fresh with the viewer's own CSRF token.
 		// The stored report contains [PACT_ID:N] instead of an embedded form (see allianceadmin.php SOC-P6-001 fix).
@@ -109,11 +168,8 @@ else {
 		<table class="table table-striped table-bordered">
         <tbody>';
 		foreach($rapportsRows as $rapports) {
-            $imageCell = strip_tags($rapports['image'], '<img>');
-            // Strip event handlers from any allowed <img> tags
-            $imageCell = preg_replace('/\s+on\w+\s*=\s*"[^"]*"/i', '', $imageCell);
-            $imageCell = preg_replace('/\s+on\w+\s*=\s*\'[^\']*\'/i', '', $imageCell);
-            $imageCell = preg_replace('/\s+on\w+\s*=[^\s>]*/i', '', $imageCell); // unquoted handlers
+            // Use DOMDocument sanitizer — catches spaceless event handlers (H-003)
+            $imageCell = sanitizeReportHtml($rapports['image']);
             echo '<tr><td>' . $imageCell . '</td>';
 			if($rapports['statut'] != 0){
 				echo '<td><a href="rapports.php?rapport='.$rapports['id'].'">'.htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';

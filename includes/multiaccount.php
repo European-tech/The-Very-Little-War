@@ -317,7 +317,7 @@ function createAdminAlert($base, $alertType, $message, $details, $severity = 'wa
 {
     // MEDIUM-019: Deduplicate alerts — skip if same type alerted within last 24 hours
     $existing = dbCount($base,
-        'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND created_at > NOW() - INTERVAL 24 HOUR',
+        'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND created_at > UNIX_TIMESTAMP() - 86400',
         's', $alertType);
     if ($existing > 0) return; // Already alerted within 24 hours
 

@@ -17,7 +17,10 @@ if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) >
 }
 
 if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
-    $row = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    // H-007: Include AND estExclu = 0 so banned accounts cannot maintain valid sessions.
+    // A banned player's session_token still matches in the DB, but this query now returns
+    // no row for excluded players, forcing them through the same destroy+redirect path.
+    $row = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ? AND estExclu = 0', 's', $_SESSION['login']);
     if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !hash_equals($row['session_token'], $_SESSION['session_token'])) {
         session_destroy();
         header('Location: index.php');
@@ -240,7 +243,8 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // is called probabilistically (1% of requests) on subsequent page loads.
     // Guard: only queue emails when the reset actually succeeded and we have a winner.
     if ($seasonResetOk && $vainqueurManche !== null) {
-    $mailRows = dbFetchAll($base, 'SELECT email, login FROM membre', '');
+    // H-021: Exclude banned (estExclu=1) and sentinel/inactive (x=-1000) players from season-end emails
+    $mailRows = dbFetchAll($base, 'SELECT m.email, m.login FROM membre m WHERE m.estExclu = 0 AND m.x != -1000', '');
     // P9-HIGH-003: winnerName comes from DB (player-controlled login). htmlspecialchars()
     // is applied below when embedded in HTML. Also strip CRLF from the raw value to prevent
     // any header injection if it were ever used in a header context.

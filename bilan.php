@@ -487,9 +487,9 @@ debutCarte("Pillage");
         echo '<tr><td>Catalyseur (Volatilite)</td><td style="color:green">+' . round($catalystPillageBonus * 100) . '% de pillage</td></tr>';
     }
 
-    // Vault protection — per-level rate and total
+    // Vault protection — per-level rate and total, capped at VAULT_MAX_PROTECTION_PCT (M-016)
     $vaultPctPerLevel = round(VAULT_PCT_PER_LEVEL * 100, 1);
-    $vaultTotalPct    = round($coffrefortLevel * VAULT_PCT_PER_LEVEL * 100, 1);
+    $vaultTotalPct    = round(min($coffrefortLevel * VAULT_PCT_PER_LEVEL, VAULT_MAX_PROTECTION_PCT) * 100, 1);
     echo '<tr><td>Coffre-fort niveau ' . $coffrefortLevel
         . '<br/><small style="color:#757575;">' . $vaultPctPerLevel . '% par niveau &mdash; niveau '
         . $coffrefortLevel . ' = ' . $vaultTotalPct . '% du stockage</small>'
@@ -766,7 +766,7 @@ debutCarte("Prestige");
         $owned = in_array($key, $currentUnlocks);
         echo '<tr>';
         echo '<td>' . htmlspecialchars($unlock['name'], ENT_QUOTES, 'UTF-8') . '</td>';
-        echo '<td>' . $unlock['cost'] . ' PP</td>';
+        echo '<td>' . htmlspecialchars((string)$unlock['cost'], ENT_QUOTES, 'UTF-8') . ' PP</td>'; // L-001
         echo '<td>' . htmlspecialchars($unlock['desc'], ENT_QUOTES, 'UTF-8') . '</td>';
         if ($owned) {
             echo '<td style="color:green;font-weight:bold">Debloque</td>';
@@ -857,11 +857,12 @@ debutCarte("Niveaux du Condenseur");
 
     $condenseurLevel = (int)$constructions['condenseur'];
 
+    // M-016: use $SPECIALIZATIONS config instead of hardcoded condenseur modifier values
     $specCondMod = 0;
     if ($specResearch === 1) {
-        $specCondMod = 2; // +2 points per level (Theorique)
+        $specCondMod = $SPECIALIZATIONS['research']['options'][1]['modifiers']['condenseur_points']; // +2 pts/level (Theorique)
     } elseif ($specResearch === 2) {
-        $specCondMod = -1; // -1 point per level (Applique)
+        $specCondMod = $SPECIALIZATIONS['research']['options'][2]['modifiers']['condenseur_points']; // -1 pt/level (Applique)
     }
 
     echo '<p>Condenseur niveau ' . $condenseurLevel . ' — Multiplicateur global : x' . round(modCond($condenseurLevel), 2) . '</p>';

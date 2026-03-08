@@ -124,8 +124,8 @@ function synthesizeCompound($base, $login, $compoundKey)
 
             // CRITICAL-004: Check INSERT return — resource loss without compound creation if INSERT fails.
             $result = dbExecute($base,
-                'INSERT INTO player_compounds (login, compound_key) VALUES (?, ?)',
-                'ss', $login, $compoundKey
+                'INSERT INTO player_compounds (login, compound_key, created_at) VALUES (?, ?, ?)',
+                'ssi', $login, $compoundKey, time() // L-006: set created_at for storage-expiry tracking (migration 0094 adds column)
             );
             if ($result === false) {
                 throw new \RuntimeException('INSERT_FAILED');
@@ -201,9 +201,12 @@ function activateCompound($base, $login, $compoundId)
             $now = time();
             $duration = $COMPOUNDS[$key]['duration'];
 
+            // H-016: AND activated_at IS NULL makes the UPDATE itself atomic — if two concurrent
+            // requests both pass the FOR UPDATE SELECT, only one can win the UPDATE race.
+            // The other will see 0 affected rows and throw COMPOUND_NOT_FOUND.
             $affected = dbExecute($base,
-                'UPDATE player_compounds SET activated_at = ?, expires_at = ? WHERE id = ?',
-                'iii', $now, $now + $duration, $compoundId
+                'UPDATE player_compounds SET activated_at = ?, expires_at = ? WHERE id = ? AND login = ? AND activated_at IS NULL',
+                'iiis', $now, $now + $duration, $compoundId, $login
             );
             // COMPOUNDS-MED-001: 0 rows = compound already activated or not found (race condition).
             if ($affected === 0) {

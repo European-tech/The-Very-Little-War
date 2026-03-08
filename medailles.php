@@ -32,6 +32,10 @@ if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login'
 	
 	if($donnees['ok'] == 1) {
         
+        // M-022 DESIGN: Uses all-time reponses count (not season-reset autre.nbMessages) —
+        // forum posts persist cross-season intentionally. Players accumulate Pipelette medal
+        // progress across the lifetime of their account, reflecting long-term community
+        // contribution rather than single-season activity.
         $donnees1 = dbFetchOne($base, 'SELECT count(*) AS nbmessages FROM reponses WHERE auteur=?', 's', $joueur);
 
         // Single query fetches all needed columns from autre (nbattaques, energieDepensee, bombe, etc.)
@@ -63,24 +67,28 @@ if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login'
                 $nomMedaille = $infos[0];
                 $bonus = $infos[5];
                 $medaille = false;
-                $progression = $infos[1].'/'.$infos[2][0]; // pas de médaille
+                // H-005: cast to string and htmlspecialchars on any DB value going into HTML
+                $statValue = htmlspecialchars((string)$infos[1], ENT_QUOTES, 'UTF-8');
+                $firstThreshold = htmlspecialchars((string)$infos[2][0], ENT_QUOTES, 'UTF-8');
+                $progression = $statValue.'/'.$firstThreshold; // pas de médaille
                 $imageMedaille = '<img alt="vide" src="images/classement/vide.png" />';
                 $bonusActuel = "Aucun bonus";
                 $bonusSuivant = '<img alt="medaille" class="imageAide" src="images/classement/'.$imagesMedailles[0].'"/> <strong>'.$paliersMedailles[0].'</strong> : '.$bonus[0].$infos[4];
                 $objetProgression = '<span class="important">'.$infos[3].'</span>';
-            
+
                 foreach($paliersMedailles as $num => $palier){
                     if($infos[1] >= $infos[2][$num]){
                         $medaille = $num;
-                        
+
                         $bonusActuel = '<img alt="medaille" class="imageAide" src="images/classement/'.$imagesMedailles[$num].'"/> <strong>'.$paliersMedailles[$num].'</strong> : '.$bonus[$num].$infos[4];
-                        
+
                         if($num+1 < count($infos[2])){
-                            $progression = $infos[1].'/'.$infos[2][$num+1];
+                            $nextThreshold = htmlspecialchars((string)$infos[2][$num+1], ENT_QUOTES, 'UTF-8');
+                            $progression = $statValue.'/'.$nextThreshold;
                             $bonusSuivant = '<img alt="medaille" class="imageAide" src="images/classement/'.$imagesMedailles[$num+1].'"/> <strong>'.$paliersMedailles[$num+1].'</strong> : '.$bonus[$num+1].$infos[4];
                         }
                         else { // gestion du diamant rouge
-                            $progression = $infos[1].' - Niveau maximal';
+                            $progression = $statValue.' - Niveau maximal';
                             $bonusSuivant = '<strong>Niveau maximal</strong>';
                         }
                         

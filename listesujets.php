@@ -46,6 +46,9 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 	// unauthenticated visitors' slots, and only inside the login check.
 	if (isset($_SESSION['login']) && !rateLimitCheck($_SESSION['login'], 'forum_topic', 5, 300)) {
 		$erreur = "Vous créez des sujets trop rapidement. Veuillez patienter.";
+	} elseif (isset($_SESSION['login']) && !rateLimitCheck($_SESSION['login'], 'forum_topic_hourly', 20, 3600)) {
+		// M-012: Secondary hourly limit (20 topics/hour) to prevent sustained flooding
+		$erreur = "Trop de sujets créés cette heure-ci. Attendez avant d'en créer un autre.";
 	}
 	if (isset($_SESSION['login']) && empty($erreur)) {
 		$titre = trim($_POST['titre'] ?? '');
