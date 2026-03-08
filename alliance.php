@@ -209,6 +209,18 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
         if ($_POST['actioninvitation'] == "Accepter") {
             try {
                 withTransaction($base, function() use ($base, $idalliance, $joueursEquipe) {
+                    // ALL14-001: Re-check ban status inside transaction — a banned player must
+                    // not be able to accept an invitation even if one was sent before the ban.
+                    $banCheck = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $_SESSION['login']);
+                    if ($banCheck && (int)$banCheck['estExclu'] === 1) {
+                        throw new \RuntimeException('PLAYER_BANNED');
+                    }
+                    // ALL14-002: Re-verify the invitation still exists inside the transaction
+                    // (alliance admin could cancel it between the outer fetch and the join).
+                    $invCheck = dbCount($base, 'SELECT COUNT(*) FROM invitations WHERE id=? AND invite=? FOR UPDATE', 'is', (int)$_POST['idinvitation'], $_SESSION['login']);
+                    if ($invCheck === 0) {
+                        throw new \RuntimeException('INVITATION_GONE');
+                    }
                     // LOW-019: Re-verify inside transaction that the accepting player has no alliance
                     $currentAlliance = dbFetchOne($base, 'SELECT idalliance, alliance_left_at FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                     if (!$currentAlliance || (int)$currentAlliance['idalliance'] !== 0) {
@@ -248,6 +260,10 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
             } catch (\RuntimeException $e) {
                 if ($e->getMessage() === 'ALREADY_IN_ALLIANCE') {
                     $erreur = "Vous appartenez déjà à une alliance.";
+                } elseif ($e->getMessage() === 'PLAYER_BANNED') {
+                    $erreur = "Vous ne pouvez pas rejoindre une alliance.";
+                } elseif ($e->getMessage() === 'INVITATION_GONE') {
+                    $erreur = "Cette invitation n'est plus disponible.";
                 } elseif (strpos($e->getMessage(), 'COOLDOWN:') === 0) {
                     $heuresRestantes = (int)substr($e->getMessage(), 9);
                     $erreur = "Vous devez attendre encore " . $heuresRestantes . "h avant de rejoindre une alliance.";
@@ -256,7 +272,14 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
                 }
             }
         } else {
-            dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', $_POST['idinvitation']);
+            // ALL14-003: Wrap rejection in transaction with re-validation to prevent
+            // stale-delete race (invitation may have been accepted concurrently).
+            withTransaction($base, function() use ($base) {
+                $exists = dbCount($base, 'SELECT COUNT(*) FROM invitations WHERE id=? AND invite=? FOR UPDATE', 'is', (int)$_POST['idinvitation'], $_SESSION['login']);
+                if ($exists > 0) {
+                    dbExecute($base, 'DELETE FROM invitations WHERE id=?', 'i', (int)$_POST['idinvitation']);
+                }
+            });
         }
         } // end invitation ownership check
     }

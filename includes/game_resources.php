@@ -219,7 +219,9 @@ function updateRessources($joueur)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////ENERGIE
     // Use atomic SQL increment (LEAST/GREATEST) to prevent race with concurrent combat/market updates
     $revenuenergie = revenuEnergie($depot['generateur'], $joueur);
-    $energieDelta = $revenuenergie * ($nbsecondes / SECONDS_PER_HOUR);
+    // ECO14-002/ECO12-004: Round delta to 2 decimal places to prevent float precision
+    // accumulation (up to ±72 energy drift per player per season from unrounded deltas).
+    $energieDelta = round($revenuenergie * ($nbsecondes / SECONDS_PER_HOUR), 2);
     dbExecute($base, 'UPDATE ressources SET energie = LEAST(GREATEST(0, energie + ?), ?) WHERE login=?', 'dds', $energieDelta, $placeMax, $joueur);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////RESSOURCES
@@ -232,7 +234,7 @@ function updateRessources($joueur)
         if (!in_array($ressource, $allowedColumns, true)) {
             throw new \RuntimeException("Invalid column: $ressource");
         }
-        $delta = revenuAtome($num, $joueur) * ($nbsecondes / SECONDS_PER_HOUR);
+        $delta = round(revenuAtome($num, $joueur) * ($nbsecondes / SECONDS_PER_HOUR), 2);
         $sqlParts[] = "$ressource = LEAST(GREATEST(0, $ressource + ?), ?)";
         $sqlTypes .= 'dd';
         $sqlParams[] = $delta;

@@ -34,8 +34,20 @@ if (isset($_SESSION['motdepasseadmin']) && isset($_SESSION['admin_last_activity'
 	unset($_SESSION['motdepasseadmin']);
 	unset($_SESSION['admin_last_activity']);
 }
+// ADMIN14-008: Admin sessions also enforce absolute lifetime (same as player sessions).
+// Without this, an admin keeping the session alive with periodic activity has an
+// indefinitely-lived session, increasing hijacking risk on shared machines.
+if (isset($_SESSION['motdepasseadmin']) && isset($_SESSION['session_created'])
+    && (time() - $_SESSION['session_created']) > SESSION_ABSOLUTE_TIMEOUT) {
+	unset($_SESSION['motdepasseadmin']);
+	unset($_SESSION['admin_last_activity']);
+}
 if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === true) {
 	$_SESSION['admin_last_activity'] = time();
+	// Stamp session_created on first admin login so absolute timeout can be enforced
+	if (!isset($_SESSION['session_created'])) {
+	    $_SESSION['session_created'] = time();
+	}
 	// IP binding: reject if session IP doesn't match current IP (SESS-P7-003)
 	if (isset($_SESSION['admin_ip']) && !hash_equals((string)$_SESSION['admin_ip'], (string)($_SERVER['REMOTE_ADDR'] ?? ''))) {
 		session_unset();
