@@ -612,6 +612,10 @@ function invalidatePlayerCache($joueur)
     if (isset($GLOBALS['_initPlayerCache'][$joueur])) {
         unset($GLOBALS['_initPlayerCache'][$joueur]);
     }
+    // INFRA11-001: Also invalidate the static spec cache in formulas.php
+    if (function_exists('getSpecModifier')) {
+        getSpecModifier($joueur, '__INVALIDATE__');
+    }
 }
 
 function augmenterBatiment($nom, $joueur)
@@ -783,6 +787,15 @@ function diminuerBatiment($nom, $joueur)
                 dbExecute($base, "UPDATE constructions SET $safeCol=? WHERE login=?", 'is', ($batiments[$nom] - 1), $joueur);
             }
             ajouterPoints(-$listeConstructions[$nom]['points'], $joueur);
+            // ECO11-005: If depot was downgraded, clamp all stored resources to new (lower) capacity.
+            // Without this, players could retain resources exceeding their new storage limit.
+            if ($nom === 'depot' && $batiments[$nom] > 1) {
+                $newStorageCap = placeDepot($batiments[$nom] - 1);
+                dbExecute($base,
+                    'UPDATE ressources SET energie=LEAST(energie,?), carbone=LEAST(carbone,?), azote=LEAST(azote,?), hydrogene=LEAST(hydrogene,?), oxygene=LEAST(oxygene,?), chlore=LEAST(chlore,?), soufre=LEAST(soufre,?), brome=LEAST(brome,?), iode=LEAST(iode,?) WHERE login=?',
+                    'dddddddddds', $newStorageCap, $newStorageCap, $newStorageCap, $newStorageCap, $newStorageCap, $newStorageCap, $newStorageCap, $newStorageCap, $newStorageCap, $joueur
+                );
+            }
         }
     });
 
@@ -1202,11 +1215,17 @@ function performSeasonEnd()
     foreach ($allianceRankingsForVP as $allianceData) {
         $localC = $allianceData['dense_rank'];
         withTransaction($base, function() use ($base, $allianceData, $localC) {
-            $newPtsVictoire = $allianceData['pointsVictoire'] + pointsVictoireAlliance($localC);
-            dbExecute($base, 'UPDATE alliances SET pointsVictoire = ? WHERE id = ?', 'ii', $newPtsVictoire, $allianceData['id']);
+            // ADMIN11-001: Idempotency guard via season_vp_awarded flag (migration 0099).
+            // If already awarded this season, UPDATE is a no-op. Prevents double-VP on retry.
+            $vpAlliance = pointsVictoireAlliance($localC);
+            $newPtsVictoire = $allianceData['pointsVictoire'] + $vpAlliance;
+            $affected = dbExecute($base, 'UPDATE alliances SET pointsVictoire = ?, season_vp_awarded = 1 WHERE id = ? AND season_vp_awarded = 0', 'ii', $newPtsVictoire, $allianceData['id']);
+            if ($affected === false || (int)$GLOBALS['base']->affected_rows === 0) {
+                return; // Already awarded — skip member awards too
+            }
             $allianceMembers = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $allianceData['id']);
             foreach ($allianceMembers as $pointsVictoireJoueurs) {
-                ajouter('victoires', 'autre', pointsVictoireAlliance($localC), $pointsVictoireJoueurs['login']);
+                ajouter('victoires', 'autre', $vpAlliance, $pointsVictoireJoueurs['login']);
             }
         });
     }
@@ -1369,7 +1388,8 @@ function remiseAZero()
         // Alliance pointsVictoire is preserved across seasons (not reset here).
         dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, vp_awarded=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'\', image=\'defaut.png\', timeMolecule=UNIX_TIMESTAMP()');
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'iiiii', (int)pointsDeVie(1), (int)vieChampDeForce(0), (int)pointsDeVie(1), (int)pointsDeVie(1), (int)vieIonisateur(0)); // M-010: BIGINT vie columns bound as 'i' not 'd'
-        dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0');
+        // ADMIN11-001: Reset season_vp_awarded so the next season can award alliance VP again.
+        dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0,season_vp_awarded=0');
         dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0, isotope=0');
         dbExecute($base, 'UPDATE membre SET timestamp=?', 'i', time());
 

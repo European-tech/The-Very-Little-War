@@ -16,6 +16,14 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
 	}
 }
 
+// AUTH11-001: Require POST + CSRF for logout/deletion to prevent CSRF logout via GET link.
+// A bare GET to deconnexion.php (e.g. via <img> tag) must not destroy the session.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+	header('Location: index.php');
+	exit;
+}
+csrfCheck();
+
 // Account deletion: only after CSRF + session token DB validation above
 // LOW-004: The 7-day cooldown check (timestamp > SECONDS_PER_WEEK) is enforced exclusively
 // in compte.php before the delete form is shown. This handler trusts that guard and does not
@@ -23,7 +31,6 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
 // accounts. If the deletion endpoint is ever called directly (bypassing compte.php), the
 // supprimerJoueur() function itself should be augmented with the cooldown check.
 if(isset($_POST['verification']) AND isset($_POST['oui'])) {
-	csrfCheck();
 	supprimerJoueur($_SESSION['login']);
 }
 

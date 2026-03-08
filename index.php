@@ -122,8 +122,15 @@ if (!$donnees) {
     $contenuNews = preg_replace('/<a\s+[^>]*href=["\']([^"\'<>]*)["\'][^>]*>/i', '<a href="$1">', $contenuNews);
     // Strip remaining bare <a> tags that have no valid href
     $contenuNews = preg_replace('/<a(?!\s+href=)[^>]*>/i', '', $contenuNews);
-    // Strip javascript: and data: URIs from any remaining href
-    $contenuNews = preg_replace('/href\s*=\s*["\']?\s*(javascript|data):[^"\'>\s]*/i', 'href="#"', $contenuNews);
+    // ADMIN11-002: Decode HTML entities in href before checking for javascript:/data: URIs.
+    // Regex alone cannot catch encoded variants like href="javascript&#x3a;..." or href="&#106;avascript:...".
+    $contenuNews = preg_replace_callback('/<a href="([^"<>]*)"/i', function($m) {
+        $decoded = html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if (preg_match('/^\s*(javascript|data):/i', $decoded)) {
+            return '<a href="#"';
+        }
+        return '<a href="' . htmlspecialchars($decoded, ENT_QUOTES, 'UTF-8') . '"';
+    }, $contenuNews);
     $contenuNews = nl2br($contenuNews);
 }
 

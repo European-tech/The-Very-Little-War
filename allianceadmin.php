@@ -206,6 +206,10 @@ if ($gradeChef) {
 		if (!empty($_POST['changerchef'])) {
 			$_POST['changerchef'] = trim($_POST['changerchef']);
 			$newChef = $_POST['changerchef'];
+			// ALL11-003: Prevent self-transfer (current chef cannot transfer to themselves)
+			if ($newChef === $_SESSION['login']) {
+				$erreur = "Vous êtes déjà chef de l'alliance.";
+			} else
 			try {
 				withTransaction($base, function() use ($base, $currentAlliance, $newChef) {
 					$member = dbFetchOne($base, 'SELECT login FROM autre WHERE idalliance=? AND login=? FOR UPDATE', 'is', $currentAlliance['idalliance'], $newChef);
@@ -297,6 +301,10 @@ if ($pacte) {
 	if (isset($_POST['pacte'])) {
 		csrfCheck();
 		$_POST['pacte'] = trim($_POST['pacte']);
+		// ALL11-002: Prevent self-pact (defense-in-depth explicit check)
+		if ($_POST['pacte'] === $chef['tag']) {
+			$erreur = "Vous ne pouvez pas proposer un pacte à votre propre alliance.";
+		} else {
 		$existeAllianceRows = dbFetchAll($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['pacte'], $currentAlliance['idalliance']);
 		$existeAlliance = count($existeAllianceRows);
 		if ($existeAlliance > 0) {
@@ -330,6 +338,7 @@ if ($pacte) {
 		} else {
 			$erreur = "Cette équipe n'existe pas.";
 		}
+		} // end self-pact guard
 	}
 
 	if (isset($_POST['allie']) and !empty($_POST['allie'])) {
@@ -369,6 +378,10 @@ if ($guerre) {
 	if (isset($_POST['guerre'])) {
 		csrfCheck();
 		$_POST['guerre'] = trim($_POST['guerre']);
+		// ALL11-001: Prevent self-war (defense-in-depth explicit check)
+		if ($_POST['guerre'] === $chef['tag']) {
+			$erreur = "Vous ne pouvez pas déclarer la guerre à votre propre alliance.";
+		} else {
 		$existeAllianceRows = dbFetchAll($base, 'SELECT id FROM alliances WHERE tag=? AND id!=?', 'si', $_POST['guerre'], $currentAlliance['idalliance']);
 		$existeAlliance = count($existeAllianceRows);
 		if ($existeAlliance > 0) {
@@ -403,6 +416,7 @@ if ($guerre) {
 		} else {
 			$erreur = "Cette équipe n'existe pas.";
 		}
+		} // end self-war guard
 	}
 
 	if (isset($_POST['adversaire']) and !empty($_POST['adversaire'])) {

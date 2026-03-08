@@ -10,7 +10,7 @@ if (isset($_POST['login'])) {
 
 	// Rate limit: 3 registrations per hour per IP
 	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'register', RATE_LIMIT_REGISTER_MAX, RATE_LIMIT_REGISTER_WINDOW)) {
-		logWarn('REGISTER', 'Registration rate limited', ['ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
+		logWarn('REGISTER', 'Registration rate limited', ['ip_hash' => substr(hash_hmac('sha256', ($_SERVER['REMOTE_ADDR'] ?? ''), (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
 		$erreur = 'Trop d\'inscriptions depuis cette adresse. R&eacute;essayez plus tard.';
 	} else {
 
@@ -47,7 +47,7 @@ if (isset($_POST['login'])) {
 						// DB UNIQUE constraint fires (catches concurrent registrations), false on error.
 						$result = inscrire($loginInput, $passInput, $emailInput);
 						if ($result === true) {
-							logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
+							logInfo('REGISTER', 'New player registered', ['login' => $loginInput, 'ip_hash' => substr(hash_hmac('sha256', ($_SERVER['REMOTE_ADDR'] ?? ''), (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
 							require_once('includes/multiaccount.php');
 							// M-002: Wrap logLoginEvent so a logging failure never aborts the post-registration redirect.
 							try { logLoginEvent($base, $loginInput, 'register'); } catch (\Exception $e) { logWarn('REGISTER', 'logLoginEvent failed', ['error' => $e->getMessage()]); }

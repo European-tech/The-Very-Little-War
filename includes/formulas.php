@@ -17,6 +17,12 @@ function getSpecModifier($joueur, $modKey)
 {
     global $base, $SPECIALIZATIONS;
     static $cache = [];
+    // INFRA11-001: '__INVALIDATE__' sentinel clears cached spec for a player.
+    // Call getSpecModifier($joueur, '__INVALIDATE__') or invalidatePlayerCache($joueur) after any spec update.
+    if ($modKey === '__INVALIDATE__') {
+        unset($cache[$joueur]);
+        return 0.0;
+    }
     if (isset($cache[$joueur][$modKey])) return $cache[$joueur][$modKey];
 
     if (!isset($cache[$joueur])) {

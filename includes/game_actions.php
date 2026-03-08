@@ -131,7 +131,7 @@ function updateActions($joueur)
                             && (int)$attAllianceId['idalliance'] === (int)$defAllianceId['idalliance']) {
                             // Both now in same alliance — abort attack, refund molecules, delete action
                             $troupesArr = explode(';', $actions['troupes'] ?? '');
-                            $moleculesOwned = dbFetchAll($base, 'SELECT id, classe FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
+                            $moleculesOwned = dbFetchAll($base, 'SELECT id FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
                             foreach ($moleculesOwned as $idx => $mol) {
                                 $nb = isset($troupesArr[$idx]) && is_numeric($troupesArr[$idx]) ? (int)$troupesArr[$idx] : 0;
                                 if ($nb > 0) {

@@ -24,7 +24,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 		// 10 attempts per 5 minutes per IP
 		if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'login', RATE_LIMIT_LOGIN_MAX, RATE_LIMIT_LOGIN_WINDOW)) {
 			// P9-HIGH-008: Use consistent fallback salt 'tvlw_salt' (not bare 'tvlw')
-			logWarn('AUTH', 'Login rate limited', ['ip_hash' => substr(hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
+			logWarn('AUTH', 'Login rate limited', ['ip_hash' => substr(hash_hmac('sha256', ($_SERVER['REMOTE_ADDR'] ?? ''), (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
 			$erreur = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
 		} else {
 

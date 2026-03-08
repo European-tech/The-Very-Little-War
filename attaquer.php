@@ -89,6 +89,10 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                         dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $capturedLogin);
                     });
                     $autre['neutrinos'] -= $capturedNeutrinos;
+                    // RANK11-007: Flag coordinated espionage (same-IP multi-account spam)
+                    if (function_exists('checkCoordinatedAttacks')) {
+                        checkCoordinatedAttacks($base, $capturedLogin, $capturedCible, $now);
+                    }
                     $information = 'Vous avez lancé l\'espionnage de ' . htmlspecialchars($_POST['joueurAEspionner'], ENT_QUOTES, 'UTF-8') . ' !';
                 } catch (\RuntimeException $e) {
                     if ($e->getMessage() === 'NOT_ENOUGH_NEUTRINOS') {

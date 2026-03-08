@@ -307,7 +307,8 @@ withTransaction($base, function() use ($base, $nomsRes, $listeMissions, &$inform
     include(__DIR__ . "/atomes.php");
     debutContent();
       debutListe();
-        item(['media' => '<img src="images/menu/power-button.png" alt="checklist" style="width:25px;height:25px;">', 'titre' => 'Déconnexion', 'link' => 'deconnexion.php', 'style' => 'color:black']);
+        // AUTH11-001: Logout uses POST + CSRF to prevent CSRF-triggered logout via GET link
+        echo '<li><form method="post" action="deconnexion.php" style="margin:0;padding:0;">' . csrfField() . '<button type="submit" class="item-link item-content" style="background:none;border:none;width:100%;text-align:left;padding:10px 16px;cursor:pointer;"><div class="item-media"><img src="images/menu/power-button.png" alt="" style="width:25px;height:25px;vertical-align:middle;"></div><div class="item-inner"><div class="item-title" style="color:black;">Déconnexion</div></div></button></form></li>';
 				// On vérifie si l'utilisateur connecté est un modérateur
 				$joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
 				if($joueur['moderateur']) {

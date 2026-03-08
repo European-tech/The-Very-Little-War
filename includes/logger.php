@@ -26,7 +26,7 @@ function gameLog($level, $category, $message, $context = []) {
     $login = $_SESSION['login'] ?? 'anonymous';
     $rawIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     $salt = defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt';
-    $hashedIp = ($rawIp !== 'unknown') ? substr(hash('sha256', $rawIp . $salt), 0, 12) : 'unknown';
+    $hashedIp = ($rawIp !== 'unknown') ? substr(hash_hmac('sha256', $rawIp, $salt), 0, 12) : 'unknown';
 
     $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
     $safeCategory = str_replace(["\r", "\n"], ' ', $category);
