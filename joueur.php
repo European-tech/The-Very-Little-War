@@ -1,12 +1,19 @@
-<?php 
+<?php
 require_once("includes/session_init.php");
 if (isset($_SESSION['login']))
 {
 	include("includes/basicprivatephp.php");
+	require_once("includes/rate_limiter.php");
 }
 else
 {
-	include("includes/basicpublicphp.php"); 
+	include("includes/basicpublicphp.php");
+}
+
+// Rate limit to prevent player enumeration
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $_ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    rateLimitCheck($_ip, 'profile_view', 60, 60);
 }
 
 include("includes/bbcode.php");

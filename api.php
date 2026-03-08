@@ -51,6 +51,9 @@ $joueur = $_SESSION['login'];
 $nombre        = max(0, min(MAX_ATOMS_PER_ELEMENT, isset($_GET['nombre'])        ? intval($_GET['nombre'])        : 0));
 $nombre2       = max(0, min(MAX_ATOMS_PER_ELEMENT, isset($_GET['nombre2'])       ? intval($_GET['nombre2'])       : 0));
 $niveau        = max(0, min(MAX_BUILDING_LEVEL,    isset($_GET['niveau'])        ? intval($_GET['niveau'])        : 0));
+// nbTotalAtomes = sum of all atom slots in the molecule (C+N+H+O+Cl+S+Br+I).
+// Used by tempsFormation() (training time scales with molecule size) and
+// demiVie() (half-life depends on total atom count). Max: 8 atom types × MAX_ATOMS_PER_ELEMENT.
 $nbTotalAtomes = max(0, min(8 * MAX_ATOMS_PER_ELEMENT, isset($_GET['nbTotalAtomes']) ? intval($_GET['nbTotalAtomes']) : 0));
 
 // V4: Pre-compute medal bonuses and lieur level for covalent formulas

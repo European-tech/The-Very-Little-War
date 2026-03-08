@@ -124,6 +124,23 @@ if (is_dir($ratesDir)) {
 }
 
 // -------------------------------------------------------
+// 5. Expired forum sanctions
+//    Rows where dateFin < today are no longer active and accumulate
+//    in the sanctions table, causing stale ban checks on editer.php.
+//    P10-LOW-002: Clean them up periodically so the table stays lean.
+// -------------------------------------------------------
+$stmt = $base->prepare("DELETE FROM sanctions WHERE dateFin < CURDATE()");
+if ($stmt) {
+    $stmt->execute();
+    $rows = $stmt->affected_rows;
+    $stmt->close();
+    echo "[cleanup] sanctions: removed {$rows} expired row(s).\n";
+    $totalDeleted += $rows;
+} else {
+    fwrite(STDERR, "[cleanup] ERROR preparing sanctions cleanup: " . $base->error . "\n");
+}
+
+// -------------------------------------------------------
 // Summary
 // -------------------------------------------------------
 $endTs = date('Y-m-d H:i:s');

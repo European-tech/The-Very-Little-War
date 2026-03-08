@@ -2,6 +2,7 @@
 include("includes/basicprivatephp.php");
 include("includes/bbcode.php");
 require_once("includes/csrf.php");
+require_once("includes/rate_limiter.php");
 
 // Check moderator status BEFORE processing any actions
 $joueur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
@@ -24,6 +25,11 @@ if (isset($_POST['supprimer'])) {
 	dbExecute($base, 'DELETE FROM sanctions WHERE idSanction = ?', 'i', $supprimerId);
 }
 
+
+// Rate limit: max 20 sanctions per hour per moderator to prevent abuse
+if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST['supprimer'])) {
+	rateLimitCheck($_SESSION['login'], 'sanction_create', 20, 3600);
+}
 
 if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST['supprimer'])) {
 	csrfCheck();

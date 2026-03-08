@@ -337,6 +337,12 @@ function traitementConstructions($liste)
                     $paramValues[] = $_SESSION['login'];
                     dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setClauses) . ' WHERE login=?', $paramTypes, ...$paramValues);
 
+                    // P10-LOW-004: Prevent duplicate queue entries for the same building
+                    $existingBuild = dbFetchOne($base, 'SELECT id FROM actionsconstruction WHERE login = ? AND batiment = ?', 'ss', $_SESSION['login'], $liste['bdd']);
+                    if ($existingBuild) {
+                        $erreur = "Ce bâtiment est déjà en cours de construction."; return;
+                    }
+
                     $lastConstruction = dbFetchOne($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
                     if ($lastConstruction) {
                         $tempsDebut = $lastConstruction['fin'];

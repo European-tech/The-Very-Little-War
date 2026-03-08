@@ -349,26 +349,8 @@ require_once(__DIR__ . '/../includes/csp.php');
                                             ajouterElement(ligne);';
                                         break;
                                             
-                                        case "Type (Residence, Commerce, Autres)": 
-                                            $lieuxRows = dbFetchAll($base, "SELECT * FROM lieux");
-                                            $correction = "";
-                                            foreach($lieuxRows as $data){
-                                                $safeLieu = json_encode($data['lieuCRPJ']);
-                                                $safeClass = json_encode($data['classification']);
-                                                $correction = $correction.'if(new RegExp('.$safeLieu.',"i").test(lieu) == true) {
-                                                    lieu = '.$safeClass.';
-                                                }';
-                                            }
-
-                                            echo 'var lieu = fait[2].replace(/- /g,"");
-                                            lieu = lieu.toUpperCase();
-                                            lieu = lieu.trim();
-                                            '.$correction.'
-                                            ligne += lieu+"<br/><br/>";
-                                            }
-                                            ajouterElement(ligne);';
-                                            
-                                        break;
+                                        // P10-MED-005: Table 'lieux' does not exist — block removed to prevent DB errors.
+                                        // case "Type (Residence, Commerce, Autres)": break;
                                          
                                         case "Commune" :
                                             echo 'var adresse = fait[3].replace(/-/g," "); 
@@ -637,12 +619,7 @@ require_once(__DIR__ . '/../includes/csp.php');
                                                 var tableauSignalements = [];
                                                 signalementTotal = signalementTotal.replace(/( de | ou | des | d\'| que )/g," ");';
                                                 
-                                                $signalementRows = dbFetchAll($base, 'SELECT * FROM signalement');
-                                                foreach($signalementRows as $data){
-                                                    $safeMotCle = json_encode($data['motCle']);
-                                                    echo "tableauSignalements.push(new RegExp(\" \" + ".$safeMotCle." + \" \", \"ig\"));
-                                                    ";
-                                                }
+                                                // P10-MED-006: Table 'signalement' does not exist — query removed to prevent DB errors.
                                                 
                                                 echo'
                                                 var mis;

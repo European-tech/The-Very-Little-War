@@ -1,6 +1,12 @@
 <?php
 include("../includes/connexion.php");
 include("redirectionmotdepasse.php");
+require_once(__DIR__ . '/../includes/database.php');
+// P10-HIGH-001: Require ADMIN_LOGIN session match in addition to the password gate
+if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {
+    header('Location: ../index.php');
+    exit;
+}
 include("../includes/fonctions.php");
 require_once(__DIR__ . '/../includes/csrf.php');
 require_once(__DIR__ . '/../includes/logger.php');
@@ -19,7 +25,8 @@ if (isset($_POST['supprimercompte'])) {
     } else {
         $joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $loginToDelete);
         if ($joueurExiste > 0) {
-            logError('ADMIN', 'Account deletion: ' . $loginToDelete . ' by admin');
+            // P10-MED-004: Structured audit log for admin deletions
+            logInfo('ADMIN', 'Player account deleted', ['target_login' => $loginToDelete, 'admin' => $_SESSION['login']]);
             supprimerJoueur($loginToDelete);
         } else {
             echo "Ce joueur n'existe pas.";
