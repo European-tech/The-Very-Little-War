@@ -61,16 +61,15 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	}
 
 	if (isset($_POST['miseazero'])) {
-		// Full season-end flow with advisory lock to prevent race with automatic reset
-		$lockResult = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_reset', 0) as locked");
-		if ($lockResult && $lockResult['locked'] == 1) {
-			try {
-				performSeasonEnd();
-			} finally {
-				dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
-			}
-		} else {
-			echo '<p style="color:red">Remise à zéro déjà en cours. Réessayez dans quelques secondes.</p>';
+		// AUTH-C-001: performSeasonEnd() manages its own advisory lock internally.
+		// Wrapping it in a second GET_LOCK on the same connection would be re-entrant
+		// (MariaDB advisory locks are per-connection, not nestable) and would cause
+		// the inner RELEASE_LOCK to release the lock prematurely.
+		try {
+			performSeasonEnd();
+		} catch (\Exception $e) {
+			logError('ADMIN', 'Manual season reset failed: ' . $e->getMessage());
+			echo '<p style="color:red">Erreur lors de la remise à zéro : ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';
 		}
 	}
 ?>

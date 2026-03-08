@@ -113,17 +113,16 @@ function awardPrestigePoints() {
     // Exclude inactive/banned players (x = INACTIVE_PLAYER_X sentinel = -1000)
     $players = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC');
 
-    // HIGH-019: Compute DENSE_RANK so tied players receive the same rank bonus.
+    // HIGH-019: Compute true DENSE_RANK (no gaps) so tied players receive the same rank bonus.
+    // Increment denseRank by 1 only when the score changes — never by the index offset.
     $denseRank = 1;
     $prevScore = null;
-    $rankIndex = 0;
     foreach ($players as &$player) {
         if ($prevScore !== null && $player['totalPoints'] !== $prevScore) {
-            $denseRank = $rankIndex + 1;
+            $denseRank++;
         }
         $player['dense_rank'] = $denseRank;
         $prevScore = $player['totalPoints'];
-        $rankIndex++;
     }
     unset($player);
 

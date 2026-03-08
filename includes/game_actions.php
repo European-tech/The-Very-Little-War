@@ -347,13 +347,9 @@ function updateActions($joueur)
                 $espionageThreshold = ($nDef['neutrinos'] * ESPIONAGE_SUCCESS_RATIO) * $radarDiscount;
 
                 if ($espionageThreshold < $actions['nombreneutrinos']) {
-                    $espionnageRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
-                    $i = 1;
-                    foreach ($espionnageRows as $donneesEspionnage) {
-                        ${'classe' . $i} = $donneesEspionnage;
-                        $i++;
-                    }
-
+                    // COMB-001: Use a plain array instead of variable-variables ($classe1..$classeN)
+                    // to avoid dynamic variable injection risk and improve readability.
+                    $espClasses = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['defenseur']);
 
                     $ressourcesJoueur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $actions['defenseur']);
 
@@ -365,12 +361,15 @@ function updateActions($joueur)
                         $chaine1 = $chaine1 . nombreAtome($num, number_format($ressourcesJoueur[$ressource], 0, ' ', ' '));
                     }
 
+                    // Build army section dynamically from the $espClasses array
+                    $armeeHtml = '';
+                    foreach ($espClasses as $espClass) {
+                        $armeeHtml .= "<strong>" . couleurFormule($espClass['formule']) . " : </strong>" . nombreMolecules(number_format($espClass['nombre'], 0, ' ', ' ')) . "<br/>\n";
+                    }
+
                     $contenuRapportJoueur = "
                     <p>" . important('Armée') . "
-                    <strong>" . couleurFormule($classe1['formule']) . " : </strong>" . nombreMolecules(number_format($classe1['nombre'], 0, ' ', ' ')) . "<br/>
-                    <strong>" . couleurFormule($classe2['formule']) . " : </strong>" . nombreMolecules(number_format($classe2['nombre'], 0, ' ', ' ')) . "<br/>
-                    <strong>" . couleurFormule($classe3['formule']) . " : </strong>" . nombreMolecules(number_format($classe3['nombre'], 0, ' ', ' ')) . "<br/>
-                    <strong>" . couleurFormule($classe4['formule']) . " : </strong>" . nombreMolecules(number_format($classe4['nombre'], 0, ' ', ' ')) . "<br/>
+                    " . $armeeHtml . "<br/>
                     <br/><br/>
                     " . important('Ressources') . "
                     " . nombreEnergie(number_format($ressourcesJoueur['energie'], 0, ' ', ' ')) . "

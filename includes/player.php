@@ -1040,17 +1040,15 @@ function performSeasonEnd()
     // Phase 1b: Award VP to players in chunks of 100 to avoid long-running transactions.
     // LOW-022: Split large VP award loop into smaller transactions so the DB is not locked
     // for the entire season-reset duration. Rankings were snapshotted in Phase 1a.
-    // HIGH-018: Compute DENSE_RANK so tied players receive the same VP bonus.
+    // HIGH-018: Compute true DENSE_RANK (no gaps) so tied players receive the same VP bonus.
     $denseRank = 1;
     $prevScore = null;
-    $rankIndex = 0;
     foreach ($playerRankingsForVP as &$player) {
         if ($prevScore !== null && $player['totalPoints'] !== $prevScore) {
-            $denseRank = $rankIndex + 1;
+            $denseRank++;
         }
         $player['dense_rank'] = $denseRank;
         $prevScore = $player['totalPoints'];
-        $rankIndex++;
     }
     unset($player);
 
@@ -1064,9 +1062,20 @@ function performSeasonEnd()
     }
 
     // Phase 1c: Award VP to alliances and their members (each alliance in one transaction).
-    $c = 1;
+    // HIGH-PR-003: Compute DENSE_RANK over alliance scores so tied alliances share the same VP.
+    $allianceDenseRank = 1;
+    $alliancePrevScore = null;
+    foreach ($allianceRankingsForVP as &$allianceData) {
+        if ($alliancePrevScore !== null && $allianceData['pointstotaux'] !== $alliancePrevScore) {
+            $allianceDenseRank++;
+        }
+        $allianceData['dense_rank'] = $allianceDenseRank;
+        $alliancePrevScore = $allianceData['pointstotaux'];
+    }
+    unset($allianceData);
+
     foreach ($allianceRankingsForVP as $allianceData) {
-        $localC = $c;
+        $localC = $allianceData['dense_rank'];
         withTransaction($base, function() use ($base, $allianceData, $localC) {
             $newPtsVictoire = $allianceData['pointsVictoire'] + pointsVictoireAlliance($localC);
             dbExecute($base, 'UPDATE alliances SET pointsVictoire = ? WHERE id = ?', 'ii', $newPtsVictoire, $allianceData['id']);
@@ -1075,7 +1084,6 @@ function performSeasonEnd()
                 ajouter('victoires', 'autre', pointsVictoireAlliance($localC), $pointsVictoireJoueurs['login']);
             }
         });
-        $c++;
     }
 
     // Phase 1d: Award prestige points BEFORE reset (cross-season progression).

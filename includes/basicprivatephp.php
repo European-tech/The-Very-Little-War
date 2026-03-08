@@ -193,30 +193,24 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         // Non-admin player: inform them that maintenance is in progress and skip the reset.
         $erreur = "Une nouvelle partie recommencera dans 24 heures.";
     } else {
-    // Advisory lock prevents concurrent resets when multiple players connect simultaneously
-    $lockResult = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_reset', 0) as locked", '');
-    if (!$lockResult || $lockResult['locked'] != 1) {
-        // Another request is already performing the reset — skip and show maintenance message
-        $erreur = "Une nouvelle partie recommencera dans 24 heures.";
-    } else {
-
+    // AUTH-C-001: performSeasonEnd() manages its own advisory lock ('tvlw_season_reset')
+    // internally with GET_LOCK/RELEASE_LOCK in a try/finally. The outer GET_LOCK here was
+    // causing a double-acquisition on the same connection (MariaDB re-entrant lock), and
+    // performSeasonEnd()'s finally released it prematurely, leaving the email queue below
+    // unprotected. Remove the outer lock and rely entirely on performSeasonEnd()'s lock.
     $vainqueurManche = null;
     $seasonResetOk = false;
     try {
     // Full season-end flow: archive, VP, prestige, reset, news
+    // Throws RuntimeException if lock not acquired (another reset in progress).
     $vainqueurManche = performSeasonEnd();
     $seasonResetOk = true;
     } catch (Exception $e) {
-    // Season reset failed — keep maintenance=1 so admin can investigate and retry (MED-017)
+    // RuntimeException = lock not acquired or reset failed
     logError('SEASON', 'performSeasonEnd() failed: ' . $e->getMessage());
-    } finally {
-    // MED-017: Only release the advisory lock here. maintenance=0 is cleared
-    // by performSeasonEnd() itself on success (MED-016). On failure, maintenance
-    // stays at 1 so the admin can diagnose and retry without the game unlocking.
     if (!$seasonResetOk) {
         logError('SEASON', 'Season reset failed — maintenance flag kept at 1 for admin review');
     }
-    dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
     }
 
     // HIGH-017: Queue season reset emails instead of sending synchronously.
@@ -250,7 +244,6 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     }
     } // end if ($seasonResetOk && $vainqueurManche !== null)
 
-    } // end advisory lock else block
     } // end admin gate else block
 
 } elseif (date('n', time()) != date('n', $debut["debut"]) && $maintenance['maintenance'] == 0) {
@@ -279,8 +272,18 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
             echo json_encode(['error' => 'Le jeu est en maintenance']);
             exit;
         }
-        // For GET requests: set error message (already set above) and allow page to render
-        // so the user sees the maintenance notice via the layout's error display
+        // SR-001: Block GET requests too — return 503 so uptime monitors and CDNs detect
+        // maintenance, and game-state-mutating code further down does not execute.
+        http_response_code(503);
+        header('Retry-After: 3600');
+        echo '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
+            . '<title>Maintenance — The Very Little War</title>'
+            . '<meta name="robots" content="noindex">'
+            . '</head><body style="font-family:sans-serif;text-align:center;padding:60px">'
+            . '<h1>Maintenance en cours</h1>'
+            . '<p>Une nouvelle partie commencera dans les prochaines 24 heures.</p>'
+            . '</body></html>';
+        exit;
     }
 } elseif ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) < SEASON_MAINTENANCE_PAUSE_SECONDS) {
     // Still in maintenance period, 24h have not yet passed

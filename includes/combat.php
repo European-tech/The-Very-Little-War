@@ -679,12 +679,6 @@ $totalPille = array_sum($ressourcePille);
 
 // update des stats de combat
 
-$perduesAttaquant = dbFetchOne($base, 'SELECT moleculesPerdues,ressourcesPillees FROM autre WHERE login=?', 's', $actions['attaquant']);
-if (!$perduesAttaquant) { $perduesAttaquant = ['moleculesPerdues' => 0, 'ressourcesPillees' => 0]; }
-
-$perduesDefenseur = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $actions['defenseur']);
-if (!$perduesDefenseur) { $perduesDefenseur = ['moleculesPerdues' => 0]; }
-
 ajouterPoints($pointsAttaquant, $actions['attaquant'], 1);
 ajouterPoints($totalPille, $actions['attaquant'], 3);
 ajouterPoints($pointsDefenseur, $actions['defenseur'], 2);
@@ -692,8 +686,15 @@ ajouterPoints($pointsDefenseur, $actions['defenseur'], 2);
 // That stat tracks how much a player has pillaged (offensive), not how much was stolen FROM them.
 // Removing: ajouterPoints(-$totalPille, $actions['defenseur'], 3);
 
-dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pertesAttaquant + $perduesAttaquant['moleculesPerdues']), $actions['attaquant']);
-dbExecute($base, 'UPDATE autre SET moleculesPerdues=? WHERE login=?', 'ds', ($pertesDefenseur + $perduesDefenseur['moleculesPerdues']), $actions['defenseur']);
+// COMB-002: Atomic increment to avoid read-modify-write race on moleculesPerdues.
+// The previous SELECT+absolute-write pattern was a race condition; inside the transaction,
+// an atomic += is both safer and eliminates two unnecessary SELECT round-trips.
+if ($pertesAttaquant > 0) {
+    dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $pertesAttaquant, $actions['attaquant']);
+}
+if ($pertesDefenseur > 0) {
+    dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $pertesDefenseur, $actions['defenseur']);
+}
 
 
 
