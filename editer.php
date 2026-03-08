@@ -10,6 +10,12 @@ $type = isset($_POST['type']) ? (int)$_POST['type'] : (isset($_GET['type']) ? (i
 
 // On regarde si l'utilisateur est un modérateur
 $moderateur = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
+// MEDIUM-009: Banned moderator cannot edit posts — check active forum ban
+$activeBan = dbFetchOne($base, 'SELECT id FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
+if ($activeBan) {
+    // User is currently forum-banned; strip moderator privileges for this request
+    $moderateur = ['moderateur' => '0'];
+}
 
 // On recherche le sujet que l'on souhaite éditer
 $sujet = dbFetchOne($base, 'SELECT idsujet FROM reponses WHERE id = ?', 'i', $id);

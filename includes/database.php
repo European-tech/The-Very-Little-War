@@ -122,9 +122,15 @@ function withTransaction($base, callable $fn) {
     $useSavepoint = $depth > 0;
     $sp = 'sp_' . $depth;
     if ($useSavepoint) {
-        mysqli_query($base, "SAVEPOINT $sp");
+        if (!mysqli_query($base, "SAVEPOINT $sp")) {
+            $depth--;
+            throw new \RuntimeException('savepoint_failed');
+        }
     } else {
-        mysqli_begin_transaction($base);
+        if (!mysqli_begin_transaction($base)) {
+            $depth--;
+            throw new \RuntimeException('transaction_begin_failed');
+        }
     }
     $depth++;
     try {

@@ -413,7 +413,7 @@ foreach($tutorielMissions as $idx => $mission) {
                     </div>
                     <div style="flex-grow:1;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <strong style="font-size:15px;">Mission <?php echo $missionNum; ?> : <?php echo $mission['titre']; ?></strong>
+                            <strong style="font-size:15px;">Mission <?php echo (int)$missionNum; ?> : <?php echo htmlspecialchars($mission['titre'], ENT_QUOTES, 'UTF-8'); ?></strong>
                             <span style="font-size:12px;color:<?php echo $statusColor; ?>;font-weight:bold;white-space:nowrap;margin-left:8px;">
                                 <?php echo $statusIcon; ?> <?php echo $statusText; ?>
                             </span>
@@ -423,13 +423,13 @@ foreach($tutorielMissions as $idx => $mission) {
 
                 <!-- Description -->
                 <p style="color:#555;font-size:13px;margin:0 0 10px 0;">
-                    <?php echo $mission['description']; ?>
+                    <?php echo htmlspecialchars($mission['description'], ENT_QUOTES, 'UTF-8'); ?>
                 </p>
 
                 <!-- Objective -->
                 <div style="background:#e3f2fd;border-radius:6px;padding:8px 12px;margin-bottom:10px;">
                     <strong style="color:#1565c0;font-size:13px;">Objectif :</strong>
-                    <span style="font-size:13px;"><?php echo $mission['objectif']; ?></span>
+                    <span style="font-size:13px;"><?php echo htmlspecialchars($mission['objectif'], ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
 
                 <!-- Step by step instructions -->

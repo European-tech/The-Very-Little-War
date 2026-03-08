@@ -60,8 +60,8 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 					$timestamp = time();
 					dbExecute($base, 'INSERT INTO reponses VALUES(default, ?, "1", ?, ?, ?)', 'issi', $sujet_id, $contenu, $login, $timestamp);
 					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $sujet_id);
-					$nbMessages = dbFetchOne($base, 'SELECT nbMessages FROM autre WHERE login = ?', 's', $login);
-					dbExecute($base, 'UPDATE autre SET nbMessages = ? WHERE login = ?', 'is', ($nbMessages['nbMessages'] + 1), $login);
+					// MEDIUM-005: Atomic increment — no SELECT+UPDATE race
+					dbExecute($base, 'UPDATE autre SET nbMessages = nbMessages + 1 WHERE login = ?', 's', $login);
 				});
 				header("Location: sujet.php?id=" . $sujet_id); exit;
 				} // end locked topic check

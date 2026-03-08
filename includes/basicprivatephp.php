@@ -29,6 +29,21 @@ if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
         session_regenerate_id(true);
         $_SESSION['_last_regeneration'] = time();
     }
+
+    // MEDIUM-010: Moderator session IP binding
+    // Bind the moderator's IP at first access; invalidate session on IP change.
+    $modRow = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    if ($modRow && $modRow['moderateur']) {
+        if (!isset($_SESSION['mod_ip'])) {
+            // First page load as moderator — record the IP
+            $_SESSION['mod_ip'] = $_SERVER['REMOTE_ADDR'];
+        } elseif ($_SESSION['mod_ip'] !== $_SERVER['REMOTE_ADDR']) {
+            // IP changed — destroy session and redirect for security
+            session_destroy();
+            header('Location: index.php?erreur=' . urlencode('Session invalide. Veuillez vous reconnecter.'));
+            exit();
+        }
+    }
 } else {
     session_destroy();
     header('Location: index.php');
@@ -59,22 +74,9 @@ if (isset($_GET['erreur'])) {
 //////////////////////////////////////////////////////////// Gestion des connectés
 // Throttle: only update once per 60 seconds to reduce DB writes
 if (!isset($_SESSION['last_online_update']) || time() - $_SESSION['last_online_update'] > ONLINE_UPDATE_THROTTLE_SECONDS) {
-    //Vérification si l'adresse IP est dans la table
-    $donnees = dbFetchOne($base, 'SELECT COUNT(*) AS nbre_entrees FROM connectes WHERE ip = ?', 's', $_SERVER['REMOTE_ADDR']);
-
-    if (!$donnees || $donnees['nbre_entrees'] == 0) //L'IP ne se trouve pas dans la table, on va l'ajouter.
-    {
-        $now = time();
-        dbExecute($base, 'INSERT INTO connectes VALUES(?, ?)', 'si', $_SERVER['REMOTE_ADDR'], $now);
-    } else //L'IP se trouve déjà dans la table, on met juste à jour le timestamp.
-    {
-        $now = time();
-        dbExecute($base, 'UPDATE connectes SET timestamp = ? WHERE ip = ?', 'is', $now, $_SERVER['REMOTE_ADDR']);
-    }
-
-    // Toutes les entrées vieilles de plus de 5 minutes sont supprimées
-    $timestamp_5min = time() - ONLINE_TIMEOUT_SECONDS;
-    dbExecute($base, 'DELETE FROM connectes WHERE timestamp < ?', 'i', $timestamp_5min);
+    // LOW-003: ON DUPLICATE KEY UPDATE avoids SELECT+INSERT/UPDATE race condition
+    $now = time();
+    dbExecute($base, 'INSERT INTO connectes (ip, timestamp) VALUES (?, ?) ON DUPLICATE KEY UPDATE timestamp=VALUES(timestamp)', 'si', $_SERVER['REMOTE_ADDR'], $now);
 
     $_SESSION['last_online_update'] = time();
 }

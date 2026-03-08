@@ -84,7 +84,7 @@ if(isset($_POST['numeropartie'])) {
 				<td><?php echo imageClassement($compteur) ; ?></td>
 				<td><a href="joueur.php?id=<?php echo urlencode($valeurs[0]);?>"><?php echo htmlspecialchars($valeurs[0], ENT_QUOTES, 'UTF-8'); ?></a></td>
 				<td><?php echo htmlspecialchars($valeurs[1] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
-				<td><?php echo alliance(htmlspecialchars($valeurs[2] ?? '', ENT_QUOTES, 'UTF-8')); ?></td>
+				<td><?php echo alliance($valeurs[2] ?? ''); ?></td>
 				<td><?php echo htmlspecialchars($valeurs[3] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
 				<td><?php echo htmlspecialchars($valeurs[4] ?? '', ENT_QUOTES, 'UTF-8');?></td>
 				<td><?php echo htmlspecialchars($valeurs[5] ?? '', ENT_QUOTES, 'UTF-8');?></td>
@@ -130,7 +130,7 @@ if(isset($_POST['numeropartie'])) {
 				?>
 				<tr>
 				<td><?php echo imageClassement($compteur) ; ?></td>
-				<td><?php echo alliance(htmlspecialchars($valeurs[0] ?? '', ENT_QUOTES, 'UTF-8')); ?></td>
+				<td><?php echo alliance($valeurs[0] ?? ''); ?></td>
 				<td><?php echo htmlspecialchars($valeurs[1] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
 				<td><?php echo htmlspecialchars($valeurs[2] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
 				<td><?php echo htmlspecialchars($valeurs[3] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>

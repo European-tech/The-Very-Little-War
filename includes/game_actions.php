@@ -105,235 +105,245 @@ function updateActions($joueur)
                 $nbsecondes = $actions['tempsAttaque'] - $actions['tempsAller'];
                 $molecules = explode(";", $actions['troupes']);
 
-                mysqli_begin_transaction($base);
+                // Variables populated inside withTransaction closure, used after for multi-account check
+                $combatAttaquant = $actions['attaquant'];
+                $combatDefenseur = $actions['defenseur'];
+                $combatTemps = $actions['tempsAttaque'];
+
                 try {
-
-                // CAS guard INSIDE transaction: prevents data loss on rollback (P2-D7-002)
-                $casAffected = dbExecute($base, 'UPDATE actionsattaques SET attaqueFaite=1 WHERE id=? AND attaqueFaite=0', 'i', $actions['id']);
-                if ($casAffected === 0 || $casAffected === false) {
-                    // Another concurrent request already resolved this combat — skip it
-                    mysqli_rollback($base);
-                    continue;
-                }
-
-                // Decay loop now inside the transaction
-                $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
-
-                $compteur = 1;
-                $chaine = '';
-                $totalMoleculesPerdues = 0;
-                foreach ($moleculesRows as $moleculesProp) {
-                    if (!isset($molecules[$compteur - 1])) {
-                        logError("Malformed troupes string for action " . $actions['id']);
-                        break;
-                    }
-                    $moleculesRestantes = (pow(coefDisparition($actions['attaquant'], $compteur), $nbsecondes) * $molecules[$compteur - 1]);
-                    $chaine = $chaine . $moleculesRestantes . ';';
-                    $totalMoleculesPerdues += ($molecules[$compteur - 1] - $moleculesRestantes);
-                    $compteur++;
-                }
-                // Batch update moleculesPerdues in one atomic statement
-                if ($totalMoleculesPerdues > 0) {
-                    dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'is', (int) round($totalMoleculesPerdues), $actions['attaquant']);
-                }
-
-                $actions['troupes'] = $chaine;
-                include("includes/combat.php"); // Les pertes sont calculées, le gagnant est désigné et les troupes sont mises à jour dans la BD, les ressources sont pillées
-
-                // Map combat.php output variables to report template variables
-                $attaquePts = number_format($pointsAttaquant, 0, ' ', ' ');
-                $defensePts = number_format($pointsDefenseur, 0, ' ', ' ');
-                $pillagePts = number_format($totalPille, 0, ' ', ' ');
-                $pillagePts1 = $pillagePts;
-
-                if ($gagnant == 2) {
-                    $titreRapportJoueur = "Vous gagnez contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
-                    $titreRapportDefenseur = "Vous perdez contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
-                } elseif ($gagnant == 1) {
-                    $titreRapportJoueur = "Vous perdez contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
-                    $titreRapportDefenseur = "Vous gagnez contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
-                } else {
-                    $titreRapportJoueur = "Egalité contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
-                    $titreRapportDefenseur = "Egalité contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
-                }
-
-                $chaine = "Aucune";
-                foreach ($nomsRes as $num => $ressource) {
-                    $pilleAmount = $ressourcePille[$ressource] ?? 0;
-                    if ($pilleAmount > 0) {
-                        if ($chaine == "Aucune") {
-                            $chaine = nombreAtome($num, $pilleAmount);
-                        } else {
-                            $chaine = $chaine . nombreAtome($num, $pilleAmount);
+                    withTransaction($base, function() use (
+                        $base, &$actions, $molecules, $nbsecondes, $nomsRes, $nbClasses, $FORMATIONS
+                    ) {
+                        // CAS guard INSIDE transaction: prevents data loss on rollback (P2-D7-002)
+                        $casAffected = dbExecute($base, 'UPDATE actionsattaques SET attaqueFaite=1 WHERE id=? AND attaqueFaite=0', 'i', $actions['id']);
+                        if ($casAffected === 0 || $casAffected === false) {
+                            // Another concurrent request already resolved this combat — skip it
+                            throw new \RuntimeException('cas_skip');
                         }
-                    }
-                }
 
+                        // Decay loop now inside the transaction
+                        $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
 
+                        $compteur = 1;
+                        $chaine = '';
+                        $totalMoleculesPerdues = 0;
+                        foreach ($moleculesRows as $moleculesProp) {
+                            if (!isset($molecules[$compteur - 1])) {
+                                logError("Malformed troupes string for action " . $actions['id']);
+                                break;
+                            }
+                            $moleculesRestantes = (pow(coefDisparition($actions['attaquant'], $compteur), $nbsecondes) * $molecules[$compteur - 1]);
+                            $chaine = $chaine . $moleculesRestantes . ';';
+                            $totalMoleculesPerdues += ($molecules[$compteur - 1] - $moleculesRestantes);
+                            $compteur++;
+                        }
+                        // Batch update moleculesPerdues in one atomic statement
+                        if ($totalMoleculesPerdues > 0) {
+                            dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'is', (int) round($totalMoleculesPerdues), $actions['attaquant']);
+                        }
 
-                // verifier si on a envoyé des molécules de cette classe
+                        $actions['troupes'] = $chaine;
+                        include("includes/combat.php"); // Les pertes sont calculées, le gagnant est désigné et les troupes sont mises à jour dans la BD, les ressources sont pillées
 
-                for ($i = 1; $i <= $nbClasses; $i++) {
-                    if ($classeAttaquant[$i]['nombre'] == 0) {
-                        $classeAttaquant[$i]['formuleAfficher'] = "?";
-                    } else {
-                        $classeAttaquant[$i]['formuleAfficher'] = couleurFormule($classeAttaquant[$i]['formule']);
-                    }
-                }
+                        // Map combat.php output variables to report template variables
+                        $attaquePts = number_format($pointsAttaquant, 0, ' ', ' ');
+                        $defensePts = number_format($pointsDefenseur, 0, ' ', ' ');
+                        $pillagePts = number_format($totalPille, 0, ' ', ' ');
+                        $pillagePts1 = $pillagePts;
 
-                $information = "";
-                if ($attaquantsRestants == 0) {
-                    $information = "<strong>Aucune mol&eacute;cule n'est revenue !</strong><br/><br/>";
-                }
+                        if ($gagnant == 2) {
+                            $titreRapportJoueur = "Vous gagnez contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
+                            $titreRapportDefenseur = "Vous perdez contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
+                        } elseif ($gagnant == 1) {
+                            $titreRapportJoueur = "Vous perdez contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
+                            $titreRapportDefenseur = "Vous gagnez contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
+                        } else {
+                            $titreRapportJoueur = "Egalité contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
+                            $titreRapportDefenseur = "Egalité contre " . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . " !";
+                        }
 
-                $debutRapport = "<p>
-                            <div class=\"table-responsive\">
-                            " . important('Attaquant') . "<br/>
-                            " . chipInfo($attaquePts, 'images/molecule/sword.png') . chipInfo($pillagePts, 'images/molecule/bag.png') . "<br/><br/>
-                            <table class=\"table table-bordered\">
-                            <caption style=\"color:red;font-weight:bold;\"><img src=\"images/attaquer/gladius.png\" alt=\"epee\" class=\"imageAide\"/><a style=\"color:red\" href=\"joueur.php?id=" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "</caption>
-                            <thead>
-                            <tr>
-                            <th></th>
-                            " . (function() use ($classeAttaquant, $nbClasses) {
-                                $h = '';
-                                for ($i = 1; $i <= $nbClasses; $i++) {
-                                    $h .= "<th>" . $classeAttaquant[$i]['formuleAfficher'] . "</th>\n";
+                        $chaine = "Aucune";
+                        foreach ($nomsRes as $num => $ressource) {
+                            $pilleAmount = $ressourcePille[$ressource] ?? 0;
+                            if ($pilleAmount > 0) {
+                                if ($chaine == "Aucune") {
+                                    $chaine = nombreAtome($num, $pilleAmount);
+                                } else {
+                                    $chaine = $chaine . nombreAtome($num, $pilleAmount);
                                 }
-                                return $h;
-                            })() . "
-                            </tr>
-                            </thead>
-
-                            <tbody>
-                            <tr>
-                            <th>Troupes</th>
-                            " . (function() use ($classeAttaquant, $nbClasses) {
-                                $h = '';
-                                for ($i = 1; $i <= $nbClasses; $i++) {
-                                    $h .= "<td>" . number_format($classeAttaquant[$i]['nombre'], 0, ' ', ' ') . "</td>\n";
-                                }
-                                return $h;
-                            })() . "
-                            </tr>
-
-                            <tr>
-                            <th>Pertes</th>
-                            " . (function() use ($attaquantMort, $nbClasses) {
-                                $h = '';
-                                for ($i = 1; $i <= $nbClasses; $i++) {
-                                    $h .= "<td>" . number_format($attaquantMort[$i] ?? 0, 0, ' ', ' ') . "</td>\n";
-                                }
-                                return $h;
-                            })() . "
-                            </tr>
-                            </tbody>
-                            </table></div><br/><br/>
-
-                            $information
-                            <br/><br/>
-                            " . important('Défenseur') . "<br/>
-                            " . chipInfo($defensePts, 'images/molecule/shield.png') . chipInfo($pillagePts1, 'images/molecule/bag.png') . "<br/><br/>
-                            <div class=\"table-responsive\">
-                            <table class=\"table table-bordered\">
-                            <caption style=\"color:green;font-weight:bold;\"><img src=\"images/attaquer/shield.png\" alt=\"bouclier\" class=\"imageAide\"/><a style=\"color:green\" href=\"joueur.php?id=" . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . "</a></caption>
-
-                            <thead>
-                            <tr>
-                            <th></th>";
-
-                for ($i = 1; $i <= $nbClasses; $i++) {
-                    $classeDefenseur[$i]['nombre'] = separerZeros($classeDefenseur[$i]['nombre']);
-                    $defenseurMort[$i] = separerZeros($defenseurMort[$i] ?? 0);
-                }
-
-                $milieuDefenseur = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
-                    $h = '';
-                    for ($i = 1; $i <= $nbClasses; $i++) {
-                        $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
-                    }
-                    $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
-                    for ($i = 1; $i <= $nbClasses; $i++) {
-                        $h .= "<td>" . $classeDefenseur[$i]['nombre'] . "</td>\n";
-                    }
-                    $h .= "</tr><tr><th>Pertes</th>\n";
-                    for ($i = 1; $i <= $nbClasses; $i++) {
-                        $h .= "<td>" . $defenseurMort[$i] . "</td>\n";
-                    }
-                    $h .= "</tr>";
-                    return $h;
-                })();
-
-                if ($attaquantsRestants == 0) { // si aucune molécule n'est revenue alors on a aucune information sur les troupes en face
-                    for ($i = 1; $i <= $nbClasses; $i++) {
-                        $classeDefenseur[$i]['formule'] = "?";
-                        $classeDefenseur[$i]['nombre'] = "?";
-                        $defenseurMort[$i] = "?";
-                    }
-
-                    dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']); // pas de retour si ils sont morts
-
-                }
+                            }
+                        }
 
 
-                $milieuAttaquant = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
-                    $h = '';
-                    for ($i = 1; $i <= $nbClasses; $i++) {
-                        $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
-                    }
-                    $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
-                    for ($i = 1; $i <= $nbClasses; $i++) {
-                        $h .= "<td>" . $classeDefenseur[$i]['nombre'] . "</td>\n";
-                    }
-                    $h .= "</tr><tr><th>Pertes</th>\n";
-                    for ($i = 1; $i <= $nbClasses; $i++) {
-                        $h .= "<td>" . $defenseurMort[$i] . "</td>\n";
-                    }
-                    $h .= "</tr>";
-                    return $h;
-                })();
+
+                        // verifier si on a envoyé des molécules de cette classe
+
+                        for ($i = 1; $i <= $nbClasses; $i++) {
+                            if ($classeAttaquant[$i]['nombre'] == 0) {
+                                $classeAttaquant[$i]['formuleAfficher'] = "?";
+                            } else {
+                                $classeAttaquant[$i]['formuleAfficher'] = couleurFormule($classeAttaquant[$i]['formule']);
+                            }
+                        }
+
+                        $information = "";
+                        if ($attaquantsRestants == 0) {
+                            $information = "<strong>Aucune mol&eacute;cule n'est revenue !</strong><br/><br/>";
+                        }
+
+                        $debutRapport = "<p>
+                                    <div class=\"table-responsive\">
+                                    " . important('Attaquant') . "<br/>
+                                    " . chipInfo($attaquePts, 'images/molecule/sword.png') . chipInfo($pillagePts, 'images/molecule/bag.png') . "<br/><br/>
+                                    <table class=\"table table-bordered\">
+                                    <caption style=\"color:red;font-weight:bold;\"><img src=\"images/attaquer/gladius.png\" alt=\"epee\" class=\"imageAide\"/><a style=\"color:red\" href=\"joueur.php?id=" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "</caption>
+                                    <thead>
+                                    <tr>
+                                    <th></th>
+                                    " . (function() use ($classeAttaquant, $nbClasses) {
+                                        $h = '';
+                                        for ($i = 1; $i <= $nbClasses; $i++) {
+                                            $h .= "<th>" . $classeAttaquant[$i]['formuleAfficher'] . "</th>\n";
+                                        }
+                                        return $h;
+                                    })() . "
+                                    </tr>
+                                    </thead>
+
+                                    <tbody>
+                                    <tr>
+                                    <th>Troupes</th>
+                                    " . (function() use ($classeAttaquant, $nbClasses) {
+                                        $h = '';
+                                        for ($i = 1; $i <= $nbClasses; $i++) {
+                                            $h .= "<td>" . number_format($classeAttaquant[$i]['nombre'], 0, ' ', ' ') . "</td>\n";
+                                        }
+                                        return $h;
+                                    })() . "
+                                    </tr>
+
+                                    <tr>
+                                    <th>Pertes</th>
+                                    " . (function() use ($attaquantMort, $nbClasses) {
+                                        $h = '';
+                                        for ($i = 1; $i <= $nbClasses; $i++) {
+                                            $h .= "<td>" . number_format($attaquantMort[$i] ?? 0, 0, ' ', ' ') . "</td>\n";
+                                        }
+                                        return $h;
+                                    })() . "
+                                    </tr>
+                                    </tbody>
+                                    </table></div><br/><br/>
+
+                                    $information
+                                    <br/><br/>
+                                    " . important('Défenseur') . "<br/>
+                                    " . chipInfo($defensePts, 'images/molecule/shield.png') . chipInfo($pillagePts1, 'images/molecule/bag.png') . "<br/><br/>
+                                    <div class=\"table-responsive\">
+                                    <table class=\"table table-bordered\">
+                                    <caption style=\"color:green;font-weight:bold;\"><img src=\"images/attaquer/shield.png\" alt=\"bouclier\" class=\"imageAide\"/><a style=\"color:green\" href=\"joueur.php?id=" . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . "</a></caption>
+
+                                    <thead>
+                                    <tr>
+                                    <th></th>";
+
+                        for ($i = 1; $i <= $nbClasses; $i++) {
+                            $classeDefenseur[$i]['nombre'] = separerZeros($classeDefenseur[$i]['nombre']);
+                            $defenseurMort[$i] = separerZeros($defenseurMort[$i] ?? 0);
+                        }
+
+                        $milieuDefenseur = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
+                            $h = '';
+                            for ($i = 1; $i <= $nbClasses; $i++) {
+                                $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
+                            }
+                            $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
+                            for ($i = 1; $i <= $nbClasses; $i++) {
+                                $h .= "<td>" . $classeDefenseur[$i]['nombre'] . "</td>\n";
+                            }
+                            $h .= "</tr><tr><th>Pertes</th>\n";
+                            for ($i = 1; $i <= $nbClasses; $i++) {
+                                $h .= "<td>" . $defenseurMort[$i] . "</td>\n";
+                            }
+                            $h .= "</tr>";
+                            return $h;
+                        })();
+
+                        if ($attaquantsRestants == 0) { // si aucune molécule n'est revenue alors on a aucune information sur les troupes en face
+                            for ($i = 1; $i <= $nbClasses; $i++) {
+                                $classeDefenseur[$i]['formule'] = "?";
+                                $classeDefenseur[$i]['nombre'] = "?";
+                                $defenseurMort[$i] = "?";
+                            }
+
+                            dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']); // pas de retour si ils sont morts
+
+                        }
 
 
-                // Reactions feature removed — placeholder for future implementation
-                $reactionsHtml = '';
+                        $milieuAttaquant = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
+                            $h = '';
+                            for ($i = 1; $i <= $nbClasses; $i++) {
+                                $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
+                            }
+                            $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
+                            for ($i = 1; $i <= $nbClasses; $i++) {
+                                $h .= "<td>" . $classeDefenseur[$i]['nombre'] . "</td>\n";
+                            }
+                            $h .= "</tr><tr><th>Pertes</th>\n";
+                            for ($i = 1; $i <= $nbClasses; $i++) {
+                                $h .= "<td>" . $defenseurMort[$i] . "</td>\n";
+                            }
+                            $h .= "</tr>";
+                            return $h;
+                        })();
 
-                $finRapport = "
-                            </tbody>
-                            </table></div><br/><br/>
 
-                            " . $reactionsHtml . "
+                        // Reactions feature removed — placeholder for future implementation
+                        $reactionsHtml = '';
 
-                            " . important('Ressources pillées') . "
-                            " . $chaine . "
-                            <br/><br/>
+                        $finRapport = "
+                                    </tbody>
+                                    </table></div><br/><br/>
 
-                            " . important('Bâtiments endommagés') . "
+                                    " . $reactionsHtml . "
 
-                            <strong>Générateur : </strong>" . number_format($degatsGenEnergie, 0, ' ', ' ') . " (" . $destructionGenEnergie . ")<br/>
-                            <strong>Champ de force : </strong>" . number_format($degatschampdeforce, 0, ' ', ' ') . " (" . $destructionchampdeforce . ")<br/>
-                            <strong>Producteur : </strong>" . number_format($degatsProducteur, 0, ' ', ' ') . " (" . $destructionProducteur . ")<br/>
-                            <strong>Stockage: </strong>" . number_format($degatsDepot, 0, ' ', ' ') . " (" . $destructionDepot . ")<br/>
-                            <strong>Ionisateur : </strong>" . number_format($degatsIonisateur, 0, ' ', ' ') . " (" . $destructionIonisateur . ")<br/>
-                            </p>
-                            ";
+                                    " . important('Ressources pillées') . "
+                                    " . $chaine . "
+                                    <br/><br/>
 
-                $contenuRapportAttaquant = $debutRapport . $milieuAttaquant . $finRapport;
-                $contenuRapportDefenseur = $debutRapport . $milieuDefenseur . $finRapport;
+                                    " . important('Bâtiments endommagés') . "
 
-                // Les rapports sont créés
-                $rapportImage = '<img alt="attack" src="images/rapports/sword.png"/ class="imageAide">';
-                dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportAttaquant, $actions['attaquant'], $rapportImage);
+                                    <strong>Générateur : </strong>" . number_format($degatsGenEnergie, 0, ' ', ' ') . " (" . $destructionGenEnergie . ")<br/>
+                                    <strong>Champ de force : </strong>" . number_format($degatschampdeforce, 0, ' ', ' ') . " (" . $destructionchampdeforce . ")<br/>
+                                    <strong>Producteur : </strong>" . number_format($degatsProducteur, 0, ' ', ' ') . " (" . $destructionProducteur . ")<br/>
+                                    <strong>Stockage: </strong>" . number_format($degatsDepot, 0, ' ', ' ') . " (" . $destructionDepot . ")<br/>
+                                    <strong>Ionisateur : </strong>" . number_format($degatsIonisateur, 0, ' ', ' ') . " (" . $destructionIonisateur . ")<br/>
+                                    </p>
+                                    ";
 
-                dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage);
-                mysqli_commit($base);
+                        $contenuRapportAttaquant = $debutRapport . $milieuAttaquant . $finRapport;
+                        $contenuRapportDefenseur = $debutRapport . $milieuDefenseur . $finRapport;
 
-                // Multi-account: check for coordinated attacks from same-IP accounts
+                        // Les rapports sont créés
+                        $rapportImage = '<img alt="attack" src="images/rapports/sword.png"/ class="imageAide">';
+                        dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportAttaquant, $actions['attaquant'], $rapportImage);
+
+                        dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage);
+                        // withTransaction handles commit automatically
+                    });
+
+                // Multi-account: check for coordinated attacks from same-IP accounts (read-only, outside tx)
                 require_once(__DIR__ . '/multiaccount.php');
-                checkCoordinatedAttacks($base, $actions['attaquant'], $actions['defenseur'], $actions['tempsAttaque']);
+                checkCoordinatedAttacks($base, $combatAttaquant, $combatDefenseur, $combatTemps);
 
+                } catch (\RuntimeException $e) {
+                    if ($e->getMessage() === 'cas_skip') {
+                        continue; // valid — we are in the outer foreach, not a closure
+                    }
+                    error_log('Combat transaction rolled back for action ' . ($actions['id'] ?? 'unknown') . ': ' . $e->getMessage());
                 } catch (\Throwable $combatException) {
-                    mysqli_rollback($base);
-                    error_log('Combat transaction rolled back for action ' . $actions['id'] . ': ' . $combatException->getMessage());
+                    error_log('Combat transaction rolled back for action ' . ($actions['id'] ?? 'unknown') . ': ' . $combatException->getMessage());
                 }
             } else {
                 $nDef = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $actions['defenseur']);

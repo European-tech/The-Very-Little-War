@@ -104,11 +104,13 @@ function pointsPillage($nbRessources)
  */
 function calculerTotalPoints($construction, $attaque, $defense, $commerce, $pillage)
 {
+    // MEDIUM-016: Cap trade volume to prevent ranking inflation via repeated self-trading
+    $cappedCommerce = min($commerce, TRADE_VOLUME_CAP);
     return round(
         RANKING_CONSTRUCTION_WEIGHT * pow(max(0, $construction), RANKING_SQRT_EXPONENT)
         + RANKING_ATTACK_WEIGHT * pow(max(0, $attaque), RANKING_SQRT_EXPONENT)
         + RANKING_DEFENSE_WEIGHT * pow(max(0, $defense), RANKING_SQRT_EXPONENT)
-        + RANKING_TRADE_WEIGHT * pow(max(0, $commerce), RANKING_SQRT_EXPONENT)
+        + RANKING_TRADE_WEIGHT * pow(max(0, $cappedCommerce), RANKING_SQRT_EXPONENT)
         + RANKING_PILLAGE_WEIGHT * pow(max(0, $pillage), RANKING_SQRT_EXPONENT)
     );
 }

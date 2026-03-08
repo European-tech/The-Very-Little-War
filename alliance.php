@@ -196,32 +196,39 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
         } else {
 
         if ($_POST['actioninvitation'] == "Accepter") {
-            // Check rejoin cooldown (column added by migration 0030)
             try {
-                $leftAtRow = dbFetchOne($base, 'SELECT alliance_left_at FROM autre WHERE login=?', 's', $_SESSION['login']);
-                if ($leftAtRow && !empty($leftAtRow['alliance_left_at'])) {
-                    $cooldown = defined('ALLIANCE_REJOIN_COOLDOWN_SECONDS') ? ALLIANCE_REJOIN_COOLDOWN_SECONDS : SECONDS_PER_DAY;
-                    if ((time() - (int)$leftAtRow['alliance_left_at']) < $cooldown) {
-                        $heuresRestantes = ceil(($cooldown - (time() - (int)$leftAtRow['alliance_left_at'])) / 3600);
-                        $erreur = "Vous devez attendre encore " . $heuresRestantes . "h avant de rejoindre une alliance.";
-                    }
-                }
-            } catch (\Exception $e) {
-                // Column not yet present — migration pending, skip cooldown check
-            }
-            if (!isset($erreur)) try {
                 withTransaction($base, function() use ($base, $idalliance, $joueursEquipe) {
                     // LOW-019: Re-verify inside transaction that the accepting player has no alliance
-                    $currentAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                    $currentAlliance = dbFetchOne($base, 'SELECT idalliance, alliance_left_at FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                     if (!$currentAlliance || (int)$currentAlliance['idalliance'] !== 0) {
                         throw new \RuntimeException('ALREADY_IN_ALLIANCE');
                     }
+                    // MEDIUM-013: Cooldown check moved inside transaction after FOR UPDATE lock
+                    // so it uses the locked, authoritative value (no TOCTOU)
+                    try {
+                        if (!empty($currentAlliance['alliance_left_at'])) {
+                            $cooldown = defined('ALLIANCE_REJOIN_COOLDOWN_SECONDS') ? ALLIANCE_REJOIN_COOLDOWN_SECONDS : SECONDS_PER_DAY;
+                            if ((time() - (int)$currentAlliance['alliance_left_at']) < $cooldown) {
+                                $heuresRestantes = ceil(($cooldown - (time() - (int)$currentAlliance['alliance_left_at'])) / 3600);
+                                throw new \RuntimeException('COOLDOWN:' . $heuresRestantes);
+                            }
+                        }
+                    } catch (\RuntimeException $re) {
+                        throw $re; // re-throw cooldown errors
+                    } catch (\Exception $e) {
+                        // Column not yet present — migration pending, skip cooldown check
+                    }
+                    // MEDIUM-004: Lock the alliance row first before counting members
+                    // to prevent race condition where two players join simultaneously
+                    dbFetchOne($base, 'SELECT id FROM alliances WHERE id=? FOR UPDATE', 'i', $idalliance['idalliance']);
                     // Count members inside transaction to prevent race condition
                     $count = dbCount($base, 'SELECT COUNT(*) AS nb FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
                     if ($count >= $joueursEquipe) {
                         throw new \RuntimeException('FULL');
                     }
                     dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
+                    // MEDIUM-013: Clear alliance_left_at on successful join
+                    dbExecute($base, 'UPDATE autre SET alliance_left_at = NULL WHERE login=?', 's', $_SESSION['login']);
                     // HIGH-037: Clear all pending invitations for this player after joining
                     dbExecute($base, 'DELETE FROM invitations WHERE invite=?', 's', $_SESSION['login']);
                 });
@@ -230,6 +237,9 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
             } catch (\RuntimeException $e) {
                 if ($e->getMessage() === 'ALREADY_IN_ALLIANCE') {
                     $erreur = "Vous appartenez déjà à une alliance.";
+                } elseif (strpos($e->getMessage(), 'COOLDOWN:') === 0) {
+                    $heuresRestantes = (int)substr($e->getMessage(), 9);
+                    $erreur = "Vous devez attendre encore " . $heuresRestantes . "h avant de rejoindre une alliance.";
                 } else {
                     $erreur = "Le nombre maximal de joueurs dans l'équipe est atteint.";
                 }

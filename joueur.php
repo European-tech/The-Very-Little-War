@@ -68,12 +68,16 @@ if (isset($_GET['id'])) {
         echo '<p><span style="color:' . htmlspecialchars($lastSeenColor, ENT_QUOTES, 'UTF-8') . ';">&#9679;</span> ' . htmlspecialchars($lastSeenText) . '</p>';
 
         echo chip('<span class="important">Equipe : </span>'.$alliance,'<img alt="coupe" src="images/classement/alliance.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
-        echo nombrePoints('<span class="important">Points : </span>'.$donnees1['totalPoints']).'<br/>';
-		echo chip('<span class="important">Victoires : </span>'.$donnees1['victoires'],'<img alt="coupe" src="images/classement/victoires.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
-        if($membre['x'] != -1000){
+        // MEDIUM-028: Use safe integer/formatted output for totalPoints, victoires, x, y
+        $safePoints = htmlspecialchars(number_format((int)$donnees1['totalPoints'], 0, '.', ' '), ENT_QUOTES, 'UTF-8');
+        echo nombrePoints('<span class="important">Points : </span>' . $safePoints).'<br/>';
+		echo chip('<span class="important">Victoires : </span>'.(int)$donnees1['victoires'],'<img alt="coupe" src="images/classement/victoires.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';
+        $safeX = (int)$membre['x'];
+        $safeY = (int)$membre['y'];
+        if($safeX != -1000){
             // LOW-028: only show exact coordinates to authenticated users
             if (isset($_SESSION['login'])) {
-                echo chip('<span class="important">Position : </span>'.'<a href="attaquer.php?x='.$membre['x'].'&y='.$membre['y'].'">'.$membre['x'].';'.$membre['y'].'</a>','<img alt="coupe" src="images/attaquer/map.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true);
+                echo chip('<span class="important">Position : </span>'.'<a href="attaquer.php?x='.$safeX.'&amp;y='.$safeY.'">'.$safeX.';'.$safeY.'</a>','<img alt="coupe" src="images/attaquer/map.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true);
             } else {
                 echo chip('<span class="important">Position : </span><img src="images/attaquer/map.png" alt="carte" style="width:16px;vertical-align:middle;"/> <em>Connectez-vous pour voir</em>','<img alt="coupe" src="images/attaquer/map.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true);
             }
@@ -81,7 +85,7 @@ if (isset($_GET['id'])) {
 
         $fin = false;
 		if(isset($_SESSION['login'])) {
-            if($membre['x'] != -1000 && $_SESSION['login'] != $membre['login']){
+            if($safeX != -1000 && $_SESSION['login'] != $membre['login']){
 			     $fin = '<a href="attaquer.php?id='.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8').'&type=1" class="lienSousMenu"><img src="images/classement/adversaires.png" class="imageSousMenu" alt="attaquer" title="Attaquer"/><br/><span class="labelSousMenu"  style="color:black">Attaquer</span></a>
                 <a href="attaquer.php?id='.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8').'&type=2" class="lienSousMenu"><img src="images/rapports/binoculars.png" class="imageSousMenu" alt="attaquer" title="Espionner"/><br/><span class="labelSousMenu"  style="color:black">Espionner</span></a>';
             }

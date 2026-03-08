@@ -183,11 +183,19 @@ $compoundDefenseBonus = isset($actions['compound_def_bonus']) ? (float)$actions[
 if ($compoundAttackBonus > 0) $degatsAttaquant *= (1 + $compoundAttackBonus);
 if ($compoundDefenseBonus > 0) $degatsDefenseur *= (1 + $compoundDefenseBonus);
 
-// Specialization combat modifiers
-$specAttackMod = getSpecModifier($actions['attaquant'], 'attack');
-$specDefenseMod = getSpecModifier($actions['defenseur'], 'defense');
+// Specialization combat modifiers (MEDIUM-018: cross-role modifiers added)
+$specAttackMod      = getSpecModifier($actions['attaquant'], 'attack');   // attacker's attack spec → more attacker damage
+$specDefenseMod     = getSpecModifier($actions['defenseur'], 'defense');  // defender's defense spec → more defender counter-damage
+$specAttackMod_def  = getSpecModifier($actions['defenseur'], 'attack');   // defender's attack spec → boosts their counter-damage
+$specDefenseMod_att = getSpecModifier($actions['attaquant'], 'defense');  // attacker's defense spec → reduces damage they take
 $degatsAttaquant *= (1 + $specAttackMod);
 $degatsDefenseur *= (1 + $specDefenseMod);
+$degatsDefenseur *= (1 + $specAttackMod_def);                              // defender's attack specialization boosts counter-damage
+$degatsDefenseur /= max(1.0, 1.0 + $specDefenseMod_att);                  // attacker's defense specialization reduces damage taken
+
+// MEDIUM-017: Apply global catalyst attack bonus to defender's counter-damage too
+// The weekly catalyst (e.g., Combustion +10% attack) is a global effect — symmetrical for both sides
+$degatsDefenseur *= (1 + catalystEffect('attack_bonus'));
 
 // Apply Embuscade bonus to defender's effective damage (FIX FINDING-GAME-018)
 $degatsDefenseur *= $embuscadeDefBoost;
@@ -207,7 +215,7 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 		if ($hpPerMol > 0) {
 			$kills = min($classeAttaquant[$i]['nombre'], (int)floor($remainingDamage / $hpPerMol));
 			$remainder = fmod($remainingDamage, $hpPerMol);
-			if ($remainder > 0 && lcg_value() < $remainder / $hpPerMol && $kills < $classeAttaquant[$i]['nombre']) $kills++;
+			if ($remainder > 0 && (random_int(0, 1000000) / 1000000.0) < $remainder / $hpPerMol && $kills < $classeAttaquant[$i]['nombre']) $kills++;
 			$attaquantMort[$i] = $kills;
 			$remainingDamage -= $kills * $hpPerMol;
 			$remainingDamage = max(0.0, $remainingDamage); // guard against float underflow
@@ -233,7 +241,7 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 	if ($classeDefenseur[1]['nombre'] > 0 && $hpPerMol1 > 0) {
 		$kills1 = min($classeDefenseur[1]['nombre'], (int)floor($phalanxDamage / $hpPerMol1));
 		$remainder1 = fmod($phalanxDamage, $hpPerMol1);
-		if ($remainder1 > 0 && lcg_value() < $remainder1 / $hpPerMol1 && $kills1 < $classeDefenseur[1]['nombre']) $kills1++;
+		if ($remainder1 > 0 && (random_int(0, 1000000) / 1000000.0) < $remainder1 / $hpPerMol1 && $kills1 < $classeDefenseur[1]['nombre']) $kills1++;
 		$defenseurMort[1] = $kills1;
 		$phalanxOverflow = max(0.0, $phalanxDamage - $kills1 * $hpPerMol1);
 	} elseif ($classeDefenseur[1]['nombre'] > 0) {
@@ -254,7 +262,7 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 			if ($hpPerMol > 0) {
 				$kills = min($classeDefenseur[$i]['nombre'], (int)floor($remainingDamage / $hpPerMol));
 				$rem = fmod($remainingDamage, $hpPerMol);
-				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
+				if ($rem > 0 && (random_int(0, 1000000) / 1000000.0) < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
 				$defenseurMort[$i] = $kills;
 				$remainingDamage -= $kills * $hpPerMol;
 				$remainingDamage = max(0.0, $remainingDamage); // guard against float underflow
@@ -294,7 +302,7 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 			if ($hpPerMol > 0) {
 				$kills = min($classeDefenseur[$i]['nombre'], (int)floor($classDamage / $hpPerMol));
 				$rem = fmod($classDamage, $hpPerMol);
-				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
+				if ($rem > 0 && (random_int(0, 1000000) / 1000000.0) < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
 				$defenseurMort[$i] = $kills;
 				// Overkill: damage beyond what killed the last unit carries forward
 				$damageUsed = $kills * $hpPerMol;
@@ -309,6 +317,21 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 			}
 		}
 	}
+	// After the loop: apply remaining overkill to the last active class that still has HP
+	if ($disperseeOverkill > 0) {
+		for ($ci = $nbClasses; $ci >= 1; $ci--) {
+			$remaining = ($classeDefenseur[$ci]['nombre'] ?? 0) - ($defenseurMort[$ci] ?? 0);
+			if ($remaining > 0) {
+				$hpPerMol = pointsDeVieMolecule($classeDefenseur[$ci]['brome'], $classeDefenseur[$ci]['carbone'], $niveauxDef['brome'])
+							* $bonusDuplicateurDefense * $defIsotopeHpMod[$ci];
+				if ($hpPerMol > 0) {
+					$killsFromOverkill = min($remaining, (int)floor($disperseeOverkill / $hpPerMol));
+					$defenseurMort[$ci] = ($defenseurMort[$ci] ?? 0) + $killsFromOverkill;
+				}
+				break;
+			}
+		}
+	}
 } else {
 	// Embuscade/default: Straight cascade through all classes
 	$remainingDamage = $degatsAttaquant;
@@ -320,7 +343,7 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 			if ($hpPerMol > 0) {
 				$kills = min($classeDefenseur[$i]['nombre'], (int)floor($remainingDamage / $hpPerMol));
 				$rem = fmod($remainingDamage, $hpPerMol);
-				if ($rem > 0 && lcg_value() < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
+				if ($rem > 0 && (random_int(0, 1000000) / 1000000.0) < $rem / $hpPerMol && $kills < $classeDefenseur[$i]['nombre']) $kills++;
 				$defenseurMort[$i] = $kills;
 				$remainingDamage -= $kills * $hpPerMol;
 				$remainingDamage = max(0.0, $remainingDamage); // guard against float underflow
@@ -499,13 +522,15 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 
 	// gestion des degats infligés
 	// V4: Weighted building targeting — higher-level buildings attract more fire
-	$buildingTargets = [
-		'generateur' => max(1, $constructions['generateur']),
-		'champdeforce' => max(1, $constructions['champdeforce']),
-		'producteur' => max(1, $constructions['producteur']),
-		'depot' => max(1, $constructions['depot']),
-		'ionisateur' => max(1, $constructions['ionisateur']),
-	];
+	// LOW-011: Only include buildings at level >= 1 (level-0 buildings are invalid targets)
+	$buildingTargets = array_filter([
+		'generateur' => (int)$constructions['generateur'],
+		'champdeforce' => (int)$constructions['champdeforce'],
+		'producteur' => (int)$constructions['producteur'],
+		'depot' => (int)$constructions['depot'],
+		'ionisateur' => (int)$constructions['ionisateur'],
+	], fn($v) => $v > 0);
+	if (empty($buildingTargets)) $buildingTargets = ['generateur' => 1]; // fallback if all at level 0
 	$totalWeight = array_sum($buildingTargets);
 
 	// MED-023: Roll per unit (chunk size = 1) so damage is spread across buildings

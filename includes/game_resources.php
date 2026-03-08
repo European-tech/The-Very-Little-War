@@ -241,6 +241,10 @@ function updateRessources($joueur)
     $stabilisateur = dbFetchOne($base, 'SELECT stabilisateur FROM constructions WHERE login=?', 's', $joueur);
 
     $nbheuresDebut = ($nbsecondes / SECONDS_PER_HOUR); // nombre d'heures depuis la derniere connexion
+    // LOW-014: formatted absence duration (hours + minutes, no floating-point display)
+    $absenceHeures = (int)floor($nbsecondes / SECONDS_PER_HOUR);
+    $absenceMinutes = (int)floor(($nbsecondes % SECONDS_PER_HOUR) / 60);
+    $absenceDureeStr = $absenceHeures . ' h ' . $absenceMinutes . ' min';
 
     $donneesMedaille = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $joueur);
 
@@ -293,7 +297,7 @@ function updateRessources($joueur)
         }
         if ($hasLosses) {
             $titreRapport = 'Rapport des pertes durant votre absence';
-            $contenuRapport = 'Durant votre absence de ' . $nbheuresDebut . ' heures, vos pertes de molécules ont été : <br/>' . $lossLines;
+            $contenuRapport = 'Durant votre absence de ' . $absenceDureeStr . ', vos pertes de molécules ont été : <br/>' . $lossLines;
             dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $joueur, '<img alt="skull" src="images/rapports/rapportpertes.png"/ class="imageAide">');
         }
     }

@@ -49,13 +49,17 @@ $totalDeleted = 0;
 // 1. Expired attack cooldowns
 //    (origin: migration 0013, column 'expires' is a unix timestamp)
 // -------------------------------------------------------
-$result = $base->query("DELETE FROM attack_cooldowns WHERE expires < {$now}");
-if ($result !== false) {
-    $rows = $base->affected_rows;
+// LOW-008: Use prepared statement to avoid any risk of interpolation
+$stmt = $base->prepare("DELETE FROM attack_cooldowns WHERE expires < ?");
+if ($stmt) {
+    $stmt->bind_param('i', $now);
+    $stmt->execute();
+    $rows = $stmt->affected_rows;
+    $stmt->close();
     echo "[cleanup] attack_cooldowns: removed {$rows} expired row(s).\n";
     $totalDeleted += $rows;
 } else {
-    fwrite(STDERR, "[cleanup] ERROR deleting attack_cooldowns: " . $base->error . "\n");
+    fwrite(STDERR, "[cleanup] ERROR preparing attack_cooldowns cleanup: " . $base->error . "\n");
 }
 
 // -------------------------------------------------------

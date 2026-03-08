@@ -238,21 +238,28 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                 if ($newResVal > $placeDepot) {
                     $erreur = "Vous n'avez pas assez de place dans votre stockage.";
                 } else {
+                    // MEDIUM-003: Deadlock retry — up to 3 attempts on deadlock
+                    $buyAttempts = 0;
+                    $buyDone = false;
+                    while (!$buyDone && $buyAttempts < 3) {
+                    $buyAttempts++;
                     try {
                         withTransaction($base, function() use ($base, &$diffEnergieAchat, &$newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, &$coutAchat) {
+                            // MEDIUM-003: Lock ressources first, then constructions, then cours
+                            // Consistent lock order prevents deadlocks with concurrent transactions
+
+                            // Re-read resources with lock first (consistent lock order)
+                            $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+
                             // PASS1-MEDIUM-020: Re-read depot level inside transaction to get authoritative storage cap
                             $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                             $placeDepotTx = placeDepot($depotRow ? (int)$depotRow['depot'] : 1);
 
-                            // HIGH-003: Re-read current market price with lock BEFORE computing cost
-                            // Prevents stale pre-transaction price from being charged to the player
+                            // HIGH-003: Re-read current market price with lock
                             $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
                             $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
                             // Recompute cost from the freshly locked price (min 1 to prevent free-atom exploit)
                             $coutAchat = max(1, (int)round($txTabCours[$numRes] * $_POST['nombreRessourceAAcheter']));
-
-                            // Re-read resources with lock to prevent race condition
-                            $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                             $diffEnergieAchat = $locked['energie'] - $coutAchat;
                             if ($diffEnergieAchat < 0) {
                                 throw new Exception('NOT_ENOUGH_ENERGY');
@@ -304,16 +311,23 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
                         $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                         $tabCours = explode(",", $val['tableauCours']);
+                        $buyDone = true;
                     } catch (Exception $e) {
                         if ($e->getMessage() === 'NOT_ENOUGH_ENERGY') {
                             $erreur = "Vous n'avez pas assez d'énergie.";
+                            $buyDone = true;
                         } elseif ($e->getMessage() === 'NOT_ENOUGH_STORAGE') {
                             $erreur = "Vous n'avez pas assez de place dans votre stockage.";
+                            $buyDone = true;
+                        } elseif ($buyAttempts < 3 && strpos($e->getMessage(), 'Deadlock') !== false) {
+                            // Retry on deadlock
                         } else {
                             $erreur = "Une erreur est survenue lors de l'achat. Veuillez réessayer.";
                             error_log('Market buy transaction failed: ' . $e->getMessage());
+                            $buyDone = true;
                         }
                     }
+                    } // end deadlock retry loop (buy)
                 } // end else (storage check)
             } else {
                 $erreur = "Vous n'avez pas assez d'énergie.";
@@ -359,17 +373,22 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                 $newResVal = $ressources[$nomsRes[$numRes]] - $_POST['nombreRessourceAVendre'];
                 $energyGained = round($tabCours[$numRes] * $_POST['nombreRessourceAVendre'] * $sellTaxRate);
                 $actualSold = 0; // will be set inside the transaction
-                try {
+                    // MEDIUM-003: Deadlock retry — up to 3 attempts on deadlock
+                    $sellAttempts = 0;
+                    $sellDone = false;
+                    while (!$sellDone && $sellAttempts < 3) {
+                    $sellAttempts++;
+                    try {
                     withTransaction($base, function() use ($base, &$newEnergie, &$newResVal, &$energyGained, &$actualSold, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $sellTaxRate) {
-                        // PASS1-MEDIUM-020: Re-read depot level inside transaction to get authoritative storage cap
-                        $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
-                        $placeDepotTx = placeDepot($depotRow ? (int)$depotRow['depot'] : 1);
-
-                        // Re-read resources with lock to prevent race condition
+                        // MEDIUM-003: Lock ressources first (consistent lock order prevents deadlocks)
                         $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                         if ($locked['res'] < $_POST['nombreRessourceAVendre']) {
                             throw new Exception('NOT_ENOUGH_ATOMS');
                         }
+
+                        // PASS1-MEDIUM-020: Re-read depot level inside transaction to get authoritative storage cap
+                        $depotRow = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                        $placeDepotTx = placeDepot($depotRow ? (int)$depotRow['depot'] : 1);
 
                         // V4: Overflow fix — only sell atoms that fit in remaining energy space
                         // PASS1-MEDIUM-018: Use freshly locked price for sell calculations
@@ -442,18 +461,26 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
 
                     $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                     $tabCours = explode(",", $val['tableauCours']);
+                        $sellDone = true;
                 } catch (Exception $e) {
                     if ($e->getMessage() === 'NOT_ENOUGH_ATOMS') {
                         $erreur = "Vous n'avez pas assez d'atomes.";
+                        $sellDone = true;
                     } elseif ($e->getMessage() === 'ENERGY_FULL') {
                         $erreur = "Votre stockage d'énergie est plein.";
+                        $sellDone = true;
                     } elseif ($e->getMessage() === 'PRICE_TOO_LOW') {
                         $erreur = "Le prix de cette ressource est trop bas pour générer de l'énergie. Attendez que le cours remonte.";
+                        $sellDone = true;
+                    } elseif ($sellAttempts < 3 && strpos($e->getMessage(), 'Deadlock') !== false) {
+                        // Retry on deadlock
                     } else {
                         $erreur = "Une erreur est survenue lors de la vente. Veuillez réessayer.";
                         error_log('Market sell transaction failed: ' . $e->getMessage());
+                        $sellDone = true;
                     }
                 }
+                    } // end deadlock retry loop (sell)
             } else {
                 $erreur = "Vous n'avez pas assez d'atomes.";
             }
@@ -705,7 +732,7 @@ if ($_GET['sub'] == 0) {
                 <?php
                 // PASS1-LOW-024: Timezone for chart timestamps is Europe/Paris, set globally in includes/config.php
                 $tot = '';
-                $coursRows = dbFetchAll($base, "SELECT * FROM cours ORDER BY timestamp DESC LIMIT " . MARKET_HISTORY_LIMIT);
+                $coursRows = dbFetchAll($base, "SELECT * FROM cours ORDER BY timestamp DESC LIMIT " . (int)MARKET_HISTORY_LIMIT);
                 $c = 1;
                 $nb = count($coursRows);
                 foreach ($coursRows as $cours) {

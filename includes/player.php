@@ -589,6 +589,11 @@ function invalidatePlayerCache($joueur)
 
 function augmenterBatiment($nom, $joueur)
 { // BUG listeconstructions
+    static $allowedBuildings = ['generateur', 'producteur', 'depot', 'champdeforce', 'ionisateur', 'condenseur', 'lieur', 'stabilisateur', 'coffrefort'];
+    if (!in_array($nom, $allowedBuildings, true)) {
+        error_log("Invalid building name in augmenterBatiment: " . $nom);
+        return;
+    }
     global $base;
     global $listeConstructions;
     global $points;
@@ -636,6 +641,11 @@ function augmenterBatiment($nom, $joueur)
 
 function diminuerBatiment($nom, $joueur)
 { // pour résoudre les bugs, construire un objet PLAYER qui initialise toutes ses constantes
+    static $allowedBuildings = ['generateur', 'producteur', 'depot', 'champdeforce', 'ionisateur', 'condenseur', 'lieur', 'stabilisateur', 'coffrefort'];
+    if (!in_array($nom, $allowedBuildings, true)) {
+        error_log("Invalid building name in diminuerBatiment: " . $nom);
+        return;
+    }
     global $nomsRes;
     global $points;
     global $constructions;
@@ -739,62 +749,82 @@ function diminuerBatiment($nom, $joueur)
 function coordonneesAleatoires()
 {
     global $base;
-    $inscrits = dbFetchOne($base, 'SELECT tailleCarte,nbDerniere FROM statistiques');
 
-    if ($inscrits['nbDerniere'] > $inscrits['tailleCarte'] - 2) {
-        $inscrits['nbDerniere'] = 0;
-        $inscrits['tailleCarte'] += 1;
+    $maxRetries = 10;
+    for ($attempt = 0; $attempt < $maxRetries; $attempt++) {
+        try {
+            $coords = withTransaction($base, function() use ($base) {
+                // Lock statistiques row to prevent concurrent expansions
+                $inscrits = dbFetchOne($base, 'SELECT tailleCarte,nbDerniere FROM statistiques FOR UPDATE');
+
+                if ($inscrits['nbDerniere'] > $inscrits['tailleCarte'] - 2) {
+                    $inscrits['nbDerniere'] = 0;
+                    $inscrits['tailleCarte'] += 1;
+                }
+
+                $carte = [];
+                for ($i = 0; $i < $inscrits['tailleCarte']; $i++) {
+                    $temp = [];
+                    for ($j = 0; $j < $inscrits['tailleCarte']; $j++) {
+                        $temp[] = 0;
+                    }
+                    $carte[] = $temp;
+                }
+
+                $joueursRows = dbFetchAll($base, 'SELECT x,y FROM membre WHERE x >= 0 AND y >= 0', '');
+                foreach ($joueursRows as $joueurs) {
+                    $carte[$joueurs['x']][$joueurs['y']] = 1;
+                }
+
+                $alea = mt_rand(0, 1);
+                if ($alea == 0) { // horizontale
+                    $y = $inscrits['tailleCarte'] - 1;
+                    $x = mt_rand(0, $inscrits['tailleCarte'] - 1);
+                    $maxAttempts = $inscrits['tailleCarte'] * 2;
+                    $attempts = 0;
+                    while ($carte[$x][$y] != 0 && $attempts < $maxAttempts) {
+                        $x = mt_rand(0, $inscrits['tailleCarte'] - 1);
+                        $attempts++;
+                    }
+                    if ($attempts >= $maxAttempts) {
+                        // Map edge is full, force expand
+                        $inscrits['tailleCarte'] += 1;
+                        $x = $inscrits['tailleCarte'] - 1;
+                        $y = 0;
+                    }
+                } else {
+                    $x = $inscrits['tailleCarte'] - 1;
+                    $y = mt_rand(0, $inscrits['tailleCarte'] - 1);
+                    $maxAttempts = $inscrits['tailleCarte'] * 2;
+                    $attempts = 0;
+                    while ($carte[$x][$y] != 0 && $attempts < $maxAttempts) {
+                        $y = mt_rand(0, $inscrits['tailleCarte'] - 1);
+                        $attempts++;
+                    }
+                    if ($attempts >= $maxAttempts) {
+                        $inscrits['tailleCarte'] += 1;
+                        $x = 0;
+                        $y = $inscrits['tailleCarte'] - 1;
+                    }
+                }
+
+                dbExecute($base, 'UPDATE statistiques SET tailleCarte=?, nbDerniere=?', 'ii', $inscrits['tailleCarte'], ($inscrits['nbDerniere'] + 1));
+
+                return ['x' => $x, 'y' => $y];
+            });
+            return $coords;
+        } catch (\Throwable $e) {
+            // Duplicate key on INSERT (UNIQUE index race) — retry
+            if ($attempt < $maxRetries - 1 && (
+                strpos($e->getMessage(), 'Duplicate entry') !== false ||
+                strpos($e->getMessage(), '1062') !== false
+            )) {
+                continue;
+            }
+            throw $e;
+        }
     }
-
-    $carte = [];
-    for ($i = 0; $i < $inscrits['tailleCarte']; $i++) {
-        $temp = [];
-        for ($j = 0; $j < $inscrits['tailleCarte']; $j++) {
-            $temp[] = 0;
-        }
-        $carte[] = $temp;
-    }
-
-    $joueursRows = dbFetchAll($base, 'SELECT x,y FROM membre WHERE x >= 0 AND y >= 0', '');
-    foreach ($joueursRows as $joueurs) {
-        $carte[$joueurs['x']][$joueurs['y']] = 1;
-    }
-
-    $alea = mt_rand(0, 1);
-    if ($alea == 0) { // horizontale
-        $y = $inscrits['tailleCarte'] - 1;
-        $x = mt_rand(0, $inscrits['tailleCarte'] - 1);
-        $maxAttempts = $inscrits['tailleCarte'] * 2;
-        $attempts = 0;
-        while ($carte[$x][$y] != 0 && $attempts < $maxAttempts) {
-            $x = mt_rand(0, $inscrits['tailleCarte'] - 1);
-            $attempts++;
-        }
-        if ($attempts >= $maxAttempts) {
-            // Map edge is full, force expand
-            $inscrits['tailleCarte'] += 1;
-            $x = $inscrits['tailleCarte'] - 1;
-            $y = 0;
-        }
-    } else {
-        $x = $inscrits['tailleCarte'] - 1;
-        $y = mt_rand(0, $inscrits['tailleCarte'] - 1);
-        $maxAttempts = $inscrits['tailleCarte'] * 2;
-        $attempts = 0;
-        while ($carte[$x][$y] != 0 && $attempts < $maxAttempts) {
-            $y = mt_rand(0, $inscrits['tailleCarte'] - 1);
-            $attempts++;
-        }
-        if ($attempts >= $maxAttempts) {
-            $inscrits['tailleCarte'] += 1;
-            $x = 0;
-            $y = $inscrits['tailleCarte'] - 1;
-        }
-    }
-
-    dbExecute($base, 'UPDATE statistiques SET tailleCarte=?, nbDerniere=?', 'ii', $inscrits['tailleCarte'], ($inscrits['nbDerniere'] + 1));
-
-    return ['x' => $x, 'y' => $y];
+    throw new \RuntimeException('coordonneesAleatoires: failed to find unique coordinates after ' . $maxRetries . ' attempts');
 }
 
 
@@ -833,23 +863,27 @@ function recalculerStatsAlliances()
 {
     global $base;
 
+    // MEDIUM-020: Wrap in transaction to prevent torn reads from concurrent player actions.
+    // Read all data first, then batch-update inside the transaction for consistency.
     $alliancesRows = dbFetchAll($base, 'SELECT id FROM alliances', '');
-    foreach ($alliancesRows as $donnees) {
-        $membresRows = dbFetchAll($base, 'SELECT login, totalPoints, points, pointsAttaque, pointsDefense, ressourcesPillees FROM autre WHERE idalliance=?', 'i', $donnees['id']);
-        $pointstotaux = 0;
-        $cTotal = 0;
-        $aTotal = 0;
-        $dTotal = 0;
-        $pTotal = 0;
-        foreach ($membresRows as $donnees1) {
-            $pointstotaux = $donnees1['totalPoints'] + $pointstotaux;
-            $cTotal += $donnees1['points'];
-            $aTotal += pointsAttaque($donnees1['pointsAttaque']);
-            $dTotal += pointsDefense($donnees1['pointsDefense']);
-            $pTotal += $donnees1['ressourcesPillees'];
+    withTransaction($base, function() use ($base, $alliancesRows) {
+        foreach ($alliancesRows as $donnees) {
+            $membresRows = dbFetchAll($base, 'SELECT login, totalPoints, points, pointsAttaque, pointsDefense, ressourcesPillees FROM autre WHERE idalliance=? FOR UPDATE', 'i', $donnees['id']);
+            $pointstotaux = 0;
+            $cTotal = 0;
+            $aTotal = 0;
+            $dTotal = 0;
+            $pTotal = 0;
+            foreach ($membresRows as $donnees1) {
+                $pointstotaux = $donnees1['totalPoints'] + $pointstotaux;
+                $cTotal += $donnees1['points'];
+                $aTotal += pointsAttaque($donnees1['pointsAttaque']);
+                $dTotal += pointsDefense($donnees1['pointsDefense']);
+                $pTotal += $donnees1['ressourcesPillees'];
+            }
+            dbExecute($base, 'UPDATE alliances SET pointstotaux=?, totalConstructions=?, totalAttaque=?, totalDefense=?, totalPillage=? WHERE id=?', 'dddddi', $pointstotaux, $cTotal, $aTotal, $dTotal, $pTotal, $donnees['id']);
         }
-        dbExecute($base, 'UPDATE alliances SET pointstotaux=?, totalConstructions=?, totalAttaque=?, totalDefense=?, totalPillage=? WHERE id=?', 'dddddi', $pointstotaux, $cTotal, $aTotal, $dTotal, $pTotal, $donnees['id']);
-    }
+    });
 }
 
 function supprimerAlliance($alliance)
@@ -943,12 +977,12 @@ function archiveSeasonData($base)
                 'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
                  points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
                  molecules_perdues, alliance_name, streak_max) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                'isiiiidiiidsi',
+                'isiiiidiiiisi', // MEDIUM-019: moleculesPerdues is BIGINT, use 'i' not 'd'
                 $nextSeason, $p['login'], (int)$p['final_rank'], (int)$p['totalPoints'],
                 (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
                 (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
                 (int)$p['nbattaques'], (int)$p['victoires'],
-                (float)$p['moleculesPerdues'], $p['alliance_name'] ?? '',
+                (int)$p['moleculesPerdues'], $p['alliance_name'] ?? '',
                 (int)($p['streak_days'] ?? 0)
             );
         }
@@ -1249,6 +1283,10 @@ function remiseAZero()
         dbExecute($base, 'DELETE FROM vacances');
         dbExecute($base, 'UPDATE membre SET vacance = 0');
         dbExecute($base, 'DELETE FROM grades');
+
+        // HIGH-007: Reset production timer so first login after season start
+        // doesn't grant a massive resource burst from the old tempsPrecedent value.
+        dbExecute($base, 'UPDATE autre SET tempsPrecedent = ? WHERE 1', 'i', time());
 
         dbExecute($base, 'UPDATE statistiques SET nbDerniere=0, tailleCarte=1');
         dbExecute($base, 'UPDATE membre SET x=-1000, y=-1000');

@@ -90,6 +90,5 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 	}
 }
 
-// Toutes les entrees vieilles de plus de 5 minutes sont supprimees (nombres de connectes)
-$timestamp_5min = time() - ONLINE_TIMEOUT_SECONDS;
-dbExecute($base, 'DELETE FROM connectes WHERE timestamp < ?', 'i', $timestamp_5min);
+// LOW-015: Stale connectes cleanup moved to scripts/cleanup_old_data.php cron (30-min threshold)
+// No per-request DELETE here to reduce write pressure on public pages.

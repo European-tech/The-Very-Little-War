@@ -56,15 +56,23 @@ if (isset($_POST['choose_specialization']) && isset($_POST['spec_type']) && isse
     if (isset($SPECIALIZATIONS[$specType])) {
         $spec = $SPECIALIZATIONS[$specType];
         $col = $spec['column'];
-        $currentChoice = (int)($constructions[$col] ?? 0);
-        $buildingLevel = (int)($constructions[$spec['unlock_building']] ?? 0);
-
-        if ($currentChoice === 0 && $buildingLevel >= $spec['unlock_level'] && isset($spec['options'][$specChoice])) {
-            $allowedColumns = ['spec_combat', 'spec_economy', 'spec_research'];
-            if (in_array($col, $allowedColumns, true)) {
-                dbExecute($base, "UPDATE constructions SET $col = ? WHERE login = ?", 'is', $specChoice, $login);
-                $constructions[$col] = $specChoice;
-            }
+        $allowedColumns = ['spec_combat', 'spec_economy', 'spec_research'];
+        // MEDIUM-006: Wrap in transaction with FOR UPDATE to prevent TOCTOU race
+        if (in_array($col, $allowedColumns, true)) {
+            withTransaction($base, function() use ($base, $login, $col, $spec, $specChoice, $allowedColumns, &$constructions) {
+                // Re-read with FOR UPDATE to get a fresh, locked view of the row
+                $freshConstructions = dbFetchOne($base, 'SELECT specialisation, spec_combat, spec_economy, spec_research FROM constructions WHERE login=? FOR UPDATE', 's', $login);
+                if (!$freshConstructions) return;
+                $currentChoice = (int)($freshConstructions[$col] ?? 0);
+                // Also re-read the unlock building level (not in allowed cols, safe to re-query)
+                $buildingRow = dbFetchOne($base, 'SELECT ' . $spec['unlock_building'] . ' FROM constructions WHERE login=?', 's', $login);
+                $buildingLevel = $buildingRow ? (int)($buildingRow[$spec['unlock_building']] ?? 0) : 0;
+                // Only proceed if still unset and unlock is met (prevents double-claim race)
+                if ($currentChoice === 0 && $buildingLevel >= $spec['unlock_level'] && isset($spec['options'][$specChoice])) {
+                    dbExecute($base, "UPDATE constructions SET $col = ? WHERE login = ?", 'is', $specChoice, $login);
+                    $constructions[$col] = $specChoice;
+                }
+            });
         }
     }
 }
@@ -343,14 +351,17 @@ debutCarte("Combat — Attaque");
     $catalystAttackBonus = catalystEffect('attack_bonus');
 
     $specCombat = (int)($constructions['spec_combat'] ?? 0);
+    // LOW-016: use $SPECIALIZATIONS config values, not hardcoded percentages
     $specAttackMod = 0;
     $specAttackLabel = '';
     if ($specCombat === 1) {
-        $specAttackMod = 0.10;
-        $specAttackLabel = 'Oxydant (+10%)';
+        $specAttackMod = $SPECIALIZATIONS['combat']['options'][1]['modifiers']['attack'];
+        $atkPct = round($specAttackMod * 100);
+        $specAttackLabel = 'Oxydant (' . ($atkPct >= 0 ? '+' : '') . $atkPct . '%)';
     } elseif ($specCombat === 2) {
-        $specAttackMod = -0.05;
-        $specAttackLabel = 'Reducteur (-5%)';
+        $specAttackMod = $SPECIALIZATIONS['combat']['options'][2]['modifiers']['attack'];
+        $atkPct = round($specAttackMod * 100);
+        $specAttackLabel = 'Reducteur (' . ($atkPct >= 0 ? '+' : '') . $atkPct . '%)';
     }
 
     echo '<div class="data-table"><table>';
@@ -406,11 +417,13 @@ debutCarte("Combat — Defense");
     $specDefenseMod = 0;
     $specDefenseLabel = '';
     if ($specCombat === 1) {
-        $specDefenseMod = -0.05;
-        $specDefenseLabel = 'Oxydant (-5%)';
+        $specDefenseMod = $SPECIALIZATIONS['combat']['options'][1]['modifiers']['defense'];
+        $defPct = round($specDefenseMod * 100);
+        $specDefenseLabel = 'Oxydant (' . ($defPct >= 0 ? '+' : '') . $defPct . '%)';
     } elseif ($specCombat === 2) {
-        $specDefenseMod = 0.10;
-        $specDefenseLabel = 'Reducteur (+10%)';
+        $specDefenseMod = $SPECIALIZATIONS['combat']['options'][2]['modifiers']['defense'];
+        $defPct = round($specDefenseMod * 100);
+        $specDefenseLabel = 'Reducteur (' . ($defPct >= 0 ? '+' : '') . $defPct . '%)';
     }
 
     echo '<div class="data-table"><table>';
@@ -536,14 +549,17 @@ debutCarte("Vitesse de Formation");
     $catalystFormationBonus = catalystEffect('formation_speed');
 
     $specResearch = (int)($constructions['spec_research'] ?? 0);
+    // LOW-016: use $SPECIALIZATIONS config values, not hardcoded percentages
     $specFormationMod = 0;
     $specFormationLabel = '';
     if ($specResearch === 1) {
-        $specFormationMod = -0.20;
-        $specFormationLabel = 'Theorique (-20% vitesse)';
+        $specFormationMod = $SPECIALIZATIONS['research']['options'][1]['modifiers']['formation_speed'];
+        $fmtPct = round($specFormationMod * 100);
+        $specFormationLabel = 'Theorique (' . ($fmtPct >= 0 ? '+' : '') . $fmtPct . '% vitesse)';
     } elseif ($specResearch === 2) {
-        $specFormationMod = 0.20;
-        $specFormationLabel = 'Applique (+20% vitesse)';
+        $specFormationMod = $SPECIALIZATIONS['research']['options'][2]['modifiers']['formation_speed'];
+        $fmtPct = round($specFormationMod * 100);
+        $specFormationLabel = 'Applique (' . ($fmtPct >= 0 ? '+' : '') . $fmtPct . '% vitesse)';
     }
 
     echo '<div class="data-table"><table>';

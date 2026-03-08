@@ -116,6 +116,13 @@ if (!$donnees) {
     // Use a conservative tag allowlist. Strip javascript: and data: URIs from href attributes
     // to prevent XSS via anchor tags that survive strip_tags().
     $contenuNews = strip_tags($donnees['contenu'], '<b><i><u><br><p><a><strong><em>');
+    // MEDIUM-008: Strip all attributes from simple inline tags to prevent event handler XSS
+    $contenuNews = preg_replace('/<(b|i|u|strong|em|p)([^>]*)>/i', '<$1>', $contenuNews);
+    // For <a> tags, only allow href attribute (no onclick, onmouseover, etc.)
+    $contenuNews = preg_replace('/<a\s+[^>]*href=["\']([^"\'<>]*)["\'][^>]*>/i', '<a href="$1">', $contenuNews);
+    // Strip remaining bare <a> tags that have no valid href
+    $contenuNews = preg_replace('/<a(?!\s+href=)[^>]*>/i', '', $contenuNews);
+    // Strip javascript: and data: URIs from any remaining href
     $contenuNews = preg_replace('/href\s*=\s*["\']?\s*(javascript|data):[^"\'>\s]*/i', 'href="#"', $contenuNews);
     $contenuNews = nl2br($contenuNews);
 }

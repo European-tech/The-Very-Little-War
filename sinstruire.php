@@ -13,8 +13,10 @@ include("includes/layout.php");
 
 $cours=["Introduction","Description de l'univers","De l'atome à l'élément chimique","Les molécules","L'élément chimique","Quantité d'espèce chimique"];
 
+// MEDIUM-027: Derive upper bound from the array instead of hardcoding 5
+$totalCours = count($cours);
 $cours_id = isset($_GET['cours']) ? (int)$_GET['cours'] : 0;
-if($cours_id < 0 || $cours_id >= sizeof($cours)) {
+if($cours_id < 0 || $cours_id >= $totalCours) {
 	$cours_id = 0;
 }
 
@@ -316,7 +318,7 @@ if($cours_id > 0) {
 	echo '<div class="col-50"><a href="sinstruire.php?cours='.($cours_id - 1).'"><img src="images/prev.png" alt="prev" style="margin-right: 10px"/></a></div>';
 }
 
-if($cours_id < 5) {
+if($cours_id < $totalCours - 1) {
 	echo '<div class="col-50"><a href="sinstruire.php?cours='.($cours_id + 1).'"><img src="images/next.png" alt="next" style="margin-left: 10px"/></a></div>';
 }
 echo '</div>';

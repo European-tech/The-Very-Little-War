@@ -19,6 +19,10 @@ date_default_timezone_set('Europe/Paris');
 // TODO: Load from .env for production. Currently in source for convenience.
 define('SECRET_SALT', 'tvlw_audit_salt_2026');
 
+// LOW-010: Admin resource grant limits — used in admin moderation panels
+define('ADMIN_RESOURCE_GRANT_DEFAULT', 100000);
+define('ADMIN_RESOURCE_GRANT_MAX', 500000);
+
 // =============================================================================
 // GAME VERSION
 // =============================================================================
@@ -374,6 +378,9 @@ define('ALLIANCE_TAG_MAX_LENGTH', 16);
 // Alliance grade name constraints (MED-026)
 define('ALLIANCE_GRADE_MAX_LENGTH', 20);
 
+// Alliance description max length (MEDIUM-015)
+define('ALLIANCE_DESC_MAX_LENGTH', 500);
+
 // Rejoin cooldown: how long (seconds) a player must wait after leaving/being kicked
 define('ALLIANCE_REJOIN_COOLDOWN_SECONDS', SECONDS_PER_DAY); // 24h
 
@@ -494,6 +501,9 @@ define('RANKING_DEFENSE_WEIGHT', 1.5);
 define('RANKING_TRADE_WEIGHT', 1.0);
 define('RANKING_PILLAGE_WEIGHT', 1.2);
 define('RANKING_SQRT_EXPONENT', 0.5);
+// MEDIUM-016: Cap trade volume contribution to prevent ranking inflation via
+// repeated self-trading or bot exploitation.
+define('TRADE_VOLUME_CAP', 10000000); // 10M — generous monthly cap for active traders
 
 // =============================================================================
 // MEDALS / TIERS

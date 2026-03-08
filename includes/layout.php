@@ -1,5 +1,7 @@
 <?php
 $nonce = cspNonce();
+// LOW-006: Compute current page name once, used for nav sub-menu highlighting
+$currentPage = basename($_SERVER['PHP_SELF']);
 // NOTE (MED-059): 'unsafe-inline' is intentionally kept in style-src.
 // Reason: Framework7 injects inline styles at runtime via JS (impossible to nonce/hash),
 // and the codebase has ~50+ inline style="" attributes across layout, game pages, and
@@ -77,7 +79,7 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
             
             <!-- AJOUT DES SOUS-MENUS -->
             <?php
-            if(in_array("classement.php",explode("/",$_SERVER['PHP_SELF']))){
+            if($currentPage === "classement.php"){
             ?>
         
             <div class="toolbar toolbar-bottom toolbarcustom">
@@ -91,7 +93,7 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
             </div>
             <?php } 
           
-            if(in_array("marche.php",explode("/",$_SERVER['PHP_SELF']))){
+            if($currentPage === "marche.php"){
             ?>
         
             <div class="toolbar toolbar-bottom toolbarcustom">
@@ -102,7 +104,7 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
             </div>
             <?php } 
           
-            if(in_array("armee.php",explode("/",$_SERVER['PHP_SELF'])) && !isset($_POST['emplacementmoleculecreer'])){
+            if($currentPage === "armee.php" && !isset($_POST['emplacementmoleculecreer'])){
             ?>
         
             <div class="toolbar toolbar-bottom toolbarcustom" >
@@ -113,7 +115,7 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
             </div>
             <?php }
           
-            if(in_array("armee.php",explode("/",$_SERVER['PHP_SELF'])) && isset($_POST['emplacementmoleculecreer'])){
+            if($currentPage === "armee.php" && isset($_POST['emplacementmoleculecreer'])){
             ?>
             <div class="toolbar toolbar-bottom toolbarcustom">
             <div class="toolbar-inner" style="background-color:lightgray;overflow-x:auto;" >
@@ -228,7 +230,7 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
             </script>';
             }
             
-            if(in_array("historique.php",explode("/",$_SERVER['PHP_SELF']))){ ?>
+            if($currentPage === "historique.php"){ ?>
             <div class="toolbar toolbar-bottom toolbarcustom">
             <div class="toolbar-inner">
                 <a class="tab-link lienSousMenu" href="historique.php?sub=0"><img src="images/sous-menus/joueur.png" class="imageSousMenu"/><br/><span class="labelSousMenu">Joueurs</span></a>

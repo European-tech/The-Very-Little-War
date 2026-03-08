@@ -121,6 +121,7 @@ $detailLogin = isset($_GET['login']) ? $_GET['login'] : '';
         <a href="multiaccount.php?view=flags" class="<?php echo $view === 'flags' ? 'active' : ''; ?>">Drapeaux</a>
         <a href="multiaccount.php?view=stats" class="<?php echo $view === 'stats' ? 'active' : ''; ?>">Statistiques</a>
         <a href="multiaccount.php?view=manual" class="<?php echo $view === 'manual' ? 'active' : ''; ?>">Ajouter</a>
+        <a href="multiaccount.php?view=md5accounts" class="<?php echo $view === 'md5accounts' ? 'active' : ''; ?>">Comptes MD5</a>
     </div>
 
     <?php if ($view === 'alerts'): ?>
@@ -329,6 +330,32 @@ $detailLogin = isset($_GET['login']) ? $_GET['login'] : '';
                 <p><button type="submit" class="btn btn-primary">Ajouter le drapeau</button></p>
             </form>
         </div>
+
+    <?php elseif ($view === 'md5accounts'): ?>
+        <!-- LOW-002: Identify accounts still using legacy MD5 hashes (not yet auto-upgraded) -->
+        <h3>Comptes avec mot de passe MD5 (héritage)</h3>
+        <p style="color:#c62828;"><strong>Information uniquement.</strong> Ces comptes utilisent encore un hash MD5. Ils seront mis à niveau automatiquement à leur prochaine connexion. Si un compte n'a pas été vu depuis longtemps, envisagez de contacter le joueur pour qu'il se reconnecte et change son mot de passe.</p>
+        <?php
+        $md5Accounts = dbFetchAll($base,
+            "SELECT login, email, derniereConnexion FROM membre WHERE pass_md5 NOT LIKE '\$2y\$%' LIMIT 50"
+        );
+        if (empty($md5Accounts)):
+        ?>
+            <p style="color:#43a047;">Aucun compte MD5 trouvé — tous les mots de passe sont en bcrypt.</p>
+        <?php else: ?>
+            <p>Comptes trouvés : <?php echo count($md5Accounts); ?> (max 50 affichés)</p>
+            <table>
+                <tr><th>Login</th><th>Email</th><th>Dernière connexion</th></tr>
+                <?php foreach ($md5Accounts as $acc): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($acc['login'], ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td><?php echo htmlspecialchars($acc['email'], ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td><?php echo $acc['derniereConnexion'] ? date('d/m/Y H:i', (int)$acc['derniereConnexion']) : 'Jamais'; ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        <?php endif; ?>
+
     <?php endif; ?>
 
 </body>

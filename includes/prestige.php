@@ -105,12 +105,14 @@ function calculatePrestigePoints($login) {
 
 /**
  * Award prestige points to all active players. Call before remiseAZero().
+ * MEDIUM-014: Wrapped in a transaction so all PP awards are atomic.
  */
 function awardPrestigePoints() {
     global $base, $PRESTIGE_RANK_BONUSES;
 
     // Freeze rankings into array to prevent concurrent changes mid-award
     // Exclude inactive/banned players (x = INACTIVE_PLAYER_X sentinel = -1000)
+    // Read rankings BEFORE the transaction to avoid long-held locks on autre/membre
     $players = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC');
 
     // HIGH-019: Compute true DENSE_RANK (no gaps) so tied players receive the same rank bonus.
@@ -126,6 +128,8 @@ function awardPrestigePoints() {
     }
     unset($player);
 
+    // Compute all PP values outside the transaction (read-only, no locks needed)
+    $awards = [];
     foreach ($players as $player) {
         $pp = calculatePrestigePoints($player['login']);
 
@@ -138,9 +142,18 @@ function awardPrestigePoints() {
         }
 
         if ($pp > 0) {
-            // Ensure prestige row exists, then add PP
-            dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $player['login'], $pp, $pp);
+            $awards[] = ['login' => $player['login'], 'pp' => $pp];
         }
+    }
+
+    // MEDIUM-014: Apply all PP awards atomically in a single transaction
+    if (!empty($awards)) {
+        withTransaction($base, function() use ($base, $awards) {
+            foreach ($awards as $award) {
+                // Ensure prestige row exists, then add PP
+                dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $award['login'], $award['pp'], $award['pp']);
+            }
+        });
     }
 }
 

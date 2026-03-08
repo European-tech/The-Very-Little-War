@@ -20,6 +20,11 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
     $dateT->setDate($annee, $mois, $jour);
     if ($dateT->getTimestamp() >= time() + VACATION_MIN_ADVANCE_SECONDS) {
         $date = $annee . '-' . $mois . '-' . $jour;
+        // MEDIUM-007: Check for active combat before activating vacation mode
+        $activeCombat = dbCount($base, 'SELECT COUNT(*) AS nb FROM actionsattaques WHERE (defenseur=? OR attaquant=?) AND attaqueFaite=0 AND tempsAttaque > ?', 'ssi', $_SESSION['login'], $_SESSION['login'], time());
+        if ($activeCombat > 0) {
+            $erreur = "Vous ne pouvez pas activer le mode vacances pendant un combat en cours.";
+        } else {
         $login = $_SESSION['login'];
         withTransaction($base, function() use ($base, $login, $date) {
             $membreRow = dbFetchOne($base, 'SELECT id, vacance FROM membre WHERE login = ? FOR UPDATE', 's', $login);
@@ -30,6 +35,7 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
             dbExecute($base, 'UPDATE membre SET vacance = 1 WHERE id = ?', 'i', $membreId);
         });
         header("Location: compte.php"); exit;
+        } // end active combat check else
     } else {
         $erreur = "Vous ne pouvez pas vous mettre en vacances moins de trois jours.";
     }

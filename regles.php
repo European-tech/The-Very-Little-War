@@ -140,24 +140,24 @@ Lors de la création d'une classe de molécules, vous choisissez un <strong>type
 </tr>
 <tr>
 <td style="padding:6px;border:1px solid #ddd;"><strong>Stable</strong></td>
-<td style="padding:6px;border:1px solid #ddd;color:#c00;">-5%</td>
-<td style="padding:6px;border:1px solid #ddd;color:green;">+40%</td>
-<td style="padding:6px;border:1px solid #ddd;color:green;">-30%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;"><?= round(ISOTOPE_STABLE_ATTACK_MOD * 100) ?>%</td>
+<td style="padding:6px;border:1px solid #ddd;color:green;">+<?= round(ISOTOPE_STABLE_HP_MOD * 100) ?>%</td>
+<td style="padding:6px;border:1px solid #ddd;color:green;"><?= round(ISOTOPE_STABLE_DECAY_MOD * 100) ?>%</td>
 <td style="padding:6px;border:1px solid #ddd;">Tank / Défenseur</td>
 </tr>
 <tr>
 <td style="padding:6px;border:1px solid #ddd;"><strong>Réactif</strong></td>
-<td style="padding:6px;border:1px solid #ddd;color:green;">+20%</td>
-<td style="padding:6px;border:1px solid #ddd;color:#c00;">-10%</td>
-<td style="padding:6px;border:1px solid #ddd;color:#c00;">+20%</td>
+<td style="padding:6px;border:1px solid #ddd;color:green;">+<?= round(ISOTOPE_REACTIF_ATTACK_MOD * 100) ?>%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;"><?= round(ISOTOPE_REACTIF_HP_MOD * 100) ?>%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;">+<?= round(ISOTOPE_REACTIF_DECAY_MOD * 100) ?>%</td>
 <td style="padding:6px;border:1px solid #ddd;">Canon de verre</td>
 </tr>
 <tr>
 <td style="padding:6px;border:1px solid #ddd;"><strong>Catalytique</strong></td>
-<td style="padding:6px;border:1px solid #ddd;color:#c00;">-10%</td>
-<td style="padding:6px;border:1px solid #ddd;color:#c00;">-10%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;"><?= round(ISOTOPE_CATALYTIQUE_ATTACK_MOD * 100) ?>%</td>
+<td style="padding:6px;border:1px solid #ddd;color:#c00;"><?= round(ISOTOPE_CATALYTIQUE_HP_MOD * 100) ?>%</td>
 <td style="padding:6px;border:1px solid #ddd;">—</td>
-<td style="padding:6px;border:1px solid #ddd;">Support : <strong>+15%</strong> à toutes les stats des <em>autres</em> classes</td>
+<td style="padding:6px;border:1px solid #ddd;">Support : <strong>+<?= round(ISOTOPE_CATALYTIQUE_ALLY_BONUS * 100) ?>%</strong> à toutes les stats des <em>autres</em> classes</td>
 </tr>
 </tbody>
 </table><br/>
@@ -194,11 +194,11 @@ Les spécialisations sont des <strong>choix irréversibles</strong> débloqués 
 Le <strong>coffre-fort</strong> protège une partie de vos ressources contre le pillage en cas de défaite au combat. Plus votre coffre-fort est haut, plus vos réserves sont en sécurité.<br/><br/>
 
 <strong>Fonctionnement :</strong><br/>
-Chaque niveau de coffre-fort protège <strong>3%</strong> de votre capacité de stockage (dépôt), jusqu'à un maximum de <strong>50%</strong> (soit niveau 17).<br/><br/>
+Chaque niveau de coffre-fort protège <strong><?= round(VAULT_PCT_PER_LEVEL * 100, 1) ?>%</strong> de votre capacité de stockage (dépôt), jusqu'à un maximum de <strong><?= round(VAULT_MAX_PROTECTION_PCT * 100) ?>%</strong> (soit niveau <?= (int)ceil(VAULT_MAX_PROTECTION_PCT / VAULT_PCT_PER_LEVEL) ?>).<br/><br/>
 
-<code>Ressources protégées = min(50%, niveau &times; 3%) &times; capacité du dépôt</code><br/><br/>
+<code>Ressources protégées = min(<?= round(VAULT_MAX_PROTECTION_PCT * 100) ?>%, niveau &times; <?= round(VAULT_PCT_PER_LEVEL * 100, 1) ?>%) &times; capacité du dépôt</code><br/><br/>
 
-<em>Exemple :</em> Avec un coffre-fort niveau 10 et un dépôt de 5000, vous protégez 30% &times; 5000 = <strong>1500 unités</strong> de chaque atome contre le pillage.<br/><br/>
+<em>Exemple :</em> Avec un coffre-fort niveau 10 et un dépôt de 5000, vous protégez <?= round(10 * VAULT_PCT_PER_LEVEL * 100) ?>% &times; 5000 = <strong><?= (int)(10 * VAULT_PCT_PER_LEVEL * 5000) ?> unités</strong> de chaque atome contre le pillage.<br/><br/>
 
 <?php echo important('Marché'); ?>
 Le marché permet d'acheter et de vendre des atomes. Les prix fluctuent en fonction de l'offre et de la demande de tous les joueurs.<br/><br/>
@@ -216,8 +216,8 @@ En combat, les dégâts infligés ne sont jamais perdus. Si une classe de moléc
 
 <strong>Fonctionnement selon la formation :</strong><br/>
 &bull; <strong>Dispersée :</strong> les dégâts sont répartis à parts égales entre les classes actives. L'excédent de chaque classe se propage aux suivantes.<br/>
-&bull; <strong>Phalange :</strong> la classe 1 absorbe 50% des dégâts (avec +20% de défense). L'excédent se propage aux classes 2, 3 et 4.<br/>
-&bull; <strong>Embuscade :</strong> +40% attaque <strong>si vous avez plus de molécules que l'attaquant</strong>, mais les dégâts traversent vos classes dans l'ordre (1 &rarr; 2 &rarr; 3 &rarr; 4), cascade directe. Puissant en défense avec une armée nombreuse.<br/><br/>
+&bull; <strong>Phalange :</strong> la classe 1 absorbe <?= round(FORMATION_PHALANX_ABSORB * 100) ?>% des dégâts (avec +<?= round(FORMATION_PHALANX_DEFENSE_BONUS * 100) ?>% de défense). L'excédent se propage aux classes 2, 3 et 4.<br/>
+&bull; <strong>Embuscade :</strong> +<?= round(FORMATION_AMBUSH_ATTACK_BONUS * 100) ?>% attaque <strong>si vous avez plus de molécules que l'attaquant</strong>, mais les dégâts traversent vos classes dans l'ordre (1 &rarr; 2 &rarr; 3 &rarr; 4), cascade directe. Puissant en défense avec une armée nombreuse.<br/><br/>
 
 <em>Astuce :</em> Répartissez vos molécules entre plusieurs classes pour absorber plus de dégâts totaux. Une seule classe concentrée peut être anéantie d'un coup !<br/><br/>
 
@@ -276,10 +276,10 @@ debutContent();
 Les nouveaux joueurs bénéficient d'une <strong>protection de <?= (int)(BEGINNER_PROTECTION_SECONDS / SECONDS_PER_DAY) ?> jours</strong> après leur inscription. Pendant cette période, ils ne peuvent pas être attaqués ni attaquer d'autres joueurs. Profitez-en pour développer votre base !<br/><br/>
 
 <?php echo important('Taxe de pillage'); ?>
-Lors d'un pillage réussi, <strong>15%</strong> des ressources volées sont perdues (taxe de friction). L'attaquant ne récupère que 85% des ressources pillées. Cela réduit l'écart entre attaquants et défenseurs.<br/><br/>
+Lors d'un pillage réussi, <strong><?= round(PILLAGE_TAX_RATE * 100) ?>%</strong> des ressources volées sont perdues (taxe de friction). L'attaquant ne récupère que <?= round((1 - PILLAGE_TAX_RATE) * 100) ?>% des ressources pillées. Cela réduit l'écart entre attaquants et défenseurs.<br/><br/>
 
 <?php echo important('Récompense de défense'); ?>
-En cas de défaite, le défenseur récupère <strong>30%</strong> des dégâts subis en points de défense. Se battre vaillamment, même en perdant, fait progresser votre score de défense au classement.<br/><br/>
+En cas de défaite, le défenseur récupère <strong><?= round(DEFENSE_REWARD_RATIO * 100) ?>%</strong> des dégâts subis en points de défense. Se battre vaillamment, même en perdant, fait progresser votre score de défense au classement.<br/><br/>
 
 <?php echo important('Formations de combat'); ?>
 Trois formations tactiques sont disponibles :<br/><br/>
@@ -293,8 +293,8 @@ Trois formations tactiques sont disponibles :<br/><br/>
 </thead>
 <tbody>
 <tr><td style="padding:6px;border:1px solid #ddd;"><strong>Dispersée</strong></td><td style="padding:6px;border:1px solid #ddd;">Dégâts répartis également entre toutes les classes. Équilibré.</td></tr>
-<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Phalange</strong></td><td style="padding:6px;border:1px solid #ddd;">Classe 1 absorbe <strong>50%</strong> des dégâts (+20% défense). Protège les classes arrière.</td></tr>
-<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Embuscade</strong></td><td style="padding:6px;border:1px solid #ddd;"><strong>+40% attaque si vous avez plus de molécules que l'attaquant</strong>, dégâts traversent les classes dans l'ordre (1→2→3→4). Puissant en défense avec une armée nombreuse.</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Phalange</strong></td><td style="padding:6px;border:1px solid #ddd;">Classe 1 absorbe <strong><?= round(FORMATION_PHALANX_ABSORB * 100) ?>%</strong> des dégâts (+<?= round(FORMATION_PHALANX_DEFENSE_BONUS * 100) ?>% défense). Protège les classes arrière.</td></tr>
+<tr><td style="padding:6px;border:1px solid #ddd;"><strong>Embuscade</strong></td><td style="padding:6px;border:1px solid #ddd;"><strong>+<?= round(FORMATION_AMBUSH_ATTACK_BONUS * 100) ?>% attaque si vous avez plus de molécules que l'attaquant</strong>, dégâts traversent les classes dans l'ordre (1→2→3→4). Puissant en défense avec une armée nombreuse.</td></tr>
 </tbody>
 </table><br/>
 

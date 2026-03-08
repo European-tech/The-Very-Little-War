@@ -197,8 +197,13 @@ if ($description) {
 		csrfCheck();
 		if (!empty($_POST['changerdescription'])) {
 			$_POST['changerdescription'] = trim($_POST['changerdescription']);
-			dbExecute($base, 'UPDATE alliances SET description=? WHERE id=?', 'si', $_POST['changerdescription'], $currentAlliance['idalliance']);
-			$information = 'La description de l\'équipe a bien été changée.';
+			// MEDIUM-015: Enforce max length on alliance description
+			if (mb_strlen($_POST['changerdescription'], 'UTF-8') > ALLIANCE_DESC_MAX_LENGTH) {
+				$erreur = "La description est trop longue (" . ALLIANCE_DESC_MAX_LENGTH . " caractères maximum).";
+			} else {
+				dbExecute($base, 'UPDATE alliances SET description=? WHERE id=?', 'si', $_POST['changerdescription'], $currentAlliance['idalliance']);
+				$information = 'La description de l\'équipe a bien été changée.';
+			}
 		} else {
 			$erreur = "La description de votre équipe doit au moins comporter un caractère.";
 		}
@@ -438,7 +443,8 @@ if ($chef) {
 }
 if ($description) {
 	creerBBcode("changerdescription", $chef['description']);
-	item(['form' => ["allianceadmin.php", "description"], 'floating' => false, 'titre' => "Description", 'input' => '<textarea name="changerdescription" id="changerdescription" rows="10" cols="50">' . htmlspecialchars($chef['description'], ENT_QUOTES, 'UTF-8') . '</textarea>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'description'])]);
+	// MEDIUM-015: maxlength attribute enforces ALLIANCE_DESC_MAX_LENGTH client-side
+	item(['form' => ["allianceadmin.php", "description"], 'floating' => false, 'titre' => "Description", 'input' => '<textarea name="changerdescription" id="changerdescription" rows="10" cols="50" maxlength="' . ALLIANCE_DESC_MAX_LENGTH . '">' . htmlspecialchars($chef['description'], ENT_QUOTES, 'UTF-8') . '</textarea>' . csrfField(), 'after' => submit(['titre' => 'Changer', 'form' => 'description'])]);
 }
 if ($chef) {
 	item(['form' => ["allianceadmin.php", "supprimerAlliance"], 'floating' => false, 'input' => '<input type="hidden" name="supprimeralliance1"/>' . csrfField() . submit(['titre' => 'Supprimer l\'équipe', 'form' => 'supprimerAlliance', 'style' => 'background-color:red'])]);
