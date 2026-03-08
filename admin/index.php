@@ -56,9 +56,11 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 			if (count($rows) > 5) {
 				$erreur = "Trop de comptes correspondants (" . count($rows) . "). Opération refusée.";
 			} else {
-				foreach ($rows as $loginRow) {
-					supprimerJoueur($loginRow['login']);
-				}
+				withTransaction($base, function() use ($base, $rows) {
+					foreach ($rows as $loginRow) {
+						supprimerJoueur($loginRow['login']);
+					}
+				});
 				$succes = count($rows) . " compte(s) supprimé(s) pour IP " . htmlspecialchars($ip);
 			}
 		}

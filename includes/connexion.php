@@ -11,6 +11,7 @@ if (!$db_user || $db_name === false) {
     die('Configuration error. Contact administrator.');
 }
 
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $base = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
 
 if (!$base) {

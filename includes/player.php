@@ -1346,9 +1346,9 @@ function remiseAZero()
         dbExecute($base, 'DELETE FROM player_compounds');
         dbExecute($base, 'DELETE FROM resource_nodes');
 
-        // MED-071: Remove temporary and expired sanctions on season reset.
-        // Permanent bans (type != 'temp' and fin = 0 or future) are preserved.
-        dbExecute($base, "DELETE FROM sanctions WHERE type='temp' OR (fin > 0 AND fin < NOW())", []);
+        // MED-071: Remove expired sanctions on season reset.
+        // Sanctions with dateFin in the past are deleted; future sanctions are preserved.
+        dbExecute($base, "DELETE FROM sanctions WHERE dateFin < CURDATE()", []);
 
         // MED-072: Clear season-specific news on season reset.
         dbExecute($base, 'DELETE FROM news WHERE 1', []);

@@ -25,9 +25,9 @@ if (isset($_POST['supprimercompte'])) {
     } else {
         $joueurExiste = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $loginToDelete);
         if ($joueurExiste > 0) {
-            // P10-MED-004: Structured audit log for admin deletions
-            logInfo('ADMIN', 'Player account deleted', ['target_login' => $loginToDelete, 'admin' => $_SESSION['login']]);
             supprimerJoueur($loginToDelete);
+            // P10-MED-004: Structured audit log for admin deletions (logged after to confirm deletion occurred)
+            logInfo('ADMIN', 'Player account deleted', ['target_login' => $loginToDelete, 'admin' => $_SESSION['login']]);
         } else {
             echo "Ce joueur n'existe pas.";
         }

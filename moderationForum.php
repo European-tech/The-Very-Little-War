@@ -26,13 +26,12 @@ if (isset($_POST['supprimer'])) {
 }
 
 
-// Rate limit: max 20 sanctions per hour per moderator to prevent abuse
-if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST['supprimer'])) {
-	rateLimitCheck($_SESSION['login'], 'sanction_create', 20, 3600);
-}
-
 if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST['supprimer'])) {
 	csrfCheck();
+	// Rate limit: max 20 sanctions per hour per moderator to prevent abuse
+	if (!rateLimitCheck($_SESSION['login'], 'sanction_create', 20, 3600)) {
+		$erreur = "<strong>Erreur</strong> : Trop de sanctions créées. Veuillez réessayer dans une heure.";
+	} else {
 	$_POST['motif'] = mb_substr(trim($_POST['motif']), 0, 2000);
 	if (!empty($_POST['pseudo']) && !empty($_POST['dateFin']) && !empty($_POST['motif'])) {
 		$nb = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['pseudo']);
@@ -53,7 +52,8 @@ if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST
 	} else {
 		$erreur = "<strong>Erreur</strong> :Tous les champs doivent être remplis.";
 	}
-}
+	} // end else (rate limit passed)
+} // end if (isset POST fields)
 
 include("includes/layout.php");
 

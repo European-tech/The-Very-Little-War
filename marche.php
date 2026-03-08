@@ -252,7 +252,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                     while (!$buyDone && $buyAttempts < 3) {
                     $buyAttempts++;
                     try {
-                        withTransaction($base, function() use ($base, &$diffEnergieAchat, &$newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, &$coutAchat) {
+                        withTransaction($base, function() use ($base, &$diffEnergieAchat, &$newResVal, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, &$coutAchat, $nbRes) {
                             // MEDIUM-003: Lock ressources first, then constructions, then cours
                             // Consistent lock order prevents deadlocks with concurrent transactions
 
@@ -393,7 +393,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                     while (!$sellDone && $sellAttempts < 3) {
                     $sellAttempts++;
                     try {
-                    withTransaction($base, function() use ($base, &$newEnergie, &$newResVal, &$energyGained, &$actualSold, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $sellTaxRate) {
+                    withTransaction($base, function() use ($base, &$newEnergie, &$newResVal, &$energyGained, &$actualSold, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $sellTaxRate, $nbRes) {
                         // MEDIUM-003: Lock ressources first (consistent lock order prevents deadlocks)
                         $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                         if ($locked['res'] < $_POST['nombreRessourceAVendre']) {
