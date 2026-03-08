@@ -55,15 +55,21 @@ if(isset($_SESSION['login'])) {
 <?php
 $forumRows = dbFetchAll($base, 'SELECT * FROM forums');
 
+// FM-NEW-001: Hoist viewer's alliance lookup above the loop (was N+1 per alliance forum)
+$viewerAllianceId = 0;
+if (isset($_SESSION['login'])) {
+    try {
+        $viewerRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+        $viewerAllianceId = $viewerRow ? (int)$viewerRow['idalliance'] : 0;
+    } catch (\Exception $e) {
+        // autre table not accessible — viewer has no alliance
+    }
+}
+
 foreach($forumRows as $forum) {
     // MED-028: Hide alliance-private forums from non-members
     try {
         if (!empty($forum['alliance_id'])) {
-            $viewerAllianceId = 0;
-            if (isset($_SESSION['login'])) {
-                $viewerRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
-                $viewerAllianceId = $viewerRow ? (int)$viewerRow['idalliance'] : 0;
-            }
             if ($viewerAllianceId !== (int)$forum['alliance_id']) {
                 continue; // Skip this forum — viewer is not a member
             }
