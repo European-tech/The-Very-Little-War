@@ -347,7 +347,13 @@ function createAdminAlert($base, $alertType, $message, $details, $severity = 'wa
  */
 function sendAdminAlertEmail($subject, $body)
 {
+    // EMAIL13-001/ADMIN13-001: Validate email address before passing to mail() to prevent
+    // header injection via a malformed ADMIN_ALERT_EMAIL env var and to catch misconfigurations.
     $adminEmail = getenv('ADMIN_ALERT_EMAIL') ?: 'theverylittlewar@gmail.com';
+    if (!filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+        logWarn('MULTI_ALERT', 'ADMIN_ALERT_EMAIL is not a valid email address — alert not sent', ['address' => substr($adminEmail, 0, 30)]);
+        return;
+    }
     $subject = str_replace(["\r", "\n"], '', $subject);
     // EMAIL-P10-001: Strip CRLF from body to prevent header injection via body parameter.
     $body = str_replace(["\r\n", "\r", "\n"], ' ', $body);

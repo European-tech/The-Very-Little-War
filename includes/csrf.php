@@ -70,7 +70,9 @@ function csrfCheck() {
             // For regular requests, redirect to previous page or index (same-origin only, P2-D1-001)
             $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
             $parsed = parse_url($referer);
-            if (!empty($parsed['host']) && $parsed['host'] !== ($_SERVER['HTTP_HOST'] ?? '')) {
+            // INFRA13-001: Use SERVER_NAME (not HTTP_HOST) — HTTP_HOST is client-controlled.
+            // Consistent with the Origin check above (line ~37).
+            if (!empty($parsed['host']) && $parsed['host'] !== ($_SERVER['SERVER_NAME'] ?? '')) {
                 $redirectTo = 'index.php';
             } else {
                 // Only use the path component, sanitize to a known PHP page

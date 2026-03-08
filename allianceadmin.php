@@ -481,10 +481,13 @@ if ($inviter) {
 						throw new \RuntimeException('alliance_full');
 					}
 
-					// Verify target player exists
-					$joueurExiste = dbCount($base, 'SELECT COUNT(*) FROM autre WHERE login=?', 's', $personneAInviter);
-					if ($joueurExiste === 0) {
+					// Verify target player exists and is not game-banned (ALLIANCE13-002)
+					$joueurExiste = dbFetchOne($base, 'SELECT m.estExclu FROM membre m JOIN autre a ON a.login=m.login WHERE a.login=?', 's', $personneAInviter);
+					if (!$joueurExiste) {
 						throw new \RuntimeException('player_not_found');
+					}
+					if ((int)$joueurExiste['estExclu'] === 1) {
+						throw new \RuntimeException('player_banned');
 					}
 
 					// Re-check: target must not already be in an alliance (FOR UPDATE locks the row)
@@ -511,6 +514,9 @@ if ($inviter) {
 						break;
 					case 'player_not_found':
 						$erreur = "Ce joueur n'existe pas.";
+						break;
+					case 'player_banned':
+						$erreur = "Ce joueur n'est pas disponible.";
 						break;
 					case 'already_in_alliance':
 						$erreur = "Ce joueur est déjà dans une alliance.";

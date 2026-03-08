@@ -359,7 +359,7 @@ function updateActions($joueur)
                         $contenuRapportDefenseur = $debutRapport . $milieuDefenseur . $finRapport;
 
                         // Les rapports sont créés
-                        $rapportImage = '<img alt="attack" src="images/rapports/sword.png"/ class="imageAide">';
+                        $rapportImage = '<img alt="attack" src="images/rapports/sword.png" class="imageAide"/>';
                         dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportAttaquant, $actions['attaquant'], $rapportImage);
 
                         dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage);

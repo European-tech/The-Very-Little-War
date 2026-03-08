@@ -308,7 +308,7 @@ function updateRessources($joueur)
         if ($hasLosses) {
             $titreRapport = 'Rapport des pertes durant votre absence';
             $contenuRapport = 'Durant votre absence de ' . $absenceDureeStr . ', vos pertes de molécules ont été : <br/>' . $lossLines;
-            dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $joueur, '<img alt="skull" src="images/rapports/rapportpertes.png"/ class="imageAide">');
+            dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $joueur, '<img alt="skull" src="images/rapports/rapportpertes.png" class="imageAide"/>');
         }
     }
 

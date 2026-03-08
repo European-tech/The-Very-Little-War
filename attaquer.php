@@ -470,7 +470,9 @@ if ($_GET['type'] == 0) {
         }
         $px = (int)$tableau['x'];
         $py = (int)$tableau['y'];
-        if ($px >= 0 && $px < $mapSize && $py >= 0 && $py < $mapSize) {
+        // MAP13-001: Match DB filter (x > 0, y > 0) — players at (0,0) are excluded from the
+        // map query above but would slip through with >= 0 check and corrupt carte array slot [0][0].
+        if ($px > 0 && $px < $mapSize && $py > 0 && $py < $mapSize) {
             $carte[$px][$py] = [$tableau['id'], $tableau['login'], $tableau['points'], $type];
         }
     }
