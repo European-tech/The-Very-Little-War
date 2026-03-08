@@ -1,2 +1,3 @@
--- Migration 0086: Convert historique_alliances.action to ENUM for validation
-ALTER TABLE historique_alliances MODIFY action ENUM('join','leave','kick','promote','demote','create','dissolve','pact','war') NOT NULL;
+-- Migration 0086: historique_alliances action ENUM
+-- NOTE: Table historique_alliances does not exist. No schema change needed.
+SELECT 1;
