@@ -180,9 +180,9 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 			foreach ($moderationRows as $donnees) {
 			?>
 				<tr>
-					<td><?php echo $donnees['energie']; ?></td>
+					<td><?php echo (int)$donnees['energie']; ?></td>
 					<?php foreach ($nomsRes as $num => $ressource) {
-						echo '<td>' . $donnees[$ressource] . '</td>';
+						echo '<td>' . (int)$donnees[$ressource] . '</td>';
 					} ?>
 					<td><?php echo htmlspecialchars($donnees['justification'], ENT_QUOTES, 'UTF-8'); ?></td>
 					<td><?php echo htmlspecialchars($donnees['destinataire'], ENT_QUOTES, 'UTF-8'); ?></td>

@@ -276,7 +276,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 		<td><?php echo chiffrePetit(pointsDefense($donnees['pointsDefense'])); ?></td>
 		<td><?php echo chiffrePetit($donnees['ressourcesPillees']); ?></td>
 		<td><?php echo chiffrePetit(min((int)$donnees['tradeVolume'], MARKET_POINTS_MAX)); ?></td>
-		<td><?php echo $donnees['victoires'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireJoueur((int)$donnees['rang']).'</span>'; ?></td>
+		<td><?php echo (int)$donnees['victoires'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireJoueur((int)$donnees['rang']).'</span>'; ?></td>
 		<td><a href="prestige.php"><?php echo isset($prestigeCache[$donnees['login']]) ? $prestigeCache[$donnees['login']] : 0; ?></a></td>
 		</tr>
 		<?php $compteur++;
@@ -463,7 +463,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 			<td><?php echo number_format($donnees['totalAttaque'], 0 , ' ', ' ');?></td>
 			<td><?php echo number_format($donnees['totalDefense'], 0 , ' ', ' ');?></td>
 			<td><?php echo number_format($donnees['totalPillage'], 0 , ' ', ' ');?></td>
-            <td><?php echo $donnees['pointsVictoire'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireAlliance($allianceRang).'</span>'; ?></td>
+            <td><?php echo (int)$donnees['pointsVictoire'].' <span style="font-style:italic;font-size:10px">+'.pointsVictoireAlliance($allianceRang).'</span>'; ?></td>
 			</tr>
 			<?php
 		}

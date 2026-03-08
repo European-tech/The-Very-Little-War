@@ -123,7 +123,8 @@ else {
     if (!$vac) {
         // Orphaned vacance=1 with no vacances row — clear the flag
         dbExecute($base, 'UPDATE membre SET vacance = 0 WHERE login = ?', 's', $_SESSION['login']);
-        header('Location: ' . $_SERVER['PHP_SELF']); exit;
+        // NEW-003: Use FILTER_SANITIZE_URL to avoid PHP_SELF injection via path-info
+        header('Location: ' . filter_var($_SERVER['PHP_SELF'], FILTER_SANITIZE_URL)); exit;
     }
     // On calcul la différence entre la date de fin et la date actuelle
     $diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $vac['dateFin']);
