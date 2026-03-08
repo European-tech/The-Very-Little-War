@@ -241,14 +241,14 @@ if (isset($_POST['joueurAAttaquer'])) {
                                     });
                                     logInfo('ATTACK', 'Attack launched', ['attacker' => $_SESSION['login'], 'defender' => $_POST['joueurAAttaquer'], 'troops' => $troupes, 'energy_cost' => $cout]);
                                     $information = "L'attaque a été lancée.";
-                                } catch (RuntimeException $e) {
+                                } catch (\RuntimeException $e) {
                                     if ($e->getMessage() === 'Énergie insuffisante') {
                                         $erreur = "Vous n'avez pas assez d'énergie (solde modifié entre la vérification et l'envoi).";
                                     } else {
                                         $erreur = "Une erreur est survenue lors du lancement de l'attaque.";
                                         error_log('Attack transaction failed: ' . $e->getMessage());
                                     }
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     $erreur = "Vous n'avez pas assez de molécules.";
                                 }
                             } else {
@@ -300,9 +300,9 @@ if ($nb['nb'] > 0) {
             if (time() < $actionsattaques['tempsAttaque']) {
                 $safeDefenseur = htmlspecialchars($actionsattaques['defenseur'], ENT_QUOTES, 'UTF-8');
                 if ($actionsattaques['troupes'] != 'Espionnage') {
-                    echo '<tr><td><a href="attaque.php?id=' . $actionsattaques['id'] . '"><img src="images/rapports/sword.png" class="imageChip" alt="epee"/></a></td><td><a href="joueur.php?id=' . $safeDefenseur . '">' . $safeDefenseur . '</a></td><td id="affichage' . $actionsattaques['id'] . '">' . affichageTemps($actionsattaques['tempsAttaque'] - time()) . '</td></tr>';
+                    echo '<tr><td><a href="attaque.php?id=' . $actionsattaques['id'] . '"><img src="images/rapports/sword.png" class="imageChip" alt="epee"/></a></td><td><a href="joueur.php?id=' . $safeDefenseur . '">' . $safeDefenseur . '</a></td><td id="affichage' . $actionsattaques['id'] . '">' . affichageTemps(max(0, $actionsattaques['tempsAttaque'] - time())) . '</td></tr>';
                 } else {
-                    echo '<tr><td><img src="images/rapports/binoculars.png" class="imageChip" alt="espion"/></td><td><a href="joueur.php?id=' . $safeDefenseur . '">' . $safeDefenseur . '</a></td><td id="affichage' . $actionsattaques['id'] . '">' . affichageTemps($actionsattaques['tempsAttaque'] - time()) . '</td></tr>';
+                    echo '<tr><td><img src="images/rapports/binoculars.png" class="imageChip" alt="espion"/></td><td><a href="joueur.php?id=' . $safeDefenseur . '">' . $safeDefenseur . '</a></td><td id="affichage' . $actionsattaques['id'] . '">' . affichageTemps(max(0, $actionsattaques['tempsAttaque'] - time())) . '</td></tr>';
                 }
 
                 echo '
@@ -322,7 +322,7 @@ if ($nb['nb'] > 0) {
                     setInterval(tempsDynamique' . $actionsattaques['id'] . ', 1000);
                     </script>';
             } else {
-                echo '<tr><td><a href="attaque.php?id=' . $actionsattaques['id'] . '"><img src="images/attaquer/retour.png" class="imageChip" alt="epee"/></a></td><td>Retour</td><td id="affichage' . $actionsattaques['id'] . '">' . affichageTemps($actionsattaques['tempsRetour'] - time()) . '</td></tr>';
+                echo '<tr><td><a href="attaque.php?id=' . $actionsattaques['id'] . '"><img src="images/attaquer/retour.png" class="imageChip" alt="epee"/></a></td><td>Retour</td><td id="affichage' . $actionsattaques['id'] . '">' . affichageTemps(max(0, $actionsattaques['tempsRetour'] - time())) . '</td></tr>';
                 echo cspScriptTag() . '
                     var valeur' . $actionsattaques['id'] . ' = ' . ($actionsattaques['tempsRetour'] - time()) . ';
 
@@ -591,7 +591,7 @@ if (isset($_GET['id'])) {
                 cout += document.getElementById("nbclasse' . $i . '").value*' . ($totAtomes * $coutPourUnAtome) . ';';
             }
             echo '
-                document.getElementById("coutEnergie").innerHTML = nFormatter(cout);
+                document.getElementById("coutEnergie").textContent = nFormatter(cout);
             }
 
             ';

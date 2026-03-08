@@ -77,7 +77,7 @@ foreach($forumRows as $forum) {
     } catch (\Exception $e) {
         // alliance_id column not yet present — all forums public, skip silently
     }
-    $nbSujets = dbFetchOne($base, 'SELECT count(*) AS nbSujets FROM sujets WHERE idforum = ? AND statut = 0', 'i', $forum['id']);
+    $nbSujets = dbFetchOne($base, 'SELECT count(*) AS nbSujets FROM sujets WHERE idforum = ?', 'i', $forum['id']);
 	echo '<tr>';
     if(isset($_SESSION['login'])) {
 		$statutForum = dbFetchOne($base, 'SELECT count(*) AS nbLus FROM statutforum WHERE login = ? AND idforum = ?', 'si', $_SESSION['login'], $forum['id']);

@@ -68,10 +68,12 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
                     $seasonEndTimestamp = mktime(0, 0, 0, $endMonth, 1, $endYear);
                     $secondsLeft = max(0, $seasonEndTimestamp - time());
                     $daysLeft = floor($secondsLeft / SECONDS_PER_DAY);
+                    $hoursLeft = floor(($secondsLeft % SECONDS_PER_DAY) / SECONDS_PER_HOUR);
+                    $minutesLeft = floor(($secondsLeft % SECONDS_PER_HOUR) / 60);
                     ?>
                     <span id="season-countdown-navbar" data-end="<?php echo (int)$seasonEndTimestamp; ?>"
                           style="font-size:10px;color:#aaa;cursor:pointer;"
-                          title="Fin de manche"><?php echo $daysLeft; ?>j</span>
+                          title="Fin de manche"><?php echo $daysLeft . 'j ' . $hoursLeft . 'h ' . $minutesLeft . 'm'; ?></span>
                 </div>
                 <?php endif; ?>
               </div>

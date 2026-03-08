@@ -258,9 +258,8 @@ define('ATTACK_ENERGY_COST_FACTOR', 0.15);
 define('IONISATEUR_COMBAT_BONUS_PER_LEVEL', 2);  // +2% per level
 define('CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL', 2); // +2% per level
 
-// Duplicateur combat bonus in combat.php: duplicateur_level / 100 (1% per level, matching resource bonus)
-// Fixed: was (0.1 * level) / 100 giving only 0.1% per level (10x too weak)
-define('DUPLICATEUR_COMBAT_COEFFICIENT', 1.0);
+// Duplicateur combat bonus in combat.php: 1 + (duplicateur_level * DUPLICATEUR_BONUS_PER_LEVEL)
+// i.e. 1% per level, matching resource bonus. Uses DUPLICATEUR_BONUS_PER_LEVEL (defined above).
 
 // Building damage targeting: random 1-4 selects target building
 define('NUM_DAMAGEABLE_BUILDINGS', 4); // generateur, champdeforce, producteur, depot

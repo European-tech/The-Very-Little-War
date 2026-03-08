@@ -12,7 +12,6 @@ if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulai
         $_POST['nbPoints' . $ressource] = intval($_POST['nbPoints' . $ressource]);
         if ($_POST['nbPoints' . $ressource] < 0) {
             $bool = false;
-            echo intval($_POST['nbPoints' . $ressource]);
         } else {
             $somme = $somme + $_POST['nbPoints' . $ressource];
         }
@@ -30,7 +29,7 @@ if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulai
                 $existingPoints = explode(';', $locked['pointsProducteur']);
                 $chaine = "";
                 foreach ($nomsRes as $num => $ressource) {
-                    $plus = ($num + 1 < sizeof($nomsRes)) ? ";" : "";
+                    $plus = ($num + 1 < count($nomsRes)) ? ";" : "";
                     $chaine = $chaine . ($_POST['nbPoints' . $ressource] + ($existingPoints[$num] ?? 0)) . $plus;
                 }
                 $newPoints = $locked['pointsProducteurRestants'] - $somme;
@@ -56,7 +55,6 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
         $_POST['nbPointsCondenseur' . $ressource] = intval($_POST['nbPointsCondenseur' . $ressource]);
         if ($_POST['nbPointsCondenseur' . $ressource] < 0) {
             $bool = false;
-            echo intval($_POST['nbPointsCondenseur' . $ressource]);
         } else {
             $somme = $somme + $_POST['nbPointsCondenseur' . $ressource];
         }
@@ -74,7 +72,7 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
                 $existingPoints = explode(';', $locked['pointsCondenseur']);
                 $chaine = "";
                 foreach ($nomsRes as $num => $ressource) {
-                    $plus = ($num + 1 < sizeof($nomsRes)) ? ";" : "";
+                    $plus = ($num + 1 < count($nomsRes)) ? ";" : "";
                     $chaine = $chaine . ($_POST['nbPointsCondenseur' . $ressource] + ($existingPoints[$num] ?? 0)) . $plus;
                 }
                 $newPoints = $locked['pointsCondenseurRestants'] - $somme;
@@ -366,7 +364,7 @@ if ($nb > 0) {
     scriptAffichageTemps();
     echo '<div class="table-responsive"><table><tr><th>Constructions</th><th>Temps restant</th><th>Fin</th></tr>';
     foreach ($actionsconstructionRows as $actionsconstruction) {
-        echo '<tr><td>' . $actionsconstruction['affichage'] . ' <strong>niveau ' . $actionsconstruction['niveau'] . '</strong></td><td><span id="affichage' . $actionsconstruction['id'] . '">' . affichageTemps($actionsconstruction['fin'] - time()) . '</span></td><td>' . date('H\hi', $actionsconstruction['fin']) . '</td></tr>';
+        echo '<tr><td>' . $actionsconstruction['affichage'] . ' <strong>niveau ' . $actionsconstruction['niveau'] . '</strong></td><td><span id="affichage' . $actionsconstruction['id'] . '">' . affichageTemps(max(0, $actionsconstruction['fin'] - time())) . '</span></td><td>' . date('H\hi', $actionsconstruction['fin']) . '</td></tr>';
         echo cspScriptTag() . '
             var valeur' . $actionsconstruction['id'] . ' = ' . ($actionsconstruction['fin'] - time()) . ';
             function tempsDynamique' . $actionsconstruction['id'] . '(){

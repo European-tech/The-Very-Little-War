@@ -157,7 +157,6 @@ if(isset($_GET['deployer'])){
         for(var i=0;i<chaine.length;i++){
             for(var j=0;j<si.length;j++){
                 if(chaine[i] == si[j].symbol){
-                    chaine.replace(si[j].symbol,si[j].value);
                     chaine = parseFloat(chaine)*si[j].value;
                 }
             }

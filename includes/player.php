@@ -150,7 +150,7 @@ function ajouterPoints($nb, $joueur, $type = 0)
     if ($type == 0) {
         // Construction points — update raw, then recompute sqrt total
         $result = dbExecute($base, 'UPDATE autre SET points = points + ? WHERE login = ? AND points + ? >= 0', 'dsd', $nb, $joueur, $nb);
-        if (mysqli_affected_rows($base) > 0) {
+        if ($result > 0) {
             recalculerTotalPointsJoueur($base, $joueur);
             return $nb;
         }
@@ -256,7 +256,7 @@ function initPlayer($joueur)
     // CONSTRUCTIONS
 
     $specCondMod = getSpecModifier($joueur, 'condenseur_points');
-    $points = ['condenseur' => max(1, $BUILDING_CONFIG['condenseur']['points_per_level'] + (int)$specCondMod), 'producteur' => sizeof($nomsRes)];
+    $points = ['condenseur' => max(1, $BUILDING_CONFIG['condenseur']['points_per_level'] + (int)$specCondMod), 'producteur' => count($nomsRes)];
 
     $plusHaut = batMax($joueur);
     dbExecute($base, 'UPDATE autre SET batmax=? WHERE login=?', 'is', $plusHaut, $joueur);
@@ -699,6 +699,10 @@ function diminuerBatiment($nom, $joueur)
                     }
 
                     dbExecute($base, 'UPDATE constructions SET pointsProducteur=? WHERE login=?', 'ss', $chaine, $joueur);
+                    if ($pointsAEnlever > 0) {
+                        // Log: residual points could not be removed (all allocations depleted)
+                        logError('diminuerBatiment: residual producteur points could not be removed', ['joueur' => $joueur, 'residual' => $pointsAEnlever]);
+                    }
                 }
             }
             if ($nom == 'condenseur') {
@@ -932,6 +936,8 @@ function supprimerJoueur($joueur)
         dbExecute($base, 'DELETE FROM actionsconstruction WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM player_compounds WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM season_recap WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM login_history WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM account_flags WHERE login=? OR related_login=?', 'ss', $joueur, $joueur);
 
         // Atomic decrement: avoids TOCTOU race; floor at 0 to prevent negative counts.
         dbExecute($base, 'UPDATE statistiques SET inscrits = GREATEST(0, inscrits - 1)');

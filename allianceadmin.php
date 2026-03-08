@@ -27,12 +27,12 @@ if ($chef['chef'] != $_SESSION['login'] and $existeGrade < 1) {
 }
 
 if ($_SESSION['login'] != $chef['chef']) {
-	list($inviter, $guerre, $pacte, $bannir, $description) = explode('.', $grade['grade']);
-	$inviter     = ($inviter === '1');
-	$guerre      = ($guerre === '1');
-	$bannir      = ($bannir === '1');
-	$pacte       = ($pacte === '1');
-	$description = ($description === '1');
+	$bits = explode('.', $grade['grade'] ?? '');
+	if (count($bits) !== 5) {
+		[$inviter, $guerre, $pacte, $bannir, $description] = [false, false, false, false, false];
+	} else {
+		[$inviter, $guerre, $pacte, $bannir, $description] = array_map(fn($b) => $b === '1', $bits);
+	}
 	$gradeChef = false;
 } else {
 	$inviter = true;
@@ -94,6 +94,11 @@ if ($gradeChef) {
 			} elseif (dbCount($base, 'SELECT COUNT(*) FROM grades WHERE idalliance=? AND nom=?', 'is', $chef['id'], $_POST['nomgrade']) > 0) {
 				$erreur = "Un grade avec ce nom existe déjà dans votre alliance.";
 			} else {
+				// SOC-P6-005: Cap grades per alliance to prevent unbounded growth
+				$gradeCount = dbCount($base, 'SELECT COUNT(*) AS cnt FROM grades WHERE idalliance=?', 'i', $chef['id']);
+				if ($gradeCount >= MAX_ALLIANCE_MEMBERS) {
+					$erreur = "Nombre maximum de grades atteint pour cette alliance.";
+				} else {
 				$gradee = dbCount($base, 'SELECT count(*) as nb FROM grades WHERE login=? AND idalliance=?', 'si', $_POST['personnegrade'], $chef['id']);
 				if ($_POST['personnegrade'] != $chef['chef'] and $gradee < 1) {
 					$existe = dbCount($base, 'SELECT count(*) as nb FROM membre WHERE login=?', 's', $_POST['personnegrade']);
@@ -119,6 +124,7 @@ if ($gradeChef) {
 				} else {
 					$erreur = "Cette personne est déjà gradée.";
 				}
+				} // end SOC-P6-005 grade count cap
 			} // end MED-026 validation
 		} else {
 			$erreur = "Tout les champs ne sont pas remplis";
@@ -178,7 +184,12 @@ if ($gradeChef) {
 					if (!$member) {
 						throw new \RuntimeException('NOT_IN_ALLIANCE');
 					}
+					$oldChef = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $currentAlliance['idalliance']);
 					dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $newChef, $currentAlliance['idalliance']);
+					// SOC-P6-003: Remove outgoing chef's grade so they don't retain officer permissions
+					if ($oldChef) {
+						dbExecute($base, 'DELETE FROM grades WHERE login=? AND idalliance=?', 'si', $oldChef['chef'], $currentAlliance['idalliance']);
+					}
 				});
 				header("Location: alliance.php"); exit;
 			} catch (\RuntimeException $e) {
@@ -276,13 +287,7 @@ if ($pacte) {
 					$idDeclaration = dbFetchOne($base, 'SELECT id FROM declarations WHERE type=1 AND valide=0 AND alliance1=? AND alliance2=?', 'ii', $chef['id'], $allianceAllie['id']);
 					$safeTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
 					$rapportTitre = 'L\'alliance ' . $safeTag . ' vous propose un pacte.';
-					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeTag . '</a> vous propose un pacte.
-					<form action="validerpacte.php" method="post">
-					' . csrfField() . '
-					<input type="submit" value="Accepter" name="accepter"/>
-					<input type="submit" value="Refuser" name="refuser"/>
-					<input type="hidden" value="' . $idDeclaration['id'] . '" name="idDeclaration"/>
-					</form>';
+					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeTag . '</a> vous propose un pacte. [PACT_ID:' . $idDeclaration['id'] . ']';
 					dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default)', 'isss', $now, $rapportTitre, $rapportContenu, $allianceAllie['chef']);
 					return true;
 				});
@@ -399,7 +404,9 @@ if ($inviter) {
 	if (isset($_POST['inviterpersonne'])) {
 		csrfCheck();
 		if (!empty($_POST['inviterpersonne'])) {
-			if ($nombreJoueurs < $joueursEquipe) {
+			// SOC-P6-008: Re-fetch live count to avoid TOCTOU race with $nombreJoueurs fetched at page load
+			$liveCount = dbCount($base, 'SELECT COUNT(*) AS cnt FROM autre WHERE idalliance=?', 'i', $currentAlliance['idalliance']);
+			if ($liveCount < $joueursEquipe) {
 				$_POST['inviterpersonne'] = ucfirst(trim($_POST['inviterpersonne']));
 				$joueurExiste = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=?', 's', $_POST['inviterpersonne']);
 

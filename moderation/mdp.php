@@ -6,3 +6,9 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 	header('Location: index.php');
 	exit();
 }
+$currentIp = $_SERVER['REMOTE_ADDR'] ?? '';
+if (!hash_equals($_SESSION['mod_ip'] ?? '', $currentIp)) {
+	session_destroy();
+	header('Location: index.php?expired=1');
+	exit();
+}

@@ -19,8 +19,9 @@ function csrfVerify() {
         return false;
     }
     if (hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        // Rotate token after each successful validation to prevent replay attacks
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        // Token is NOT rotated on success: rotating breaks multi-form pages (e.g. compte.php)
+        // where the first submission would invalidate the token for subsequent forms.
+        // The token still changes on session creation (csrfToken()), which is sufficient.
         return true;
     }
     return false;

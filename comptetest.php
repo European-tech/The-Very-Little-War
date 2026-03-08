@@ -59,7 +59,7 @@ if (isset($_GET['inscription'])) {
 			if (!validateLogin($_POST['login'])) {
 				$erreur = 'Le login doit contenir entre ' . LOGIN_MIN_LENGTH . ' et ' . LOGIN_MAX_LENGTH . ' caractères alphanumériques.';
 			} elseif (preg_match("#^[A-Za-z0-9]*$#", $_POST['login'])) {
-				if (preg_match("#^[a-z0-9._-]+@[a-z0-9._-]{2,}\.[a-z]{2,4}$#", $_POST['email'])) {
+				if (validateEmail($_POST['email'])) {
 					$_POST['login'] = ucfirst(mb_strtolower($_POST['login']));
 					$loginClean = $_POST['login'];
 
@@ -73,7 +73,8 @@ if (isset($_GET['inscription'])) {
 						$hashedPassword = password_hash($_POST['pass'], PASSWORD_DEFAULT);
 
 						// Wrap all 15 table renames in a transaction for atomicity
-						withTransaction($base, function() use ($base, $newLogin, $oldLogin, $hashedPassword, $email) {
+						$sessionToken = bin2hex(random_bytes(32));
+						withTransaction($base, function() use ($base, $newLogin, $oldLogin, $hashedPassword, $email, $sessionToken) {
 							// Lock source row to prevent concurrent renames (GAP-013)
 							$locked = dbFetchOne($base, 'SELECT login FROM membre WHERE login = ? FOR UPDATE', 's', $oldLogin);
 							if (!$locked) {
@@ -83,7 +84,7 @@ if (isset($_GET['inscription'])) {
 							dbExecute($base, 'UPDATE grades SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE constructions SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE invitations SET invite = ? WHERE invite = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ? WHERE login = ?', 'ssss', $newLogin, $hashedPassword, $email, $oldLogin);
+							dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ?, session_token = ? WHERE login = ?', 'sssss', $newLogin, $hashedPassword, $email, $sessionToken, $oldLogin);
 							dbExecute($base, 'UPDATE messages SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE messages SET expeditaire = ? WHERE expeditaire = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE moderation SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
@@ -106,9 +107,7 @@ if (isset($_GET['inscription'])) {
 						});
 
 						$_SESSION['login'] = $newLogin;
-						$sessionToken = bin2hex(random_bytes(32));
 						$_SESSION['session_token'] = $sessionToken;
-						dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, $newLogin);
 
 						header("Location: index.php?inscrit=1"); exit;
 					} else {

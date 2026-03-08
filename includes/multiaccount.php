@@ -89,7 +89,7 @@ function checkSameFingerprintAccounts($base, $login, $fingerprint, $timestamp)
         );
         if (!$existing) {
             $evidence = json_encode([
-                'shared_fingerprint' => $fingerprint,
+                'shared_fingerprint' => substr($fingerprint, 0, 12),
                 'detection_time' => $timestamp,
                 'login_a' => $login,
                 'login_b' => $other['login']
@@ -219,8 +219,10 @@ function checkTimingCorrelation($base, $login, $timestamp)
         $other = $rel['related_login'];
         // Check overlap: did both accounts have login events within 5 min of each other?
         $overlap = dbFetchOne($base,
-            'SELECT COUNT(*) AS cnt FROM login_history a INNER JOIN login_history b ON ABS(a.timestamp - b.timestamp) < 300 WHERE a.login = ? AND b.login = ? AND a.timestamp > ? AND b.timestamp > ?',
-            'ssii', $login, $other, $cutoff, $cutoff
+            'SELECT COUNT(*) AS cnt FROM login_history a WHERE a.login = ? AND a.timestamp > ?
+             AND EXISTS (SELECT 1 FROM login_history b WHERE b.login = ? AND b.timestamp > ?
+                         AND b.timestamp BETWEEN a.timestamp - 300 AND a.timestamp + 300)',
+            'sisi', $login, $cutoff, $other, $cutoff
         );
 
         $aLogins = dbFetchOne($base, 'SELECT COUNT(*) AS cnt FROM login_history WHERE login = ? AND timestamp > ?', 'si', $login, $cutoff);

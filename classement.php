@@ -144,7 +144,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 				$enGuerre = "160,160,160";
 			}
 			?>
-			<tr style="background-color: rgba(<?php echo $enGuerre; ?>,0.6);">
+			<tr style="<?php if ($enGuerre !== '') { echo 'background-color:rgba(' . $enGuerre . ',0.6);'; } ?>">
 			<td><?php echo imageClassement((int)$donnees['rang']); ?></td>
 			<td><?php echo joueur($donnees['login']); ?></td>
 			<td><?php echo number_format($donnees['totalPoints'], 0, ' ', ' '); ?></td>
@@ -686,7 +686,7 @@ else {
 		}
 
 		?>
-		<tr style="background-color:rgba(<?php echo $enGuerre; ?>,0.6)">
+		<tr style="<?php if ($enGuerre !== '') { echo 'background-color:rgba(' . $enGuerre . ',0.6);'; } ?>">
 		<td><?php echo imageClassement($compteur) ; ?></td>
 		<td><?php echo joueur($donnees['login']); ?></td>
 		<td><?php echo $donnees1['nbMessages']; ?></td>

@@ -12,7 +12,7 @@ debutCarte("Historique des saisons");
 
 if (empty($recaps)) {
     debutContent();
-    echo '<p style="text-align:center;color:#999;padding:20px;">Aucun historique disponible. Les donnees seront archivees a la fin de chaque saison.</p>';
+    echo '<p style="text-align:center;color:#999;padding:20px;">Aucun historique disponible. Les données seront archivées à la fin de chaque saison.</p>';
     finContent();
 } else {
     foreach ($recaps as $recap) {
@@ -25,7 +25,7 @@ if (empty($recaps)) {
         $pillage = (int)$recap['ressources_pillees'];
         $nbAtk = (int)$recap['nb_attaques'];
         $victories = (int)$recap['victoires'];
-        $molLost = (float)$recap['molecules_perdues'];
+        $molLost = (int)$recap['molecules_perdues'];
         $allianceName = $recap['alliance_name'] ?? '';
         $streakMax = (int)$recap['streak_max'];
         $createdAt = $recap['created_at'] ?? '';
@@ -42,10 +42,10 @@ if (empty($recaps)) {
 
         echo '<tr><td><strong>Points totaux</strong></td><td>' . number_format($totalPts, 0, ' ', ' ') . '</td></tr>';
         echo '<tr><td><strong>Points d\'attaque</strong></td><td>' . number_format($atkPts, 0, ' ', ' ') . '</td></tr>';
-        echo '<tr><td><strong>Points de defense</strong></td><td>' . number_format($defPts, 0, ' ', ' ') . '</td></tr>';
-        echo '<tr><td><strong>Volume d\'echange</strong></td><td>' . number_format($tradeVol, 0, ' ', ' ') . '</td></tr>';
-        echo '<tr><td><strong>Ressources pillees</strong></td><td>' . number_format($pillage, 0, ' ', ' ') . '</td></tr>';
-        echo '<tr><td><strong>Combats menes</strong></td><td>' . number_format($nbAtk, 0, ' ', ' ') . '</td></tr>';
+        echo '<tr><td><strong>Points de défense</strong></td><td>' . number_format($defPts, 0, ' ', ' ') . '</td></tr>';
+        echo '<tr><td><strong>Volume d\'échange</strong></td><td>' . number_format($tradeVol, 0, ' ', ' ') . '</td></tr>';
+        echo '<tr><td><strong>Ressources pillées</strong></td><td>' . number_format($pillage, 0, ' ', ' ') . '</td></tr>';
+        echo '<tr><td><strong>Combats menés</strong></td><td>' . number_format($nbAtk, 0, ' ', ' ') . '</td></tr>';
         echo '<tr><td><strong>Victoires</strong></td><td>' . number_format($victories, 0, ' ', ' ') . '</td></tr>';
         echo '<tr><td><strong>Molecules perdues</strong></td><td>' . number_format($molLost, 0, ' ', ' ') . '</td></tr>';
 

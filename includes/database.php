@@ -123,12 +123,10 @@ function withTransaction($base, callable $fn) {
     $sp = 'sp_' . $depth;
     if ($useSavepoint) {
         if (!mysqli_query($base, "SAVEPOINT $sp")) {
-            $depth--;
             throw new \RuntimeException('savepoint_failed');
         }
     } else {
         if (!mysqli_begin_transaction($base)) {
-            $depth--;
             throw new \RuntimeException('transaction_begin_failed');
         }
     }

@@ -112,5 +112,9 @@ if (isset($_GET['id'])) {
         finContent();
         finCarte();
 	}
-} 
+} else {
+    // Redirect to own profile if no ID given
+    header('Location: joueur.php?id=' . urlencode($_SESSION['login']));
+    exit();
+}
 include("includes/copyright.php"); ?>

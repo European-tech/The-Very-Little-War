@@ -32,6 +32,30 @@ if(isset($_GET['rapport'])) {
 		$content = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $content);
 		$content = preg_replace('/\s+style\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $content);
 		$content = preg_replace('/href\s*=\s*["\']?\s*javascript\s*:/i', 'href="', $content);
+
+		// SOC-P6-002: Pact accept/refuse form — injected fresh with the viewer's own CSRF token.
+		// The stored report contains [PACT_ID:N] instead of an embedded form (see allianceadmin.php SOC-P6-001 fix).
+		if (preg_match('/\[PACT_ID:(\d+)\]/', $content, $pactMatch)) {
+			$declId = (int)$pactMatch[1];
+			// Check the declaration exists, is a pending pact (type=1, valide=0)
+			$pactDecl = dbFetchOne($base, 'SELECT d.id, d.valide, d.alliance2, a1.tag AS tag1 FROM declarations d JOIN alliances a1 ON a1.id=d.alliance1 WHERE d.id=? AND d.type=1 AND d.valide=0', 'i', $declId);
+			// Get current viewer's alliance
+			$myAllianceRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+			$myAllianceId = $myAllianceRow ? (int)$myAllianceRow['idalliance'] : 0;
+			// Only render the form if the viewer belongs to alliance2 (the target)
+			$pactForm = '';
+			if ($pactDecl && $myAllianceId > 0 && (int)$pactDecl['alliance2'] === $myAllianceId) {
+				$pactForm = '<form action="validerpacte.php" method="post">'
+					. csrfField()
+					. '<input type="hidden" name="idDeclaration" value="' . $declId . '"/>'
+					. '<button type="submit" name="accepter" class="button button-small button-fill color-green">Accepter</button> '
+					. '<button type="submit" name="refuser" class="button button-small button-fill color-red">Refuser</button>'
+					. '</form>';
+			}
+			// Remove the marker from displayed text and append the fresh form
+			$content = str_replace('[PACT_ID:' . $declId . ']', '', $content) . $pactForm;
+		}
+
 		echo $content;
         finContent();
         finCarte('<form method="post" action="rapports.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$rapports['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="imageSousMenu"> Supprimer</button></form>');

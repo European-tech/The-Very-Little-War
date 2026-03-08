@@ -286,6 +286,9 @@ if ($nb > 0) {
 
     $c = 0;
     foreach ($actionsformationRows as $actionsformation) {
+        if (empty($actionsformation['tempsPourUn']) || $actionsformation['tempsPourUn'] <= 0) {
+            continue;
+        }
         $offset = max(0, $actionsformation['debut'] - time());
 
         $moleculeEnCours = dbFetchOne($base, 'SELECT * FROM molecules WHERE id=?', 'i', $actionsformation['idclasse']);

@@ -68,8 +68,9 @@ foreach ($STREAK_MILESTONES as $day => $reward) {
         <p><strong>Serie actuelle :</strong> <?= $currentStreak ?> jour<?= $currentStreak > 1 ? 's' : '' ?></p>
         <?php if ($nextMilestone): ?>
         <p>Prochain palier : <strong><?= $nextMilestone ?> jours</strong> (+<?= $nextReward ?> PP)</p>
-        <div class="progressbar" data-progress="<?= min(100, round($currentStreak / $nextMilestone * 100)) ?>">
-            <span></span>
+        <?php $pct = min(100, round($currentStreak / max(1, $nextMilestone) * 100)); ?>
+        <div style="height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden;margin:4px 0;">
+            <div style="height:100%;width:<?= $pct ?>%;background:#4caf50;border-radius:4px;transition:width 0.3s;"></div>
         </div>
         <?php else: ?>
         <p>Tous les paliers atteints !</p>

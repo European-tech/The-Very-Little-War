@@ -18,7 +18,11 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
 
     // Probabilistic cleanup of stale rate limit files (~1% of calls)
     if (mt_rand(1, 100) === 1) {
-        $maxWindow = 3600; // max rate limit window in seconds
+        $maxWindow = max(
+            defined('RATE_LIMIT_LOGIN_WINDOW') ? RATE_LIMIT_LOGIN_WINDOW : 900,
+            defined('RATE_LIMIT_ADMIN_WINDOW') ? RATE_LIMIT_ADMIN_WINDOW : 3600,
+            defined('RATE_LIMIT_REGISTER_WINDOW') ? RATE_LIMIT_REGISTER_WINDOW : 3600
+        ) * 2; // double the max window to avoid deleting still-active files
         foreach (glob($dir . '/*.json') ?: [] as $file) {
             if (filemtime($file) < time() - $maxWindow) {
                 @unlink($file);
@@ -26,7 +30,7 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
         }
     }
 
-    $file = $dir . '/' . md5($identifier . '_' . $action) . '.json';
+    $file = $dir . '/' . hash('sha256', json_encode([$identifier, $action])) . '.json';
     $now = time();
     $attempts = [];
 
@@ -50,7 +54,7 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
 }
 
 function rateLimitRemaining($identifier, $action, $maxAttempts, $windowSeconds) {
-    $file = RATE_LIMIT_DIR . '/' . md5($identifier . '_' . $action) . '.json';
+    $file = RATE_LIMIT_DIR . '/' . hash('sha256', json_encode([$identifier, $action])) . '.json';
     $now = time();
     $attempts = [];
 

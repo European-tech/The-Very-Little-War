@@ -90,8 +90,8 @@ $joueurEnVac = dbFetchOne($base, 'SELECT vacance FROM membre WHERE login = ?', '
 if (isset($joueurEnVac['vacance']) && $joueurEnVac['vacance'] == 1) {
     $vacationAllowedPages = [
         'compte.php', 'regles.php', 'prestige.php', 'maintenance.php',
-        'deconnexion.php', 'bilan.php', 'classement.php', 'alliance.php',
-        'index.php', 'joueur.php', 'classement.php', 'saison.php',
+        'deconnexion.php', 'bilan.php', 'classement.php',
+        'index.php', 'joueur.php', 'saison.php',
         'alliance_discovery.php', 'season_recap.php',
     ];
     $currentPage = basename($_SERVER['PHP_SELF']);
@@ -208,7 +208,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // Throws RuntimeException if lock not acquired (another reset in progress).
     $vainqueurManche = performSeasonEnd();
     $seasonResetOk = true;
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
     // RuntimeException = lock not acquired or reset failed
     logError('SEASON', 'performSeasonEnd() failed: ' . $e->getMessage());
     if (!$seasonResetOk) {

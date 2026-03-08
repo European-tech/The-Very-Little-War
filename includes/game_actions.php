@@ -11,6 +11,7 @@ function updateActions($joueur)
         return; // Prevent infinite recursion
     }
     $updating[$joueur] = true;
+    try {
 
     global $autre;
     global $points;
@@ -67,19 +68,19 @@ function updateActions($joueur)
 
             if ($actions['fin'] >= time()) {
                 $derniereFormation = ($actions['nombreDebut'] - $actions['nombreRestant']) * $actions['tempsPourUn'] + $actions['debut'];
-                $formed = floor((time() - $derniereFormation) / $actions['tempsPourUn']);
+                $formed = (int)floor((time() - $derniereFormation) / $actions['tempsPourUn']);
                 if ($actions['idclasse'] != 'neutrino') {
-                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ds', $formed, $actions['idclasse']);
+                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'is', $formed, $actions['idclasse']);
                 } else {
-                    dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'ds', $formed, $joueur);
+                    dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'is', $formed, $joueur);
                 }
-                dbExecute($base, 'UPDATE actionsformation SET nombreRestant = nombreRestant - ? WHERE id=?', 'di', $formed, $actions['id']);
+                dbExecute($base, 'UPDATE actionsformation SET nombreRestant = nombreRestant - ? WHERE id=?', 'ii', $formed, $actions['id']);
             } else {
                 dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
                 if ($actions['idclasse'] != 'neutrino') {
-                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ds', $actions['nombreRestant'], $actions['idclasse']);
+                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'is', (int)$actions['nombreRestant'], $actions['idclasse']);
                 } else {
-                    dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'ds', $actions['nombreRestant'], $joueur);
+                    dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'is', (int)$actions['nombreRestant'], $joueur);
                 }
             }
         });
@@ -553,13 +554,13 @@ function updateActions($joueur)
         }
 
         $energieEnvoyee = "";
-        if ($envoyees[sizeof($nomsRes)] > 0) {
-            $energieEnvoyee = nombreEnergie(number_format($envoyees[sizeof($nomsRes)], 0, ' ', ' '));
+        if ($envoyees[count($nomsRes)] > 0) {
+            $energieEnvoyee = nombreEnergie(number_format($envoyees[count($nomsRes)], 0, ' ', ' '));
         }
 
         $energieRecue = "";
-        if ($recues[sizeof($nomsRes)] > 0) {
-            $energieRecue = nombreEnergie(number_format($recues[sizeof($nomsRes)], 0, ' ', ' '));
+        if ($recues[count($nomsRes)] > 0) {
+            $energieRecue = nombreEnergie(number_format($recues[count($nomsRes)], 0, ' ', ' '));
         }
 
         $titreRapport = "Rapport d'apport de ressources par " . htmlspecialchars($actions['envoyeur'], ENT_QUOTES, 'UTF-8');
@@ -587,11 +588,11 @@ function updateActions($joueur)
             $depotReceveur = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['receveur']);
             $maxStorageRecv = placeDepot($depotReceveur['depot']);
 
-            $recues[sizeof($nomsRes)] = max(0, $recues[sizeof($nomsRes)]);
+            $recues[count($nomsRes)] = max(0, $recues[count($nomsRes)]);
             // Build parameterized update for envoi resources
             $envoiSetClauses = ['energie=?'];
             $envoiTypes = 'd';
-            $envoiParams = [min($maxStorageRecv, round($ressourcesDestinataire['energie'] + $recues[sizeof($nomsRes)]))];
+            $envoiParams = [min($maxStorageRecv, round($ressourcesDestinataire['energie'] + $recues[count($nomsRes)]))];
             foreach ($nomsRes as $num => $ressource) {
                 $envoiSetClauses[] = "$ressource=?";
                 $envoiTypes .= 'd';
@@ -609,5 +610,8 @@ function updateActions($joueur)
     }
 
     initPlayer($joueur);
-    unset($updating[$joueur]);
+
+    } finally {
+        unset($updating[$joueur]);
+    }
 }

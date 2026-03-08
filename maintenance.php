@@ -39,7 +39,7 @@ $contenu = strip_tags($donnees['contenu'], $allowedTags);
 // Strip event handlers and dangerous attributes (P5-GAP-012)
 $contenu = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $contenu);
 $contenu = preg_replace('/\s+style\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $contenu);
-$contenu = preg_replace('/href\s*=\s*["\']?\s*javascript\s*:/i', 'href="', $contenu);
+$contenu = preg_replace('/href\s*=\s*["\']?\s*(javascript|data|vbscript)\s*:/i', 'href="', $contenu);
 $contenu = nl2br($contenu);
 echo important(htmlspecialchars($donnees['titre'], ENT_QUOTES, 'UTF-8') . '<em> le ' . date('d/m/Y à H\hi', $donnees['timestamp']) . '</em>');
 echo '

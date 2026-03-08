@@ -103,16 +103,22 @@ function revenuAtome($num, $joueur, $constructions = null)
 
     $niveau = explode(';', $constructions['pointsProducteur'])[$num];
 
-    $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $joueur);
-    $bonusDuplicateur = 1;
-    if ($idalliance['idalliance'] > 0) {
-        $duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
-        $bonusDuplicateur = 1 + bonusDuplicateur($duplicateur['duplicateur']);
+    static $sharedCache = [];
+    if (!isset($sharedCache[$joueur])) {
+        $idallianceRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $joueur);
+        $bonusDup = 1;
+        if (!empty($idallianceRow['idalliance'])) {
+            $dupRow = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idallianceRow['idalliance']);
+            $bonusDup = 1 + bonusDuplicateur($dupRow['duplicateur'] ?? 0);
+        }
+        $pos = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login=?', 's', $joueur);
+        $sharedCache[$joueur] = ['bonusDuplicateur' => $bonusDup, 'pos' => $pos];
     }
+    $bonusDuplicateur = $sharedCache[$joueur]['bonusDuplicateur'];
+    $pos = $sharedCache[$joueur]['pos'];
 
     // Resource node proximity bonus
     $nodeBonus = 0;
-    $pos = dbFetchOne($base, 'SELECT x, y FROM membre WHERE login=?', 's', $joueur);
     if ($pos && $pos['x'] >= 0 && $pos['y'] >= 0) {
         require_once(__DIR__ . '/resource_nodes.php');
         $nodeBonus = getResourceNodeBonus($base, $pos['x'], $pos['y'], $nomsRes[$num]);
@@ -125,7 +131,7 @@ function revenuAtome($num, $joueur, $constructions = null)
     // Specialization: atom_production modifier
     $specAtomMod = getSpecModifier($joueur, 'atom_production');
 
-    $result = round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur) * (1 + $nodeBonus) * (1 + $compoundProdBonus) * (1 + $specAtomMod));
+    $result = max(0, round($bonusDuplicateur * BASE_ATOMS_PER_POINT * $niveau * prestigeProductionBonus($joueur) * (1 + $nodeBonus) * (1 + $compoundProdBonus) * (1 + $specAtomMod)));
     $cache[$cacheKey] = $result;
     return $result;
 }

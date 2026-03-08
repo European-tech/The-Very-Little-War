@@ -161,7 +161,7 @@ if (isset($_FILES['photo']['name']) and !empty($_FILES['photo']['name'])) {
     } else //S'il n'y a pas d'erreur, on upload
     {
         // Generate random filename to prevent path traversal and overwrite attacks
-        $fichier = uniqid('avatar_') . '.' . $extension;
+        $fichier = 'avatar_' . bin2hex(random_bytes(16)) . '.' . $extension;
         move_uploaded_file($_FILES['photo']['tmp_name'], $dossier . $fichier);
         dbExecute($base, 'UPDATE autre SET image = ? WHERE login = ?', 'ss', $fichier, $_SESSION['login']);
         $information = "Votre image a bien été enregistrée.";

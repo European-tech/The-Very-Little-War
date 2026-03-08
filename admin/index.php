@@ -41,10 +41,19 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	}
 
 	if (isset($_POST['supprimercompte'])) {
-		$ip = $_POST['supprimercompte'];
-		$rows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $ip);
-		foreach ($rows as $login) {
-			supprimerJoueur($login['login']);
+		$ip = $_POST['supprimercompte'] ?? '';
+		if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+			$erreur = "Format d'IP invalide.";
+		} else {
+			$rows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $ip);
+			if (count($rows) > 5) {
+				$erreur = "Trop de comptes correspondants (" . count($rows) . "). Opération refusée.";
+			} else {
+				foreach ($rows as $loginRow) {
+					supprimerJoueur($loginRow['login']);
+				}
+				$succes = count($rows) . " compte(s) supprimé(s) pour IP " . htmlspecialchars($ip);
+			}
 		}
 	}
 

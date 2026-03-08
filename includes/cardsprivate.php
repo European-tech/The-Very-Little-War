@@ -31,7 +31,7 @@ if($tuto['niveaututo'] < 10) {
         $contenuTuto = 'Les ressources principales du jeu sont les atomes : '.$texte.'<br/><br/>
         La quantité dont vous en disposez peut être trouvée en <strong>haut de ce tutoriel</strong>, en cliquant sur <br/><br/><center>'.chipInfo('Atomes','images/atom.png').'</center><br/><br/>
         Ces atomes sont la brique de base pour vos futures <strong>molécules</strong>. Ce sera avec ces molécules que vous pourrez attaquer et vous défendre contre vos ennemis !<br/><br/> Pour produire des atomes, il faut augmenter le <nobr><img alt="prod" src="images/batiments/producteur.png" class="imageAide2"/> <strong>Producteur</strong></nobr> dans les <nobr><img src="images/menu/constructions.png" alt="checklist" class="imageAide"> <strong>Constructions</strong></nobr><br/><br/>
-        Une fois augmenté au niveau supérieur, vous aurez obtenu <strong>'.sizeof($nomsRes).' points de production</strong> qu\'il vous faudra placer.
+        Une fois augmenté au niveau supérieur, vous aurez obtenu <strong>'.count($nomsRes).' points de production</strong> qu\'il vous faudra placer.
         ';
 
         $objectif = 'Augmenter le producteur au <span class="important">niveau 2</span>';
@@ -45,7 +45,7 @@ if($tuto['niveaututo'] < 10) {
         Il existe deux manières de produire de l\'énergie : augmenter le <nobr><img alt="prod" src="images/batiments/generateur.png" class="imageAide2"/> <strong>Générateur</strong></nobr> dans les constructions ou <strong>créer des molécules</strong>. Pour qu\'une molécule produise de l\'énergie, il faut qu\'elle soit composée <strong style="color:pink">d\'iode</strong>. Pour produire de l\'iode, il faut placer les <strong>points de production</strong> obtenus.<br/><br/>Voici comment faire :
         <ul><li><img alt="msusem" src="images/batiments/producteur.png" class="imageAide"/> <strong>Cliquez</strong> sur le Producteur dans les <strong>Constructions</strong>.</li>
         <li><img alt="plus" src="images/add.png" class="imageAide"/> <strong>Cliquez</strong> sur <img alt="plus" src="images/add.png" class="imageAide"/> à côté de l\'atome dont vous voulez aumenter la production (<img style="vertical-align:middle;width:20px;height:20px;" alt="Energie" src="images/iode.png" alt="iode" title="Iode" /> est l\'iode)</li>
-        <li>- <strong>Répétez</strong> cette action <strong>'.(sizeof($nomsRes)-1).' fois</strong> (sur différents atomes).</li>
+        <li>- <strong>Répétez</strong> cette action <strong>'.(count($nomsRes)-1).' fois</strong> (sur différents atomes).</li>
         <li><img alt="validate" src="images/yes.png" class="imageAide"/> <strong>Sauvegardez</strong> ensuite cette production en cliquant sur <img alt="validate" src="images/yes.png" class="imageAide"/></li></ul>
         ';
 
@@ -80,7 +80,7 @@ if($tuto['niveaututo'] < 10) {
         $titreTuto = 'Carte';
         $contenuTuto = 'Votre armée sera bientôt prête ! Maintenant, sélectionnez <nobr><img alt="c" src="images/menu/attaquer.png" class="imageAide"/> <strong>Carte</strong></nobr> dans le menu à gauche.<hr/><br/>
         Vous vous trouvez alors devant une <strong>carte</strong> que vous pouvez déplacer. Votre emplacement est entouré <strong style="color:orange">d\'orange</strong>, <strong style="color:blue">votre équipe en bleue</strong>, vos <strong style="color:green">alliés (pacte) en vert</strong> et vos <strong style="color:red">adversaires (guerre) en rouge</strong>.<br/><br/>
-        <strong>Cliquez sur un joueur</strong> sur la carte : vous tombez alors sur son profil. Vous pouvez effectuer différentes actions telles que <strong>l\'espionner</strong> <img alt="att" src="images/rapports/binoculars.png" class="imageAide"/>, lui <strong>envoyer un message</strong> <img alt="att" src="images/message_ferme.png" class="imageAide"/>, voir ses <strong>médailles</strong> <img alt="att" src="images/medailles.png" class="imageAide"/> et bientôt <strong>l\'attaquer</strong> <img alt="att" src="images/rapports/sword.png" class="imageAide"/>. Malheureusement, vous êtes encore sous <strong>protection débutant</strong> pour <strong>deux jours</strong>, retenez vos pulsions meurtrières jusque là !';
+        <strong>Cliquez sur un joueur</strong> sur la carte : vous tombez alors sur son profil. Vous pouvez effectuer différentes actions telles que <strong>l\'espionner</strong> <img alt="att" src="images/rapports/binoculars.png" class="imageAide"/>, lui <strong>envoyer un message</strong> <img alt="att" src="images/message_ferme.png" class="imageAide"/>, voir ses <strong>médailles</strong> <img alt="att" src="images/medailles.png" class="imageAide"/> et bientôt <strong>l\'attaquer</strong> <img alt="att" src="images/rapports/sword.png" class="imageAide"/>. Malheureusement, vous êtes encore sous <strong>protection débutant</strong> pour <strong>'.round(BEGINNER_PROTECTION_SECONDS / SECONDS_PER_DAY).' jour(s)</strong>, retenez vos pulsions meurtrières jusque là !';
 
         $objectif =  'Cliquer sur un joueur';
         $recompense = '<span class="important">quelques molécules</span>';
@@ -153,7 +153,7 @@ if($tuto['niveaututo'] < 10) {
         }
         else {
             $missions = [];
-            for($i=0;$i<sizeof($listeMissions);$i++){
+            for($i=0;$i<count($listeMissions);$i++){
                 $missions[] = 0;
             }
 

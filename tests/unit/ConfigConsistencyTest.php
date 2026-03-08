@@ -673,7 +673,7 @@ class ConfigConsistencyTest extends TestCase
         $this->assertEquals(0.15, ATTACK_ENERGY_COST_FACTOR);
         $this->assertEquals(2, IONISATEUR_COMBAT_BONUS_PER_LEVEL);
         $this->assertEquals(2, CHAMPDEFORCE_COMBAT_BONUS_PER_LEVEL);
-        $this->assertEquals(1.0, DUPLICATEUR_COMBAT_COEFFICIENT);
+        // DUPLICATEUR_COMBAT_COEFFICIENT removed (CMB-P6-003): formula uses DUPLICATEUR_BONUS_PER_LEVEL directly
         $this->assertEquals(4, NUM_DAMAGEABLE_BUILDINGS);
     }
 

@@ -39,7 +39,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				$information = "Le message a bien été envoyé à toute l'alliance.";
 			}
 		} elseif ($_POST['destinataire'] == "[all]") {
-			$isAdmin = (dbCount($base, "SELECT COUNT(*) FROM membre WHERE login = ? AND role = 'admin'", 's', $_SESSION['login']) > 0);
+			$isAdmin = ($_SESSION['login'] === ADMIN_LOGIN);
 			if (!$isAdmin) {
 				$erreur = "Accès refusé.";
 			} elseif (!rateLimitCheck($_SESSION['login'], 'broadcast_all', 2, 3600)) {

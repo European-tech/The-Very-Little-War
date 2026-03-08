@@ -72,7 +72,7 @@ if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login'
                         
                         $bonusActuel = '<img alt="medaille" class="imageAide" src="images/classement/'.$imagesMedailles[$num].'"/> <strong>'.$paliersMedailles[$num].'</strong> : '.$bonus[$num].$infos[4];
                         
-                        if($num+1 < sizeof($infos[2])){
+                        if($num+1 < count($infos[2])){
                             $progression = $infos[1].'/'.$infos[2][$num+1];
                             $bonusSuivant = '<img alt="medaille" class="imageAide" src="images/classement/'.$imagesMedailles[$num+1].'"/> <strong>'.$paliersMedailles[$num+1].'</strong> : '.$bonus[$num+1].$infos[4];
                         }

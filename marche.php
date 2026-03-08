@@ -106,7 +106,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                                         }
                                     }
                                 }
-                                if ($sentCount > 0 && $noRoomCount === $sentCount) {
+                                if ($sentCount > 0 && $noRoomCount > 0) {
                                     throw new \RuntimeException('RECIPIENT_STORAGE_FULL');
                                 }
                             }
@@ -133,7 +133,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 
                             foreach ($nomsRes as $num => $ressource) {
                                 $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST[$ressource . 'Envoyee'] . ";";
-                                $ressourcesRecues = $ressourcesRecues . (${'rapport' . $ressource} * $_POST[$ressource . 'Envoyee']) . ";";
+                                $ressourcesRecues = $ressourcesRecues . round(${'rapport' . $ressource} * $_POST[$ressource . 'Envoyee']) . ";";
                             }
 
                             $joueur = dbFetchOne($base, 'SELECT x,y FROM membre WHERE login=?', 's', $_POST['destinataire']);
@@ -141,7 +141,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             $distance = pow(pow($membre['x'] - $joueur['x'], 2) + pow($membre['y'] - $joueur['y'], 2), 0.5);
 
                             $ressourcesEnvoyees = $ressourcesEnvoyees . $_POST['energieEnvoyee'];
-                            $ressourcesRecues = $ressourcesRecues . $rapportEnergie * $_POST['energieEnvoyee'];
+                            $ressourcesRecues = $ressourcesRecues . round($rapportEnergie * $_POST['energieEnvoyee']);
 
                             require_once('includes/compounds.php');
                             $speedBoost = getCompoundBonus($base, $_SESSION['login'], 'speed_boost');
@@ -258,6 +258,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             // HIGH-003: Re-read current market price with lock
                             $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
                             $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
+                            $txTabCours = array_slice($txTabCours, 0, $nbRes);
                             // Recompute cost from the freshly locked price (min 1 to prevent free-atom exploit)
                             $coutAchat = max(1, (int)round($txTabCours[$numRes] * $_POST['nombreRessourceAAcheter']));
                             $diffEnergieAchat = $locked['energie'] - $coutAchat;
@@ -272,7 +273,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
                             $chaine = '';
                             foreach ($txTabCours as $num => $cours) {
-                                if ($num < sizeof($txTabCours) - 1) {
+                                if ($num < count($txTabCours) - 1) {
                                     $fin = ",";
                                 } else {
                                     $fin = "";
@@ -296,12 +297,10 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
                             // Award trade points based on energy spent (not atom volume, to prevent buy-sell exploits)
                             $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
-                            // PASS1-MEDIUM-019: Atomic tradeVolume increment to prevent read-then-write race
+                            // ECO-P6-001: Accumulate raw energy-spent; cap at TRADE_VOLUME_CAP (not MARKET_POINTS_MAX).
+                            // The sqrt ranking formula in calculerTotalPoints() applies min($commerce, TRADE_VOLUME_CAP).
                             $tradeVolumeDelta = round($coutAchat * $reseauBonus);
-                            dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
-                            // HIGH-039: Enforce MARKET_POINTS_MAX cap atomically to prevent buy-sell cycling inflation
-                            // PASS4-LOW-012: bind type 'ds' matches the DOUBLE column type of tradeVolume
-                            dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'ds', MARKET_POINTS_MAX, $_SESSION['login']);
+                            dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume + ?, ?) WHERE login=?', 'dds', $tradeVolumeDelta, TRADE_VOLUME_CAP, $_SESSION['login']);
                             recalculerTotalPointsJoueur($base, $_SESSION['login']);
                         });
                         logInfo('MARKET', 'Market buy', ['resource' => $_POST['typeRessourceAAcheter'], 'amount' => $_POST['nombreRessourceAAcheter'], 'energy_cost' => $coutAchat]);
@@ -312,7 +311,7 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                         $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                         $tabCours = explode(",", $val['tableauCours']);
                         $buyDone = true;
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         if ($e->getMessage() === 'NOT_ENOUGH_ENERGY') {
                             $erreur = "Vous n'avez pas assez d'énergie.";
                             $buyDone = true;
@@ -394,6 +393,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         // PASS1-MEDIUM-018: Use freshly locked price for sell calculations
                         $coursRow = dbFetchOne($base, 'SELECT tableauCours FROM cours ORDER BY timestamp DESC LIMIT 1 FOR UPDATE');
                         $txTabCours = $coursRow ? explode(',', $coursRow['tableauCours']) : $tabCours;
+                        $txTabCours = array_slice($txTabCours, 0, $nbRes);
                         $energySpace = $placeDepotTx - $locked['energie'];
                         if ($energySpace <= 0) {
                             throw new Exception('ENERGY_FULL');
@@ -421,7 +421,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
 
                         $chaine = '';
                         foreach ($txTabCours as $num => $cours) {
-                            if ($num < sizeof($txTabCours) - 1) {
+                            if ($num < count($txTabCours) - 1) {
                                 $fin = ",";
                             } else {
                                 $fin = "";
@@ -447,12 +447,10 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
 
                         // Award trade points on sell (mirror buy logic)
                         $reseauBonus = 1 + allianceResearchBonus($_SESSION['login'], 'trade_points');
-                        // PASS1-MEDIUM-019: Atomic tradeVolume increment to prevent read-then-write race
+                        // ECO-P6-001: Accumulate raw energy-spent; cap at TRADE_VOLUME_CAP (not MARKET_POINTS_MAX).
+                        // The sqrt ranking formula in calculerTotalPoints() applies min($commerce, TRADE_VOLUME_CAP).
                         $tradeVolumeDelta = round($energyGained * $reseauBonus);
-                        dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
-                        // HIGH-039: Enforce MARKET_POINTS_MAX cap atomically to prevent buy-sell cycling inflation
-                        // PASS4-LOW-012: bind type 'ds' matches the DOUBLE column type of tradeVolume
-                        dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'ds', MARKET_POINTS_MAX, $_SESSION['login']);
+                        dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume + ?, ?) WHERE login=?', 'dds', $tradeVolumeDelta, TRADE_VOLUME_CAP, $_SESSION['login']);
                         recalculerTotalPointsJoueur($base, $_SESSION['login']);
                     });
                     logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $actualSold, 'energy_gained' => $energyGained]);
@@ -462,7 +460,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                     $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                     $tabCours = explode(",", $val['tableauCours']);
                         $sellDone = true;
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     if ($e->getMessage() === 'NOT_ENOUGH_ATOMS') {
                         $erreur = "Vous n'avez pas assez d'atomes.";
                         $sellDone = true;

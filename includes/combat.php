@@ -326,6 +326,10 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 							* $bonusDuplicateurDefense * $defIsotopeHpMod[$ci];
 				if ($hpPerMol > 0) {
 					$killsFromOverkill = min($remaining, (int)floor($disperseeOverkill / $hpPerMol));
+					$rem = fmod($disperseeOverkill, $hpPerMol);
+					if ($rem > 0 && $killsFromOverkill < $remaining && (random_int(0, 1000000) / 1000000.0) < ($rem / $hpPerMol)) {
+						$killsFromOverkill++;
+					}
 					$defenseurMort[$ci] = ($defenseurMort[$ci] ?? 0) + $killsFromOverkill;
 				}
 				break;
@@ -540,7 +544,7 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 		if ($classeAttaquant[$i]['hydrogene'] > 0 && $surviving > 0) {
 			$degatsParUnite = potentielDestruction($classeAttaquant[$i]['hydrogene'], $classeAttaquant[$i]['oxygene'], $niveauxAtt['hydrogene']);
 			for ($u = 0; $u < $surviving; $u++) {
-				$roll = mt_rand(1, $totalWeight);
+				$roll = random_int(1, $totalWeight);
 				$cumul = 0;
 				foreach ($buildingTargets as $building => $weight) {
 					$cumul += $weight;
@@ -686,7 +690,7 @@ if ($gagnant == 1) { // DEFENSEUR wins — enhanced defense points
 if (CATCHUP_WEEKEND_ENABLED) {
     $dayOfWeek = (int)date('N'); // 1=Mon ... 6=Sat, 7=Sun
     if ($dayOfWeek >= 6) {
-        $jeuData = dbFetchOne($base, 'SELECT debut FROM jeu LIMIT 1', '');
+        $jeuData = dbFetchOne($base, 'SELECT debut FROM statistiques LIMIT 1', '');
         $seasonStart = $jeuData ? (int)$jeuData['debut'] : time();
         $seasonDay = (int)floor((time() - $seasonStart) / SECONDS_PER_DAY);
         if ($seasonDay >= CATCHUP_WEEKEND_START_DAY && $seasonDay <= CATCHUP_WEEKEND_END_DAY) {

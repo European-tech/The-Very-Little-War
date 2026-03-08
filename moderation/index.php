@@ -7,6 +7,9 @@ require_once("../includes/database.php");
 require_once("../includes/csrf.php");
 require_once(__DIR__ . '/../includes/rate_limiter.php');
 require_once(__DIR__ . '/../includes/logger.php');
+require_once(__DIR__ . '/../includes/csp.php');
+$nonce = cspNonce();
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;");
 
 $rateLimitError = '';
 if (isset($_POST['motdepasseadmin'])) {
@@ -17,6 +20,7 @@ if (isset($_POST['motdepasseadmin'])) {
 	} elseif (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		session_regenerate_id(true);
 		$_SESSION['motdepasseadmin'] = true;
+		$_SESSION['mod_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
 		logInfo('MODERATION', 'Moderation login successful');
 	} else {
 		logWarn('MODERATION', 'Moderation login failed');
