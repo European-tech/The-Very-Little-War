@@ -431,7 +431,7 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         $tradeVolumeDelta = round($energyGained * $reseauBonus);
                         dbExecute($base, 'UPDATE autre SET tradeVolume = tradeVolume + ? WHERE login=?', 'ds', $tradeVolumeDelta, $_SESSION['login']);
                         // HIGH-039: Enforce MARKET_POINTS_MAX cap atomically to prevent buy-sell cycling inflation
-                        dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'ds', MARKET_POINTS_MAX, $_SESSION['login']);
+                        dbExecute($base, 'UPDATE autre SET tradeVolume = LEAST(tradeVolume, ?) WHERE login=?', 'is', MARKET_POINTS_MAX, $_SESSION['login']);
                         recalculerTotalPointsJoueur($base, $_SESSION['login']);
                     });
                     logInfo('MARKET', 'Market sell', ['resource' => $_POST['typeRessourceAVendre'], 'amount' => $actualSold, 'energy_gained' => $energyGained]);

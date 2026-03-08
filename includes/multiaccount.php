@@ -65,7 +65,7 @@ function checkSameIpAccounts($base, $login, $ip, $timestamp)
                 "Comptes sur la même IP: $login et {$other['login']} ($ip)",
                 $evidence, 'warning'
             );
-            logInfo('MULTIACCOUNT', 'Same IP detected', ['login_a' => $login, 'login_b' => $other['login'], 'ip' => $ip]);
+            logInfo('MULTIACCOUNT', 'Same IP detected', ['login_a' => $login, 'login_b' => $other['login'], 'ip_hash' => substr(hash('sha256', $ip . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw')), 0, 12)]);
         }
     }
 }
