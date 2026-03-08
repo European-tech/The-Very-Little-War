@@ -1,8 +1,9 @@
--- Migration 0067: Add unique index on (login, compound_id) in player_compounds
+-- Migration 0067: Add unique index on (login, compound_key) in player_compounds
 -- MEDIUM-023: Without a unique constraint, duplicate rows can be inserted for the
 -- same player+compound pair in a race condition, inflating compound buff durations.
+-- NOTE: Column is 'compound_key' not 'compound_id' (verified against live schema).
 
--- Only apply if the table exists
+-- Only apply if the table exists and index not yet present
 SET @tbl = (
     SELECT COUNT(*)
     FROM information_schema.TABLES
@@ -19,7 +20,7 @@ SET @idx_exists = (
 );
 
 SET @sql = IF(@tbl > 0 AND @idx_exists = 0,
-    'ALTER TABLE player_compounds ADD UNIQUE INDEX uidx_player_compound (login, compound_id)',
+    'ALTER TABLE player_compounds ADD UNIQUE INDEX uidx_player_compound (login, compound_key)',
     'SELECT 1'
 );
 PREPARE stmt FROM @sql;

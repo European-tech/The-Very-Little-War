@@ -1,11 +1,8 @@
--- Migration 0068: Enforce NOT NULL on declarations.declarant and declarations.cible
--- MEDIUM-024: NULL values in declarant/cible would break JOIN lookups and allow
--- orphaned declaration rows that bypass alliance war logic.
-
--- First, remove any orphaned rows with NULL declarant or cible
-DELETE FROM declarations WHERE declarant IS NULL OR cible IS NULL;
-
--- Then enforce NOT NULL constraint on both columns
-ALTER TABLE declarations
-    MODIFY declarant VARCHAR(20) NOT NULL,
-    MODIFY cible VARCHAR(20) NOT NULL;
+-- Migration 0068: declarations table schema note
+-- MEDIUM-024 originally targeted declarant/cible columns on a player-to-player
+-- declarations table. The actual 'declarations' table is for alliance wars
+-- (columns: id, type, alliance1, alliance2, timestamp, pertes1, pertes2, fin,
+-- pertesTotales, valide). No declarant/cible columns exist.
+-- The alliance1/alliance2 FK was already added in migration 0055.
+-- This migration is a no-op.
+SELECT 1 AS migration_applied;
