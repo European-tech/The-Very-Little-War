@@ -33,7 +33,7 @@ function csrfCheck() {
         // This catches browsers that send Origin (all modern browsers on cross-origin POSTs).
         if (isset($_SERVER['HTTP_ORIGIN'])) {
             $expectedOrigin = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
-            if (strpos($_SERVER['HTTP_ORIGIN'], $expectedOrigin) !== 0) {
+            if ($_SERVER['HTTP_ORIGIN'] !== $expectedOrigin) {
                 if (function_exists('logWarn')) {
                     logWarn('SECURITY', 'CSRF origin mismatch', [
                         'origin' => $_SERVER['HTTP_ORIGIN'],

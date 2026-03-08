@@ -71,6 +71,6 @@ if (!empty($reponse)) {
     });
     exit(json_encode(["erreur" => false, "dejaRepondu" => $dejaRepondu]));
 } else {
-    // TODO: P9-CRIT-001 — no poll results endpoint exists; results can only be viewed via DB query
+    // GET results endpoint implemented (Pass 7 MEDIUM-037) — poll results available via GET request above
     exit(json_encode(["erreur" => true]));
 }
