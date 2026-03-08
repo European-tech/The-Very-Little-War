@@ -146,12 +146,26 @@ else {
 // Daily login streak (P1-D8-041)
 if (isset($_SESSION['login'])) {
     $streakResult = updateLoginStreak($base, $_SESSION['login']);
-    // LOW-016: Persist streak PP earned today to session for prestige.php display.
-    // updateLoginStreak returns pp_earned=0 if streak was already processed today
-    // (guarded by streak_last_date == today check), so this is safe to overwrite
-    // on every page load — it will be 0 except on the first load of each new day.
-    $_SESSION['streak_pp_today'] = $streakResult['pp_earned'] ?? 0;
-    if ($streakResult['milestone']) {
+    // PRES-P7-002: Only overwrite streak_pp_today when PP was actually earned (first load of
+    // the calendar day). On subsequent page loads updateLoginStreak returns pp_earned=0 because
+    // streak_last_date already equals today — we must NOT overwrite the session var in that case
+    // or the banner disappears after the very first navigation away from the earning page.
+    // Store alongside today's date so the value auto-expires at midnight even in a long session.
+    $streakTz = new DateTimeZone('Europe/Paris');
+    $streakToday = (new DateTime('now', $streakTz))->format('Y-m-d');
+    $ppEarned = $streakResult['pp_earned'] ?? 0;
+    if ($ppEarned > 0) {
+        // Fresh PP earned — store value and stamp the date
+        $_SESSION['streak_pp_today'] = $ppEarned;
+        $_SESSION['streak_pp_date']  = $streakToday;
+    } elseif (!isset($_SESSION['streak_pp_date']) || $_SESSION['streak_pp_date'] !== $streakToday) {
+        // New calendar day with no PP (non-milestone streak or first-ever login on this day)
+        // — reset so stale yesterday's value is not shown
+        $_SESSION['streak_pp_today'] = 0;
+        $_SESSION['streak_pp_date']  = $streakToday;
+    }
+    // else: same day, no new PP — leave existing session value intact
+    if (!empty($streakResult['milestone'])) {
         $_SESSION['streak_milestone'] = $streakResult;
     }
 }

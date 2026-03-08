@@ -1,0 +1,2 @@
+# Deny all web access to scripts directory - CLI only
+Require all denied

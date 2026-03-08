@@ -56,9 +56,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 			}
 
 			if ($authenticated) {
-				if (session_status() === PHP_SESSION_NONE) {
-					session_start();
-				}
+				// session_init.php (loaded above) already started the session; no need to call session_start() again.
 				session_regenerate_id(true);
 				// Regenerate CSRF token so the pre-login token cannot be reused
 				$_SESSION['csrf_token'] = bin2hex(random_bytes(32));

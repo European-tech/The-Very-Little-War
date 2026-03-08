@@ -316,7 +316,7 @@ Le combat se deroule en **rounds** jusqu'a ce qu'un camp soit elimine :
 | Resultat | Effet |
 |----------|-------|
 | **Victoire attaquant** | Pillage des ressources, degats aux batiments, points d'attaque |
-| **Victoire defenseur** | +20% bonus ressources, 1.5x points de defense, cooldown de 4h pour l'attaquant |
+| **Victoire defenseur** | +30% bonus energie (30% de la capacite de pillage de l'attaquant), 1.5x points de defense, cooldown de 4h pour l'attaquant |
 | **Match nul** | Pas de pillage, cooldown de 4h pour l'attaquant |
 
 ### Rapport d'Absence
@@ -543,7 +543,7 @@ Gagnes en **repoussant des attaques**. Meme formule que l'attaque, mais avec un 
 - **Contribution au classement** = 5.0 x racine(points_bruts_cumules)
 - En cas de defaite en defense, vous **perdez** des points bruts
 
-> **Defendre est rentable** : 1.5x les points par rapport a l'attaque, et vous gagnez +20% de ressources bonus en repoussant un attaquant.
+> **Defendre est rentable** : 1.5x les points par rapport a l'attaque, et vous gagnez +30% de la capacite de pillage ennemie en energie bonus en repoussant un attaquant.
 
 ### 4. Points de Pillage
 
@@ -833,7 +833,7 @@ La taille de l'icone d'un joueur sur la carte depend de ses points de victoire. 
 | Drain producteur | 8 x niveau_producteur |
 | Atomes produits | (1 + duplicateur%) x 60 x points_allocation |
 | Stockage | 500 x niveau_depot |
-| Protection coffre | 100 x niveau_coffre par type |
+| Protection coffre | min(50%, niveau_coffre × 3%) × placeDepot(niveau_depot) par type |
 | Cout duplicateur | 10 x 2.0^(niveau+1) |
 | Cout recherche alliance | base x facteur^(niveau+1) |
 | Volatilite marche | 0.3 / joueurs_actifs |

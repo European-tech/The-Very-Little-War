@@ -44,6 +44,9 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 			$rankRow = dbFetchOne($base, 'SELECT COUNT(DISTINCT a.' . $order . ') AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $playerScore['score']);
 			$place = ($rankRow['rank'] ?? 0) + 1;
 			$pageParDefaut = ceil($place / LEADERBOARD_PAGE_SIZE);
+		} else {
+			// UI-P7-001: Player is unplaced (x=-1000 sentinel) or has no score — default to page 1
+			$pageParDefaut = 1;
 		}
 		$pasTrouve = 1;
 	}
@@ -286,7 +289,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 		// Retrieve alliance tag from pre-loaded cache (no DB query per row).
 		$allianceTag = ($rowAllianceId > 0 && isset($allianceCache[$rowAllianceId])) ? $allianceCache[$rowAllianceId] : '';
 		?>
-		<tr style="background-color: rgba(<?php if(isset($enGuerre)) { echo $enGuerre.",0.6)"; }?>;">
+		<tr style="<?php if ($enGuerre !== '') { echo 'background-color:rgba(' . $enGuerre . ',0.6);'; } ?>">
 		<td ><?php echo imageClassement((int)$donnees['rang']) ; // LOW-017: DENSE_RANK from SQL ?></td>
 		<td><?php echo joueur($donnees['login']); ?></td>
 		<td><?php echo number_format($donnees['totalPoints'], 0 , ' ', ' '); ?></td>
@@ -475,7 +478,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 		if ($nbjoueurs != 0) { // Pour éviter la division par zéro
 			$allianceRang = (int)$donnees['rang']; // MED-032: DENSE_RANK from SQL
 			?>
-			<tr style="background-color: rgba(<?php if(isset($enGuerre)) { echo $enGuerre.",0.6)"; }?>">
+			<tr style="<?php if ($enGuerre !== '') { echo 'background-color:rgba(' . $enGuerre . ',0.6);'; } ?>">
 			<td><?php echo imageClassement($allianceRang); ?></td>
 			<td><?php echo alliance($donnees['tag']); ?></td>
 			<td><?php echo $nbjoueurs; ?></td>

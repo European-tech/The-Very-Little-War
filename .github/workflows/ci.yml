@@ -23,5 +23,8 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress
 
+      - name: PHP Syntax Check
+        run: find . -name "*.php" -not -path "./vendor/*" | xargs php -l
+
       - name: Run tests
         run: vendor/bin/phpunit --colors=always

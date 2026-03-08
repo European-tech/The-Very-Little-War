@@ -554,8 +554,10 @@ $MEDAL_THRESHOLDS_PERTES = [10, 100, 500, 2000, 10000, 50000, 200000, 1000000];
 // Energievore (energy spent on constructions)
 $MEDAL_THRESHOLDS_ENERGIEVORE = [100, 500, 3000, 20000, 100000, 2000000, 10000000, 1000000000];
 
-// Constructeur (highest building level)
-$MEDAL_THRESHOLDS_CONSTRUCTEUR = [5, 10, 15, 25, 35, 50, 70, 100];
+// Constructeur (highest building level reached by any single building)
+// PRES-P7-001: MAX_BUILDING_LEVEL = 50; tiers 7 & 8 were 70/100 (permanently unachievable).
+// Rebalanced so tier 8 (Diamant Rouge) matches the hard cap at level 50.
+$MEDAL_THRESHOLDS_CONSTRUCTEUR = [5, 10, 15, 25, 35, 40, 45, 50];
 
 // Bombe (number of buildings destroyed? unclear)
 $MEDAL_THRESHOLDS_BOMBE = [1, 2, 3, 4, 5, 6, 8, 12];

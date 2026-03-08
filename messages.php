@@ -31,7 +31,10 @@ if(isset($_GET['message'])) {
 	$nb_messages = $messages ? 1 : 0;
 	if($nb_messages > 0) {
 		if($_SESSION['login'] == $messages['destinataire']) {
-			dbExecute($base, 'UPDATE messages SET statut=1 WHERE id = ?', 'i', $messageId);
+			// AUTH-P7-002: marking a message as read via GET is acceptable — the change is idempotent,
+			// ownership is verified above (destinataire check), and there is no financial impact.
+			// Only update when status is genuinely unread to avoid spurious writes.
+			dbExecute($base, 'UPDATE messages SET statut=1 WHERE id = ? AND statut=0', 'i', $messageId);
 		}
 		debutCarte(htmlspecialchars($messages['titre'], ENT_QUOTES, 'UTF-8'));
 		debutContent();

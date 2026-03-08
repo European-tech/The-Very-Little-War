@@ -20,7 +20,10 @@ if(isset($_GET['rapport'])) {
 	$rapports = dbFetchOne($base, 'SELECT * FROM rapports WHERE id = ? AND destinataire = ?', 'is', $rapportId, $_SESSION['login']);
 	$nb_rapports = $rapports ? 1 : 0;
 	if($nb_rapports > 0) {
-		dbExecute($base, 'UPDATE rapports SET statut=1 WHERE id = ?', 'i', $rapportId);
+		// AUTH-P7-001: marking a report as read via GET is acceptable — the change is idempotent,
+		// ownership is verified above (destinataire = $_SESSION['login']), and there is no financial
+		// or game-state impact. A cross-site trigger cannot cause damage beyond toggling read status.
+		dbExecute($base, 'UPDATE rapports SET statut=1 WHERE id = ? AND statut=0', 'i', $rapportId);
 
         debutCarte(htmlspecialchars($rapports['titre'], ENT_QUOTES, 'UTF-8'));
 		debutContent();

@@ -215,7 +215,9 @@ function purchasePrestigeUnlock($login, $unlockKey) {
         $unlocks[] = $unlockKey;
         $newUnlocks = implode(',', $unlocks);
 
-        $affected = dbExecute($base, 'UPDATE prestige SET unlocks=?, total_pp = total_pp - ? WHERE login=? AND total_pp >= ?', 'sisi', $newUnlocks, $unlock['cost'], $login, $unlock['cost']);
+        // PRES-P7-003: GREATEST(0, ...) provides a DB-level floor against negative PP,
+        // complementing the application-level WHERE total_pp >= ? guard above.
+        $affected = dbExecute($base, 'UPDATE prestige SET unlocks=?, total_pp = GREATEST(0, total_pp - ?) WHERE login=? AND total_pp >= ?', 'sisi', $newUnlocks, $unlock['cost'], $login, $unlock['cost']);
 
         if ($affected === 0) {
             $result = 'Erreur lors de l\'achat. Veuillez réessayer.';

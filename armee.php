@@ -11,6 +11,7 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
         $emplacement = $_POST['emplacementmoleculesupprimer'];
         $moleculeId = $molecules['id'];
 
+        try {
         withTransaction($base, function() use ($base, $login, $emplacement, $moleculeId, $nomsRes, $nbRes, $nbClasses) {
             $niveauclasse = dbFetchOne($base, 'SELECT niveauclasse FROM ressources WHERE login=? FOR UPDATE', 's', $login);
             $newNiveauClasse = $niveauclasse['niveauclasse'] - 1;
@@ -57,8 +58,12 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
                 dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chaine, $actionsattaques['id']);
             }
         });
-
         $information = "Vous avez supprimé la classe de molécules.";
+        } catch (\Exception $e) {
+            // ERR-P7-002: catch unexpected transaction failures to avoid blank page
+            logError('PAGE_ERROR', $e->getMessage(), ['page' => 'armee.php', 'action' => 'supprimer_molecule']);
+            $erreur = "Une erreur est survenue lors de la suppression. Veuillez réessayer.";
+        }
     } else {
         $erreur = "Cet emplacement est déja vide.";
     }

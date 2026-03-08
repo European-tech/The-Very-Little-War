@@ -528,7 +528,7 @@ Depends on **formation**, all using overkill cascade:
 
 - **Dispersee (0):** Equal split among active classes, overkill cascades within.
   `damagePerClass = totalDamage / activeClassCount`, overflow carries to next class.
-- **Phalange (1):** Class 1 absorbs 60% of damage, classes 2-4 share the remaining 40%.
+- **Phalange (1):** Class 1 absorbs 50% of damage, classes 2-4 share the remaining 50%.
   Phalanx overkill on class 1 carries to classes 2-4. All use sequential cascade.
 - **Embuscade (2) / Default:** Straight cascade through all classes 1-4 (same as attacker).
 
@@ -609,7 +609,7 @@ defenseRewardEnergy = floor(totalAttackerPillageCapacity × DEFENSE_REWARD_RATIO
 
 | Constant | Value |
 |----------|-------|
-| `DEFENSE_REWARD_RATIO` | 0.20 (20%) |
+| `DEFENSE_REWARD_RATIO` | 0.30 (30%) |
 
 ### 8.10 Attack Cooldowns
 
@@ -641,8 +641,8 @@ At level 10: +10% combat bonus.
 | ID | Name | Effect |
 |----|------|--------|
 | 0 | Dispersée | Damage split equally among active classes |
-| 1 | Phalange | Class 1 absorbs 60% of damage, gets +20% defense |
-| 2 | Embuscade | If defender has more total molecules, +15% effective damage |
+| 1 | Phalange | Class 1 absorbs 50% of damage, gets +20% defense |
+| 2 | Embuscade | If defender has more total molecules, +40% effective damage |
 
 **Dispersée:** Overkill damage is not redistributed. Choose Dispersée against large numbers of equal-HP units for best efficiency.
 
@@ -1151,7 +1151,7 @@ capaciteCoffreFort(nivCoffre, nivDepot) =
 
 | Constant | Value |
 |----------|-------|
-| `VAULT_PCT_PER_LEVEL` | 0.02 (2% per level) |
+| `VAULT_PCT_PER_LEVEL` | 0.03 (3% per level) |
 | `VAULT_MAX_PROTECTION_PCT` | 0.50 (50% cap) |
 
 V4: Vault protection is now **percentage-based** relative to storage capacity. At level 25

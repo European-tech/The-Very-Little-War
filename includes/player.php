@@ -914,6 +914,15 @@ function supprimerJoueur($joueur)
     if (function_exists('logInfo')) {
         logInfo('ACCOUNT', 'Account deleted', ['deleted_player' => $joueur]);
     }
+
+    // ALL-P7-001: If this player is chef of an alliance, dissolve it first.
+    // Must run BEFORE the transaction that deletes autre/membre rows, because
+    // supprimerAlliance() reads membre/autre to clean up members.
+    $chefOfAlliance = dbFetchOne($base, 'SELECT id FROM alliances WHERE chef=?', 's', $joueur);
+    if ($chefOfAlliance) {
+        supprimerAlliance($chefOfAlliance['id']);
+    }
+
     withTransaction($base, function() use ($base, $joueur) {
         dbExecute($base, 'DELETE FROM connectes WHERE ip IN (SELECT ip FROM membre WHERE login=?)', 's', $joueur);
         dbExecute($base, 'DELETE FROM vacances WHERE idJoueur IN (SELECT id FROM membre WHERE login=?)', 's', $joueur);
@@ -1021,10 +1030,9 @@ function performSeasonEnd()
 
     require_once(__DIR__ . '/prestige.php');
 
-    // Phase 0: Archive per-player stats into season_recap (P1-D8-052)
-    archiveSeasonData($base);
-
     // Phase 1a: Archive rankings and compute VP awards (read-only inside one transaction).
+    // NOTE: archiveSeasonData() is called after VP awards (Phase 1b/1c) so that
+    // SRS-P7-001: the victoires column in autre reflects war VP before being archived.
     // Snapshot rankings and archive strings atomically so the data is consistent.
     $vainqueurManche = null;
     $playerRankingsForVP = [];
@@ -1136,6 +1144,10 @@ function performSeasonEnd()
             }
         });
     }
+
+    // Phase 1d-pre: Archive per-player stats NOW (after VP awards in 1b/1c so that
+    // SRS-P7-001: autre.victoires includes war victory points before snapshot).
+    archiveSeasonData($base);
 
     // Phase 1d: Award prestige points BEFORE reset (cross-season progression).
     awardPrestigePoints();
@@ -1312,6 +1324,9 @@ function remiseAZero()
 
         // MED-072: Clear season-specific news on season reset.
         dbExecute($base, 'DELETE FROM news WHERE 1', []);
+
+        // SRS-P7-002: Clear alliance_left_at so cooldown does not persist into new season.
+        dbExecute($base, 'UPDATE autre SET alliance_left_at = NULL WHERE 1', '');
     });
 
     // Forum data (sujets, reponses, statutforum) intentionally persists across seasons for community continuity

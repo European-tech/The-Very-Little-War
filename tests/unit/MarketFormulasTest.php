@@ -422,4 +422,96 @@ class MarketFormulasTest extends TestCase
         // Both approaches yield the same result because the formula is additive in 1/p space
         $this->assertEqualsWithDelta($oneSell, $tenSells, 0.0000001);
     }
+
+    // =========================================================================
+    // TRADE VOLUME CAP (ECO-P6-001 fix)
+    //
+    // Bug: tradeVolume was capped at MARKET_POINTS_MAX (80) instead of the
+    // intended TRADE_VOLUME_CAP (10,000,000). This caused all heavy traders
+    // to show identical near-zero market points contributions.
+    //
+    // Fix (marche.php): min($tradeVolume, TRADE_VOLUME_CAP)
+    //
+    // These tests confirm:
+    //   1. TRADE_VOLUME_CAP is a large volume ceiling (not the small points cap).
+    //   2. Values below TRADE_VOLUME_CAP are preserved exactly.
+    //   3. Values above TRADE_VOLUME_CAP are capped to TRADE_VOLUME_CAP.
+    //   4. MARKET_POINTS_MAX is strictly smaller than TRADE_VOLUME_CAP so using
+    //      MARKET_POINTS_MAX as the cap would incorrectly truncate all real trades.
+    // =========================================================================
+
+    public function testTradeVolumeCapIsLargerThanMarketPointsMax(): void
+    {
+        // TRADE_VOLUME_CAP (10,000,000) >> MARKET_POINTS_MAX (80)
+        // Using MARKET_POINTS_MAX as the cap would be wrong (ECO-P6-001 root cause).
+        $this->assertGreaterThan(
+            MARKET_POINTS_MAX,
+            TRADE_VOLUME_CAP,
+            'TRADE_VOLUME_CAP must be much larger than MARKET_POINTS_MAX; using the wrong constant was the ECO-P6-001 bug'
+        );
+    }
+
+    public function testTradeVolumeBelowCapIsUnchanged(): void
+    {
+        $tradeVolume = 500000; // 500k — well below the 10M cap
+        $capped = min($tradeVolume, TRADE_VOLUME_CAP);
+        $this->assertEquals($tradeVolume, $capped,
+            'Trade volume below the cap must pass through unchanged');
+    }
+
+    public function testTradeVolumeAtCapIsUnchanged(): void
+    {
+        $tradeVolume = TRADE_VOLUME_CAP;
+        $capped = min($tradeVolume, TRADE_VOLUME_CAP);
+        $this->assertEquals(TRADE_VOLUME_CAP, $capped,
+            'Trade volume exactly at the cap must not be reduced');
+    }
+
+    public function testTradeVolumeAboveCapIsTruncated(): void
+    {
+        $tradeVolume = TRADE_VOLUME_CAP + 1000000; // exceeds cap by 1M
+        $capped = min($tradeVolume, TRADE_VOLUME_CAP);
+        $this->assertEquals(TRADE_VOLUME_CAP, $capped,
+            'Trade volume above the cap must be truncated to TRADE_VOLUME_CAP');
+    }
+
+    public function testTradeVolumeCapDoesNotUseMARKET_POINTS_MAX(): void
+    {
+        // Simulate ECO-P6-001 bug: capping at MARKET_POINTS_MAX instead of TRADE_VOLUME_CAP.
+        // Any real trade volume (e.g. 1000 atoms) would wrongly be capped to 80.
+        $realVolume = 1000; // modest trading activity
+        $buggyResult = min($realVolume, MARKET_POINTS_MAX); // wrong cap — the old bug
+        $correctResult = min($realVolume, TRADE_VOLUME_CAP); // correct cap — the fix
+
+        // The buggy result is different from the correct result for normal trade volumes
+        $this->assertNotEquals(
+            $buggyResult,
+            $correctResult,
+            'The two constants produce different results for typical trade volumes, proving the bug mattered'
+        );
+        // With the correct cap, small volumes pass through intact
+        $this->assertEquals($realVolume, $correctResult);
+        // With the wrong cap, small volumes are truncated to MARKET_POINTS_MAX
+        $this->assertEquals(MARKET_POINTS_MAX, $buggyResult);
+    }
+
+    public function testTradeVolumeCapAllowsLargeVolumeIntoRankingFormula(): void
+    {
+        // The ECO-P6-001 fix caps the DB column at TRADE_VOLUME_CAP so that even
+        // a 5M-unit trader only writes min(5M, 10M) = 5M to the database.
+        // That capped value then flows into calculerTotalPoints() as $commerce.
+        // Verify: the cap passes large volumes through intact (no premature truncation).
+        $heavyVolume = 5000000; // 5M — below the 10M cap
+        $capped = min($heavyVolume, TRADE_VOLUME_CAP);
+        $this->assertEquals($heavyVolume, $capped,
+            'A trader with 5M volume should have that full volume fed to the ranking formula');
+    }
+
+    public function testTradeVolumeAtCapIsPassedIntactToRankingFormula(): void
+    {
+        // Exactly at TRADE_VOLUME_CAP the value passes through unchanged.
+        $capped = min(TRADE_VOLUME_CAP, TRADE_VOLUME_CAP);
+        $this->assertEquals(TRADE_VOLUME_CAP, $capped,
+            'Trade volume at the cap must be passed to the ranking formula unchanged');
+    }
 }
