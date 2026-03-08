@@ -128,10 +128,13 @@ finCarte();
 
 if (isset($_SESSION['login'])) {
     // Season countdown: season ends at midnight on the 1st of next month
-    $finSaison = mktime(0, 0, 0, (int)date('n') + 1, 1, (int)date('Y'));
+    $endMonth = (int)date('n') + 1;
+    $endYear  = (int)date('Y');
+    if ($endMonth > 12) { $endMonth = 1; $endYear++; }
+    $finSaison = mktime(0, 0, 0, $endMonth, 1, $endYear);
     $secondsLeft = max(0, $finSaison - time());
-    $jours = floor($secondsLeft / 86400);
-    $heures = floor(($secondsLeft % 86400) / 3600);
+    $jours = floor($secondsLeft / SECONDS_PER_DAY);
+    $heures = floor(($secondsLeft % SECONDS_PER_DAY) / SECONDS_PER_HOUR);
     $minutes = floor(($secondsLeft % 3600) / 60);
     $countdownText = $jours . 'j ' . $heures . 'h ' . $minutes . 'm';
     echo '<div style="text-align:center; padding:10px 0;">';

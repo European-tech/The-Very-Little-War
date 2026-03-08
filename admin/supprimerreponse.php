@@ -44,7 +44,7 @@ border:1px solid black;
 <th>Date</th>
 </tr>
 <?php
-$reponseRows = dbFetchAll($base, 'SELECT * FROM reponses ORDER BY auteur DESC');
+$reponseRows = dbFetchAll($base, 'SELECT * FROM reponses ORDER BY auteur DESC LIMIT 200');
 foreach ($reponseRows as $donnees)
 {
 ?>

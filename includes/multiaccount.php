@@ -51,8 +51,9 @@ function checkSameIpAccounts($base, $login, $ip, $timestamp)
             'ssss', $login, $other['login'], 'same_ip', 'dismissed'
         );
         if (!$existing) {
+            $ipDisplay = substr(hash('sha256', $ip . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12);
             $evidence = json_encode([
-                'shared_ip' => $ip,
+                'shared_ip' => $ipDisplay,
                 'detection_time' => $timestamp,
                 'login_a' => $login,
                 'login_b' => $other['login']
@@ -62,7 +63,7 @@ function checkSameIpAccounts($base, $login, $ip, $timestamp)
                 'sssssi', $login, 'same_ip', $other['login'], $evidence, 'medium', $timestamp
             );
             createAdminAlert($base, 'same_ip',
-                "Comptes sur la même IP: $login et {$other['login']} ($ip)",
+                "Comptes sur la même IP: $login et {$other['login']} ($ipDisplay)",
                 $evidence, 'warning'
             );
             logInfo('MULTIACCOUNT', 'Same IP detected', ['login_a' => $login, 'login_b' => $other['login'], 'ip_hash' => substr(hash('sha256', $ip . (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw')), 0, 12)]);
@@ -286,6 +287,7 @@ function createAdminAlert($base, $type, $message, $details, $severity = 'warning
 function sendAdminAlertEmail($subject, $body)
 {
     $adminEmail = getenv('ADMIN_ALERT_EMAIL') ?: 'theverylittlewar@gmail.com';
+    $subject = str_replace(["\r", "\n"], '', $subject);
     $headers = "From: noreply@theverylittlewar.com\r\nContent-Type: text/plain; charset=UTF-8";
     @mail($adminEmail, $subject, $body, $headers);
 }

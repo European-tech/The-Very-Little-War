@@ -83,13 +83,8 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
                 dbExecute($base, 'DELETE FROM grades WHERE login=?', 's', $_SESSION['login']);
                 // PASS1-MEDIUM-016: Clean up pending invitations when a player quits their alliance
                 dbExecute($base, 'DELETE FROM invitations WHERE invite=?', 's', $_SESSION['login']);
-            });
-            // Record leave timestamp for rejoin cooldown (column added by migration 0030)
-            try {
                 dbExecute($base, 'UPDATE autre SET alliance_left_at=UNIX_TIMESTAMP() WHERE login=?', 's', $_SESSION['login']);
-            } catch (\Exception $e) {
-                // Column not yet present — migration pending, skip silently
-            }
+            });
         }
     }
 

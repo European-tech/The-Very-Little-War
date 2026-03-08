@@ -36,7 +36,7 @@ CREATE TABLE `actionsenvoi` (
 
 CREATE TABLE `actionsformation` (
   `id` int(11) NOT NULL,
-  `idclasse` int(11) NOT NULL,
+  `idclasse` varchar(50) NOT NULL DEFAULT '0',
   `login` varchar(255) NOT NULL,
   `debut` bigint(20) NOT NULL,
   `fin` bigint(20) NOT NULL,

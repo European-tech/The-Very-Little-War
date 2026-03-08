@@ -60,6 +60,8 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 					session_start();
 				}
 				session_regenerate_id(true);
+				// Regenerate CSRF token so the pre-login token cannot be reused
+				$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 				$_SESSION['login'] = $loginInput;
 				$sessionToken = bin2hex(random_bytes(32));
 				$_SESSION['session_token'] = $sessionToken;

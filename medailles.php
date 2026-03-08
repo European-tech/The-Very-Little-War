@@ -35,7 +35,7 @@ if((isset($_GET['login']) AND !empty($_GET['login'])) OR isset($_SESSION['login'
         $donnees2 = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $joueur);
 
         $donnees4 = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
-        $plusHaut = batMax($donnees4['login'],$nomsRes,$nbRes);
+        $plusHaut = batMax($donnees4['login']);
 
         $troll = dbFetchOne($base, 'SELECT troll FROM membre WHERE login=?', 's', $joueur);
             

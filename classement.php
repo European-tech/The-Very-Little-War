@@ -63,6 +63,26 @@ debutCarte("Classement"); ?>
 <?php
 if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 
+    // Check for active season maintenance — rankings are frozen during end-of-season reset (PASS4-MED-013)
+    $seasonMaintenancePlayer = false;
+    if (isset($maintenance['maintenance']) && $maintenance['maintenance'] == 1) {
+        $seasonMaintenancePlayer = true;
+    } else {
+        $maintenanceCheckPlayer = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
+        if ($maintenanceCheckPlayer && $maintenanceCheckPlayer['maintenance'] == 1) {
+            $seasonMaintenancePlayer = true;
+        }
+    }
+
+    if ($seasonMaintenancePlayer) {
+        echo '<div class="card card-outline">'
+            . '<div class="card-header" style="background:#ff9800;color:#fff;">Classement gelé — fin de saison en cours</div>'
+            . '<div class="card-content card-content-padding">'
+            . '<p>Le classement des joueurs est temporairement gelé pendant la remise à zéro de fin de saison. '
+            . 'Il sera de nouveau disponible dans quelques instants.</p>'
+            . '</div></div>';
+    } else {
+
 	// Total / Daily toggle (P1-D8-058)
 	?>
 	<div class="segmented" style="margin:8px 16px;">
@@ -323,6 +343,8 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	finListe();
 	}
 	endif; // end total/daily mode toggle
+
+    } // end else (not in season maintenance)
 }
 elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
     // Check for active season maintenance — rankings are frozen during end-of-season reset

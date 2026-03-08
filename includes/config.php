@@ -283,8 +283,8 @@ define('ATTACK_COOLDOWN_WIN_SECONDS', 1 * SECONDS_PER_HOUR);
 
 // Defensive formations — pre-battle defensive stance choices
 // 0 = Dispersée (default): damage split equally across all classes (25% each)
-// 1 = Phalange: class 1 absorbs 70% of damage, gets +30% defense
-// 2 = Embuscade: if defender has more total molecules, +25% attack bonus
+// 1 = Phalange: class 1 absorbs 50% of damage, gets +20% defense
+// 2 = Embuscade: if defender has more total molecules, +40% attack bonus
 define('FORMATION_DISPERSEE', 0);
 define('FORMATION_PHALANGE', 1);
 define('FORMATION_EMBUSCADE', 2);
@@ -304,7 +304,7 @@ $FORMATIONS = [
 // =============================================================================
 define('ISOTOPE_NORMAL', 0);
 define('ISOTOPE_STABLE', 1);     // Tank: -5% attack, +40% HP, -30% decay
-define('ISOTOPE_REACTIF', 2);    // Glass cannon: +20% attack, -10% HP, +50% decay
+define('ISOTOPE_REACTIF', 2);    // Glass cannon: +20% attack, -10% HP, +20% decay
 define('ISOTOPE_CATALYTIQUE', 3); // Support: -10% attack, -10% HP, +15% to other classes
 
 define('ISOTOPE_STABLE_ATTACK_MOD', -0.05);  // -5% attack (was -10%)

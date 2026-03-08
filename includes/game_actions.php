@@ -134,7 +134,7 @@ function updateActions($joueur)
                 }
                 // Batch update moleculesPerdues in one atomic statement
                 if ($totalMoleculesPerdues > 0) {
-                    dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $totalMoleculesPerdues, $actions['attaquant']);
+                    dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'is', (int) round($totalMoleculesPerdues), $actions['attaquant']);
                 }
 
                 $actions['troupes'] = $chaine;
@@ -499,7 +499,7 @@ function updateActions($joueur)
 
                     // Batch update moleculesPerdues atomically
                     if ($totalMoleculesPerdues > 0) {
-                        dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $totalMoleculesPerdues, $joueur);
+                        dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'is', (int) round($totalMoleculesPerdues), $joueur);
                     }
 
                     dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actionId);

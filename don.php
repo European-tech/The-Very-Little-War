@@ -66,6 +66,19 @@ if(isset($_POST['energieEnvoyee'])) {
 
 include("includes/layout.php");
 
+// PASS4-LOW-007: Guard — player must belong to an alliance to donate
+$donAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+if (empty($donAlliance['idalliance']) || (int)$donAlliance['idalliance'] === 0) {
+    debutCarte("Faire un don");
+        debutListe();
+            item(['floating' => false, 'titre' => 'Vous n\'appartenez pas à une alliance.', 'texte' => 'Rejoignez ou créez une alliance pour pouvoir effectuer des dons.']);
+            item(['input' => '<a href="alliance_discovery.php" class="button button-fill color-blue">Rejoindre une alliance</a>']);
+        finListe();
+    finCarte();
+    include("includes/copyright.php");
+    exit;
+}
+
 debutCarte("Faire un don");
     debutListe();
         echo '<form name="faireUnDon" method="post" action="don.php" />';

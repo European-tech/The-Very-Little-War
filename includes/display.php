@@ -332,6 +332,15 @@ function creerBBcode($nomTextArea, $interieur = NULL, $reponse = 0)
 
 function transformInt($nombre)
 {
+    // PASS4-LOW-015: Normalize PHP scientific notation strings (e.g. '1.5e3' → '1500')
+    // PHP may produce scientific notation for large floats; the suffix loop treats 'E' as an
+    // exponent suffix but that conflicts with true SI-prefix 'E' (exa). Handle it first.
+    if (is_numeric($nombre) && stripos((string)$nombre, 'e') !== false) {
+        $float = (float)$nombre;
+        if ($float == floor($float)) {
+            $nombre = number_format($float, 0, '.', '');
+        }
+    }
     // Clamp negative numeric input immediately
     if (is_numeric($nombre) && (float)$nombre < 0) {
         return '0';

@@ -76,9 +76,14 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 		}
 		if (empty($erreur) && !empty($titre) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= FORUM_POST_MAX_LENGTH and mb_strlen($titre) <= FORUM_TITLE_MAX_LENGTH) {
 			$timestamp = time();
-			dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $titre, $_POST['contenu'], $_SESSION['login'], $timestamp);
-			$sujetId = mysqli_insert_id($base);
-			dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sii', $_SESSION['login'], $sujetId, $getId);
+			$contenu = $_POST['contenu'];
+			$login = $_SESSION['login'];
+			$sujetId = null;
+			withTransaction($base, function() use ($base, $getId, $titre, $contenu, $login, $timestamp, &$sujetId) {
+				dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $titre, $contenu, $login, $timestamp);
+				$sujetId = mysqli_insert_id($base);
+				dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sii', $login, $sujetId, $getId);
+			});
 			header("Location: sujet.php?id=" . (int)$sujetId); exit;
 		} else {
 			$erreur = "Tous les champs ne sont pas remplis.";

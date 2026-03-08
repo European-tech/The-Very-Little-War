@@ -103,8 +103,13 @@ function dbCount($base, $sql, $types = "", ...$params) {
 }
 
 /**
- * Execute a callable inside a database transaction.
- * Automatically commits on success or rolls back on Throwable (includes Error + Exception).
+ * Execute a callable inside a database transaction, with savepoint support for nesting.
+ *
+ * When called at the top level (depth 0) it issues a real BEGIN/COMMIT/ROLLBACK.
+ * When called inside an already-active transaction (depth > 0) — for example when
+ * game_actions.php has already called mysqli_begin_transaction() manually — it uses
+ * a named SAVEPOINT instead, which avoids the implicit commit that MariaDB would
+ * issue on a nested BEGIN.
  *
  * Usage:
  *   $result = withTransaction($base, function() use ($base, ...) {
@@ -113,13 +118,31 @@ function dbCount($base, $sql, $types = "", ...$params) {
  *   });
  */
 function withTransaction($base, callable $fn) {
-    mysqli_begin_transaction($base);
+    static $depth = 0;
+    $useSavepoint = $depth > 0;
+    $sp = 'sp_' . $depth;
+    if ($useSavepoint) {
+        mysqli_query($base, "SAVEPOINT $sp");
+    } else {
+        mysqli_begin_transaction($base);
+    }
+    $depth++;
     try {
         $result = $fn();
-        mysqli_commit($base);
+        $depth--;
+        if ($useSavepoint) {
+            mysqli_query($base, "RELEASE SAVEPOINT $sp");
+        } else {
+            mysqli_commit($base);
+        }
         return $result;
     } catch (\Throwable $e) {
-        mysqli_rollback($base);
+        $depth--;
+        if ($useSavepoint) {
+            mysqli_query($base, "ROLLBACK TO SAVEPOINT $sp");
+        } else {
+            mysqli_rollback($base);
+        }
         throw $e;
     }
 }

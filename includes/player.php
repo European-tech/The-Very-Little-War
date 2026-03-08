@@ -656,6 +656,18 @@ function diminuerBatiment($nom, $joueur)
         // FOR UPDATE locks the row so concurrent requests wait rather than reading stale data.
         $batiments = dbFetchOne($base, "SELECT $nom, pointsProducteurRestants, pointsProducteur, pointsCondenseurRestants, pointsCondenseur FROM constructions WHERE login=? FOR UPDATE", 's', $joueur);
 
+        // Parse allocation strings from the locked DB row.
+        // PHP closures cannot capture variable-variables (${'points'.$x}) — reading them
+        // inside a closure always yields null/0.  Use the values already fetched via FOR UPDATE.
+        $producteurAllocs = array_map('floatval', explode(';', rtrim($batiments['pointsProducteur'] ?? '', ';')));
+        while (count($producteurAllocs) < count($nomsRes)) {
+            $producteurAllocs[] = 0.0;
+        }
+        $condenseurLevels = array_map('intval', explode(';', rtrim($batiments['pointsCondenseur'] ?? '', ';')));
+        while (count($condenseurLevels) < count($nomsRes)) {
+            $condenseurLevels[] = 0;
+        }
+
         if ($batiments[$nom] > 1) {
             if ($nom == 'producteur') {
                 if ($batiments['pointsProducteurRestants'] >= $points['producteur']) {
@@ -667,12 +679,12 @@ function diminuerBatiment($nom, $joueur)
                     // FIX FINDING-GAME-025: minimum is 0 (not 1) to avoid granting free production
                     $chaine = "";
                     foreach ($nomsRes as $num => $ressource) {
-                        if ($pointsAEnlever <= ${'points' . $ressource}) {
-                            $chaine = $chaine . (${'points' . $ressource} - $pointsAEnlever) . ";";
+                        if ($pointsAEnlever <= $producteurAllocs[$num]) {
+                            $chaine = $chaine . ($producteurAllocs[$num] - $pointsAEnlever) . ";";
                             $pointsAEnlever = 0;
                         } else {
                             $chaine = $chaine . "0;";
-                            $pointsAEnlever = $pointsAEnlever - ${'points' . $ressource};
+                            $pointsAEnlever = $pointsAEnlever - $producteurAllocs[$num];
                         }
                     }
 
@@ -688,7 +700,7 @@ function diminuerBatiment($nom, $joueur)
 
                     $chaine = "";
                     foreach ($nomsRes as $num => $ressource) {
-                        $currentLevel = ${'niveau' . $ressource};
+                        $currentLevel = $condenseurLevels[$num];
                         if ($pointsAEnlever > 0 && $currentLevel > 0) {
                             $canRemove = min($pointsAEnlever, $currentLevel);
                             $chaine = $chaine . ($currentLevel - $canRemove) . ";";
@@ -918,22 +930,21 @@ function archiveSeasonData($base)
     $allPlayers = dbFetchAll($base,
         'SELECT a.login, a.totalPoints, a.pointsAttaque, a.pointsDefense, a.tradeVolume,
                 a.ressourcesPillees, a.nbattaques, a.victoires, a.moleculesPerdues,
-                a.streak_days, al.nom AS alliance_name
+                a.streak_days, al.nom AS alliance_name,
+                DENSE_RANK() OVER (ORDER BY a.totalPoints DESC) AS final_rank
          FROM autre a
          LEFT JOIN alliances al ON al.id = a.idalliance AND a.idalliance > 0
          JOIN membre m ON m.login = a.login AND m.x != -1000
          ORDER BY a.totalPoints DESC', '', '');
 
-    $rank = 0;
-    withTransaction($base, function() use ($base, $allPlayers, &$rank, $nextSeason) {
+    withTransaction($base, function() use ($base, $allPlayers, $nextSeason) {
         foreach ($allPlayers as $p) {
-            $rank++;
             dbExecute($base,
                 'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
                  points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
                  molecules_perdues, alliance_name, streak_max) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 'isiiiidiiidsi',
-                $nextSeason, $p['login'], $rank, (int)$p['totalPoints'],
+                $nextSeason, $p['login'], (int)$p['final_rank'], (int)$p['totalPoints'],
                 (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
                 (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
                 (int)$p['nbattaques'], (int)$p['victoires'],
@@ -943,7 +954,7 @@ function archiveSeasonData($base)
         }
     });
 
-    logInfo('SEASON', 'Season data archived', ['season' => $nextSeason, 'players' => $rank]);
+    logInfo('SEASON', 'Season data archived', ['season' => $nextSeason, 'players' => count($allPlayers)]);
     return $nextSeason;
 }
 
