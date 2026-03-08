@@ -120,8 +120,14 @@ if (isset($_GET['id'])) {
         finCarte();
 	}
 } else {
-    // Redirect to own profile if no ID given
-    header('Location: joueur.php?id=' . urlencode($_SESSION['login']));
+    // AUTH15-001: Redirect to own profile if no ID given, but only if logged in.
+    // Without the isset check, unauthenticated visits produced a PHP warning and
+    // a redirect to joueur.php?id= (empty), leaking partial page content.
+    if (isset($_SESSION['login'])) {
+        header('Location: joueur.php?id=' . urlencode($_SESSION['login']));
+    } else {
+        header('Location: index.php');
+    }
     exit();
 }
 include("includes/copyright.php"); ?>

@@ -325,6 +325,12 @@ function traitementConstructions($liste)
                         $erreur = "Niveau maximum atteint (" . MAX_BUILDING_LEVEL . ")."; return;
                     }
 
+                    // BLDG15-001: Sanity check — building costs must be positive.
+                    // A formula bug or DB corruption producing negative costs would ADD resources.
+                    if ($liste['coutEnergie'] < 0) {
+                        logError('CONSTRUCTION', 'Negative coutEnergie detected', ['batiment' => $liste['bdd'], 'cost' => $liste['coutEnergie'], 'login' => $_SESSION['login']]);
+                        throw new \RuntimeException('INVALID_COST');
+                    }
                     // Build dynamic UPDATE for ressources - these are computed values, not user input
                     $chaine = "";
                     $newEnergie = $ressources['energie'] - $liste['coutEnergie'];

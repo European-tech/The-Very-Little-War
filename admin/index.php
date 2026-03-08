@@ -16,7 +16,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
 $rateLimitError = '';
 if (isset($_POST['motdepasseadmin'])) {
 	csrfCheck();
-	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'admin_login', RATE_LIMIT_ADMIN_MAX, RATE_LIMIT_ADMIN_WINDOW)) {
+	if (!rateLimitCheck($_SERVER['REMOTE_ADDR'] ?? '', 'admin_login', RATE_LIMIT_ADMIN_MAX, RATE_LIMIT_ADMIN_WINDOW)) {
 		logWarn('ADMIN', 'Admin login rate limited', ['ip_hash' => substr(hash_hmac('sha256', ($_SERVER['REMOTE_ADDR'] ?? ''), (defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt')), 0, 12)]);
 		$rateLimitError = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
 	} elseif (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
@@ -72,19 +72,22 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 				$erreur = "Trop de comptes correspondants (" . count($rows) . "). Opération refusée.";
 			} else {
 				$logins_deleted = array_column($rows, 'login');
-				// MEDIUM-014: supprimerJoueur() uses SAVEPOINT nesting via withTransaction() —
-				// each individual deletion is atomically rollbackable via SAVEPOINT, but the
-				// outer transaction is not atomic across all deletions (partial batch deletes
-				// are possible if an inner SAVEPOINT rolls back while others committed).
-				withTransaction($base, function() use ($base, $rows) {
-					foreach ($rows as $loginRow) {
-						// supprimerJoueur() uses SAVEPOINT nesting via withTransaction() — each deletion is individually atomic.
-						supprimerJoueur($loginRow['login']);
-					}
-				});
-				// MEDIUM-040: Consolidated audit log entry for batch IP deletion.
-				logInfo('ADMIN_BATCH_DELETE', 'Batch IP deletion completed', ['ip' => $ip, 'count' => count($logins_deleted)]);
-				$succes = count($rows) . " compte(s) supprimé(s) pour IP " . htmlspecialchars($ip);
+				// ADMIN15-002: Wrap batch deletion in try-catch for actionable admin feedback on failure.
+				// withTransaction() rolls back correctly on exception, but without a catch the admin
+				// sees a crash page with no information about what failed.
+				try {
+					withTransaction($base, function() use ($base, $rows) {
+						foreach ($rows as $loginRow) {
+							supprimerJoueur($loginRow['login']);
+						}
+					});
+					// MEDIUM-040: Consolidated audit log entry for batch IP deletion.
+					logInfo('ADMIN_BATCH_DELETE', 'Batch IP deletion completed', ['ip' => $ip, 'count' => count($logins_deleted)]);
+					$succes = count($rows) . " compte(s) supprimé(s) pour IP " . htmlspecialchars($ip);
+				} catch (\Exception $e) {
+					logError('ADMIN_BATCH_DELETE', 'Batch IP deletion failed', ['ip' => $ip, 'error' => $e->getMessage()]);
+					$erreur = "Erreur lors de la suppression des comptes. Consultez les logs.";
+				}
 			}
 		}
 	}
