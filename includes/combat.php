@@ -778,11 +778,9 @@ dbExecute($base, $sql1, $setTypes, ...$setParams);
 dbExecute($base, 'UPDATE autre SET nbattaques = nbattaques + 1 WHERE login=?', 's', $actions['attaquant']);
 
 // Si les alliances sont en guerre on inscrit les pertes
-$joueur = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['attaquant']);
-$idallianceAutre = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $actions['defenseur']);
-
-$joueurAlliance = ($joueur && isset($joueur['idalliance'])) ? $joueur['idalliance'] : 0;
-$autreAlliance = ($idallianceAutre && isset($idallianceAutre['idalliance'])) ? $idallianceAutre['idalliance'] : 0;
+// Reuse already-fetched alliance IDs from top of file (PERF-P7-002)
+$joueurAlliance = ($idalliance && isset($idalliance['idalliance'])) ? $idalliance['idalliance'] : 0;
+$autreAlliance = ($idallianceDef && isset($idallianceDef['idalliance'])) ? $idallianceDef['idalliance'] : 0;
 
 $guerres = dbFetchAll($base, 'SELECT * FROM declarations WHERE type=0 AND fin=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?))', 'iiii', $joueurAlliance, $autreAlliance, $joueurAlliance, $autreAlliance);
 $guerre = !empty($guerres) ? $guerres[0] : null;

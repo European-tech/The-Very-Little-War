@@ -11,8 +11,8 @@
 # Disable directory listing
 Options -Indexes
 
-# Deny access to sensitive files and editor backups (P5-GAP-035)
-<FilesMatch "\.(sql|psd|md|json|xml|lock|gitignore|bak|swp|swo|orig|env)$|~$">
+# Deny access to sensitive files, editor backups, and executables (P5-GAP-035, INFRA-P8-001)
+<FilesMatch "\.(sql|psd|md|json|xml|lock|gitignore|bak|swp|swo|orig|env|phar|pem|key|crt)$|~$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>

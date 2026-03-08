@@ -64,6 +64,9 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 				$erreur = "Le sujet a été déplacé.";
 			}
 			if (isset($_POST['joueurBombe'])) {
+				if (!preg_match('/^[a-zA-Z0-9_-]{1,20}$/', $_POST['joueurBombe'])) {
+					$erreur = "Nom de joueur invalide.";
+				} else {
 				$nb = dbCount($base, 'SELECT count(login) AS nb FROM membre WHERE login = ?', 's', $_POST['joueurBombe']);
 
 				if ($nb > 0) {
@@ -73,6 +76,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 				} else {
 					$erreur = "Ce joueur n'existe pas.";
 				}
+				} // end else valid format
 			}
 
 			if (isset($_POST['supprimersujet'])) {

@@ -45,8 +45,8 @@ require_once(__DIR__ . '/../includes/database.php');
     // Vérification 1 : est-ce qu'on veut poster une news ?
     //-----------------------------------------------------
     if (isset($_POST['titre']) and isset($_POST['contenu'])) {
-        $titre = $_POST['titre'];
-        $contenu = $_POST['contenu'];
+        $titre = mb_substr(trim($_POST['titre']), 0, 255);
+        $contenu = mb_substr(trim($_POST['contenu']), 0, 10000);
         $id_news = (int)$_POST['id_news'];
         // On vérifie si c'est une modification de news ou non.
         if ($id_news == 0) {
