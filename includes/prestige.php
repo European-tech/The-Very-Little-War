@@ -98,7 +98,7 @@ function calculatePrestigePoints($login) {
             [$autre['ressourcesPillees'],$MEDAL_THRESHOLDS_PILLAGE],
             [$autre['moleculesPerdues'], $MEDAL_THRESHOLDS_PERTES],
             [$autre['energieDepensee'],  $MEDAL_THRESHOLDS_ENERGIEVORE],
-            [$autre['batMax'],           $MEDAL_THRESHOLDS_CONSTRUCTEUR],
+            [$autre['batmax'],           $MEDAL_THRESHOLDS_CONSTRUCTEUR], // P21-HIGH-001: column name is lowercase 'batmax'
             [$autre['bombe'],            $MEDAL_THRESHOLDS_BOMBE],
         ];
         foreach ($medalChecks as [$value, $thresholds]) {

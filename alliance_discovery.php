@@ -8,15 +8,18 @@ if (isset($_SESSION['login'])) {
 
 include("includes/layout.php");
 
-// Query all alliances with member count and average points
+// Query all alliances with member count and average points.
+// P21-HIGH-002: Exclude banned (estExclu=1) and sentinel (x=-1000) players from
+// member count and average so banned chiefs' alliances are shown with accurate stats.
 $allianceRows = dbFetchAll($base,
     'SELECT a.id, a.nom, a.tag, a.duplicateur, a.chef,
-            COUNT(au.login) AS membres,
-            ROUND(AVG(au.totalPoints)) AS avg_points
+            SUM(CASE WHEN m.login IS NOT NULL THEN 1 ELSE 0 END) AS membres,
+            ROUND(AVG(CASE WHEN m.login IS NOT NULL THEN au.totalPoints END)) AS avg_points
      FROM alliances a
      LEFT JOIN autre au ON au.idalliance = a.id AND au.idalliance > 0
+     LEFT JOIN membre m ON m.login = au.login AND m.estExclu = 0 AND m.x != -1000
      GROUP BY a.id
-     HAVING COUNT(au.login) > 0
+     HAVING SUM(CASE WHEN m.login IS NOT NULL THEN 1 ELSE 0 END) > 0
      ORDER BY avg_points DESC', '', '');
 
 // Check if the current player is in an alliance

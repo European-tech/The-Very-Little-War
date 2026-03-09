@@ -620,7 +620,8 @@ elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 }
 else {
 	$nombreDeForumParPage = LEADERBOARD_PAGE_SIZE;
-	$nbMembres = dbFetchOne($base, 'SELECT count(*) AS nbMembres FROM membre');
+	// P21-HIGH-003: Exclude banned and sentinel players from page count — matches display query filter.
+	$nbMembres = dbFetchOne($base, 'SELECT count(*) AS nbMembres FROM membre WHERE estExclu=0 AND x!=-1000');
 	$totalDesMembres = $nbMembres['nbMembres'];
 	$nombreDePages  = ceil($totalDesMembres / $nombreDeForumParPage);
 
@@ -682,11 +683,12 @@ else {
 	$trollMedals = [0 => 'medaillebronze', 1 => 'medailleargent', 2 => 'medailleor', 3 => 'emeraude', 4 => 'saphir', 5 => 'rubis', 6 => 'diamant'];
 	$bombeMedals = [0 => 'Rien', 1 => 'Bronze', 2 => 'Argent', 3 => 'Or', 4 => 'Platine'];
 
-	// $order and $table are whitelisted; exclude deleted/inactive players (x=-1000 sentinel)
+	// $order and $table are whitelisted; exclude deleted/inactive/banned players.
+	// P21-HIGH-004: Also filter estExclu=0 to match the COUNT query above.
 	if ($table === 'autre') {
-		$forumClassRows = dbFetchAll($base, 'SELECT a.login FROM autre a JOIN membre m ON a.login=m.login WHERE m.x != -1000 ORDER BY a.' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
+		$forumClassRows = dbFetchAll($base, 'SELECT a.login FROM autre a JOIN membre m ON a.login=m.login WHERE m.x != -1000 AND m.estExclu=0 ORDER BY a.' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
 	} else {
-		$forumClassRows = dbFetchAll($base, 'SELECT login FROM ' . $table . ' WHERE x != -1000 ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
+		$forumClassRows = dbFetchAll($base, 'SELECT login FROM ' . $table . ' WHERE x != -1000 AND estExclu=0 ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
 	}
 	foreach ($forumClassRows as $donnees) {
 		$donnees1 = isset($autreForumCache[$donnees['login']]) ? $autreForumCache[$donnees['login']] : ['nbMessages' => 0, 'bombe' => 0];

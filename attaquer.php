@@ -160,6 +160,24 @@ if (isset($_POST['joueurAAttaquer'])) {
                 && $attackerAlliance['idalliance'] > 0
                 && $attackerAlliance['idalliance'] == $defenderAlliance['idalliance']) {
                 $erreur = "Vous ne pouvez pas attaquer un membre de votre alliance.";
+            } elseif ($attackerAlliance && $defenderAlliance
+                && (int)$attackerAlliance['idalliance'] > 0
+                && (int)$defenderAlliance['idalliance'] > 0
+                && (int)$attackerAlliance['idalliance'] !== (int)$defenderAlliance['idalliance']) {
+                // P21-HIGH-005: Block attacks on members of pacted alliances.
+                $pact = dbFetchOne($base,
+                    'SELECT id FROM declarations WHERE type=1 AND valide!=0
+                     AND ((alliance1=? AND alliance2=?) OR (alliance1=? AND alliance2=?))',
+                    'iiii',
+                    (int)$attackerAlliance['idalliance'], (int)$defenderAlliance['idalliance'],
+                    (int)$defenderAlliance['idalliance'], (int)$attackerAlliance['idalliance']
+                );
+                if ($pact) {
+                    $erreur = "Vous ne pouvez pas attaquer un membre d'une alliance alliée (pacte de non-agression).";
+                }
+            }
+            if (!empty($erreur)) {
+                // Alliance or pact error already set — skip remaining checks
             } elseif ($enVac['vacance']) {
                 $erreur = "Vous ne pouvez pas attaquer un joueur en vacances";
             } elseif (time() - $enVac['timestamp'] < BEGINNER_PROTECTION_SECONDS + (hasPrestigeUnlock($_POST['joueurAAttaquer'], 'veteran') ? SECONDS_PER_DAY : 0)) {
