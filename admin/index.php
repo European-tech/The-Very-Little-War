@@ -22,7 +22,7 @@ if (isset($_POST['motdepasseadmin'])) {
 	} elseif (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		session_regenerate_id(true);
 		$_SESSION['motdepasseadmin'] = true;
-		$_SESSION['admin_ip'] = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
+		$_SESSION['admin_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
 		logInfo('ADMIN', 'Admin login successful');
 	} else {
 		logWarn('ADMIN', 'Admin login failed');
@@ -49,7 +49,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	    $_SESSION['session_created'] = time();
 	}
 	// IP binding: reject if session IP doesn't match current IP (SESS-P7-003)
-	if (isset($_SESSION['admin_ip']) && !hash_equals((string)$_SESSION['admin_ip'], (string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? ''))) {
+	if (isset($_SESSION['admin_ip']) && !hash_equals((string)$_SESSION['admin_ip'], (string)($_SERVER['REMOTE_ADDR'] ?? ''))) {
 		session_unset();
 		session_destroy();
 		header('Location: index.php');

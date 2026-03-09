@@ -38,8 +38,8 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 	$shouldCreate = false;
 	withTransaction($base, function() use ($base, $log, &$shouldCreate) {
 		// Lock the previous visitor's row (or nothing if it doesn't exist yet)
-		$time = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ? FOR UPDATE', 's', $log);
-		if (!$time || time() - $time['timestamp'] > 1800) { // H-015: 30 min threshold — only recreate truly stale visitors
+		$time = dbFetchOne($base, 'SELECT timestamp, estExclu FROM membre WHERE login = ? FOR UPDATE', 's', $log);
+		if ((!$time || time() - $time['timestamp'] > 1800) && (!$time || $time['estExclu'] == 0)) { // H-015: 30 min threshold — only recreate truly stale, non-banned visitors
 			$shouldCreate = true;
 		}
 	});
@@ -54,10 +54,18 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 		// LOW-001: Use a random password for visitor accounts (not predictable username-as-password).
 		$visitorPass = bin2hex(random_bytes(8));
 		$hashedPass = password_hash($visitorPass, PASSWORD_DEFAULT);
-		dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $hashedPass, "Visiteur" . $visitorNum);
+		$affected1 = dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $hashedPass, "Visiteur" . $visitorNum);
+		if ($affected1 === false) {
+			header('Location: index.php?att=1');
+			exit();
+		}
 		$sessionToken = bin2hex(random_bytes(32));
 		$_SESSION['session_token'] = $sessionToken;
-		dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, "Visiteur" . $visitorNum);
+		$affected2 = dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, "Visiteur" . $visitorNum);
+		if ($affected2 === false) {
+			header('Location: index.php?att=1');
+			exit();
+		}
 		header('Location: tutoriel.php?deployer=1');
 		exit();
 	} else {
