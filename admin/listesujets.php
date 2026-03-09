@@ -3,6 +3,7 @@ include("redirectionmotdepasse.php");
 include("../includes/connexion.php");
 require_once("../includes/database.php");
 require_once("../includes/csrf.php");
+require_once(__DIR__ . '/../includes/logger.php');
 // ADMIN-HIGH-001: Add CSP headers to admin page.
 require_once(__DIR__ . '/../includes/csp.php');
 $nonce = cspNonce();
@@ -59,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         });
+        logInfo('ADMIN', 'Topic deleted', ['topic_id' => $supprimersujet]);
     }
     if (isset($_POST['verouillersujet'])) {
         $verouillersujet = (int)$_POST['verouillersujet'];
@@ -66,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             dbExecute($base, 'UPDATE sujets SET statut = 1 WHERE id = ?', 'i', $verouillersujet);
             dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $verouillersujet);
         });
+        logInfo('ADMIN', 'Topic locked', ['topic_id' => $verouillersujet]);
     }
     if (isset($_POST['deverouillersujet'])) {
         $deverouillersujet = (int)$_POST['deverouillersujet'];
@@ -73,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             dbExecute($base, 'UPDATE sujets SET statut = 0 WHERE id = ?', 'i', $deverouillersujet);
             dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $deverouillersujet);
         });
+        logInfo('ADMIN', 'Topic unlocked', ['topic_id' => $deverouillersujet]);
     }
 }
 ?>

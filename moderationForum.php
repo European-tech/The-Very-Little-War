@@ -134,7 +134,7 @@ debutCarte("Modération du forum");
 								<td>" . htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8') . "</td>
 								<td>" . htmlspecialchars($sanction['dateDebut'], ENT_QUOTES, 'UTF-8') . "</td>
 								<td>" . htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8') . "</td>
-								<td>" . BBcode($sanction['motif']) . "</td>
+								<td>" . sanitizeReportHtml(BBcode($sanction['motif'])) . "</td>
 								<td><form method=\"post\" action=\"moderationForum.php\" style=\"display:inline\">" . csrfField() . "<input type=\"hidden\" name=\"supprimer\" value=\"" . (int)$sanction['idSanction'] . "\"/><input type=\"image\" src=\"images/croix.png\" alt=\"supprimer\"></form></td>
 							</tr>
 							";

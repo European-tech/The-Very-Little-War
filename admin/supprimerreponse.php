@@ -3,6 +3,7 @@ include("../includes/connexion.php");
 
 include("redirectionmotdepasse.php");
 require_once(__DIR__ . '/../includes/csrf.php');
+require_once(__DIR__ . '/../includes/logger.php');
 // ADMIN-HIGH-001: Add CSP headers to admin page.
 require_once(__DIR__ . '/../includes/csp.php');
 $nonce = cspNonce();
@@ -20,6 +21,7 @@ if (isset($_POST['supprimer'])) {
             dbExecute($base, 'UPDATE autre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $replyRow['auteur']);
         }
     });
+    logInfo('ADMIN', 'Reply deleted', ['reply_id' => $supprimerId]);
 }
 ?>
 

@@ -199,15 +199,31 @@ function updateActions($joueur)
                             throw new \RuntimeException('cas_skip');
                         }
 
+                        // FLOW-COMBAT-CRIT: Verify attacker still exists (not deleted mid-flight).
+                        // Without this, a null $attStatut throws PLAYER_NOT_FOUND (logged but action
+                        // not cleaned up), causing infinite retries on every page load by the defender.
+                        $attackerExists = dbFetchOne($base, 'SELECT login FROM membre WHERE login=? AND x != -1000', 's', $actions['attaquant']);
+                        if (!$attackerExists) {
+                            // Attacker deleted — no molecules to refund (supprimerJoueur already deleted them). Clean up.
+                            dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                            logInfo('GAME', 'Attack cancelled: attacker deleted mid-flight', [
+                                'attacker' => $actions['attaquant'],
+                                'defender' => $actions['defenseur'],
+                            ]);
+                            throw new \RuntimeException('cas_skip');
+                        }
+
                         // Re-check vacation/ban/shield at resolution time
-                        $attStatut = dbFetchOne($base, 'SELECT vacance, estExclu FROM membre WHERE login=?', 's', $actions['attaquant']);
+                        $attStatut = dbFetchOne($base, 'SELECT m.vacance, m.estExclu, a.comeback_shield_until FROM membre m JOIN autre a ON m.login = a.login WHERE m.login=?', 's', $actions['attaquant']);
                         $defStatut = dbFetchOne($base, 'SELECT m.vacance, m.estExclu, a.comeback_shield_until FROM membre m JOIN autre a ON m.login = a.login WHERE m.login=?', 's', $actions['defenseur']);
                         if (!$attStatut || !$defStatut) {
                             logError('GAME', 'Combat resolution: missing player data for ' . $actions['attaquant'] . ' vs ' . $actions['defenseur']);
                             throw new \RuntimeException('PLAYER_NOT_FOUND');
                         }
-                        if ((int)$attStatut['vacance'] === 1 || (int)$attStatut['estExclu'] === 1 || (int)$defStatut['estExclu'] === 1 || (int)$defStatut['vacance'] === 1 ||
-                            ((int)$defStatut['comeback_shield_until'] > 0 && (int)$defStatut['comeback_shield_until'] > time())) {
+                        if ((int)$attStatut['vacance'] === 1 || (int)$attStatut['estExclu'] === 1
+                            || ((int)($attStatut['comeback_shield_until'] ?? 0) > 0 && (int)$attStatut['comeback_shield_until'] > time())
+                            || (int)$defStatut['estExclu'] === 1 || (int)$defStatut['vacance'] === 1
+                            || ((int)$defStatut['comeback_shield_until'] > 0 && (int)$defStatut['comeback_shield_until'] > time())) {
                             // Cancel attack, refund attacker molecules
                             $troupesArr = explode(';', $actions['troupes'] ?? '');
                             $moleculesOwned = dbFetchAll($base, 'SELECT id FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
@@ -492,8 +508,14 @@ function updateActions($joueur)
 
                     $nDef = dbFetchOne($base, 'SELECT neutrinos FROM autre WHERE login=?', 's', $espActions['defenseur']);
                     if (!$nDef) {
-                        // Defender was deleted — cancel espionage, action already marked done.
+                        // Defender was deleted mid-flight — refund neutrinos to attacker before cancelling.
+                        dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'is', (int)$espActions['nombreneutrinos'], $espActions['attaquant']);
                         dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
+                        logInfo('GAME', 'Espionage cancelled: defender deleted, neutrinos refunded', [
+                            'attacker' => $espActions['attaquant'],
+                            'defender' => $espActions['defenseur'],
+                            'refunded' => (int)$espActions['nombreneutrinos'],
+                        ]);
                         return;
                     }
 

@@ -7,7 +7,7 @@ require_once("includes/csrf.php");
 
 // Validate session token before any destructive action to prevent CSRF-triggered logouts
 if (isset($_SESSION['login']) && isset($_SESSION['session_token'])) {
-	$tokenDb = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
+	$tokenDb = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ? AND estExclu = 0', 's', $_SESSION['login']);
 	if (!$tokenDb || !hash_equals((string)$tokenDb['session_token'], (string)$_SESSION['session_token'])) {
 		session_unset();
 		session_destroy();
@@ -31,6 +31,8 @@ if(isset($_POST['verification']) AND isset($_POST['oui'])) {
 	if (isset($_SESSION['login'])) {
 		$memberTimestamp = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $_SESSION['login']);
 		if ($memberTimestamp && (time() - (int)$memberTimestamp['timestamp']) > SECONDS_PER_WEEK) {
+			require_once("includes/logger.php");
+			logInfo('AUTH', 'Account deleted via deconnexion.php', ['login' => $_SESSION['login']]);
 			supprimerJoueur($_SESSION['login']);
 		}
 		// If cooldown not met, silently skip deletion and proceed to normal logout below.

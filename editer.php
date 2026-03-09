@@ -16,6 +16,30 @@ $activeBan = dbFetchOne($base, 'SELECT id FROM sanctions WHERE joueur = ? AND da
 if ($activeBan) {
     // User is currently forum-banned; strip moderator privileges for this request
     $moderateur = ['moderateur' => '0'];
+    // FORUM-HIGH-001: Forum-banned users cannot edit their own posts either.
+    if (isset($_POST['type']) || isset($_GET['type'])) {
+        include("includes/layout.php");
+        debutCarte("Accès refusé");
+        debutContent();
+        echo '<p>Vous êtes banni du forum et ne pouvez pas modifier de contenu.</p>';
+        finContent();
+        finCarte();
+        include("includes/copyright.php");
+        exit;
+    }
+}
+
+// FORUM-HIGH-002: Account-banned players must not edit/delete any forum content.
+$excluCheck = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ?', 's', $_SESSION['login']);
+if (!$excluCheck || (int)$excluCheck['estExclu'] === 1) {
+    include("includes/layout.php");
+    debutCarte("Accès refusé");
+    debutContent();
+    echo '<p>Votre compte est désactivé.</p>';
+    finContent();
+    finCarte();
+    include("includes/copyright.php");
+    exit;
 }
 
 // On recherche le sujet que l'on souhaite éditer

@@ -381,8 +381,6 @@ function sanitizeReportHtml($html) {
         'href'  => ['a'],
         'src'   => ['img'],
         'alt'   => ['img'],
-        'id'    => true,
-        'class' => true,
     ];
 
     $dom = new DOMDocument();

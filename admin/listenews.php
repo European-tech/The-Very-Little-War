@@ -1,6 +1,7 @@
 <?php
 include("redirectionmotdepasse.php");
 require_once(__DIR__ . '/../includes/csrf.php');
+require_once(__DIR__ . '/../includes/logger.php');
 require_once(__DIR__ . '/../includes/database.php');
 include("../includes/connexion.php");
 // LOW-016: CSP header for admin page.
@@ -57,9 +58,11 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
             // Ce n'est pas une modification, on crée une nouvelle entrée dans la table.
             $timestamp = time();
             dbExecute($base, "INSERT INTO news VALUES(default, ?, ?, ?)", 'ssi', $titre, $contenu, $timestamp);
+            logInfo('ADMIN', 'News created', ['title' => mb_substr($titre, 0, 80)]);
         } else {
             // C'est une modification, on met juste à jour le titre et le contenu.
             dbExecute($base, "UPDATE news SET titre = ?, contenu = ? WHERE id = ?", 'ssi', $titre, $contenu, $id_news);
+            logInfo('ADMIN', 'News updated', ['id' => $id_news, 'title' => mb_substr($titre, 0, 80)]);
         }
     }
 
@@ -69,6 +72,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
     if (isset($_POST['supprimer_news'])) {
         $supprimerNewsId = (int)$_POST['supprimer_news'];
         dbExecute($base, 'DELETE FROM news WHERE id = ?', 'i', $supprimerNewsId);
+        logInfo('ADMIN', 'News deleted', ['id' => $supprimerNewsId]);
     }
     ?>
     <table>

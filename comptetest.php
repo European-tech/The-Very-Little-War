@@ -163,6 +163,8 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 							dbExecute($base, 'UPDATE login_history SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE account_flags SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE account_flags SET related_login = ? WHERE related_login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE reponses_sondage SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE season_recap SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE autre SET niveaututo = 8, streak_last_date = CURDATE(), streak_days = 0 WHERE login = ?', 's', $newLogin);
 						});
 

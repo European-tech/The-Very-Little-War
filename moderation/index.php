@@ -90,6 +90,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 				if ($nb > 0) {
 					$joueur = dbFetchOne($base, 'SELECT bombe FROM autre WHERE login = ?', 's', $_POST['joueurBombe']);
 					dbExecute($base, 'UPDATE autre SET bombe = ? WHERE login = ?', 'is', ($joueur['bombe'] + 1), $_POST['joueurBombe']);
+					logInfo('MODERATION', 'Warning point added', ['target' => htmlspecialchars($_POST['joueurBombe'], ENT_QUOTES, 'UTF-8'), 'new_total' => ($joueur['bombe'] + 1)]);
 					$erreur = "Vous avez rajouté un point de bombe à " . htmlspecialchars($_POST['joueurBombe'], ENT_QUOTES, 'UTF-8') . ".";
 				} else {
 					$erreur = "Ce joueur n'existe pas.";
@@ -117,6 +118,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 						dbExecute($base, 'UPDATE autre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $topicRow['auteur']);
 					}
 				});
+				logInfo('MODERATION', 'Topic deleted', ['topic_id' => $supprimersujet]);
 			}
 			if (isset($_POST['verouillersujet'])) {
 				$verouillersujet = (int)$_POST['verouillersujet'];
@@ -124,6 +126,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 					dbExecute($base, 'UPDATE sujets SET statut = 1 WHERE id = ?', 'i', $verouillersujet);
 					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $verouillersujet);
 				});
+				logInfo('MODERATION', 'Topic locked', ['topic_id' => $verouillersujet]);
 			}
 			if (isset($_POST['deverouillersujet'])) {
 				$deverouillersujet = (int)$_POST['deverouillersujet'];
@@ -131,6 +134,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 					dbExecute($base, 'UPDATE sujets SET statut = 0 WHERE id = ?', 'i', $deverouillersujet);
 					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $deverouillersujet);
 				});
+				logInfo('MODERATION', 'Topic unlocked', ['topic_id' => $deverouillersujet]);
 			}
 
 			$bool = 1;
@@ -204,6 +208,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 
 								dbExecute($base, 'INSERT INTO moderation VALUES(' . $insertCols . ')', $insertTypes, ...$insertParams);
 							}); // end withTransaction
+							logInfo('MODERATION', 'Resource grant', ['target' => htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8'), 'energie' => (int)$_POST['energieEnvoyee']]);
 
 							$chaine = "";
 							foreach ($nomsRes as $num => $ressource) {
