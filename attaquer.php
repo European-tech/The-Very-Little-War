@@ -217,6 +217,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                         $tempsTrajet = 0;
                         $troupes = "";
                         $cout = 0;
+                        $nonVideTroops = 0; // COMBAT-P20-009: Track non-Vide molecules actually sent
 
                         foreach ($moleculesAttaqueRows as $moleculesAttaque) {
                             if (ceil($moleculesAttaque['nombre']) < $_POST['nbclasse' . $c]) {
@@ -234,6 +235,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                             if ($moleculesAttaque['formule'] != "Vide" && $_POST['nbclasse' . $c] > 0) {
                                 $distance = pow(pow($membre['x'] - $positions['x'], 2) + pow($membre['y'] - $positions['y'], 2), 0.5);
                                 $tempsTrajet = max($tempsTrajet, round($distance / vitesse($moleculesAttaque['chlore'], $moleculesAttaque['azote'], $niveauchlore) * SECONDS_PER_HOUR));
+                                $nonVideTroops += (int)$_POST['nbclasse' . $c];
                             }
                             $troupes = $troupes . $_POST['nbclasse' . $c] . ';';
 
@@ -245,6 +247,11 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                             $c++;
                         }
+                        // COMBAT-P20-009: Require at least one non-Vide (real combat) molecule.
+                        // Sending only Vide slots wastes energy without any combat effect.
+                        if ($nonVideTroops < 1) {
+                            $bool = 0;
+                        }
                         // LOW-010: Round energy cost to 2 decimal places to avoid float precision issues
                         $cout = round($cout, 2);
 
@@ -254,7 +261,8 @@ if (isset($_POST['joueurAAttaquer'])) {
                         require_once('includes/compounds.php');
                         $speedBoost = getCompoundBonus($base, $_SESSION['login'], 'speed_boost');
                         $atkBoostSnapshot = getCompoundBonus($base, $_SESSION['login'], 'attack_boost');
-                        $defBoostSnapshot = getCompoundBonus($base, $_POST['joueurAAttaquer'], 'defense_boost');
+                        // COMBAT-P20-002: Do NOT snapshot defender's defense_boost at launch time.
+                        // The defender's active compound is checked live at resolution time in combat.php.
                         $pillageBoostSnapshot = getCompoundBonus($base, $_SESSION['login'], 'pillage_boost');
                         if ($speedBoost > 0) {
                             $tempsTrajet = max(1, round($tempsTrajet / (1 + $speedBoost)));
@@ -274,7 +282,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                                 }
                                 $capturedAttaquant = $_SESSION['login'];
                                 try {
-                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet, $atkBoostSnapshot, $defBoostSnapshot, $speedBoost, $pillageBoostSnapshot, $capturedCibles, $capturedTroupes, $capturedAttaquant) {
+                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet, $atkBoostSnapshot, $speedBoost, $pillageBoostSnapshot, $capturedCibles, $capturedTroupes, $capturedAttaquant) {
                                         // PASS1-MEDIUM-006: Re-validate energy under FOR UPDATE lock to prevent TOCTOU
                                         $attaquant = $capturedAttaquant;
                                         $energieFraiche = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login=? FOR UPDATE', 's', $attaquant);
@@ -299,7 +307,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                                             'INSERT INTO actionsattaques (attaquant, defenseur, tempsAller, tempsAttaque, tempsRetour, troupes, attaqueFaite, nombreneutrinos, compound_atk_bonus, compound_spd_bonus, compound_def_bonus, compound_pillage_bonus) VALUES (?,?,?,?,?,?,0,0,?,?,?,?)',
                                             'ssiiisdddd',
                                             $attaquant, $capturedCibles, $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes,
-                                            $atkBoostSnapshot, $speedBoost, $defBoostSnapshot, $pillageBoostSnapshot);
+                                            $atkBoostSnapshot, $speedBoost, 0.0, $pillageBoostSnapshot);
                                         ajouter('energie', 'ressources', -$cout, $attaquant);
                                         ajouter('energieDepensee', 'autre', $cout, $attaquant);
                                     });

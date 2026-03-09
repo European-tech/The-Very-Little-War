@@ -65,10 +65,15 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 			if ($authenticated) {
 				// AUTH-MEDIUM-004: Only clean up stale visitor accounts after successful authentication
 				// to avoid unnecessary DB writes on every failed login attempt.
-				$suppRows = dbFetchAll($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - VISITOR_SESSION_CLEANUP_SECONDS);
-				foreach ($suppRows as $supp) {
-					supprimerJoueur($supp['login']);
-				}
+				// AUTH-P20-004: Wrap in transaction with FOR UPDATE to prevent two concurrent logins
+				// from both selecting the same stale visitors and running duplicate supprimerJoueur calls.
+				// LIMIT 50 prevents unbounded cleanup on first login after a long outage.
+				withTransaction($base, function() use ($base) {
+					$suppRows = dbFetchAll($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ? LIMIT 50 FOR UPDATE", 'si', 'Visiteur%', time() - VISITOR_SESSION_CLEANUP_SECONDS);
+					foreach ($suppRows as $supp) {
+						supprimerJoueur($supp['login']);
+					}
+				});
 
 				// session_init.php (loaded above) already started the session; no need to call session_start() again.
 				session_regenerate_id(true);

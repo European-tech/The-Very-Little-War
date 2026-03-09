@@ -12,6 +12,7 @@ require_once("includes/rate_limiter.php");
 if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 	// FORUM16-001: Require authentication before accessing $_SESSION['login'].
 	// Unauthenticated POSTs would pass null to rateLimitCheck(), creating a shared bucket.
+	$erreur = ''; // FORUM-P20-008: Ensure $erreur is always initialized before use
 	if (!isset($_SESSION['login'])) {
 		$erreur = "Vous devez être connecté pour répondre.";
 	} else {

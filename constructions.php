@@ -283,6 +283,7 @@ function traitementConstructions($liste)
             }
 
             if ($ressources['energie'] >= $liste['coutEnergie'] and $bool == 1) {
+                try {
                 withTransaction($base, function() use ($base, $liste, $nomsRes, $nbRes, $constructions, $autre, &$information, &$erreur) {
                     // Re-check queue slots inside transaction to prevent TOCTOU race
                     $nbSlots = dbFetchOne($base, 'SELECT count(*) as nb FROM actionsconstruction WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
@@ -339,6 +340,15 @@ function traitementConstructions($liste)
                             throw new \RuntimeException('INVALID_COST');
                         }
                     }
+
+                    // BUILDINGS-P20-003: Duplicate-building check BEFORE resource deduction so that
+                    // a spurious duplicate does not commit with resources already subtracted.
+                    // (Inside withTransaction; throw rolls back, return would commit.)
+                    $existingBuild = dbFetchOne($base, 'SELECT id FROM actionsconstruction WHERE login = ? AND batiment = ?', 'ss', $_SESSION['login'], $liste['bdd']);
+                    if ($existingBuild) {
+                        throw new \RuntimeException('DUPLICATE_BUILD');
+                    }
+
                     // Build dynamic UPDATE for ressources - these are computed values, not user input
                     $chaine = "";
                     $newEnergie = $ressources['energie'] - $liste['coutEnergie'];
@@ -353,12 +363,6 @@ function traitementConstructions($liste)
                     $paramTypes .= 's';
                     $paramValues[] = $_SESSION['login'];
                     dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setClauses) . ' WHERE login=?', $paramTypes, ...$paramValues);
-
-                    // P10-LOW-004: Prevent duplicate queue entries for the same building
-                    $existingBuild = dbFetchOne($base, 'SELECT id FROM actionsconstruction WHERE login = ? AND batiment = ?', 'ss', $_SESSION['login'], $liste['bdd']);
-                    if ($existingBuild) {
-                        $erreur = "Ce bâtiment est déjà en cours de construction."; return;
-                    }
 
                     $lastConstruction = dbFetchOne($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
                     if ($lastConstruction) {
@@ -377,6 +381,13 @@ function traitementConstructions($liste)
 
                     $information = "La construction a bien été lancée.";
                 });
+                } catch (\RuntimeException $e) {
+                    if ($e->getMessage() === 'DUPLICATE_BUILD') {
+                        $erreur = "Ce bâtiment est déjà en cours de construction.";
+                    } else {
+                        $erreur = "Une erreur est survenue lors de la construction.";
+                    }
+                }
             } else {
                 $erreur = "Vous n'avez pas assez de ressources.";
             }

@@ -99,8 +99,9 @@ function checkSameIpAccounts($base, $login, $ip, $timestamp)
                 'INSERT INTO account_flags (login, flag_type, related_login, evidence, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)',
                 'sssssi', $login, 'same_ip', $other['login'], $evidence, 'medium', $timestamp
             );
+            // ANTI_CHEAT-P20-007: htmlspecialchars on login names to prevent XSS in admin UI
             createAdminAlert($base, 'same_ip',
-                "Comptes sur la même IP: $login et {$other['login']} ($ipDisplay)",
+                "Comptes sur la même IP: " . htmlspecialchars($login, ENT_QUOTES, 'UTF-8') . " et " . htmlspecialchars($other['login'], ENT_QUOTES, 'UTF-8') . " ($ipDisplay)",
                 $evidence, 'warning', $login, $other['login']
             );
             // P9-HIGH-008: Use consistent salt via hashIpAddress; $ip is already the hash
@@ -138,7 +139,7 @@ function checkSameFingerprintAccounts($base, $login, $fingerprint, $timestamp)
                 'sssssi', $login, 'same_fingerprint', $other['login'], $evidence, 'high', $timestamp
             );
             createAdminAlert($base, 'same_fingerprint',
-                "Même empreinte navigateur: $login et {$other['login']}",
+                "Même empreinte navigateur: " . htmlspecialchars($login, ENT_QUOTES, 'UTF-8') . " et " . htmlspecialchars($other['login'], ENT_QUOTES, 'UTF-8'),
                 $evidence, 'warning', $login, $other['login']
             );
             logInfo('MULTIACCOUNT', 'Same fingerprint detected', ['login_a' => $login, 'login_b' => $other['login']]);
@@ -184,7 +185,7 @@ function checkCoordinatedAttacks($base, $attacker, $defender, $timestamp)
                     'sssssi', $attacker, 'coord_attack', $other['attaquant'], $evidence, 'critical', $timestamp
                 );
                 createAdminAlert($base, 'coord_attack',
-                    "ALERTE: Attaque coordonnée sur $defender par $attacker et {$other['attaquant']} (même IP)",
+                    "ALERTE: Attaque coordonnée sur " . htmlspecialchars($defender, ENT_QUOTES, 'UTF-8') . " par " . htmlspecialchars($attacker, ENT_QUOTES, 'UTF-8') . " et " . htmlspecialchars($other['attaquant'], ENT_QUOTES, 'UTF-8') . " (même IP)",
                     $evidence, 'critical', $attacker, $other['attaquant']
                 );
                 logWarn('MULTIACCOUNT', 'Coordinated attack detected', [
@@ -232,7 +233,7 @@ function checkTransferPatterns($base, $sender, $receiver, $timestamp)
                     'sssssi', $sender, 'coord_transfer', $receiver, $evidence, 'high', $timestamp
                 );
                 createAdminAlert($base, 'coord_transfer',
-                    "Transferts suspects: $sender → $receiver ({$transferCount['cnt']}x en 7j, quasi aucun retour)",
+                    "Transferts suspects: " . htmlspecialchars($sender, ENT_QUOTES, 'UTF-8') . " → " . htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8') . " ({$transferCount['cnt']}x en 7j, quasi aucun retour)",
                     $evidence, 'warning', $sender, $receiver
                 );
                 logWarn('MULTIACCOUNT', 'One-sided transfers detected', [
@@ -289,7 +290,7 @@ function checkTimingCorrelation($base, $login, $timestamp)
                     'sssssi', $login, 'timing_correlation', $other, $evidence, 'critical', $timestamp
                 );
                 createAdminAlert($base, 'timing_correlation',
-                    "ALERTE: $login et $other jamais en ligne en même temps (multi-compte probable)",
+                    "ALERTE: " . htmlspecialchars($login, ENT_QUOTES, 'UTF-8') . " et " . htmlspecialchars($other, ENT_QUOTES, 'UTF-8') . " jamais en ligne en même temps (multi-compte probable)",
                     $evidence, 'critical', $login, $other
                 );
                 logWarn('MULTIACCOUNT', 'Timing correlation detected', ['login_a' => $login, 'login_b' => $other]);

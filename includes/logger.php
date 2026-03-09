@@ -26,7 +26,7 @@ function gameLog($level, $category, $message, $context = []) {
     if ($level < MIN_LOG_LEVEL) return;
 
     if (!is_dir(LOG_DIR)) {
-        mkdir(LOG_DIR, 0755, true);
+        mkdir(LOG_DIR, 0700, true);
     }
 
     $levelNames = ['DEBUG', 'INFO', 'WARN', 'ERROR'];

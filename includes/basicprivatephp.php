@@ -221,16 +221,15 @@ $maintenance = $maintenanceRow;
 if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAINTENANCE_PAUSE_SECONDS) {
     // Phase 2: 24h have passed since maintenance was set, proceed with full reset.
     //
-    // HIGH-016: Admin gate — only the administrator account (or a cron/CLI context
-    // without a session) may trigger the actual performSeasonEnd() call during a live
-    // page request. Regular players see the maintenance message instead.
-    // This prevents a race where any authenticated player reaching this branch could
-    // inadvertently (or maliciously) trigger the season reset.
-    $isAdminRequest = (isset($_SESSION['login']) && $_SESSION['login'] === ADMIN_LOGIN
-        && isset($_SESSION['motdepasseadmin']) && $_SESSION['motdepasseadmin'] === true);
-    if (!$isAdminRequest) {
-        // FLOW-SEASON HIGH-001: Non-admin players must not load game pages during Phase 2.
-        // Block all requests identically to Phase 1 to prevent game actions during maintenance.
+    // AUTH-P20-001: Season reset can ONLY be triggered by admin/index.php (separate TVLW_ADMIN
+    // session) or by a CLI cron job. Player-facing page requests ALWAYS see the maintenance page
+    // during Phase 2. The motdepasseadmin flag only exists in the TVLW_ADMIN session, which is
+    // never active in basicprivatephp.php (player session). Checking it here always returns false,
+    // so any web-request auto-trigger in this file would be permanently broken. Remove it entirely.
+    if (false) {
+        // Dead branch — season reset never triggered from player pages. Admin uses admin/index.php.
+    } else {
+        // All player requests during Phase 2: show maintenance page.
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Content-Type: application/json');
             echo json_encode(['error' => 'Le jeu est en maintenance']);
@@ -248,7 +247,10 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
             . '<p><a href="index.php" style="color:#f5a623;">Retour à l\'accueil</a></p>'
             . '</body></html>';
         exit;
-    } else {
+    }
+    // UNREACHABLE — keeping performSeasonEnd block intact for admin/index.php reference.
+    // The block below executes only when called from admin/index.php (TVLW_ADMIN session).
+    if (false) {
     // AUTH-C-001: performSeasonEnd() manages its own advisory lock ('tvlw_season_reset')
     // internally with GET_LOCK/RELEASE_LOCK in a try/finally. The outer GET_LOCK here was
     // causing a double-acquisition on the same connection (MariaDB re-entrant lock), and

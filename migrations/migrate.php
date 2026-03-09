@@ -81,6 +81,13 @@ foreach ($files as $file) {
     }
 
     if ($migrationError !== null) {
+        // INFRA-DATABASE-P20-006: Drain any remaining buffered results before rollback to prevent
+        // "Commands out of sync" errors when the drain loop exited early via break.
+        while (@mysqli_next_result($base)) {
+            if ($r = @mysqli_store_result($base)) {
+                mysqli_free_result($r);
+            }
+        }
         mysqli_rollback($base);
         echo "ERROR in migration $filename: $migrationError\n";
         exit(1);

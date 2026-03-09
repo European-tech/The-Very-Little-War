@@ -186,13 +186,15 @@ $degatsAttaquant *= prestigeCombatBonus($actions['attaquant']);
 $degatsDefenseur *= prestigeCombatBonus($actions['defenseur']);
 
 // Apply compound synthesis combat bonuses.
-// HIGH-024: Use the snapshotted values stored at attack-launch time (columns added by
-// migration 0039) rather than re-querying live compound state. This prevents a player
-// from activating a compound AFTER launching an attack to retroactively benefit from it.
-// Rows inserted before migration 0039 have DEFAULT 0.0, so legacy attacks are unaffected.
+// HIGH-024: Attacker bonuses (atk, speed, pillage) are snapshotted at launch time so that
+// compounds activated AFTER launch do not retroactively benefit the attacker.
+// COMBAT-P20-002: Defender's defense_boost is read LIVE at resolution time — a defender who
+// activates a compound between launch and arrival benefits from it (fair: they acted defensively).
 // HIGH-004: Null-coalesce all compound bonus array keys
 $compoundAttackBonus  = (float)($actions['compound_atk_bonus'] ?? 0.0);
-$compoundDefenseBonus = (float)($actions['compound_def_bonus'] ?? 0.0);
+// Read defender's defense bonus live (not from the stored snapshot which was always 0.0)
+require_once(__DIR__ . '/compounds.php');
+$compoundDefenseBonus = getCompoundBonus($base, $actions['defenseur'], 'defense_boost');
 if ($compoundAttackBonus > 0) $degatsAttaquant *= (1 + $compoundAttackBonus);
 // COMBAT-HIGH-001: compound_def_bonus reduces attacker's effective damage (applied before casualty loop).
 // Do NOT amplify $degatsDefenseur here — that is the defender's counter-damage, not their damage reduction.
