@@ -1125,7 +1125,7 @@ function archiveSeasonData($base)
                 (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
                 (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
                 (int)$p['nbattaques'], (int)$p['victoires'],
-                (float)$p['moleculesPerdues'], $p['alliance_name'] ?? '', // SCHEMA-M1: preserve decimal for DOUBLE column
+                (float)$p['moleculesPerdues'], ($p['alliance_name'] !== '' ? ($p['alliance_name'] ?? null) : null), // SCHEMA-M1+SEASON-P26-008: NULL for no alliance
                 (int)($p['streak_days'] ?? 0), (int)($p['batmax'] ?? 0)
             );
         }
@@ -1255,13 +1255,11 @@ function performSeasonEnd()
         logWarn('SEASON', 'queueSeasonEndEmails failed (non-fatal)', ['error' => $e->getMessage()]);
     }
 
-    // SEASON-M1: Reset VP award flags inside a transaction so that if the reset rolls back,
-    // the flags are also rolled back (atomic pair). This ensures idempotency is maintained:
-    // on retry, flags are 0 and VP awards will not be skipped.
-    withTransaction($base, function() use ($base) {
-        dbExecute($base, 'UPDATE autre SET vp_awarded = 0');
-        dbExecute($base, 'UPDATE alliances SET season_vp_awarded = 0');
-    });
+    // SEASON-P26-004 FIX: Do NOT pre-reset vp_awarded/season_vp_awarded flags here.
+    // Pre-resetting defeats idempotency: if the award loop crashes mid-way, on retry the
+    // flags are all 0 again, causing double-awards. The per-UPDATE guards
+    // (WHERE vp_awarded = 0 / WHERE season_vp_awarded = 0) below ensure idempotency.
+    // remiseAZero() resets both flags at season end, so next season starts clean.
 
     // Phase 1b: Award VP to players in chunks of 100 to avoid long-running transactions.
     // LOW-022: Split large VP award loop into smaller transactions so the DB is not locked
@@ -1386,6 +1384,15 @@ function performSeasonEnd()
  */
 function queueSeasonEndEmails(\mysqli $base, ?string $vainqueurManche): void
 {
+    // SEASON-P26-003: Idempotency guard — skip if emails already queued for this season.
+    $lastRecap = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
+    $currentSeason = ($lastRecap && $lastRecap['max_s']) ? (int)$lastRecap['max_s'] + 1 : 1;
+    $statsRow = dbFetchOne($base, 'SELECT emails_queued_season FROM statistiques', '', '');
+    if ($statsRow && (int)($statsRow['emails_queued_season'] ?? 0) >= $currentSeason) {
+        logInfo('SEASON', 'queueSeasonEndEmails: already queued for season ' . $currentSeason . ', skipping');
+        return;
+    }
+
     $winner = $vainqueurManche !== null ? htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') : 'inconnu';
 
     $players = dbFetchAll(
@@ -1419,6 +1426,8 @@ function queueSeasonEndEmails(\mysqli $base, ?string $vainqueurManche): void
         );
     }
 
+    // Mark this season as queued so retries are no-ops
+    dbExecute($base, 'UPDATE statistiques SET emails_queued_season = ?', 'i', $currentSeason);
     logInfo('SEASON', 'Season-end emails queued', ['count' => count($players), 'winner' => $vainqueurManche]);
 }
 

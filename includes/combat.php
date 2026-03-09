@@ -840,7 +840,7 @@ foreach ($nomsRes as $num => $ressource) {
 	}
 	$setClauses[] = "$ressource=?";
 	$setTypes .= 'd';
-	$setParams[] = min($maxStorageAtt, ($ressourcesJoueur[$ressource] + ($ressourcePille[$ressource] ?? 0)));
+	$setParams[] = min($maxStorageAtt, max(0, $ressourcesJoueur[$ressource] + ($ressourcePille[$ressource] ?? 0))); // COMBAT-P26-014: floor at 0
 }
 $setParams[] = $actions['attaquant'];
 $setTypes .= 's';

@@ -66,6 +66,8 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 			header('Location: index.php?att=1');
 			exit();
 		}
+		require_once('includes/multiaccount.php');
+		try { logLoginEvent($base, "Visiteur" . $visitorNum, 'visitor_create'); } catch (\Exception $e) { logWarn('COMPTETEST', 'logLoginEvent failed on visitor create', ['error' => $e->getMessage()]); } // AUTH-P26-007
 		header('Location: tutoriel.php?deployer=1');
 		exit();
 	} else {
@@ -169,6 +171,8 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 						$_SESSION['login'] = $newLogin;
 						$_SESSION['session_token'] = $sessionToken;
 
+						require_once('includes/multiaccount.php');
+						try { logLoginEvent($base, $newLogin, 'visitor_convert'); } catch (\Exception $e) { logWarn('COMPTETEST', 'logLoginEvent failed on visitor convert', ['error' => $e->getMessage()]); } // AUTH-P26-008
 						header("Location: index.php?inscrit=1"); exit;
 						} else {
 							$erreur = 'Ce login est déjà utilisé.';

@@ -150,12 +150,15 @@ function withTransaction($base, callable $fn) {
             throw new \RuntimeException('transaction_begin_failed');
         }
     }
-    // Increment only after the DB operation confirmed success.
-    $depth++;
     // INFRA-DB-H-001: Track that $depth was incremented so the finally block only decrements
     // when it was actually incremented. Without this flag, a throw thrown before $depth++
     // (e.g. savepoint_failed / transaction_begin_failed above) would cause finally to
     // decrement a counter that was never incremented, corrupting the nesting depth.
+    // INFRADB-P26-009: initialize to false here so finally-block check is safe even when
+    // an exception is thrown before $depth++ is reached.
+    $depthIncremented = false;
+    // Increment only after the DB operation confirmed success.
+    $depth++;
     $depthIncremented = true;
     $committed = false;
     try {
@@ -165,7 +168,9 @@ function withTransaction($base, callable $fn) {
                 throw new \RuntimeException('savepoint_release_failed: ' . mysqli_error($base));
             }
         } else {
-            mysqli_commit($base);
+            if (!mysqli_commit($base)) { // INFRADB-P26-004: check commit return value
+                throw new \RuntimeException('transaction_commit_failed: ' . mysqli_error($base));
+            }
         }
         $committed = true;
         return $result;
@@ -182,7 +187,9 @@ function withTransaction($base, callable $fn) {
                     logError('DB', 'ROLLBACK TO SAVEPOINT ' . $sp . ' FAILED — nested transaction may be corrupted: ' . mysqli_error($base));
                 }
             } else {
-                mysqli_rollback($base);
+                if (!mysqli_rollback($base)) { // INFRADB-P26-005: check rollback return value
+                    logError('DB', 'TOP-LEVEL TRANSACTION ROLLBACK FAILED — data may be inconsistent: ' . mysqli_error($base));
+                }
             }
         }
         throw $e;

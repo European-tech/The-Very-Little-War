@@ -58,10 +58,10 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
         $data = json_decode($raw, true);
         $attempts = [];
         if (is_array($data)) {
-            // Keep only attempts within the window
-            $attempts = array_filter($data, function($t) use ($now, $windowSeconds) {
+            // Keep only attempts within the window; array_values re-indexes to avoid sparse gaps
+            $attempts = array_values(array_filter($data, function($t) use ($now, $windowSeconds) {
                 return ($now - $t) < $windowSeconds;
-            });
+            })); // ANTICHEAT-P26-012: re-index after filter
         }
 
         if (count($attempts) < $maxAttempts) {

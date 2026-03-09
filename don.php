@@ -33,7 +33,7 @@ if(isset($_POST['energieEnvoyee'])) {
 				$senderIp = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
 				if ($allianceChef !== '' && $allianceChef !== $_SESSION['login']) {
 					// Check shared IP between sender and chef in membre table
-					$chefIp   = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $allianceChef);
+					$chefIp   = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=? AND estExclu=0', 's', $allianceChef); // ANTICHEAT-P26-006: skip banned chef
 					// FIX-CRITICAL: Use hash_equals() for IP comparison to prevent timing-based inference.
 				$sharedIp = ($senderIp && $chefIp
 						&& !empty($senderIp['ip']) && !empty($chefIp['ip'])
@@ -58,7 +58,7 @@ if(isset($_POST['energieEnvoyee'])) {
 					);
 					foreach ($officers as $officer) {
 						if ($officer['login'] === $_SESSION['login']) continue; // skip self
-						$officerIp = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $officer['login']);
+						$officerIp = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=? AND estExclu=0', 's', $officer['login']); // ANTICHEAT-P26-006: skip banned officer
 						// FIX-CRITICAL: Use hash_equals() for IP comparison (officer check).
 						$sharedIpOfficer = ($senderIp && $officerIp
 							&& !empty($senderIp['ip']) && !empty($officerIp['ip'])

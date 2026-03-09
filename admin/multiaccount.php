@@ -30,7 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['flag_action'];
         $validStatuses = ['investigating', 'confirmed', 'dismissed'];
         if (in_array($action, $validStatuses, true)) {
-            if ($action === 'confirmed' || $action === 'dismissed') {
+            // ANTICHEAT-P26-001: verify flag exists before updating
+            $flagExists = dbCount($base, 'SELECT COUNT(*) FROM account_flags WHERE id = ?', 'i', $flagId);
+            if (!$flagExists) {
+                logWarn('ADMIN', "Flag update rejected: flag #$flagId not found");
+            } elseif ($action === 'confirmed' || $action === 'dismissed') {
                 // P9-MED-024: Use session-scoped identifier instead of hardcoded 'admin'
                 $resolvedBy = 'admin_' . substr(session_id(), 0, 8);
                 dbExecute($base,
@@ -44,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
             }
             logInfo('ADMIN', "Flag #$flagId status changed to $action");
+            } // end flagExists check
         }
     }
 
@@ -53,9 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $manualRelated = trim($_POST['manual_related']);
         $manualNote = trim($_POST['manual_note'] ?? '');
         if (!empty($manualLogin) && !empty($manualRelated)) {
-            // ANTI-CHEAT-HIGH-001: Validate both players exist before creating a flag.
-            $loginExists   = dbCount($base, 'SELECT COUNT(*) FROM membre WHERE login = ?', 's', $manualLogin);
-            $relatedExists = dbCount($base, 'SELECT COUNT(*) FROM membre WHERE login = ?', 's', $manualRelated);
+            // ANTI-CHEAT-HIGH-001 / ANTICHEAT-P26-002: Validate both players exist and are not banned.
+            $loginExists   = dbCount($base, 'SELECT COUNT(*) FROM membre WHERE login = ? AND estExclu = 0', 's', $manualLogin);
+            $relatedExists = dbCount($base, 'SELECT COUNT(*) FROM membre WHERE login = ? AND estExclu = 0', 's', $manualRelated);
             if (!$loginExists || !$relatedExists) {
                 if (function_exists('logWarn')) {
                     logWarn('ADMIN', "Manual flag rejected: player not found", ['login' => $manualLogin, 'related' => $manualRelated]);
