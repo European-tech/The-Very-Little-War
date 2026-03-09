@@ -33,7 +33,7 @@ if (isset($_POST['supprimercompte'])) {
             if ($exists) {
                 $joueurExiste = 1;
                 supprimerJoueur($loginToDelete);
-                logInfo('ADMIN', 'Player account deleted', ['target_login' => $loginToDelete, 'admin' => $_SESSION['login']]);
+                logInfo('ADMIN', 'Player account deleted', ['target_login' => $loginToDelete, 'admin_ip' => $_SESSION['admin_ip'] ?? 'unknown']); // ADMIN-P26-003: admin sessions have no 'login' key
             } else {
                 $joueurExiste = 0;
             }

@@ -69,7 +69,9 @@ if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 				}
 				$deletedAuthor = $auteur['auteur'];
 				dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $id);
-				dbExecute($base, 'UPDATE autre SET nbMessages = nbMessages - 1 WHERE login = ? AND nbMessages > 0', 's', $auteur['auteur']);
+				if ($auteur['auteur'] !== null) { // FORUM-P26-001: auteur can be NULL (FK SET NULL on account delete)
+					dbExecute($base, 'UPDATE autre SET nbMessages = nbMessages - 1 WHERE login = ? AND nbMessages > 0', 's', $auteur['auteur']);
+				}
 				$deleteAllowed = true;
 			});
 		} catch (\RuntimeException $e) {

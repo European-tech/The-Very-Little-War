@@ -74,7 +74,7 @@ function updateActions($joueur)
 
             if ($actions['fin'] >= time()) {
                 $derniereFormation = ($actions['nombreDebut'] - $actions['nombreRestant']) * $actions['tempsPourUn'] + $actions['debut'];
-                $formed = (int)floor((time() - $derniereFormation) / $actions['tempsPourUn']);
+                $formed = max(0, (int)floor((time() - $derniereFormation) / $actions['tempsPourUn'])); // ACTIONS-P26-001: guard against clock skew
                 if (!$isNeutrino) {
                     dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ii', $formed, $actions['idclasse']);
                 } else {
@@ -687,9 +687,14 @@ function updateActions($joueur)
 
                     foreach ($moleculesRows as $moleculesProp) {
                         if (!isset($molecules[$compteur - 1])) break;
-                        $moleculesRestantes = (pow(coefDisparition($joueur, $compteur), $nbsecondes) * $molecules[$compteur - 1]);
+                        $molVal = $molecules[$compteur - 1];
+                        if (!is_numeric($molVal)) { // ACTIONS-P26-002: guard corrupt troupes segment
+                            logError('GAME_ACTIONS', 'Non-numeric troupes segment in return trip', ['val' => $molVal, 'action_id' => $actionId, 'class' => $compteur]);
+                            $molVal = 0;
+                        }
+                        $moleculesRestantes = (pow(coefDisparition($joueur, $compteur), $nbsecondes) * (float)$molVal);
 
-                        dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ii', ($moleculesProp['nombre'] + (int)round($moleculesRestantes)), $moleculesProp['id']);
+                        dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ii', max(0, $moleculesProp['nombre'] + (int)round($moleculesRestantes)), $moleculesProp['id']); // ACTIONS-P26-003: GREATEST(0,...)
 
                         $totalMoleculesPerdues += ($molecules[$compteur - 1] - $moleculesRestantes);
                         $compteur++;

@@ -327,8 +327,8 @@ function areFlaggedAccounts($base, $loginA, $loginB)
     );
     if ($result === false) {
         // DB error — fail open (non-blocking check) but log so it surfaces in monitoring.
-        logWarn('MULTIACCOUNT', 'areFlaggedAccounts: DB query failed, failing open', ['login_a' => $loginA, 'login_b' => $loginB]);
-        return false;
+        logWarn('MULTIACCOUNT', 'areFlaggedAccounts: DB query failed, failing closed', ['login_a' => $loginA, 'login_b' => $loginB]); // ANTICHEAT-P26-007: fail-closed for anti-cheat checks
+        return true;
     }
     $flag = mysqli_fetch_assoc($result);
     mysqli_free_result($result);

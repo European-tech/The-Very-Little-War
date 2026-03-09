@@ -161,7 +161,9 @@ function withTransaction($base, callable $fn) {
     try {
         $result = $fn();
         if ($useSavepoint) {
-            mysqli_query($base, "RELEASE SAVEPOINT $sp");
+            if (!mysqli_query($base, "RELEASE SAVEPOINT $sp")) { // INFRADB-P26-001: check return value
+                throw new \RuntimeException('savepoint_release_failed: ' . mysqli_error($base));
+            }
         } else {
             mysqli_commit($base);
         }
@@ -176,7 +178,9 @@ function withTransaction($base, callable $fn) {
                 } else {
                     error_log('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
                 }
-                mysqli_query($base, "ROLLBACK TO SAVEPOINT $sp");
+                if (!mysqli_query($base, "ROLLBACK TO SAVEPOINT $sp")) { // INFRADB-P26-002: check return value
+                    logError('DB', 'ROLLBACK TO SAVEPOINT ' . $sp . ' FAILED — nested transaction may be corrupted: ' . mysqli_error($base));
+                }
             } else {
                 mysqli_rollback($base);
             }

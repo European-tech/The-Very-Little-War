@@ -319,7 +319,7 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 				// (this class hasn't died yet, so count it as 1 + ahead)
 				$spreadDenominator = 1 + $liveClassesAhead;
 				$classDamage += $disperseeOverkill / $spreadDenominator;
-				$disperseeOverkill -= $disperseeOverkill / $spreadDenominator; // consumed portion
+				$disperseeOverkill = max(0.0, $disperseeOverkill - $disperseeOverkill / $spreadDenominator); // COMBAT-P26-002: float precision floor
 			}
 			$hpPerMol = pointsDeVieMolecule($classeDefenseur[$i]['brome'], $classeDefenseur[$i]['carbone'], $niveauxDef['brome'])
 						* $bonusDuplicateurDefense * $defIsotopeHpMod[$i];
@@ -835,7 +835,7 @@ $setClauses = [];
 $setTypes = '';
 $setParams = [];
 foreach ($nomsRes as $num => $ressource) {
-	if (!in_array($ressource, $nomsRes, true)) {
+	if (!in_array($ressource, ['carbone','azote','hydrogene','oxygene','chlore','soufre','brome','iode'], true)) { // COMBAT-P26-017: real whitelist, not tautology
 		throw new \RuntimeException("Invalid column: $ressource");
 	}
 	$setClauses[] = "$ressource=?";
@@ -852,7 +852,7 @@ $setClauses = [];
 $setTypes = '';
 $setParams = [];
 foreach ($nomsRes as $num => $ressource) {
-	if (!in_array($ressource, $nomsRes, true)) {
+	if (!in_array($ressource, ['carbone','azote','hydrogene','oxygene','chlore','soufre','brome','iode'], true)) { // COMBAT-P26-017: real whitelist, not tautology
 		throw new \RuntimeException("Invalid column: $ressource");
 	}
 	$setClauses[] = "$ressource=?";

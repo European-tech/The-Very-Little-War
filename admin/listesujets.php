@@ -62,12 +62,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (isset($_POST['verouillersujet'])) {
         $verouillersujet = (int)$_POST['verouillersujet'];
-        dbExecute($base, 'UPDATE sujets SET statut = 1 WHERE id = ?', 'i', $verouillersujet);
-        dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $verouillersujet);
+        withTransaction($base, function() use ($base, $verouillersujet) { // ADMIN-P26-001: atomic lock+cleanup
+            dbExecute($base, 'UPDATE sujets SET statut = 1 WHERE id = ?', 'i', $verouillersujet);
+            dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $verouillersujet);
+        });
     }
     if (isset($_POST['deverouillersujet'])) {
         $deverouillersujet = (int)$_POST['deverouillersujet'];
-        dbExecute($base, 'UPDATE sujets SET statut = 0 WHERE id = ?', 'i', $deverouillersujet);
+        withTransaction($base, function() use ($base, $deverouillersujet) { // ADMIN-P26-005: atomic unlock+cleanup
+            dbExecute($base, 'UPDATE sujets SET statut = 0 WHERE id = ?', 'i', $deverouillersujet);
+            dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $deverouillersujet);
+        });
     }
 }
 ?>

@@ -44,7 +44,9 @@ $text = preg_replace_callback('!\[img=([^\]]+)\]!isU', function($matches) {
     // Allow self-hosted images: relative paths starting with / or images/
     // Allow theverylittlewar.com absolute URLs
     // FORUM16-002: Reject path traversal sequences before pattern matching.
-    if (strpos($url, '..') !== false || strpos($url, '//') !== false) {
+    // FORUM-P26-002: Decode URL-encoded sequences first to catch %2e%2e traversal.
+    $urlDecoded = urldecode($url);
+    if (strpos($urlDecoded, '..') !== false || strpos($url, '//') !== false || strpos($url, '%') !== false) {
         return '[Image externe bloquée]';
     }
     if (preg_match('#^(images/[^\s"<>]+\.(?:gif|png|jpg|jpeg))$#i', $url)
