@@ -92,19 +92,35 @@ finCarte();
 
         // Consume and display one-time session flash notifications (streak milestone, comeback bonus)
         if (isset($_SESSION['streak_milestone'])) {
-            $msg = $_SESSION['streak_milestone'];
+            $streakData = $_SESSION['streak_milestone'];
             unset($_SESSION['streak_milestone']);
-            echo "myApp.addNotification({message:".json_encode(strip_tags(htmlspecialchars_decode((string)$msg, ENT_QUOTES))).",button:{text:'Fermer',color:'blue'}});";
+            $streakDays = (int)($streakData['streak'] ?? 0);
+            $ppEarned   = (int)($streakData['pp_earned'] ?? 0);
+            $msg = 'Connexion ' . $streakDays . ' jour' . ($streakDays > 1 ? 's' : '') . ' d\'affilée ! +' . $ppEarned . ' PP';
+            echo "myApp.addNotification({message:".json_encode($msg).",button:{text:'Fermer',color:'blue'}});";
         }
         if (isset($_SESSION['comeback_bonus'])) {
-            $msg = $_SESSION['comeback_bonus'];
+            $bonusData   = $_SESSION['comeback_bonus'];
             unset($_SESSION['comeback_bonus']);
-            echo "myApp.addNotification({message:".json_encode(strip_tags(htmlspecialchars_decode((string)$msg, ENT_QUOTES))).",button:{text:'Fermer',color:'orange'}});";
+            $energy      = (int)($bonusData['energy'] ?? 0);
+            $atoms       = (int)($bonusData['atoms'] ?? 0);
+            $shieldHours = (int)($bonusData['shield_hours'] ?? 0);
+            $msg = 'Bonus de retour ! +' . $energy . ' énergie, +' . $atoms . ' atomes, bouclier ' . $shieldHours . 'h';
+            echo "myApp.addNotification({message:".json_encode($msg).",button:{text:'Fermer',color:'orange'}});";
         }
     ?>
     
     function deconnexion(){
-        document.location.href="deconnexion.php";
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'deconnexion.php';
+        var csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrf_token';
+        csrf.value = <?php echo json_encode(csrfToken(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+        form.appendChild(csrf);
+        document.body.appendChild(form);
+        form.submit();
     }
 
     // Bind generate button if present (replaces javascript:generate() URIs)

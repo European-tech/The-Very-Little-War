@@ -313,7 +313,7 @@ if ($nb > 0) {
         if ((int)$actionsformation['idclasse'] !== -1) {
             $affichageFormule = couleurFormule($moleculeEnCours['formule']);
         } else {
-            $affichageFormule = $actionsformation['formule'];
+            $affichageFormule = htmlspecialchars($actionsformation['formule'], ENT_QUOTES, 'UTF-8');
         }
 
         echo '<tr><td><strong id="nombreRestants' . $actionsformation['id'] . '">' . $actionsformation['nombreRestant'] . '</strong> ' . $affichageFormule . '</td><td id="affichageProchain' . $actionsformation['id'] . '">' . $prochaine . '</td><td id="affichage' . $actionsformation['id'] . '">' . affichageTemps($actionsformation['fin'] - time()) . '</td></tr>';

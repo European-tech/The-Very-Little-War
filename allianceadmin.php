@@ -423,6 +423,17 @@ if ($pacte) {
 			// PASS1-MEDIUM-013: Atomic duplicate check + insert via transaction + FOR UPDATE lock
 			try {
 				$pactResult = withTransaction($base, function() use ($base, $chef, $allianceAllie) {
+					// ALLIANCE-TX2: Re-verify actor's pacte grade permission inside transaction (TOCTOU guard)
+					$allianceLocked = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $chef['id']);
+					if (!$allianceLocked) { throw new \RuntimeException('ALLIANCE_NOT_FOUND'); }
+					$isChef = ($allianceLocked['chef'] === $_SESSION['login']);
+					if (!$isChef) {
+						$actorGradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=? FOR UPDATE', 'si', $_SESSION['login'], $chef['id']);
+						$bits = explode('.', $actorGradeRow['grade'] ?? '');
+						if (count($bits) !== 5 || $bits[2] !== '1') {
+							throw new \RuntimeException('PERMISSION_DENIED');
+						}
+					}
 					// ALLIANCE-M2: Single atomic duplicate check (both directions) with FOR UPDATE
 					$dupCount = dbCount($base,
 						'SELECT COUNT(*) FROM declarations WHERE fin=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) FOR UPDATE',
@@ -441,7 +452,11 @@ if ($pacte) {
 				});
 				$information = "Vous avez proposé un pacte à l'alliance " . htmlspecialchars($_POST['pacte'], ENT_QUOTES, 'UTF-8') . ".";
 			} catch (\RuntimeException $e) {
-				$erreur = "Soit vous êtes déjà allié avec cette équipe, soit vous êtes en guerre avec elle.";
+				if ($e->getMessage() === 'PERMISSION_DENIED') {
+					$erreur = "Vous n'avez pas la permission d'effectuer cette action.";
+				} else {
+					$erreur = "Soit vous êtes déjà allié avec cette équipe, soit vous êtes en guerre avec elle.";
+				}
 			}
 		} else {
 			$erreur = "Cette équipe n'existe pas.";
@@ -457,6 +472,17 @@ if ($pacte) {
 		$pacteRompu = false;
 		try {
 			withTransaction($base, function() use ($base, $chef, &$pacteRompu, &$information, &$erreur) {
+				// ALLIANCE-TX2: Re-verify actor's pacte grade permission inside transaction (TOCTOU guard)
+				$allianceLocked = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $chef['id']);
+				if (!$allianceLocked) { throw new \RuntimeException('ALLIANCE_NOT_FOUND'); }
+				$isChef = ($allianceLocked['chef'] === $_SESSION['login']);
+				if (!$isChef) {
+					$actorGradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=? FOR UPDATE', 'si', $_SESSION['login'], $chef['id']);
+					$bits = explode('.', $actorGradeRow['grade'] ?? '');
+					if (count($bits) !== 5 || $bits[2] !== '1') {
+						throw new \RuntimeException('PERMISSION_DENIED');
+					}
+				}
 				$allieId = intval($_POST['allie']);
 				// Lock rows to prevent concurrent double-break
 				$pacteExiste = dbCount($base, 'SELECT count(*) AS pacteExiste FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) AND type=1 AND valide!=0 FOR UPDATE', 'iiii', $chef['id'], $allieId, $chef['id'], $allieId);
@@ -475,7 +501,9 @@ if ($pacte) {
 				}
 			});
 		} catch (\RuntimeException $e) {
-			if ($e->getMessage() === 'NOT_FOUND') {
+			if ($e->getMessage() === 'PERMISSION_DENIED') {
+				$erreur = "Vous n'avez pas la permission d'effectuer cette action.";
+			} elseif ($e->getMessage() === 'NOT_FOUND') {
 				$erreur = "Ce pacte n'existe pas.";
 			}
 		}
@@ -508,7 +536,18 @@ if ($guerre) {
 
 			// PASS1-LOW-022: Duplicate check + INSERT in a single transaction with FOR UPDATE to prevent race conditions
 			try {
-				withTransaction($base, function() use ($base, $allianceAdverseId, $allianceAdverseChef, $chefId, $chefTag) {
+				withTransaction($base, function() use ($base, $allianceAdverseId, $allianceAdverseChef, $chefId, $chefTag, $chef) {
+					// ALLIANCE-TX1: Re-verify actor's guerre grade permission inside transaction (TOCTOU guard)
+					$allianceLocked = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $chef['id']);
+					if (!$allianceLocked) { throw new \RuntimeException('ALLIANCE_NOT_FOUND'); }
+					$isChef = ($allianceLocked['chef'] === $_SESSION['login']);
+					if (!$isChef) {
+						$actorGradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=? FOR UPDATE', 'si', $_SESSION['login'], $chef['id']);
+						$bits = explode('.', $actorGradeRow['grade'] ?? '');
+						if (count($bits) !== 5 || $bits[1] !== '1') {
+							throw new \RuntimeException('PERMISSION_DENIED');
+						}
+					}
 					// ALLIANCE-M2: Single atomic duplicate check (both directions) with FOR UPDATE
 					$dupCount = dbCount($base,
 						'SELECT COUNT(*) FROM declarations WHERE ((fin=0 AND type=0) OR (type=1 AND valide!=0)) AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) FOR UPDATE',
@@ -548,7 +587,11 @@ if ($guerre) {
 				});
 				$information = "Vous avez déclaré la guerre à l'équipe " . htmlspecialchars($_POST['guerre'], ENT_QUOTES, 'UTF-8') . ".";
 			} catch (\RuntimeException $e) {
-				$erreur = "Soit une guerre est déjà déclarée contre cette équipe, soit vous êtes alliés avec elle.";
+				if ($e->getMessage() === 'PERMISSION_DENIED') {
+					$erreur = "Vous n'avez pas la permission d'effectuer cette action.";
+				} else {
+					$erreur = "Soit une guerre est déjà déclarée contre cette équipe, soit vous êtes alliés avec elle.";
+				}
 			}
 			} // end ghost-alliance guard
 		} else {
@@ -566,6 +609,17 @@ if ($guerre) {
 		// ALLIANCE_MGMT MEDIUM-001: Either the attacking OR defending alliance can end the war.
 		try {
 			withTransaction($base, function() use ($base, $chef, &$information) {
+				// ALLIANCE-TX1: Re-verify actor's guerre grade permission inside transaction (TOCTOU guard)
+				$allianceLocked = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $chef['id']);
+				if (!$allianceLocked) { throw new \RuntimeException('ALLIANCE_NOT_FOUND'); }
+				$isChef = ($allianceLocked['chef'] === $_SESSION['login']);
+				if (!$isChef) {
+					$actorGradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=? FOR UPDATE', 'si', $_SESSION['login'], $chef['id']);
+					$bits = explode('.', $actorGradeRow['grade'] ?? '');
+					if (count($bits) !== 5 || $bits[1] !== '1') {
+						throw new \RuntimeException('PERMISSION_DENIED');
+					}
+				}
 				$adversaireId = intval($_POST['adversaire']);
 				// Lock the war row — current alliance may be alliance1 (attacker) OR alliance2 (defender)
 				$guerreExisteTx = dbFetchOne($base,
@@ -601,7 +655,11 @@ if ($guerre) {
 				$information = "La guerre contre " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " a pris fin.";
 			});
 		} catch (\RuntimeException $e) {
-			$erreur = "Cette guerre n'existe pas ou vous n'avez pas le droit de la terminer.";
+			if ($e->getMessage() === 'PERMISSION_DENIED') {
+				$erreur = "Vous n'avez pas la permission d'effectuer cette action.";
+			} else {
+				$erreur = "Cette guerre n'existe pas ou vous n'avez pas le droit de la terminer.";
+			}
 		}
 	}
 }

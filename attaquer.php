@@ -171,8 +171,8 @@ if (isset($_POST['joueurAAttaquer'])) {
         // self-attack attempts (e.g. "joueur1" when session login is "Joueur1").
         if (mb_strtolower($_POST['joueurAAttaquer']) !== mb_strtolower($_SESSION['login'])) {
 
-            $enVac = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
-            if (!$enVac) {
+            $enVac = dbFetchOne($base, 'SELECT vacance,timestamp,estExclu FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
+            if (!$enVac || $enVac['estExclu'] == 1) {
                 $erreur = "Ce joueur n'existe pas.";
             } else {
             // Prevent attacking alliance members
@@ -531,7 +531,7 @@ if ($_GET['type'] == 0) {
 
     // MEDIUM-033: Use > 0 instead of >= 0 — sentinel for inactive players is x=-1000,y=-1000.
     // Coordinate (0,0) is not a valid player position (map starts at 1,1), so > 0 excludes all negative coords and the origin.
-    $allPlayers = dbFetchAll($base, 'SELECT m.id, m.login, m.x, m.y, a.points, a.idalliance FROM membre m JOIN autre a ON m.login = a.login WHERE m.x > 0 AND m.y > 0', '');
+    $allPlayers = dbFetchAll($base, 'SELECT m.id, m.login, m.x, m.y, a.points, a.idalliance FROM membre m JOIN autre a ON m.login = a.login WHERE m.x > 0 AND m.y > 0 AND m.estExclu = 0', '');
 
     // Pre-load active wars and pacts involving my alliance (only meaningful when in an alliance).
     $warAllianceIds = [];

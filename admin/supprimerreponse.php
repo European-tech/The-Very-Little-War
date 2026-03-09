@@ -11,14 +11,15 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{$
 if (isset($_POST['supprimer'])) {
     csrfCheck();
     $supprimerId = (int)$_POST['supprimer'];
-    // LOW-011: Fetch author before deletion so we can decrement their message counter.
-    $replyRow = dbFetchOne($base, 'SELECT auteur FROM reponses WHERE id = ?', 'i', $supprimerId);
-    dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $supprimerId);
-    if ($replyRow && !empty($replyRow['auteur'])) {
-        $authorLogin = $replyRow['auteur'];
-        // FORUM-MED-002: nbMessages lives on autre, not membre.
-        dbExecute($base, 'UPDATE autre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $authorLogin);
-    }
+    // FORUM-B4: Wrap fetch+delete+decrement in a transaction with FOR UPDATE to prevent race conditions.
+    withTransaction($base, function() use ($base, $supprimerId) {
+        $replyRow = dbFetchOne($base, 'SELECT auteur FROM reponses WHERE id = ? FOR UPDATE', 'i', $supprimerId);
+        dbExecute($base, 'DELETE FROM reponses WHERE id = ?', 'i', $supprimerId);
+        if ($replyRow && !empty($replyRow['auteur']) && $replyRow['auteur'] !== '[supprimé]') {
+            // FORUM-MED-002: nbMessages lives on autre, not membre.
+            dbExecute($base, 'UPDATE autre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $replyRow['auteur']);
+        }
+    });
 }
 ?>
 

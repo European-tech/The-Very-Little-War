@@ -502,8 +502,8 @@ function progressBar($vie, $vieMax, $couleur)
         <br/><br/><br/>
         <div class="item-content" style="margin:0;padding:0;">
             <div class="item-inner" style="width: 80px;padding-right:0px;">
-              <div data-progress="' . $pct . '" class="progressbar color-' . $couleur . '" style="height:6px;border:2px solid black;"></div>
-              <div style="text-align:center"><strong style="font-size:13px">' . $vie . '/' . $vieMax . '</strong></div>
+              <div data-progress="' . $pct . '" class="progressbar color-' . htmlspecialchars($couleur, ENT_QUOTES, 'UTF-8') . '" style="height:6px;border:2px solid black;"></div>
+              <div style="text-align:center"><strong style="font-size:13px">' . htmlspecialchars((string)$vie, ENT_QUOTES, 'UTF-8') . '/' . htmlspecialchars((string)$vieMax, ENT_QUOTES, 'UTF-8') . '</strong></div>
         </div>
         </div>';
 }
@@ -532,13 +532,13 @@ function slider($options)
 
     $color = '';
     if (array_key_exists("color", $options) && $options["color"]) {
-        $color = 'class="color-' . $options['color'] . '"';
+        $color = 'class="color-' . htmlspecialchars($options['color'], ENT_QUOTES, 'UTF-8') . '"';
     }
 
 
     return '
     <div class="range-slider" ' . $color . '>
-        <input type="range" min="' . $min . '" max="' . $max . '" value="' . $value . '" step="' . $step . '">
+        <input type="range" min="' . htmlspecialchars((string)$min, ENT_QUOTES, 'UTF-8') . '" max="' . htmlspecialchars((string)$max, ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') . '" step="' . htmlspecialchars((string)$step, ENT_QUOTES, 'UTF-8') . '">
     </div>';
 }
 

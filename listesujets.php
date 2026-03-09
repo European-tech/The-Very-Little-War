@@ -82,6 +82,7 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 				dbExecute($base, 'INSERT INTO sujets VALUES(default, ?, ?, ?, ?, default, ?)', 'isssi', $getId, $titre, $contenu, $login, $timestamp);
 				$sujetId = mysqli_insert_id($base);
 				dbExecute($base, 'INSERT INTO statutforum VALUES(?, ?, ?)', 'sii', $login, $sujetId, $getId);
+				dbExecute($base, 'UPDATE autre SET nbMessages = nbMessages + 1 WHERE login = ?', 's', $login);
 			});
 			header("Location: sujet.php?id=" . (int)$sujetId); exit;
 		} else {

@@ -17,6 +17,11 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
 
     $constructions = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
 
+    if (!$constructions) {
+        $cache[$cacheKey] = 0;
+        return 0;
+    }
+
     $niveauxAtomes = explode(';', $constructions['pointsCondenseur']);
     foreach ($nomsRes as $num => $ressource) {
         ${'niveau' . $ressource} = $niveauxAtomes[$num];
@@ -25,6 +30,10 @@ function revenuEnergie($niveau, $joueur, $detail = 0)
     $producteur = $constructions; // reuse $constructions — already has producteur column
 
     $autreRow = dbFetchOne($base, 'SELECT idalliance, totalPoints, energieDepensee FROM autre WHERE login=?', 's', $joueur);
+    if (!$autreRow) {
+        $cache[$cacheKey] = 0;
+        return 0;
+    }
     $idalliance = $autreRow; // single query replaces two separate autre queries
     $bonusDuplicateur = 1;
     if ($idalliance['idalliance'] > 0) {
@@ -143,6 +152,9 @@ function revenuAtomeJavascript($joueur)
 
     // Duplicateur (alliance) bonus
     $idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $joueur);
+    if (!$idalliance) {
+        return; // Player row missing — cannot render JS
+    }
     $bonusDuplicateur = 1;
     if ($idalliance['idalliance'] > 0) {
         $duplicateur = dbFetchOne($base, 'SELECT duplicateur FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
@@ -176,7 +188,7 @@ function revenuAtomeJavascript($joueur)
     $baseMultiplier = $prestigeBonus * (1 + $compoundProdBonus) * (1 + $specAtomMod);
 
     // Emit per-type node bonus as a JSON object indexed by atom number
-    $nodeBonusJson = json_encode($nodeBonusByType);
+    $nodeBonusJson = json_encode($nodeBonusByType, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 
     echo '
     ' . cspScriptTag() . '

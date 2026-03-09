@@ -249,7 +249,7 @@ function coutTout($cout)
     return '
     <div class="chip bg-' . $couleur . '">
         <div class="chip-media bg-white" style="width:143px;border-radius:20px"><img src="images/tout.png" style="border-radius:0px;margin-right:0px;" alt="toutes" title="Toutes les ressources" /></div>
-        <div class="chip-label">' . $cout . '</div>
+        <div class="chip-label">' . htmlspecialchars((string)$cout, ENT_QUOTES, 'UTF-8') . '</div>
     </div>';
 }
 

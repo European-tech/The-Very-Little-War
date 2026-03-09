@@ -37,14 +37,21 @@ if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST
 		$nb = dbCount($base, 'SELECT count(*) FROM membre WHERE login = ?', 's', $_POST['pseudo']);
 		// On vérifie que le joueur existe
 		if ($nb > 0) {
-			// Convertion de la date au format anglais
-			$parts = explode('/', $_POST['dateFin']);
-			if (count($parts) !== 3 || !checkdate((int)$parts[1], (int)$parts[0], (int)$parts[2])) {
-				$erreur = "<strong>Erreur</strong> : Date invalide.";
-			} else {
-				list($jour, $mois, $annee) = $parts;
-				$date = sprintf('%04d-%02d-%02d', (int)$annee, (int)$mois, (int)$jour);
-				dbExecute($base, 'INSERT INTO sanctions VALUES (default, ?, CURRENT_DATE, ?, ?, ?)', 'ssss', $_POST['pseudo'], $date, $_POST['motif'], $_SESSION['login']);
+			// FORUM-M1: Prevent moderators from banning other moderators
+			$targetMod = dbFetchOne($base, 'SELECT moderateur FROM membre WHERE login = ?', 's', $_POST['pseudo']);
+			if ($targetMod && $targetMod['moderateur'] != '0') {
+				$erreur = "<strong>Erreur</strong> : Impossible de sanctionner un modérateur ou administrateur.";
+			}
+			if (empty($erreur)) {
+				// Convertion de la date au format anglais
+				$parts = explode('/', $_POST['dateFin']);
+				if (count($parts) !== 3 || !checkdate((int)$parts[1], (int)$parts[0], (int)$parts[2])) {
+					$erreur = "<strong>Erreur</strong> : Date invalide.";
+				} else {
+					list($jour, $mois, $annee) = $parts;
+					$date = sprintf('%04d-%02d-%02d', (int)$annee, (int)$mois, (int)$jour);
+					dbExecute($base, 'INSERT INTO sanctions VALUES (default, ?, CURRENT_DATE, ?, ?, ?)', 'ssss', $_POST['pseudo'], $date, $_POST['motif'], $_SESSION['login']);
+				}
 			}
 		} else {
 			$erreur = "<strong>Erreur</strong> : Ce joueur n'existe pas.";

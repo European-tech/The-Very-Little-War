@@ -81,7 +81,13 @@ if(isset($_POST['energieEnvoyee'])) {
 					withTransaction($base, function() use ($base, $idalliance) {
 						// Lock rows to prevent TOCTOU race condition
 						$ressources = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
-						$energieDonnee = dbFetchOne($base, 'SELECT energieDonnee FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+						// TOCTOU FIX: Re-verify alliance membership inside the transaction and fetch
+						// energieDonnee atomically -- prevents a race where the player leaves the alliance
+						// between the pre-check and the actual deduction.
+						$autreRow = dbFetchOne($base, 'SELECT energieDonnee, idalliance FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+						if (!$autreRow || (int)($autreRow['idalliance'] ?? 0) !== (int)$idalliance['idalliance']) {
+							throw new \RuntimeException('ALLIANCE_CHANGED');
+						}
 						$ressourcesAlliance = dbFetchOne($base, 'SELECT energieAlliance, energieTotaleRecue FROM alliances WHERE id=? FOR UPDATE', 'i', $idalliance['idalliance']);
 
 						if($ressources['energie'] - $_POST['energieEnvoyee'] < DONATION_MIN_ENERGY_RESERVE) {
@@ -98,7 +104,8 @@ if(isset($_POST['energieEnvoyee'])) {
 							}
 						}
 
-						dbExecute($base, 'UPDATE ressources SET energie = energie - ? WHERE login=?', 'ds', $montant, $_SESSION['login']);
+						// GREATEST(0,...) prevents energy going negative due to rounding or concurrent updates
+						dbExecute($base, 'UPDATE ressources SET energie = GREATEST(0, energie - ?) WHERE login=?', 'ds', $montant, $_SESSION['login']);
 						dbExecute($base, 'UPDATE autre SET energieDonnee = energieDonnee + ?, nbDons = nbDons + 1 WHERE login=?', 'ds', $montant, $_SESSION['login']); // ECO16-001: increment nbDons for medal tracking
 						dbExecute($base, 'UPDATE alliances SET energieAlliance = energieAlliance + ?, energieTotaleRecue = energieTotaleRecue + ? WHERE id=?', 'ddi', $montant, $montant, $idalliance['idalliance']);
 					});
@@ -108,6 +115,8 @@ if(isset($_POST['energieEnvoyee'])) {
 				} catch (\RuntimeException $e) {
 					if ($e->getMessage() === "NOT_ENOUGH_ENERGY") {
 						$erreur = "Vous n'avez pas assez d'énergie (réserve minimale de " . DONATION_MIN_ENERGY_RESERVE . " requise).";
+					} elseif ($e->getMessage() === 'ALLIANCE_CHANGED') {
+						$erreur = "Vous n'êtes plus dans cette alliance.";
 					} elseif ($e->getMessage() === 'VAULT_FULL') {
 						$erreur = "La caisse de l'alliance est pleine (maximum " . number_format(MAX_ALLIANCE_ENERGY, 0, ',', ' ') . " énergie).";
 					} else {

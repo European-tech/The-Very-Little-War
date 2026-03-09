@@ -155,7 +155,11 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 							dbExecute($base, 'UPDATE actionsconstruction SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE actionsenvoi SET envoyeur = ? WHERE envoyeur = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE actionsenvoi SET receveur = ? WHERE receveur = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $newLogin);
+							dbExecute($base, 'UPDATE player_compounds SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE login_history SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE account_flags SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE account_flags SET related_login = ? WHERE related_login = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE autre SET niveaututo = 8, streak_last_date = CURDATE(), streak_days = 0 WHERE login = ?', 's', $newLogin);
 						});
 
 						session_regenerate_id(true);

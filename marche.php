@@ -720,7 +720,7 @@ if ($_GET['sub'] == 0) {
                 var typeRessourceAAcheter = document.getElementById('typeRessourceAAcheter').value;
                 var nombreRessourceAAcheter = symboleEnNombre(document.getElementById('nombreRessourceAAcheter').value);
                 var coutEnergie = symboleEnNombre(document.getElementById('coutEnergieAchat').value);
-                var echange = <?php echo json_encode($tabCours);
+                var echange = <?php echo json_encode($tabCours, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 
                                 foreach ($nomsRes as $num => $ressource) { // on récupére le numéro dans le tableau de ressources des ressources que l'on échange
                                     echo '
@@ -751,7 +751,7 @@ if ($_GET['sub'] == 0) {
                 var nombreRessourceAVendre = symboleEnNombre(document.getElementById('nombreRessourceAVendre').value);
                 var apportEnergie = symboleEnNombre(document.getElementById('apportEnergieVente').value);
                 var sellTaxRate = <?php echo MARKET_SELL_TAX_RATE; ?>;
-                var echange = <?php echo json_encode($tabCours);
+                var echange = <?php echo json_encode($tabCours, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 
                                 foreach ($nomsRes as $num => $ressource) { // on récupére le numéro dans le tableau de ressources des ressources que l'on échange
                                     echo '

@@ -112,13 +112,33 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 					if ($recipientMembre && (int)$recipientMembre['estExclu'] === 1) {
 						$erreur = "Ce joueur n'existe pas.";
 					} else {
-						// FLOW-SOCIAL MEDIUM-002: Enforce inbox size cap
-						$inboxCount = dbCount($base, 'SELECT COUNT(*) FROM messages WHERE destinataire=? AND deleted_by_recipient=0', 's', $canonicalLogin);
-						if ($inboxCount >= INBOX_MAX_MESSAGES) {
-							$erreur = "La boîte de réception de ce joueur est pleine.";
-						} else {
-							$now = time();
-							dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $canonicalLogin);
+						// FLOW-SOCIAL MEDIUM-002: Enforce inbox size cap -- wrap in transaction with FOR UPDATE
+						// to prevent TOCTOU race where two concurrent sends both read below the cap.
+						$pmError = null;
+						$pmSent  = false;
+						$pmTitre   = $_POST['titre'];
+						$pmContenu = $_POST['contenu'];
+						$pmExp     = $_SESSION['login'];
+						try {
+							withTransaction($base, function() use ($base, $canonicalLogin, $pmTitre, $pmContenu, $pmExp, &$pmSent) {
+								$inboxCount = dbCount($base, 'SELECT COUNT(*) FROM messages WHERE destinataire=? AND deleted_by_recipient=0 FOR UPDATE', 's', $canonicalLogin);
+								if ($inboxCount >= INBOX_MAX_MESSAGES) {
+									throw new \RuntimeException('INBOX_FULL');
+								}
+								$now = time();
+								dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $pmTitre, $pmContenu, $pmExp, $canonicalLogin);
+								$pmSent = true;
+							});
+						} catch (\RuntimeException $e) {
+							if ($e->getMessage() === 'INBOX_FULL') {
+								$pmError = "La boîte de réception de ce joueur est pleine.";
+							} else {
+								throw $e;
+							}
+						}
+						if ($pmError) {
+							$erreur = $pmError;
+						} elseif ($pmSent) {
 							// LOW-030: store flash message before redirect
 							$_SESSION['flash_message'] = 'Message envoyé avec succès.';
 							header('Location: messages.php');

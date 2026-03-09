@@ -92,11 +92,12 @@ function inscrire($pseudo, $mdp, $mail)
 
             // autre: login is PK; tempsPrecedent must be set now; timeMolecule needs initial timestamps;
             // description and missions are NOT NULL with no DB default — supply explicit values.
+            // streak_last_date is set to CURDATE() so the first login does not trigger a free PP grant.
             // all other columns (points, idalliance, nbattaques, etc.) use DB defaults (0 or NULL)
             dbExecute(
                 $base,
-                'INSERT INTO autre (login, tempsPrecedent, timeMolecule, description, missions)
-                 VALUES (?, ?, ?, ?, ?)',
+                'INSERT INTO autre (login, tempsPrecedent, timeMolecule, description, missions, streak_last_date)
+                 VALUES (?, ?, ?, ?, ?, CURDATE())',
                 'sisss',
                 $safePseudo, $now, $timestamps, 'Pas de description', ''
             );
@@ -673,7 +674,15 @@ function augmenterBatiment($nom, $joueur)
         } else {
             dbExecute($base, "UPDATE constructions SET $safeCol=? WHERE login=?", 'is', ($batiments[$nom] + 1), $joueur);
         }
-        ajouterPoints($listeConstructions[$nom]['points'], $joueur);
+        // Bug 6 fix: use the freshly-locked level from the FOR UPDATE row instead of the
+        // stale pre-transaction $listeConstructions value, which may have been computed
+        // before a concurrent upgrade incremented the level.
+        global $BUILDING_CONFIG;
+        $bc = $BUILDING_CONFIG[$nom] ?? null;
+        $freshPoints = $bc
+            ? ((int)($bc['points_base'] ?? 1) + (int)floor(($batiments[$nom] + 1) * ($bc['points_level_factor'] ?? 0)))
+            : 1;
+        ajouterPoints(max(1, $freshPoints), $joueur);
     });
 
     // FIX H-007: invalidate target player's cache, not necessarily current session
@@ -1034,6 +1043,7 @@ function supprimerJoueur($joueur)
         dbExecute($base, 'DELETE FROM season_recap WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM login_history WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM account_flags WHERE login=? OR related_login=?', 'ss', $joueur, $joueur);
+        dbExecute($base, 'DELETE FROM reponses_sondage WHERE login=?', 's', $joueur);
 
         // Atomic decrement: avoids TOCTOU race; floor at 0 to prevent negative counts.
         dbExecute($base, 'UPDATE statistiques SET inscrits = GREATEST(0, inscrits - 1)');
@@ -1383,7 +1393,7 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
     }
 
     // FIX: Use FOR UPDATE inside a transaction to prevent duplicate processing by concurrent requests.
-    // The rows are locked, their IDs collected, then immediately claimed (sent_at set to a sentinel)
+    // The rows are locked, their IDs collected, then immediately claimed (sent_at set to sentinel 1)
     // before sending — this prevents two simultaneous queue drains from delivering the same email twice.
     $claimedIds = [];
     withTransaction($base, function() use ($base, $limit, &$claimedIds) {
@@ -1401,7 +1411,7 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
             // Claim all rows immediately so no other concurrent process will pick them up
             $placeholders = implode(',', array_fill(0, count($claimedIds), '?'));
             $types = str_repeat('i', count($claimedIds));
-            dbExecute($base, 'UPDATE email_queue SET sent_at = -1 WHERE id IN (' . $placeholders . ')', $types, ...$claimedIds);
+            dbExecute($base, 'UPDATE email_queue SET sent_at = 1 WHERE id IN (' . $placeholders . ')', $types, ...$claimedIds);
         }
     });
 
@@ -1467,19 +1477,19 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
 
         $sent = @mail($recipient, $subject, $message, $header);
         if ($sent) {
-            // FIX: update the actual timestamp (rows were pre-claimed with sentinel -1)
+            // FIX: update the actual timestamp (rows were pre-claimed with sentinel 1)
             dbExecute($base, 'UPDATE email_queue SET sent_at = ? WHERE id = ?', 'ii', time(), $id);
         } else {
             // P9-LOW-001: Log a short hash of the recipient address rather than the
             // full email to avoid writing PII to log files.
             logWarn('EMAIL_QUEUE', 'mail() failed for queued email', ['id' => $id, 'recipient_hash' => substr(hash('sha256', $recipient), 0, 12)]);
-            // FIX: Release the claim so the row can be retried (reset sentinel back to NULL)
-            dbExecute($base, 'UPDATE email_queue SET sent_at = NULL WHERE id = ? AND sent_at = -1', 'i', $id);
+            // FIX: Release the claim so the row can be retried (reset sentinel 1 back to NULL)
+            dbExecute($base, 'UPDATE email_queue SET sent_at = NULL WHERE id = ? AND sent_at = 1', 'i', $id);
         }
     }
     // EMAIL11-001: Purge sent and stale unsent emails to comply with GDPR data minimization.
     // Stale unsent emails (>24h old) are skipped by the query above but never deleted otherwise.
-    // FIX: Also purge any leftover sentinel -1 rows from a previous crashed run (treat as stale).
+    // FIX: Also purge any leftover sentinel 1 rows from a previous crashed run (treat as stale).
     dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL OR (sent_at IS NULL AND created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR))');
 }
 
@@ -1511,7 +1521,7 @@ function remiseAZero()
         // P21-CRITICAL-001: timeMolecule is VARCHAR(1000) storing 4 comma-separated timestamps
         // (one per molecule class). UNIX_TIMESTAMP() is a single integer and corrupts the format.
         // Use CONCAT to produce the same "t,t,t,t" layout as registration (player.php:55).
-        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, vp_awarded=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'Pas de description\', image=\'defaut.png\', timeMolecule=CONCAT(UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP())');
+        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, nbDons=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, vp_awarded=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'Pas de description\', image=\'defaut.png\', timeMolecule=CONCAT(UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP())');
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'iiiii', (int)pointsDeVie(1), (int)vieChampDeForce(0), (int)pointsDeVie(1), (int)pointsDeVie(1), (int)vieIonisateur(0)); // M-010: BIGINT vie columns bound as 'i' not 'd'
         // ADMIN11-001: Reset season_vp_awarded so the next season can award alliance VP again.
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0,season_vp_awarded=0');

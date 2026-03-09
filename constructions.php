@@ -419,7 +419,16 @@ function traitementConstructions($liste)
                     } else {
                         $tempsDebut = time();
                     }
-                    $adjustedConstructionTime = round($liste['tempsConstruction'] * (1 - catalystEffect('construction_speed')));
+                    // Re-compute construction time from locked level (BUILDINGS-H1: prevent race with stale pre-tx time)
+                    if (isset($BUILDING_CONFIG[$bddKey])) {
+                        $bc = $BUILDING_CONFIG[$bddKey];
+                        $levelForTime = $niveauActuel['niveau'];
+                        $offset = $bc['time_level_offset'] ?? 0;
+                        $freshTime = (int)round($bc['time_base'] * pow($bc['time_growth_base'], $levelForTime + $offset));
+                    } else {
+                        $freshTime = $liste['tempsConstruction'];
+                    }
+                    $adjustedConstructionTime = (int)round($freshTime * (1 - catalystEffect('construction_speed')));
                     $finTemps = $tempsDebut + $adjustedConstructionTime;
                     // Note: no FOR UPDATE needed here — the COUNT(*) FOR UPDATE above already
                     // serializes concurrent queue insertions for this player.
@@ -459,7 +468,7 @@ if ($nb > 0) {
     scriptAffichageTemps();
     echo '<div class="table-responsive"><table><tr><th>Constructions</th><th>Temps restant</th><th>Fin</th></tr>';
     foreach ($actionsconstructionRows as $actionsconstruction) {
-        echo '<tr><td>' . $actionsconstruction['affichage'] . ' <strong>niveau ' . $actionsconstruction['niveau'] . '</strong></td><td><span id="affichage' . $actionsconstruction['id'] . '">' . affichageTemps(max(0, $actionsconstruction['fin'] - time())) . '</span></td><td>' . date('H\hi', $actionsconstruction['fin']) . '</td></tr>';
+        echo '<tr><td>' . htmlspecialchars($actionsconstruction['affichage'], ENT_QUOTES, 'UTF-8') . ' <strong>niveau ' . (int)$actionsconstruction['niveau'] . '</strong></td><td><span id="affichage' . $actionsconstruction['id'] . '">' . affichageTemps(max(0, $actionsconstruction['fin'] - time())) . '</span></td><td>' . date('H\hi', $actionsconstruction['fin']) . '</td></tr>';
         echo cspScriptTag() . '
             var valeur' . $actionsconstruction['id'] . ' = ' . (int)($actionsconstruction['fin'] - time()) . ';
             function tempsDynamique' . $actionsconstruction['id'] . '(){

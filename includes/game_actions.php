@@ -201,7 +201,7 @@ function updateActions($joueur)
 
                         // Re-check vacation/ban/shield at resolution time
                         $attStatut = dbFetchOne($base, 'SELECT vacance, estExclu FROM membre WHERE login=?', 's', $actions['attaquant']);
-                        $defStatut = dbFetchOne($base, 'SELECT vacance, estExclu, comeback_shield_until FROM membre WHERE login=?', 's', $actions['defenseur']);
+                        $defStatut = dbFetchOne($base, 'SELECT m.vacance, m.estExclu, a.comeback_shield_until FROM membre m JOIN autre a ON m.login = a.login WHERE m.login=?', 's', $actions['defenseur']);
                         if (!$attStatut || !$defStatut) {
                             logError('GAME', 'Combat resolution: missing player data for ' . $actions['attaquant'] . ' vs ' . $actions['defenseur']);
                             throw new \RuntimeException('PLAYER_NOT_FOUND');
@@ -500,7 +500,7 @@ function updateActions($joueur)
                     // FLOW-ESP-HIGH: Re-check vacation/ban/shield at resolution time — same pattern
                     // as combat resolution (lines 181-201). Espionage against a protected target
                     // must be cancelled with a neutrino refund to the attacker.
-                    $espDefStatut = dbFetchOne($base, 'SELECT vacance, estExclu, comeback_shield_until FROM membre WHERE login=?', 's', $espActions['defenseur']);
+                    $espDefStatut = dbFetchOne($base, 'SELECT m.vacance, m.estExclu, a.comeback_shield_until FROM membre m JOIN autre a ON m.login = a.login WHERE m.login=?', 's', $espActions['defenseur']);
                     $espAttStatut = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $espActions['attaquant']);
                     if (!$espDefStatut || !$espAttStatut) {
                         // One of the players was fully deleted — cancel and clean up.
@@ -641,14 +641,14 @@ function updateActions($joueur)
 
                     // Inner transaction for atomic report write + action deletion (MED-068).
                     withTransaction($base, function() use ($base, $espActionId, $espActions, $titreRapportJoueur, $contenuRapportJoueur, $espionageSucceeded) {
-                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $espActions['attaquant'], 'espionage');
+                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES(?, ?, ?, ?, 0, ?, ?)', 'isssss', $espActions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $espActions['attaquant'], '<img alt="espion" src="images/rapports/espionnage.png" class="imageAide">', 'espionage');
 
                         // Only notify defender when espionage actually succeeded.
                         // On failure: attacker spent neutrinos, nothing revealed, defender not alerted.
                         if ($espionageSucceeded) {
                             $titreRapportEspionDef   = 'Tentative d\'espionnage détectée';
                             $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
-                            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $espActions['defenseur'], 'defense');
+                            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES(?, ?, ?, ?, 0, ?, ?)', 'isssss', $espActions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $espActions['defenseur'], '<img alt="espion" src="images/rapports/espionnage.png" class="imageAide">', 'espionage');
                         }
 
                         dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);

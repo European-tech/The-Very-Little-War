@@ -147,7 +147,7 @@ if ($defHasCatalytique) {
 // Defensive Formation — use hoisted $constructionsDef (MED-024)
 $defenderFormation = isset($constructionsDef['formation']) ? intval($constructionsDef['formation']) : FORMATION_DISPERSEE;
 // HIGH-001: Validate formation is within known range [0..2]
-if ($defenderFormation < 0 || $defenderFormation > 2) {
+if ($defenderFormation < 0 || $defenderFormation > MAX_FORMATION_ID) {
 	logError("COMBAT", "Combat: invalid formation ID " . intval($constructionsDef['formation'] ?? -1) . " for " . $actions['defenseur']);
 	$defenderFormation = FORMATION_DISPERSEE;
 }

@@ -245,7 +245,7 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
                     // to prevent race condition where two players join simultaneously.
                     // FLOW-ALLIANCE-HIGH: Also verify the alliance was not deleted between the
                     // outer fetch and this lock (TOCTOU window).
-                    $allianceLocked = dbFetchOne($base, 'SELECT id, nbMax FROM alliances WHERE id=? FOR UPDATE', 'i', $idalliance['idalliance']);
+                    $allianceLocked = dbFetchOne($base, 'SELECT id FROM alliances WHERE id=? FOR UPDATE', 'i', $idalliance['idalliance']);
                     if (!$allianceLocked) {
                         throw new \RuntimeException('ALLIANCE_DELETED');
                     }

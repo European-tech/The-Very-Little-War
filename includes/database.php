@@ -152,6 +152,11 @@ function withTransaction($base, callable $fn) {
     }
     // Increment only after the DB operation confirmed success.
     $depth++;
+    // INFRA-DB-H-001: Track that $depth was incremented so the finally block only decrements
+    // when it was actually incremented. Without this flag, a throw thrown before $depth++
+    // (e.g. savepoint_failed / transaction_begin_failed above) would cause finally to
+    // decrement a counter that was never incremented, corrupting the nesting depth.
+    $depthIncremented = true;
     $committed = false;
     try {
         $result = $fn();
@@ -178,9 +183,11 @@ function withTransaction($base, callable $fn) {
         }
         throw $e;
     } finally {
-        // INFRA-DB-H-001: Use finally so $depth is decremented exactly once regardless
-        // of how the function exits (normal return, exception, or COMMIT failure).
-        $depth--;
+        // Only decrement if we actually incremented — guards against the case where
+        // savepoint_failed / transaction_begin_failed threw before $depth++ was reached.
+        if ($depthIncremented) {
+            $depth--;
+        }
     }
 }
 endif;

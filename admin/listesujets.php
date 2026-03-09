@@ -43,9 +43,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // LOW-012: Fetch all reply authors before deletion so we can decrement their message counters.
         $replyAuthors = dbFetchAll($base, 'SELECT auteur FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
         withTransaction($base, function() use ($base, $supprimersujet, $replyAuthors) {
+            $topicRow = dbFetchOne($base, 'SELECT auteur FROM sujets WHERE id = ? FOR UPDATE', 'i', $supprimersujet);
             dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
             dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
             dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
+            // Decrement nbMessages for the topic author.
+            if ($topicRow && !empty($topicRow['auteur']) && $topicRow['auteur'] !== '[supprimé]') {
+                dbExecute($base, 'UPDATE autre SET nbMessages = GREATEST(0, nbMessages - 1) WHERE login = ?', 's', $topicRow['auteur']);
+            }
             // Decrement nbMessages for each reply author.
             foreach ($replyAuthors as $authorRow) {
                 if (!empty($authorRow['auteur'])) {
