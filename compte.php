@@ -26,10 +26,8 @@ if (isset($_POST['verification']) and isset($_POST['oui'])) {
         // Clear session cookie
         if (ini_get("session.use_cookies")) {
             $params = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000,
-                $params["path"], $params["domain"],
-                $params["secure"], $params["httponly"]
-            );
+            // AUTH-P30-C001: Array format preserves SameSite attribute from session config
+            setcookie(session_name(), '', array_merge($params, ['expires' => time() - 42000]));
         }
         header("Location: index.php"); exit;
     }

@@ -435,7 +435,10 @@ for ($i = 1; $i <= $nbClasses; $i++) {
 }
 
 $actions['troupes'] = $chaine;
-dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chaine, $actions['id']);
+// COMBAT-P30-M001: Check return — silent failure corrupts surviving troop data
+if (dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chaine, $actions['id']) === false) {
+    logError('COMBAT', 'Failed to update troupes for attack id=' . $actions['id']);
+}
 
 // defenseur
 // M-003: Wrap surviving count in max(0,...) to guard against float precision going slightly negative
@@ -816,11 +819,16 @@ ajouterPoints($pointsDefenseur, $actions['defenseur'], 2);
 // COMB-002: Atomic increment to avoid read-modify-write race on moleculesPerdues.
 // The previous SELECT+absolute-write pattern was a race condition; inside the transaction,
 // an atomic += is both safer and eliminates two unnecessary SELECT round-trips.
+// COMBAT-P30-M002: Check returns — silent failure corrupts medal/prestige statistics
 if ($pertesAttaquant > 0) {
-    dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $pertesAttaquant, $actions['attaquant']);
+    if (dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $pertesAttaquant, $actions['attaquant']) === false) {
+        logError('COMBAT', 'Failed to increment moleculesPerdues for attacker=' . $actions['attaquant']);
+    }
 }
 if ($pertesDefenseur > 0) {
-    dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $pertesDefenseur, $actions['defenseur']);
+    if (dbExecute($base, 'UPDATE autre SET moleculesPerdues = moleculesPerdues + ? WHERE login=?', 'ds', $pertesDefenseur, $actions['defenseur']) === false) {
+        logError('COMBAT', 'Failed to increment moleculesPerdues for defender=' . $actions['defenseur']);
+    }
 }
 
 
@@ -873,7 +881,10 @@ $sql1 = 'UPDATE ressources SET ' . implode(',', $setClauses) . ' WHERE login=?';
 dbExecute($base, $sql1, $setTypes, ...$setParams);
 
 // Atomic increment nbattaques
-dbExecute($base, 'UPDATE autre SET nbattaques = nbattaques + 1 WHERE login=?', 's', $actions['attaquant']);
+// COMBAT-P30-M003: Check return — silent failure makes attack medal progression inconsistent
+if (dbExecute($base, 'UPDATE autre SET nbattaques = nbattaques + 1 WHERE login=?', 's', $actions['attaquant']) === false) {
+    logError('COMBAT', 'Failed to increment nbattaques for attacker=' . $actions['attaquant']);
+}
 
 // Si les alliances sont en guerre on inscrit les pertes
 // Reuse already-fetched alliance IDs from top of file (PERF-P7-002)

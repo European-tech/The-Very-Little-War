@@ -125,6 +125,10 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             }
 
                             $constructionsJoueur = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $_POST['destinataire']);
+                            // MARKET-P30-M002: Guard against recipient deleted between pre-tx check and here
+                            if (!$constructionsJoueur) {
+                                throw new \RuntimeException('RECIPIENT_DELETED');
+                            }
 
                             // PASS1-MEDIUM-010: Check recipient storage capacity before accepting the transfer.
                             // Reject if the recipient has no room in any of the resources/energy being sent.

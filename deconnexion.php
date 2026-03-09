@@ -48,10 +48,8 @@ session_destroy();
 // Clear session cookie to prevent reuse of old session ID
 if (ini_get("session.use_cookies")) {
 	$params = session_get_cookie_params();
-	setcookie(session_name(), '', time() - 42000,
-		$params["path"], $params["domain"],
-		$params["secure"], $params["httponly"]
-	);
+	// AUTH-P30-C001: Use array-format setcookie to include SameSite=Strict
+	setcookie(session_name(), '', array_merge($params, ['expires' => time() - 42000]));
 }
 
 // CSP header must be emitted before any HTML output

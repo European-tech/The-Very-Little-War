@@ -3,6 +3,14 @@ include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 require_once("includes/compounds.php");
 
+// FLOW-P30-C002: Ban check — banned players must not gain compound bonuses
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $accountStatus = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    if (!$accountStatus || (int)$accountStatus['estExclu'] === 1) {
+        header('Location: index.php'); exit;
+    }
+}
+
 // Handle synthesis
 if (isset($_POST['synthesize'])) {
     csrfCheck();

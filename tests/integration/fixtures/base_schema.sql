@@ -217,7 +217,9 @@ CREATE TABLE `parties` (
   `debut` int(100) NOT NULL,
   `joueurs` text NOT NULL,
   `alliances` text NOT NULL,
-  `guerres` text NOT NULL
+  `guerres` text NOT NULL,
+  `season_number` int(11) DEFAULT NULL,
+  UNIQUE KEY `idx_parties_season_number` (`season_number`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `rapports` (

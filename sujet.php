@@ -179,7 +179,7 @@ if (isset($_GET['id'])) {
 		list($annee, $mois, $jour) = explode('-', $sanction['dateFin']);
 		$sanction['dateFin'] = $jour . '/' . $mois . '/' . $annee;
 		echo "Vous ne pouvez plus accéder au forum car vous avez été banni par <a href=\"ecriremessage.php?destinataire=" . htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8') . "\" class=\"lienVisible\">" . htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8') . "</a> jusqu'au <strong>" . htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8') . "</strong>.<br/>";
-		echo "Motif de la sanction : " . BBcode($sanction['motif']);
+		echo "Motif de la sanction : " . sanitizeReportHtml(BBcode($sanction['motif']));
 	} else {
 
 		// MED-050: auteur may be NULL when the player was deleted (FK SET NULL)
@@ -238,7 +238,8 @@ if (isset($_GET['id'])) {
 		$sujetAuteurDisplay = ($sujetAuteur === '[supprimé]')
 			? '[supprimé]'
 			: '<a href="joueur.php?id=' . htmlspecialchars($sujetAuteur, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($sujetAuteur, ENT_QUOTES, 'UTF-8') . '</a>';
-		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', $sujetAuteurDisplay, date('d/m/Y à H\hi', $sujet['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
+		// SOCIAL-P30-H001: sanitizeReportHtml wraps BBcode output to prevent stored XSS
+		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', $sujetAuteurDisplay, date('d/m/Y à H\hi', $sujet['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), sanitizeReportHtml(BBcode($sujet['contenu'])), $couleur, 'Page : ' . $pages . $editer);
 
 
 		if ($nb_resultats > 0) {
@@ -314,7 +315,8 @@ if (isset($_GET['id'])) {
 				$reponseAuteurDisplay = ($reponseAuteur === '[supprimé]')
 					? '[supprimé]'
 					: '<a href="joueur.php?id=' . htmlspecialchars($reponseAuteur, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($reponseAuteur, ENT_QUOTES, 'UTF-8') . '</a>';
-				carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', $reponseAuteurDisplay, date('d/m/Y à H\hi', $reponse['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($reponse['contenu'], $javascript), $couleur, $editer);
+				// SOCIAL-P30-H001: sanitizeReportHtml wraps BBcode output to prevent stored XSS
+			carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', $reponseAuteurDisplay, date('d/m/Y à H\hi', $reponse['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), sanitizeReportHtml(BBcode($reponse['contenu'], $javascript)), $couleur, $editer);
 			}
 		} else {
 			debutCarte();

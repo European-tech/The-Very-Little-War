@@ -1322,7 +1322,8 @@ function performSeasonEnd()
             // ADMIN11-001: Idempotency guard via season_vp_awarded flag (migration 0099).
             // If already awarded this season, UPDATE is a no-op. Prevents double-VP on retry.
             $vpAlliance = pointsVictoireAlliance($localC);
-            $newPtsVictoire = $allianceData['pointsVictoire'] + $vpAlliance;
+            // SEASON-P30-M001: Explicit int cast — DB returns strings, avoid string addition
+            $newPtsVictoire = (int)$allianceData['pointsVictoire'] + $vpAlliance;
             $affected = dbExecute($base, 'UPDATE alliances SET pointsVictoire = ?, season_vp_awarded = 1 WHERE id = ? AND season_vp_awarded = 0', 'ii', $newPtsVictoire, $allianceData['id']);
             if ($affected === false || (int)$affected === 0) {
                 return; // Already awarded — skip member awards too
@@ -1343,7 +1344,11 @@ function performSeasonEnd()
     // MED-014: Invalidate all existing session tokens so every player must re-login
     // after the season reset. This prevents stale sessions carrying old game state
     // into the new season.
-    dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE 1', '');
+    // FLOW-P30-H001: Check return — silent failure leaves all sessions active post-reset
+    $tokenReset = dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE 1', '');
+    if ($tokenReset === false) {
+        logError('SEASON', 'session_token mass-invalidation UPDATE failed after season reset — sessions may persist');
+    }
     logInfo('SEASON', 'All session tokens invalidated after season reset');
 
     // Phase 3: Generate resource nodes for the new season.

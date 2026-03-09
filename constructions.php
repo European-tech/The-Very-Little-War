@@ -2,6 +2,14 @@
 include("includes/basicprivatephp.php");
 include("includes/redirectionVacance.php");
 
+// FLOW-P30-C003: Ban check for all POST mutations — banned players must not upgrade buildings
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $accountStatus = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    if (!$accountStatus || (int)$accountStatus['estExclu'] === 1) {
+        header('Location: index.php'); exit;
+    }
+}
+
 // traitement des points à placer pour le producteur et le generateur
 if (isset($_POST['nbPointshydrogene'])) { // un au hasard juste pour le formulaire
     csrfCheck();
@@ -400,7 +408,8 @@ function traitementConstructions($liste)
 
                     // Build dynamic UPDATE for ressources using fresh (locked-level) costs
                     $chaine = "";
-                    $newEnergie = $ressources['energie'] - $freshEnergieCost;
+                    // BLDG-P30-M002: max(0) prevents negative energy balance from float rounding
+                    $newEnergie = max(0.0, $ressources['energie'] - $freshEnergieCost);
                     $setClauses = ['energie=?'];
                     $paramTypes = 'd';
                     $paramValues = [$newEnergie];
@@ -411,7 +420,11 @@ function traitementConstructions($liste)
                     }
                     $paramTypes .= 's';
                     $paramValues[] = $_SESSION['login'];
-                    dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setClauses) . ' WHERE login=?', $paramTypes, ...$paramValues);
+                    // BLDG-P30-C001: Check return — silent failure grants free construction
+                    $updated = dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $setClauses) . ' WHERE login=?', $paramTypes, ...$paramValues);
+                    if ($updated === false) {
+                        throw new \RuntimeException('RESOURCE_DEDUCT_FAILED');
+                    }
 
                     $lastConstruction = dbFetchOne($base, 'SELECT * FROM actionsconstruction WHERE login=? ORDER BY fin DESC', 's', $_SESSION['login']);
                     if ($lastConstruction) {
@@ -437,10 +450,18 @@ function traitementConstructions($liste)
                     $finTemps = $tempsDebut + $adjustedConstructionTime;
                     // Note: no FOR UPDATE needed here — the COUNT(*) FOR UPDATE above already
                     // serializes concurrent queue insertions for this player.
-                    dbExecute($base, 'INSERT INTO actionsconstruction (login, debut, fin, batiment, niveau, affichage, points) VALUES (?,?,?,?,?,?,?)', 'siisisi',
+                    // BLDG-P30-C002: Check INSERT return — lost resources without construction if INSERT fails
+                    $inserted = dbExecute($base, 'INSERT INTO actionsconstruction (login, debut, fin, batiment, niveau, affichage, points) VALUES (?,?,?,?,?,?,?)', 'siisisi',
                         $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
+                    if ($inserted === false) {
+                        throw new \RuntimeException('INSERT_FAILED');
+                    }
 
-                    dbExecute($base, 'UPDATE autre SET energieDepensee = energieDepensee + ? WHERE login=?', 'ds', $freshEnergieCost, $_SESSION['login']);
+                    // BLDG-P30-C003: Check stat UPDATE return (non-critical but detects DB errors early)
+                    $statUpdated = dbExecute($base, 'UPDATE autre SET energieDepensee = energieDepensee + ? WHERE login=?', 'ds', $freshEnergieCost, $_SESSION['login']);
+                    if ($statUpdated === false) {
+                        logError('BUILDINGS', 'energieDepensee UPDATE failed for login=' . $_SESSION['login']);
+                    }
 
                     $information = "La construction a bien été lancée.";
                 });

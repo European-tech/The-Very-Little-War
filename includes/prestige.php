@@ -173,7 +173,9 @@ function awardPrestigePoints() {
     $denseRank = 1;
     $prevScore = null;
     foreach ($players as &$player) {
-        if ($prevScore !== null && $player['totalPoints'] !== $prevScore) {
+        // SEASON-P30-H001: Cast to float — MariaDB returns DOUBLE columns as strings via
+        // mysqli; strict string comparison gives false inequality for equal values.
+        if ($prevScore !== null && (float)$player['totalPoints'] !== (float)$prevScore) {
             $denseRank++;
         }
         $player['dense_rank'] = $denseRank;

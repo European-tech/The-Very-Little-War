@@ -125,8 +125,16 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
         }
         try {
             $formuleAffichage = withTransaction($base, function() use ($base, $nombreMolecules, $emplacementFormer, $login, $nomsRes, $nbRes, $niveauazote, $nivLieurArmee) {
-                $donneesFormer = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=?', 'si', $login, $emplacementFormer);
+                // GC-P30-C001: FOR UPDATE prevents a concurrent molecule deletion from nulling
+                // $donneesFormer between the read and the resource deduction below.
+                $donneesFormer = dbFetchOne($base, 'SELECT * FROM molecules WHERE proprietaire=? AND numeroclasse=? FOR UPDATE', 'si', $login, $emplacementFormer);
+                if (!$donneesFormer || $donneesFormer['formule'] === 'Vide') {
+                    throw new \RuntimeException('Molecule not found');
+                }
                 $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $login);
+                if (!$ressources) {
+                    throw new \RuntimeException('Resources not found');
+                }
 
                 foreach ($nomsRes as $num => $ressource) {
                     if (($donneesFormer[$ressource] * $nombreMolecules) > $ressources[$ressource]) {

@@ -1,5 +1,7 @@
 <?php
 include("includes/basicprivatephp.php");
+// FLOW-P30-C001: Vacation players must not mutate alliance state (pact approval)
+include("includes/redirectionVacance.php");
 
 if(isset($_POST['idDeclaration'])) {
 	csrfCheck();
