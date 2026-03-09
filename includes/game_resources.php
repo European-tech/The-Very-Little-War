@@ -284,10 +284,14 @@ function updateRessources($joueur)
 
         // Re-read ressources so molecule decay and downstream code sees accurate values
         $donnees = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $joueur);
+        // P28-HIGH-002: Player deleted mid-request (extreme edge case) — bail out safely.
+        if (!$donnees) { return; }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////Gestion des molécules disparaissant
         foreach ($moleculesRows as $molecules) {
-            $moleculesRestantes = max(0, floor(pow(coefDisparition($joueur, $compteur + 1), $nbsecondes) * $molecules['nombre']));
+            // P28-CRIT-002: Pass numeroclasse (1-4) not the loop counter — the loop counter
+            // happened to equal numeroclasse for the standard 4-class setup but is logically wrong.
+            $moleculesRestantes = max(0, floor(pow(coefDisparition($joueur, (int)$molecules['numeroclasse'], 0), $nbsecondes) * $molecules['nombre']));
             // Store pre-decay count keyed by numeroclasse for the absence report
             $nombreAvant[(int)$molecules['numeroclasse']] = $molecules['nombre'];
 

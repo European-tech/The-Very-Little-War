@@ -1620,42 +1620,64 @@ done
 
 ## Execution Protocol
 
+### Mandatory Skills
+- **REQUIRED:** Use `superpowers:executing-plans` skill at the start of every pass.
+- **REQUIRED:** At the end of EACH phase (after each batch, after consolidation, after review, after fixes, after verification), re-read this ultra audit plan file before proceeding to give full fresh context. Do not rely on memory of earlier sections.
+- **REQUIRED:** At the start of each pass, initialize a full TaskCreate list covering ALL tasks for the entire pass (including "Prepare next pass task list" as the final task) BEFORE dispatching any agents.
+
 ### How to Run Pass N
 
 ```
+Step 0:  Invoke superpowers:executing-plans skill.
+Step 0b: Re-read /home/guortates/TVLW/The-Very-Little-War/docs/plans/2026-03-07-ultra-audit-loop.md in full.
+Step 0c: Create TaskCreate entries for ALL pass tasks (Phase 1A through Phase 6 + "Prepare next pass task list").
 Step 1:  Announce "Starting Ultra Audit Pass N"
 Step 2:  Determine which domains to skip/double:
-         - Always run all 21 domains
+         - Always run all 39 domains (Batches A-F)
          - Domains with HIGH/CRITICAL findings in Pass N-1: run 2 agents (counts as 2 in batch)
          - Domains with only INFO findings in Pass N-1: still run (fresh eyes catch regressions)
-         - Domains always doubled: Domain 8 (Combat), Domain 15 (Season Reset), Domain 3 (DB)
+         - Domains always doubled: Domain 3 (Combat), Domain 6 (Season Reset), Domain 20 (INFRA-DATABASE)
 
-Step 3:  Launch BATCH A in parallel — 7 agents (Auth, Infra-Sec, Infra-DB, Anti-Cheat, Admin,
-         Season-Reset, Forum). Wait for ALL to complete before Step 4.
+Step 3:  Launch BATCH A in parallel — 7 agents (Auth, Forum, Combat, Espionage, Admin, Season-Reset,
+         Infra-Security). Wait for ALL to complete before Step 4.
+         → RE-READ this plan file before proceeding to Step 4.
 
 Step 4:  Launch BATCH B in parallel — 7 agents (Combat, Espionage, Economy, Market, Buildings,
          Compounds, Maps). Wait for ALL to complete before Step 5.
+         → RE-READ this plan file before proceeding to Step 5.
 
 Step 5:  Launch BATCH C in parallel — 7 agents (Social, Alliance-Mgmt, Game-Core, Prestige,
          Rankings, Notifications, Infra-Templates). Wait for ALL to complete before Step 6.
+         → RE-READ this plan file before proceeding to Step 6.
 
 Step 6:  Launch BATCH D in parallel — 7 DATA FLOW agents (Taint-User-Input, Taint-DB-Output,
          Taint-Cross-Module, Schema-Usage, Taint-Email, Taint-Session, Taint-API).
          Wait for ALL to complete before Step 7.
+         → RE-READ this plan file before proceeding to Step 7.
 
 Step 7:  Launch BATCH E in parallel — 7 USER FLOW agents (Flow-Registration, Flow-Combat,
          Flow-Market, Flow-Alliance, Flow-Season, Flow-Prestige, Flow-Social).
          Wait for ALL to complete before Step 8.
+         → RE-READ this plan file before proceeding to Step 8.
 
-Step 8:  Collect all 35 reports. Launch consolidation agent (Phase 2).
+Step 7b: Launch BATCH F in parallel — 4 STATIC ANALYSIS agents (Concurrency, Config-Drift,
+         Test-Coverage, Dead-Code). Wait for ALL to complete before Step 8.
+         → RE-READ this plan file before proceeding to Step 8.
+
+Step 8:  Collect all 39 reports. Launch consolidation agent (Phase 2).
+         → RE-READ this plan file before proceeding to Step 9.
 Step 9:  Launch 2 plan reviewers IN PARALLEL (Phase 3).
+         → RE-READ this plan file before proceeding to Step 10.
 Step 10: If reviewers find gaps → fix plan → re-review.
 Step 11: Launch fix agents per batch (Phase 4) — parallel where possible.
+         → RE-READ this plan file before proceeding to Step 12.
 Step 12: Launch 2 verifiers IN PARALLEL (Phase 5).
+         → RE-READ this plan file before proceeding to Step 13.
 Step 13: If verifiers find issues → fix and re-verify.
 Step 14: Run PHPUnit, commit, deploy (Phase 6).
-Step 15: If Pass N found issues → go to Step 1 for Pass N+1.
-Step 16: If Pass N found 0 issues → DONE.
+Step 15: Prepare next pass task list (create TaskCreate for Pass N+1 with all steps above).
+Step 16: If Pass N found issues → go to Step 1 for Pass N+1.
+Step 17: If Pass N found 0 issues → DONE.
 ```
 
 ### Agent Count Per Pass
@@ -1786,14 +1808,22 @@ If no issues found, output:
 
 ---
 
+## Adaptive Domain Skipping Rule
+
+**A domain may be SKIPPED in Pass N if the TWO MOST RECENT consecutive passes (N-2 and N-1) both found zero MEDIUM or higher issues in that domain.**
+
+- LOW findings alone do NOT trigger skipping.
+- If a domain is skipped and a later pass finds a MEDIUM+ issue in a neighboring domain that could affect it, re-run it.
+- Domains that are NEVER skipped (always doubled): INFRA-DATABASE (Domain 20), COMBAT (Domain 3), SEASON_RESET (Domain 6).
+
 ## Termination Criteria
 
 The ultra audit loop terminates when ALL of these are true:
 
-1. All 21 domain agents (and doubled agents) in the latest pass report "DOMAIN CLEAN"
-2. PHPUnit test suite passes with 0 failures and 0 errors
-3. All VPS pages return HTTP 200
-4. No anti-pattern grep hits in the codebase
+1. The latest pass found **zero MEDIUM or higher issues** across all active domains (LOW findings may remain as accepted risk).
+2. PHPUnit test suite passes with 0 failures and 0 errors.
+3. All VPS pages return HTTP 200.
+4. No anti-pattern grep hits in the codebase.
 
 At termination, create a final summary:
 ```

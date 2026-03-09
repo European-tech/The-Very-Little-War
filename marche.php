@@ -293,6 +293,13 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                             // MEDIUM-003: Lock ressources first, then constructions, then cours
                             // Consistent lock order prevents deadlocks with concurrent transactions
 
+                            // P28-HIGH-002: Re-check ban status inside transaction — player may have been
+                            // banned after session was established.
+                            $banCheck = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $_SESSION['login']);
+                            if ($banCheck && (int)$banCheck['estExclu'] === 1) {
+                                throw new \RuntimeException('BANNED');
+                            }
+
                             // Re-read resources with lock first (consistent lock order)
                             $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
 
@@ -381,7 +388,10 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                         }
                         $buyDone = true;
                     } catch (\Exception $e) {
-                        if ($e->getMessage() === 'NOT_ENOUGH_ENERGY') {
+                        if ($e->getMessage() === 'BANNED') {
+                            $erreur = "Votre compte est suspendu.";
+                            $buyDone = true;
+                        } elseif ($e->getMessage() === 'NOT_ENOUGH_ENERGY') {
                             $erreur = "Vous n'avez pas assez d'énergie.";
                             $buyDone = true;
                         } elseif ($e->getMessage() === 'NOT_ENOUGH_STORAGE') {
@@ -448,6 +458,11 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                     $sellAttempts++;
                     try {
                     withTransaction($base, function() use ($base, &$newEnergie, &$newResVal, &$energyGained, &$actualSold, $nomsRes, $numRes, $tabCours, $volatilite, $placeDepot, $sellTaxRate, $nbRes) {
+                        // P28-HIGH-002: Re-check ban status inside transaction
+                        $banCheck = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $_SESSION['login']);
+                        if ($banCheck && (int)$banCheck['estExclu'] === 1) {
+                            throw new \RuntimeException('BANNED');
+                        }
                         // MEDIUM-003: Lock ressources first (consistent lock order prevents deadlocks)
                         $locked = dbFetchOne($base, 'SELECT energie, ' . $nomsRes[$numRes] . ' AS res FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                         if ($locked['res'] < $_POST['nombreRessourceAVendre']) {
@@ -493,7 +508,8 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                         if ($newEnergie > $placeDepotTx) {
                             $newEnergie = $placeDepotTx;
                         }
-                        dbExecute($base, 'UPDATE ressources SET energie=?, ' . $nomsRes[$numRes] . '=? WHERE login=?', 'dds', $newEnergie, $newResVal, $_SESSION['login']);
+                        // P28-HIGH-001: Use GREATEST(0, ...) on atom column (belt-and-suspenders against float rounding)
+                        dbExecute($base, 'UPDATE ressources SET energie=LEAST(?, ' . $placeDepotTx . '), ' . $nomsRes[$numRes] . '=GREATEST(0, ?) WHERE login=?', 'dds', $newEnergie, $newResVal, $_SESSION['login']);
 
                         $chaine = '';
                         foreach ($txTabCours as $num => $cours) {
@@ -553,7 +569,10 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                     }
                         $sellDone = true;
                 } catch (\Exception $e) {
-                    if ($e->getMessage() === 'NOT_ENOUGH_ATOMS') {
+                    if ($e->getMessage() === 'BANNED') {
+                        $erreur = "Votre compte est suspendu.";
+                        $sellDone = true;
+                    } elseif ($e->getMessage() === 'NOT_ENOUGH_ATOMS') {
                         $erreur = "Vous n'avez pas assez d'atomes.";
                         $sellDone = true;
                     } elseif ($e->getMessage() === 'ENERGY_FULL') {

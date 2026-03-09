@@ -33,6 +33,14 @@ $text = preg_replace_callback('!\[url=(https?://[^\]\s"<>\']{1,' . $urlMaxLen . 
     // Strip null bytes before embedding in href
     $href = str_replace("\0", '', $href);
     $label = $m[2]; // already htmlspecialchars'd at top of BBCode()
+    // P28-HIGH-003: Verify scheme via parse_url after URL-decoding to catch encoded bypasses
+    // like javascript://https://... or java%0ascript:// variants.
+    $decoded = urldecode($href);
+    $decoded = str_replace(["\r", "\n", "\t"], '', $decoded);
+    $parsedScheme = strtolower(parse_url($decoded, PHP_URL_SCHEME) ?? '');
+    if ($parsedScheme !== 'http' && $parsedScheme !== 'https') {
+        return htmlspecialchars($m[0], ENT_QUOTES, 'UTF-8'); // Render as plain text
+    }
     $parsed = parse_url($href);
     $domain = isset($parsed['host']) ? htmlspecialchars($parsed['host'], ENT_QUOTES, 'UTF-8') : '';
     $safeHref = htmlspecialchars($href, ENT_QUOTES, 'UTF-8');

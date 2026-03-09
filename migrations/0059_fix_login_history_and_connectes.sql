@@ -20,8 +20,9 @@ SET FOREIGN_KEY_CHECKS=0;
 -- -----------------------------------------------------------------------
 -- (1) login_history: drop and re-add FK with ON UPDATE CASCADE
 -- -----------------------------------------------------------------------
+-- P28-MED-003: Use DATABASE() instead of hardcoded 'tvlw' so this works on any environment.
 SET @existFk = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
-    WHERE TABLE_SCHEMA = 'tvlw'
+    WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME   = 'login_history'
       AND CONSTRAINT_NAME = 'fk_login_history_login'
       AND CONSTRAINT_TYPE = 'FOREIGN KEY');

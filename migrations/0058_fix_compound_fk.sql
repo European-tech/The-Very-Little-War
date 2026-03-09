@@ -13,8 +13,9 @@
 SET FOREIGN_KEY_CHECKS=0;
 
 -- Drop existing FK (idempotent: no-op if already absent)
+-- P28-MED-002: Use DATABASE() instead of hardcoded 'tvlw' so this works on any environment.
 SET @existFk = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
-    WHERE TABLE_SCHEMA = 'tvlw'
+    WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME   = 'player_compounds'
       AND CONSTRAINT_NAME = 'fk_compounds_login'
       AND CONSTRAINT_TYPE = 'FOREIGN KEY');

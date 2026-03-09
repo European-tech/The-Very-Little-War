@@ -41,6 +41,13 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
                 } else {
                     try {
                         withTransaction($base, function() use ($base) {
+                            // P28-CRIT-004: Lock player's autre row first to prevent TOCTOU where
+                            // a concurrent invitation acceptance sets idalliance between the outer
+                            // check (line 31) and this transaction, causing double-membership.
+                            $playerRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
+                            if (!$playerRow || (int)$playerRow['idalliance'] > 0) {
+                                throw new \RuntimeException('ALREADY_IN_ALLIANCE');
+                            }
                             // Re-check inside transaction to prevent race condition
                             $allianceCheckRows = dbFetchAll($base, 'SELECT nom FROM alliances WHERE tag=? OR nom=?', 'ss', $_POST['tagalliance'], $_POST['nomalliance']);
                             if (count($allianceCheckRows) > 0) {
@@ -56,7 +63,11 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
                         $information = "Votre équipe a été créée.";
                         header("Location: alliance.php"); exit;
                     } catch (\RuntimeException $e) {
-                        $erreur = "Une équipe avec ce nom ou ce tag existe déja.";
+                        if ($e->getMessage() === 'ALREADY_IN_ALLIANCE') {
+                            $erreur = "Vous avez déjà une équipe.";
+                        } else {
+                            $erreur = "Une équipe avec ce nom ou ce tag existe déja.";
+                        }
                     }
                 }
             } else {

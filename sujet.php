@@ -335,7 +335,7 @@ if (isset($_GET['id'])) {
 			if ($sujet['statut'] == 0) {
 				debutListe();
 				creerBBcode("contenu");
-				item(['form' => ['sujet.php?id=' . $getId, "reponseForm"], 'floating' => false, 'titre' => "Réponse", 'input' => csrfField() . '<input type="hidden" name="sujet_id" value="' . $getId . '">' . '<textarea name="contenu" id="contenu" rows="10" cols="50"></textarea>']);
+				item(['form' => ['sujet.php?id=' . $getId, "reponseForm"], 'floating' => false, 'titre' => "Réponse", 'input' => csrfField() . '<input type="hidden" name="sujet_id" value="' . $getId . '">' . '<textarea name="contenu" id="contenu" rows="10" cols="50" maxlength="' . FORUM_POST_MAX_LENGTH . '"></textarea>']);
 				item(['input' => submit(['titre' => 'Répondre', 'form' => 'reponseForm'])]);
 				finListe();
 			} else {

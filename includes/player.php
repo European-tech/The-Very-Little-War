@@ -1088,18 +1088,15 @@ function archiveSeasonData($base)
     // the freshly-read MAX against the season number that the caller expects.
     // The cleanest guard: check whether a row for ($nextSeason - 1) exists AND statistiques.debut
     // is still in the current month (i.e., remiseAZero has NOT yet run for this season).
-    $prevSeason = $nextSeason - 1;
-    if ($prevSeason >= 1) {
-        // FIX: Use season_number only for idempotency check — the debut timestamp can be
-        // overwritten during maintenance start before archiveSeasonData() runs, making
-        // UNIX_TIMESTAMP(created_at) >= debut unreliable as a duplicate guard.
-        $prevArchiveCount = dbCount($base,
-            'SELECT COUNT(*) FROM season_recap WHERE season_number = ?',
-            'i', $prevSeason);
-        if ($prevArchiveCount > 0) {
-            logInfo('SEASON', 'archiveSeasonData skipped — already archived this cycle', ['season' => $prevSeason]);
-            return $prevSeason; // return the season number that was already committed
-        }
+    // P28-CRIT-001: Check nextSeason (the season about to be archived), NOT prevSeason.
+    // Checking prevSeason always returns >0 rows after season 1 (season_recap is never cleared),
+    // causing the guard to fire on every subsequent season end and block all archiving.
+    $nextArchiveCount = dbCount($base,
+        'SELECT COUNT(*) FROM season_recap WHERE season_number = ?',
+        'i', $nextSeason);
+    if ($nextArchiveCount > 0) {
+        logInfo('SEASON', 'archiveSeasonData skipped — already archived this cycle', ['season' => $nextSeason]);
+        return $nextSeason; // return the season number that was already committed
     }
 
     // FIX-CRITICAL: Exclude banned players (estExclu=1) from season_recap archive so they
@@ -1370,7 +1367,13 @@ function performSeasonEnd()
     return $vainqueurManche;
 
     } finally {
-        dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
+        // P28-HIGH-LOCK: Check RELEASE_LOCK return — 0 means lock was not held by this thread,
+        // NULL means lock did not exist. Either indicates a logic error worth logging.
+        $releaseRow = dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset') AS released", '', '');
+        $released = $releaseRow ? (int)($releaseRow['released'] ?? -1) : -1;
+        if ($released !== 1) {
+            logError('SEASON', 'RELEASE_LOCK tvlw_season_reset returned unexpected value', ['value' => $released]);
+        }
     }
 }
 
@@ -1387,14 +1390,57 @@ function queueSeasonEndEmails(\mysqli $base, ?string $vainqueurManche): void
     // P27-016: Idempotency guard wrapped in transaction with FOR UPDATE to prevent duplicate emails on concurrent calls.
     $lastRecap = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
     $currentSeason = ($lastRecap && $lastRecap['max_s']) ? (int)$lastRecap['max_s'] + 1 : 1;
+
+    $winner = $vainqueurManche !== null ? htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') : 'inconnu';
+    $subject = 'Fin de saison - The Very Little War';
+
+    // Fetch the player list outside the transaction (read-only, no lock needed).
+    $players = dbFetchAll(
+        $base,
+        'SELECT m.login, m.email FROM membre m JOIN autre a ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' AND m.estExclu = 0 AND m.email != \'\' AND m.email IS NOT NULL',
+        ''
+    );
+
+    // P28-MED-SEA-002: Run the INSERT loop and the idempotency flag update inside the SAME
+    // transaction. The FOR UPDATE on statistiques ensures only one concurrent caller proceeds.
+    // Moving the flag update to AFTER the inserts (previously it was committed before the loop)
+    // means a mid-loop crash rolls back all partial inserts AND leaves the flag unset, allowing
+    // a clean retry on the next call.
     $alreadyQueued = false;
-    withTransaction($base, function() use ($base, $currentSeason, &$alreadyQueued) {
+    withTransaction($base, function() use ($base, $currentSeason, $players, $subject, $winner, &$alreadyQueued) {
         $statsRow = dbFetchOne($base, 'SELECT emails_queued_season FROM statistiques FOR UPDATE', '', '');
         if ($statsRow && (int)($statsRow['emails_queued_season'] ?? 0) >= $currentSeason) {
             $alreadyQueued = true;
             return;
         }
-        // Mark as queued inside the transaction to block concurrent callers
+
+        $now = time();
+        foreach ($players as $player) {
+            $login = htmlspecialchars($player['login'], ENT_QUOTES, 'UTF-8');
+            $bodyHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>'
+                . '<h2>La saison vient de se terminer !</h2>'
+                . '<p>Bonjour ' . $login . ',</p>'
+                . '<p>La saison de <strong>The Very Little War</strong> vient de se terminer !</p>'
+                . '<p>Le vainqueur de cette saison est : <strong>' . $winner . '</strong></p>'
+                . '<p>Une nouvelle saison commence. Rendez-vous sur '
+                . '<a href="https://theverylittlewar.com">theverylittlewar.com</a> pour participer '
+                . 'à la prochaine saison !</p>'
+                . '<p>Bonne chance à tous,<br>L\'équipe TVLW</p>'
+                . '</body></html>';
+
+            // P27-027: Use PHP time() instead of SQL UNIX_TIMESTAMP() to avoid clock skew with processEmailQueue
+            dbExecute(
+                $base,
+                'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, ?)',
+                'sssi',
+                $player['email'],
+                $subject,
+                $bodyHtml,
+                $now
+            );
+        }
+
+        // Mark as queued AFTER all inserts succeed so a partial failure can be retried.
         dbExecute($base, 'UPDATE statistiques SET emails_queued_season = ?', 'i', $currentSeason);
     });
     if ($alreadyQueued) {
@@ -1402,42 +1448,6 @@ function queueSeasonEndEmails(\mysqli $base, ?string $vainqueurManche): void
         return;
     }
 
-    $winner = $vainqueurManche !== null ? htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') : 'inconnu';
-
-    $players = dbFetchAll(
-        $base,
-        'SELECT m.login, m.email FROM membre m JOIN autre a ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' AND m.estExclu = 0 AND m.email != \'\' AND m.email IS NOT NULL',
-        ''
-    );
-
-    $subject = 'Fin de saison - The Very Little War';
-
-    foreach ($players as $player) {
-        $login = htmlspecialchars($player['login'], ENT_QUOTES, 'UTF-8');
-        $bodyHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>'
-            . '<h2>La saison vient de se terminer !</h2>'
-            . '<p>Bonjour ' . $login . ',</p>'
-            . '<p>La saison de <strong>The Very Little War</strong> vient de se terminer !</p>'
-            . '<p>Le vainqueur de cette saison est : <strong>' . $winner . '</strong></p>'
-            . '<p>Une nouvelle saison commence. Rendez-vous sur '
-            . '<a href="https://theverylittlewar.com">theverylittlewar.com</a> pour participer '
-            . 'à la prochaine saison !</p>'
-            . '<p>Bonne chance à tous,<br>L\'équipe TVLW</p>'
-            . '</body></html>';
-
-        // P27-027: Use PHP time() instead of SQL UNIX_TIMESTAMP() to avoid clock skew with processEmailQueue
-        dbExecute(
-            $base,
-            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, ?)',
-            'sssi',
-            $player['email'],
-            $subject,
-            $bodyHtml,
-            time()
-        );
-    }
-
-    // (Season already marked as queued inside the transaction above)
     logInfo('SEASON', 'Season-end emails queued', ['count' => count($players), 'winner' => $vainqueurManche]);
 }
 
@@ -1561,9 +1571,10 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
         }
     }
     // EMAIL11-001: Purge sent and stale unsent emails to comply with GDPR data minimization.
-    // Stale unsent emails (>24h old) are skipped by the query above but never deleted otherwise.
-    // FIX: Also purge any leftover sentinel 1 rows from a previous crashed run (treat as stale).
-    dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL OR (sent_at IS NULL AND created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR))');
+    // P28-MED-SEA-001: Only purge rows with a real sent timestamp (> 1). sent_at = 1 is the
+    // claim sentinel — deleting it while another process holds the claim causes silent email loss.
+    // Stale unsent emails (>24h) are always safe to delete since they were never claimed.
+    dbExecute($base, 'DELETE FROM email_queue WHERE sent_at > 1 OR (sent_at IS NULL AND created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR))');
 }
 
 function remiseAZero()

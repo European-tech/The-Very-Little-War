@@ -150,7 +150,9 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 							dbExecute($base, 'UPDATE statutforum SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE sujets SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE prestige SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE attack_cooldowns SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+							// P28-CRIT-003: attack_cooldowns uses 'attacker'/'defender' columns, not 'login'
+							dbExecute($base, 'UPDATE attack_cooldowns SET attacker = ? WHERE attacker = ?', 'ss', $newLogin, $oldLogin);
+							dbExecute($base, 'UPDATE attack_cooldowns SET defender = ? WHERE defender = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE actionsattaques SET attaquant = ? WHERE attaquant = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE actionsattaques SET defenseur = ? WHERE defenseur = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE actionsformation SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
