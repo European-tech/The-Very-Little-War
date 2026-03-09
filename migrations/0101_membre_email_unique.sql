@@ -8,4 +8,4 @@
 -- NOTE: The original schema uses latin1 charset (FK compatibility with other columns).
 -- Duplicate emails should not exist in production but we deduplicate just in case.
 
-ALTER TABLE `membre` ADD UNIQUE KEY `uq_membre_email` (`email`);
+ALTER TABLE `membre` ADD UNIQUE KEY IF NOT EXISTS `uq_membre_email` (`email`);
