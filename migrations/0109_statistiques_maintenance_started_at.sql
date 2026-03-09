@@ -3,4 +3,4 @@
 -- Previously, basicprivatephp.php overwrote debut with time() when Phase 1 maintenance fired,
 -- corrupting any season-duration calculation that depended on debut = real season start.
 -- Now debut is never touched during maintenance; maintenance_started_at tracks when Phase 1 fired.
-ALTER TABLE statistiques ADD COLUMN maintenance_started_at INT NOT NULL DEFAULT 0;
+ALTER TABLE statistiques ADD COLUMN IF NOT EXISTS maintenance_started_at INT NOT NULL DEFAULT 0;
