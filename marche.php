@@ -79,6 +79,10 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
             }
             if (preg_match("#^[0-9]*$#", $_POST['energieEnvoyee']) and $bool == 1) {
                 $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=?', 's', $_POST['destinataire']);
+                // TAINT-CROSS HIGH-002: Fetch canonical login from DB so $transferInfo uses
+                // a server-controlled value, not the raw POST input.
+                $canonicalDestinataire = dbFetchOne($base, 'SELECT login FROM membre WHERE login=?', 's', $_POST['destinataire']);
+                $safeDestinataire = $canonicalDestinataire ? $canonicalDestinataire['login'] : htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8');
                 if ($verification['joueurOuPas'] == 1) {
                     // Self-transfer check (P4-ADV-003)
                     if ($_POST['destinataire'] === $_SESSION['login']) {
@@ -88,7 +92,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                     } else {
                     try {
                         $transferInfo = '';
-                        withTransaction($base, function() use ($base, $nomsRes, $nbRes, $membre, &$transferInfo, &$revenuEnergie, &$revenu, &$vitesseMarchands) {
+                        withTransaction($base, function() use ($base, $nomsRes, $nbRes, $membre, $safeDestinataire, &$transferInfo, &$revenuEnergie, &$revenu, &$vitesseMarchands) {
                             // Lock sender resources to prevent race condition (P5-GAP-002)
                             $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
 
@@ -193,9 +197,9 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                                 }
                             }
                             if ($_POST['energieEnvoyee'] > 0) {
-                                $transferInfo = "Vous avez envoyé " . number_format($_POST['energieEnvoyee'], 0, ' ', ' ') . "<img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/> " . $infoChaine . ' à ' . $_POST['destinataire'];
+                                $transferInfo = "Vous avez envoyé " . number_format($_POST['energieEnvoyee'], 0, ' ', ' ') . "<img class=\"imageAide\" src=\"images/energie.png\" alt=\"energie\"/> " . $infoChaine . ' à ' . htmlspecialchars($safeDestinataire, ENT_QUOTES, 'UTF-8');
                             } else {
-                                $transferInfo = "Vous avez envoyé " . $infoChaine . " à " . $_POST['destinataire'];
+                                $transferInfo = "Vous avez envoyé " . $infoChaine . " à " . htmlspecialchars($safeDestinataire, ENT_QUOTES, 'UTF-8');
                             }
                         });
 
@@ -343,6 +347,19 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
 
                         $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                         $tabCours = explode(",", $val['tableauCours']);
+                        // MARKET-MEDIUM-001: Validate post-transaction tabCours against safe bounds
+                        $expectedCount = count($nomsRes);
+                        while (count($tabCours) < $expectedCount) {
+                            $tabCours[] = (string)MARKET_PRICE_FLOOR;
+                        }
+                        foreach ($tabCours as $k => $v) {
+                            $raw = (float)$v;
+                            $clamped = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $raw));
+                            if ($clamped !== $raw) {
+                                logWarn('MARKET', 'Post-buy tabCours price out of range, clamped', ['index' => $k, 'raw' => $raw, 'clamped' => $clamped]);
+                            }
+                            $tabCours[$k] = $clamped;
+                        }
                         $buyDone = true;
                     } catch (\Exception $e) {
                         if ($e->getMessage() === 'NOT_ENOUGH_ENERGY') {
@@ -502,6 +519,19 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
 
                     $val = dbFetchOne($base, 'SELECT * FROM cours ORDER BY timestamp DESC LIMIT 1');
                     $tabCours = explode(",", $val['tableauCours']);
+                    // MARKET-MEDIUM-001: Validate post-transaction tabCours against safe bounds
+                    $expectedCount = count($nomsRes);
+                    while (count($tabCours) < $expectedCount) {
+                        $tabCours[] = (string)MARKET_PRICE_FLOOR;
+                    }
+                    foreach ($tabCours as $k => $v) {
+                        $raw = (float)$v;
+                        $clamped = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $raw));
+                        if ($clamped !== $raw) {
+                            logWarn('MARKET', 'Post-sell tabCours price out of range, clamped', ['index' => $k, 'raw' => $raw, 'clamped' => $clamped]);
+                        }
+                        $tabCours[$k] = $clamped;
+                    }
                         $sellDone = true;
                 } catch (\Exception $e) {
                     if ($e->getMessage() === 'NOT_ENOUGH_ATOMS') {

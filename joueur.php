@@ -22,8 +22,15 @@ include("includes/layout.php");
 
 if (isset($_GET['id'])) {
 	$_GET['id'] = trim($_GET['id']);
-	$membre = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_GET['id']);
+	$membre = dbFetchOne($base, 'SELECT login, derniereConnexion, x, y, estExclu FROM membre WHERE login=?', 's', $_GET['id']);
 	$nb = $membre ? 1 : 0;
+
+	if($nb > 0) {
+		// FLOW-SOCIAL MEDIUM-003: Hide banned players — show same "not found" response
+		if ((int)$membre['estExclu'] === 1) {
+			$nb = 0;
+		}
+	}
 
 	if($nb > 0) {
 		$donnees1 = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $membre['login']);

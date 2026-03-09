@@ -27,19 +27,27 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
     if ($dateT->getTimestamp() >= time() + VACATION_MIN_ADVANCE_SECONDS) {
         $date = $annee . '-' . $mois . '-' . $jour;
         // MEDIUM-007: Check for active combat before activating vacation mode
-        $activeCombat = dbCount($base, 'SELECT COUNT(*) AS nb FROM actionsattaques WHERE (defenseur=? OR attaquant=?) AND attaqueFaite=0 AND tempsAttaque > ?', 'ssi', $_SESSION['login'], $_SESSION['login'], time());
-        if ($activeCombat > 0) {
-            $erreur = "Vous ne pouvez pas activer le mode vacances pendant un combat en cours.";
-        } else {
         $login = $_SESSION['login'];
-        withTransaction($base, function() use ($base, $login, $date) {
+        // MEDIUM-001: Active-combat check runs INSIDE the transaction, after the FOR UPDATE
+        // lock on membre, so there is no TOCTOU window between the check and the INSERT.
+        $vacationBlocked = false;
+        withTransaction($base, function() use ($base, $login, $date, &$vacationBlocked) {
             $membreRow = dbFetchOne($base, 'SELECT id, vacance FROM membre WHERE login = ? FOR UPDATE', 's', $login);
             if (!$membreRow || $membreRow['vacance']) return; // already on vacation
             $membreId = (int)$membreRow['id'];
+            // Re-check for active combat under the DB lock (TOCTOU fix).
+            $activeCombat = dbCount($base, 'SELECT COUNT(*) AS nb FROM actionsattaques WHERE (defenseur=? OR attaquant=?) AND attaqueFaite=0 AND tempsAttaque > ?', 'ssi', $login, $login, time());
+            if ($activeCombat > 0) {
+                $vacationBlocked = true;
+                return; // rollback will happen via transaction, but no writes were done
+            }
             dbExecute($base, 'DELETE FROM actionsformation WHERE login = ?', 's', $login);
             dbExecute($base, 'INSERT INTO vacances VALUES (default, ?, CURRENT_DATE, ?)', 'is', $membreId, $date);
             dbExecute($base, 'UPDATE membre SET vacance = 1 WHERE id = ?', 'i', $membreId);
         });
+        if ($vacationBlocked) {
+            $erreur = "Vous ne pouvez pas activer le mode vacances pendant un combat en cours.";
+        } else {
         header("Location: compte.php"); exit;
         } // end active combat check else
     } else {
@@ -51,7 +59,10 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
 
 
 if (isset($_POST['changermdpactuel']) && isset($_POST['changermdp']) && isset($_POST['changermdp1'])) {
-    if (!empty($_POST['changermdpactuel']) && !empty($_POST['changermdp']) && !empty($_POST['changermdp1'])) {
+    // INFRA-SEC16-002: Rate limit password change to prevent brute-forcing current password.
+    if (!rateLimitCheck($_SESSION['login'], 'password_change', 5, 300)) {
+        $erreur = "Trop de tentatives. Réessayez dans quelques minutes.";
+    } elseif (!empty($_POST['changermdpactuel']) && !empty($_POST['changermdp']) && !empty($_POST['changermdp1'])) {
         $currentPassword = $_POST['changermdpactuel'];
         $newPassword = $_POST['changermdp'];
         $newPasswordConfirm = $_POST['changermdp1'];

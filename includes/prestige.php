@@ -62,10 +62,20 @@ function calculatePrestigePoints($login) {
     // Note: 'derniereConnexion' is updated on each page load; 'timestamp' is only set at registration/reset
     $lastActive = dbFetchOne($base, 'SELECT derniereConnexion FROM membre WHERE login=?', 's', $login);
     $seasonRow  = dbFetchOne($base, 'SELECT debut FROM statistiques LIMIT 1', '');
-    // Compute the season end from the stored debut timestamp; fall back to now if unavailable.
-    $seasonEnd = ($seasonRow && $seasonRow['debut'] > 0)
-        ? (int)$seasonRow['debut'] + SECONDS_PER_MONTH
-        : time();
+    // FLOW-SEASON HIGH-002: Phase 1 overwrites statistiques.debut with the maintenance
+    // start timestamp (the moment a new calendar month was detected), so debut no longer
+    // holds the real season start. The real season END is the start of the current calendar
+    // month (i.e. midnight on the 1st of the month in which debut falls), because that is
+    // exactly when the month rolled over and maintenance was triggered.
+    // Using debut + SECONDS_PER_MONTH would give a future date ~31 days from now, making
+    // the final-week window start in the future and excluding all active players.
+    if ($seasonRow && $seasonRow['debut'] > 0) {
+        $debutTs = (int)$seasonRow['debut'];
+        // Season ended at midnight of the 1st of the month when maintenance was triggered
+        $seasonEnd = mktime(0, 0, 0, (int)date('n', $debutTs), 1, (int)date('Y', $debutTs));
+    } else {
+        $seasonEnd = time();
+    }
     $seasonFinalWeekStart = $seasonEnd - SECONDS_PER_WEEK;
     if ($lastActive && (int)$lastActive['derniereConnexion'] >= $seasonFinalWeekStart) {
         $pp += PRESTIGE_PP_ACTIVE_FINAL_WEEK;
@@ -94,7 +104,7 @@ function calculatePrestigePoints($login) {
             foreach ($thresholds as $t) {
                 if ($value >= $t) $tier++;
             }
-            $pp += $tier; // 1 PP per tier reached
+            $pp += $tier * PRESTIGE_PP_PER_MEDAL_TIER; // PP per tier from config (PRST16-001)
         }
 
         // Pipelette medal: count forum messages from reponses table
@@ -104,7 +114,7 @@ function calculatePrestigePoints($login) {
             foreach ($MEDAL_THRESHOLDS_PIPELETTE as $t) {
                 if ($pipeRow['nbmessages'] >= $t) $pipeTier++;
             }
-            $pp += $pipeTier;
+            $pp += $pipeTier * PRESTIGE_PP_PER_MEDAL_TIER; // consistent with other medals (PRST16-001)
         }
 
         // Activity-based PP

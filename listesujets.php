@@ -19,21 +19,18 @@ if ($getId < 1 || !$forumRow) {
 	exit();
 }
 
-// MED-028: Block non-members from viewing alliance-private forums on GET path
-try {
-    if (!empty($forumRow['alliance_id'])) {
-        $viewerAllianceId = 0;
-        if (isset($_SESSION['login'])) {
-            $viewerRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
-            $viewerAllianceId = $viewerRow ? (int)$viewerRow['idalliance'] : 0;
-        }
-        if ($viewerAllianceId !== (int)$forumRow['alliance_id']) {
-            header('Location: forum.php');
-            exit();
-        }
+// MED-028 / FLOW-SOCIAL MEDIUM-005: Block non-members from viewing alliance-private forums.
+// The gate must NOT be skippable via DB schema state: if the query fails, deny access.
+if (!empty($forumRow['alliance_id'])) {
+    $viewerAllianceId = 0;
+    if (isset($_SESSION['login'])) {
+        $viewerRow = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
+        $viewerAllianceId = $viewerRow ? (int)$viewerRow['idalliance'] : 0;
     }
-} catch (\Exception $e) {
-    // alliance_id column not yet present — all forums public, skip silently
+    if ($viewerAllianceId !== (int)$forumRow['alliance_id']) {
+        header('Location: forum.php');
+        exit();
+    }
 }
 
 include("includes/bbcode.php");
@@ -67,16 +64,13 @@ if (isset($_POST['titre']) and isset($_POST['contenu'])) {
 		// MED-028: Alliance-only forum access control
 		// If the forum category has an alliance_id set, only members of that alliance may post.
 		if (empty($erreur)) {
-			try {
-				$forumMeta = dbFetchOne($base, 'SELECT alliance_id FROM forums WHERE id = ?', 'i', $getId);
-				if ($forumMeta && !empty($forumMeta['alliance_id'])) {
-					$posterAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
-					if (!$posterAlliance || (int)$posterAlliance['idalliance'] !== (int)$forumMeta['alliance_id']) {
-						$erreur = "Vous n'avez pas accès à ce forum.";
-					}
+			// FLOW-SOCIAL MEDIUM-005: Alliance-private forum post guard — must not be skippable.
+			$forumMeta = dbFetchOne($base, 'SELECT alliance_id FROM forums WHERE id = ?', 'i', $getId);
+			if ($forumMeta && !empty($forumMeta['alliance_id'])) {
+				$posterAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login = ?', 's', $_SESSION['login']);
+				if (!$posterAlliance || (int)$posterAlliance['idalliance'] !== (int)$forumMeta['alliance_id']) {
+					$erreur = "Vous n'avez pas accès à ce forum.";
 				}
-			} catch (\Exception $e) {
-				// alliance_id column not yet present — all forums public, skip silently
 			}
 		}
 		if (empty($erreur) && !empty($titre) and !empty($_POST['contenu']) and mb_strlen($_POST['contenu']) <= FORUM_POST_MAX_LENGTH and mb_strlen($titre) <= FORUM_TITLE_MAX_LENGTH) {

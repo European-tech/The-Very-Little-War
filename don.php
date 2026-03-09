@@ -24,9 +24,32 @@ if(isset($_POST['energieEnvoyee'])) {
 		$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 
 		if($idalliance['idalliance'] > 0) {
-			$verification = dbFetchOne($base, 'SELECT count(*) AS verificationAlliance FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
+			$verification = dbFetchOne($base, 'SELECT count(*) AS verificationAlliance, chef FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 
 			if($verification['verificationAlliance'] > 0) {
+				// ECONOMY-MEDIUM-002: Block donations when sender and alliance chef share the same IP
+				// or have an active high/critical multi-account flag — prevents alt-funneling.
+				$allianceChef = $verification['chef'] ?? '';
+				if ($allianceChef !== '' && $allianceChef !== $_SESSION['login']) {
+					// Check shared IP between sender and chef in membre table
+					$senderIp = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
+					$chefIp   = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $allianceChef);
+					$sharedIp = ($senderIp && $chefIp
+						&& !empty($senderIp['ip']) && !empty($chefIp['ip'])
+						&& $senderIp['ip'] === $chefIp['ip']);
+					// Also check account_flags for an active high/critical flag between the pair
+					$flagged = areFlaggedAccounts($base, $_SESSION['login'], $allianceChef);
+					if ($sharedIp || $flagged) {
+						$erreur = "Don refusé : votre compte et le chef de l'alliance partagent une connexion suspecte.";
+						logWarn('DON', 'Donation blocked: possible alt-account funneling', [
+							'sender' => $_SESSION['login'],
+							'chef'   => $allianceChef,
+							'shared_ip' => $sharedIp,
+							'flagged'   => $flagged,
+						]);
+					}
+				}
+				if (empty($erreur)) {
 				try {
 					withTransaction($base, function() use ($base, $idalliance) {
 						// Lock rows to prevent TOCTOU race condition
@@ -39,7 +62,7 @@ if(isset($_POST['energieEnvoyee'])) {
 						}
 
 						dbExecute($base, 'UPDATE ressources SET energie = energie - ? WHERE login=?', 'ds', $_POST['energieEnvoyee'], $_SESSION['login']);
-						dbExecute($base, 'UPDATE autre SET energieDonnee = energieDonnee + ? WHERE login=?', 'ds', $_POST['energieEnvoyee'], $_SESSION['login']);
+						dbExecute($base, 'UPDATE autre SET energieDonnee = energieDonnee + ?, nbDons = nbDons + 1 WHERE login=?', 'ds', $_POST['energieEnvoyee'], $_SESSION['login']); // ECO16-001: increment nbDons for medal tracking
 						dbExecute($base, 'UPDATE alliances SET energieAlliance = energieAlliance + ?, energieTotaleRecue = energieTotaleRecue + ? WHERE id=?', 'ddi', $_POST['energieEnvoyee'], $_POST['energieEnvoyee'], $idalliance['idalliance']);
 					});
 					$information = "Le don a bien été reçu !";
@@ -52,6 +75,7 @@ if(isset($_POST['energieEnvoyee'])) {
 						throw $e;
 					}
 				}
+				} // end if (empty($erreur)) — multi-account guard
 			}
 			else {
 				$erreur = "Cette alliance n'existe pas.";

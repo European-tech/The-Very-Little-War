@@ -146,6 +146,20 @@ function updateActions($joueur)
                         // Decay loop now inside the transaction
                         $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
 
+                        // TAINT-CROSS MEDIUM-007: Guard against $nbClasses (captured by-value) diverging from
+                        // the actual DB row count due to concurrent formation completions. Correct $nbClasses
+                        // to match reality before the loop to prevent null-dereference in combat arrays.
+                        $actualNbClasses = count($moleculesRows);
+                        if ($actualNbClasses !== $nbClasses) {
+                            logWarn('COMBAT', 'nbClasses mismatch corrected', [
+                                'expected' => $nbClasses,
+                                'actual'   => $actualNbClasses,
+                                'action_id' => $actions['id'] ?? 'unknown',
+                                'attaquant' => $actions['attaquant'],
+                            ]);
+                            $nbClasses = $actualNbClasses;
+                        }
+
                         $compteur = 1;
                         $chaine = '';
                         $totalMoleculesPerdues = 0;
@@ -212,8 +226,8 @@ function updateActions($joueur)
                             if ($classeAttaquant[$i]['nombre'] == 0) {
                                 $classeAttaquant[$i]['formuleAfficher'] = "?";
                             } else {
-                                // H-004: escape raw DB formula before passing to couleurFormule()
-                                $classeAttaquant[$i]['formuleAfficher'] = couleurFormule(htmlspecialchars($classeAttaquant[$i]['formule'], ENT_QUOTES, 'UTF-8'));
+                                // H-004: couleurFormule() now escapes internally (INFRA-TEMPLATES-MEDIUM-001)
+                                $classeAttaquant[$i]['formuleAfficher'] = couleurFormule($classeAttaquant[$i]['formule']);
                             }
                         }
 
@@ -286,8 +300,8 @@ function updateActions($joueur)
                         $milieuDefenseur = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
                             $h = '';
                             for ($i = 1; $i <= $nbClasses; $i++) {
-                                // H-004: escape raw DB formula before passing to couleurFormule()
-                                $h .= "<th>" . couleurFormule(htmlspecialchars($classeDefenseur[$i]['formule'], ENT_QUOTES, 'UTF-8')) . "</th>\n";
+                                // H-004: couleurFormule() now escapes internally (INFRA-TEMPLATES-MEDIUM-001)
+                                $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
                             }
                             $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
                             for ($i = 1; $i <= $nbClasses; $i++) {
@@ -316,8 +330,8 @@ function updateActions($joueur)
                         $milieuAttaquant = (function() use ($classeDefenseur, $defenseurMort, $nbClasses) {
                             $h = '';
                             for ($i = 1; $i <= $nbClasses; $i++) {
-                                // H-004: escape raw DB formula before passing to couleurFormule()
-                                $h .= "<th>" . couleurFormule(htmlspecialchars($classeDefenseur[$i]['formule'], ENT_QUOTES, 'UTF-8')) . "</th>\n";
+                                // H-004: couleurFormule() now escapes internally (INFRA-TEMPLATES-MEDIUM-001)
+                                $h .= "<th>" . couleurFormule($classeDefenseur[$i]['formule']) . "</th>\n";
                             }
                             $h .= "</tr></thead><tbody><tr><th>Troupes</th>\n";
                             for ($i = 1; $i <= $nbClasses; $i++) {
@@ -360,9 +374,9 @@ function updateActions($joueur)
 
                         // Les rapports sont créés
                         $rapportImage = '<img alt="attack" src="images/rapports/sword.png" class="imageAide"/>';
-                        dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportAttaquant, $actions['attaquant'], $rapportImage);
+                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, image) VALUES (?, ?, ?, ?, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportAttaquant, $actions['attaquant'], $rapportImage);
 
-                        dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage);
+                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, image) VALUES (?, ?, ?, ?, ?)', 'issss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage);
                         // withTransaction handles commit automatically
                     });
 
@@ -425,12 +439,11 @@ function updateActions($joueur)
                             }
 
                             // Build army section dynamically from the $espClasses array
-                            // SPY-P9-009: couleurFormule() does not call htmlspecialchars() internally,
-                            // so we escape the formula string first to prevent latent XSS in spy reports.
+                            // SPY-P9-009 / INFRA-TEMPLATES-MEDIUM-001: couleurFormule() now escapes
+                            // internally, so pass the raw DB formula directly.
                             $armeeHtml = '';
                             foreach ($espClasses as $espClass) {
-                                $safeFormule = htmlspecialchars($espClass['formule'], ENT_QUOTES, 'UTF-8');
-                                $armeeHtml .= "<strong>" . couleurFormule($safeFormule) . " : </strong>" . nombreMolecules(number_format($espClass['nombre'], 0, ' ', ' ')) . "<br/>\n";
+                                $armeeHtml .= "<strong>" . couleurFormule($espClass['formule']) . " : </strong>" . nombreMolecules(number_format($espClass['nombre'], 0, ' ', ' ')) . "<br/>\n";
                             }
 
                             $contenuRapportJoueur = "
@@ -515,19 +528,21 @@ function updateActions($joueur)
                         $contenuRapportJoueur = "<p>Votre espionnage a raté, vous avez envoyé moins de la moitié des neutrinos de votre adversaire.</p>";
                     }
 
+                    // ESP16-001: Track whether espionage succeeded so the inner transaction
+                    // can conditionally notify the defender (only on success, not failure).
+                    $espionageSucceeded = ($espionageThreshold < $espActions['nombreneutrinos']);
+
                     // Inner transaction for atomic report write + action deletion (MED-068).
-                    // Still useful: the outer transaction covers the CAS + reads, the inner
-                    // groups the two INSERT/DELETE writes into a single atomic unit within it.
-                    withTransaction($base, function() use ($base, $espActionId, $espActions, $titreRapportJoueur, $contenuRapportJoueur, $espionageThreshold) {
+                    withTransaction($base, function() use ($base, $espActionId, $espActions, $titreRapportJoueur, $contenuRapportJoueur, $espionageSucceeded) {
                         dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportJoueur, $contenuRapportJoueur, $espActions['attaquant'], 'espionage');
 
-                        // ESPIONAGE-HIGH-001: Notify defender unconditionally on espionage success.
-                        // Previous condition was inverted (>= instead of <), making this dead code.
-                        // We are already inside the success branch (threshold < nombreneutrinos),
-                        // so the defender is always notified when espionage succeeds.
-                        $titreRapportEspionDef   = 'Tentative d\'espionnage détectée';
-                        $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
-                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $espActions['defenseur'], 'defense');
+                        // Only notify defender when espionage actually succeeded.
+                        // On failure: attacker spent neutrinos, nothing revealed, defender not alerted.
+                        if ($espionageSucceeded) {
+                            $titreRapportEspionDef   = 'Tentative d\'espionnage détectée';
+                            $contenuRapportEspionDef = '<p>Un agent inconnu a espionné votre base. Vos défenses, ressources et compositions moléculaires ont été observées.</p>';
+                            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, type) VALUES(?, ?, ?, ?, ?)', 'issss', $espActions['tempsAttaque'], $titreRapportEspionDef, $contenuRapportEspionDef, $espActions['defenseur'], 'defense');
+                        }
 
                         dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
                     });
@@ -661,7 +676,7 @@ function updateActions($joueur)
             $envoiTypes .= 's';
             dbExecute($base, 'UPDATE ressources SET ' . implode(',', $envoiSetClauses) . ' WHERE login=?', $envoiTypes, ...$envoiParams);
 
-            dbExecute($base, 'INSERT INTO rapports VALUES(default, ?, ?, ?, ?, default, ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
+            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, image) VALUES (?, ?, ?, ?, ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
 
             dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
         });

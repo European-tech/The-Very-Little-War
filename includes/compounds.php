@@ -279,13 +279,34 @@ function getCompoundBonus($base, $login, $effectType)
 
 /**
  * Clean up expired compounds (garbage collection).
+ *
+ * TAINT-CROSS MEDIUM-006: Identify which players have expired compounds before deleting,
+ * then invalidate only those players' cache entries. This prevents stale bonus values
+ * if getCompoundBonus() was called earlier in the same request before GC ran.
  */
 function cleanupExpiredCompounds($base)
 {
+    // Collect affected logins before deletion so we can do targeted cache invalidation
+    $threshold = time() - SECONDS_PER_DAY; // P9-MED-014: keep for 24h after expiry for UI display
+    $affectedRows = dbFetchAll($base,
+        'SELECT DISTINCT login FROM player_compounds WHERE activated_at IS NOT NULL AND expires_at < ?',
+        'i', $threshold
+    );
+
     dbExecute($base,
         'DELETE FROM player_compounds WHERE activated_at IS NOT NULL AND expires_at < ?',
-        'i', time() - SECONDS_PER_DAY // P9-MED-014: keep for 24h after expiry for UI display
+        'i', $threshold
     );
-    // Invalidate all cached bonuses since we don't know which players were affected
-    invalidateCompoundBonusCache();
+
+    // Invalidate only the affected players' cache entries; fall back to full clear if query failed
+    if (!empty($affectedRows)) {
+        foreach ($affectedRows as $row) {
+            if (!empty($row['login'])) {
+                invalidateCompoundBonusCache($row['login']);
+            }
+        }
+    } else {
+        // No rows affected or query error — clear entire cache to be safe
+        invalidateCompoundBonusCache();
+    }
 }

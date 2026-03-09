@@ -22,11 +22,18 @@ if (empty($_SESSION['login'])) {
 // Validate session token against DB
 include("includes/connexion.php");
 require_once("includes/database.php");
-$tokenRow = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ?', 's', $_SESSION['login']);
+$tokenRow = dbFetchOne($base, 'SELECT session_token, estExclu FROM membre WHERE login = ?', 's', $_SESSION['login']);
 if (!$tokenRow || empty($_SESSION['session_token']) || empty($tokenRow['session_token']) || !hash_equals($tokenRow['session_token'], $_SESSION['session_token'])) {
     session_destroy();
     http_response_code(401);
     echo json_encode(['error' => 'Session invalid']);
+    exit;
+}
+
+// TAINT-API MEDIUM-001: Banned players must not access API endpoints.
+if ((int)$tokenRow['estExclu'] === 1) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Compte banni.']);
     exit;
 }
 

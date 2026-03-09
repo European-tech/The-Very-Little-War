@@ -65,12 +65,12 @@ if (!empty($allianceRows)) {
     ?>
     <tr style="<?= htmlspecialchars($rowStyle, ENT_QUOTES, 'UTF-8') ?>">
         <td><?= imageClassement($rang) ?></td>
-        <td><?= alliance(htmlspecialchars($row['tag'], ENT_QUOTES, 'UTF-8')) ?></td>
+        <td><?= alliance($row['tag']) ?></td>
         <td><?= htmlspecialchars($row['nom'], ENT_QUOTES, 'UTF-8') ?></td>
         <td><?= (int)$row['membres'] ?>/<?= MAX_ALLIANCE_MEMBERS ?><?php if ($isFull) echo ' <span style="color:red; font-size:11px;">Complet</span>'; ?></td>
         <td>Niv. <?= (int)$row['duplicateur'] ?></td>
         <td><?= number_format((int)$row['avg_points'], 0, ' ', ' ') ?> pts</td>
-        <td><?= joueur(htmlspecialchars($row['chef'], ENT_QUOTES, 'UTF-8')) ?></td>
+        <td><?= joueur($row['chef']) ?></td>
     </tr>
     <?php
         $rang++;

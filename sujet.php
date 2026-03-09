@@ -10,6 +10,11 @@ require_once("includes/csrf.php");
 require_once("includes/rate_limiter.php");
 
 if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
+	// FORUM16-001: Require authentication before accessing $_SESSION['login'].
+	// Unauthenticated POSTs would pass null to rateLimitCheck(), creating a shared bucket.
+	if (!isset($_SESSION['login'])) {
+		$erreur = "Vous devez être connecté pour répondre.";
+	} else {
 	// HIGH-009: Read topic ID from POST body, not GET, so form action URL tampering is prevented
 	$sujet_id = (int)$_POST['sujet_id'];
 	csrfCheck();
@@ -75,6 +80,7 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 			$erreur = "T'as essayé de m'avoir ? Eh bah non !";
 		}
 	}
+	} // close the login-required else block (FORUM16-001)
 }
 
 include("includes/layout.php");

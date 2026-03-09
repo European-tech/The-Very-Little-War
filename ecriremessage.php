@@ -75,12 +75,24 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				if (strtolower($canonicalLogin) === strtolower($_SESSION['login'])) {
 					$erreur = "Vous ne pouvez pas vous envoyer un message à vous-même.";
 				} else {
-					$now = time();
-					dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $canonicalLogin);
-					// LOW-030: store flash message before redirect
-					$_SESSION['flash_message'] = 'Message envoyé avec succès.';
-					header('Location: messages.php');
-					exit();
+					// FLOW-SOCIAL MEDIUM-001: Do not deliver messages to banned players
+					$recipientMembre = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $canonicalLogin);
+					if ($recipientMembre && (int)$recipientMembre['estExclu'] === 1) {
+						$erreur = "Ce joueur n'existe pas.";
+					} else {
+						// FLOW-SOCIAL MEDIUM-002: Enforce inbox size cap
+						$inboxCount = dbCount($base, 'SELECT COUNT(*) FROM messages WHERE destinataire=? AND deleted_by_recipient=0', 's', $canonicalLogin);
+						if ($inboxCount >= INBOX_MAX_MESSAGES) {
+							$erreur = "La boîte de réception de ce joueur est pleine.";
+						} else {
+							$now = time();
+							dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $canonicalLogin);
+							// LOW-030: store flash message before redirect
+							$_SESSION['flash_message'] = 'Message envoyé avec succès.';
+							header('Location: messages.php');
+							exit();
+						}
+					}
 				}
 			} else {
 				$erreur = 'Le joueur ' . htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8') . ' n\'existe pas.';

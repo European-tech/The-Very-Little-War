@@ -1,4 +1,9 @@
 <?php
+// AUTH-MEDIUM-002: This page creates visitor sessions. It must never be disabled or removed
+// without also removing the visitor flow from index.php. It is NOT a test/debug file despite
+// the legacy name — it is the visitor account creation and permanent-account conversion page.
+// Access is restricted: visitor creation requires POST+CSRF+rate-limit; conversion requires
+// an active Visitor* session. No anonymous browsing of this page is possible.
 require_once("includes/session_init.php");
 include("includes/connexion.php");
 include("includes/fonctions.php");

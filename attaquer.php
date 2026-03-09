@@ -32,7 +32,8 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
         if (empty($erreur)) {
         $_POST['joueurAEspionner'] = trim($_POST['joueurAEspionner']);
         $_POST['nombreneutrinos'] = intval($_POST['nombreneutrinos']);
-        if ($_POST['joueurAEspionner'] != $_SESSION['login']) {
+        // FLOW-COMBAT-MEDIUM-005: Case-insensitive self-espionage check (mirrors attack guard).
+        if (mb_strtolower($_POST['joueurAEspionner']) !== mb_strtolower($_SESSION['login'])) {
             // Check vacation mode + beginner protection for espionage target
             $espTarget = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
             if (!$espTarget) {
@@ -58,6 +59,10 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                 return $attackerInfo && (time() - (int)$attackerInfo['timestamp']) < (BEGINNER_PROTECTION_SECONDS + $veteranBonus);
             })()) {
                 $erreur = "Vous ne pouvez pas espionner pendant votre période de protection des débutants.";
+            } elseif (hasActiveShield($base, $_SESSION['login'])) {
+                // MEDIUM-002: Comeback shield also prevents espionage — shielded players must
+                // not conduct offensive operations while protected from retaliation.
+                $erreur = "Vous ne pouvez pas espionner sous bouclier de retour. Attendez la fin de votre protection.";
             } elseif (preg_match("#^[0-9]*$#", (string)$_POST['nombreneutrinos']) and $_POST['nombreneutrinos'] >= 1 and $_POST['nombreneutrinos'] <= $autre['neutrinos']) {
                 // MED-043: Cast to string before preg_match to avoid PHP 8.2 deprecation on integer subject.
                 $membreJoueur = dbFetchOne($base, 'SELECT * FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
@@ -83,7 +88,7 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
                         if ($autreRow['neutrinos'] < $capturedNeutrinos) {
                             throw new \RuntimeException('NOT_ENOUGH_NEUTRINOS');
                         }
-                        dbExecute($base, 'INSERT INTO actionsattaques VALUES(default,?,?,?,?,?,?,?,?)', 'ssiiisii',
+                        dbExecute($base, 'INSERT INTO actionsattaques (attaquant, defenseur, tempsAller, tempsAttaque, tempsRetour, troupes, attaqueFaite, nombreneutrinos) VALUES (?,?,?,?,?,?,?,?)', 'ssiiisii',
                             $capturedLogin, $capturedCible, $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), "Espionnage", 0, $capturedNeutrinos);
                         $newNeutrinos = $autreRow['neutrinos'] - $capturedNeutrinos;
                         dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $newNeutrinos, $capturedLogin);
@@ -122,6 +127,10 @@ if (isset($_POST['joueurAAttaquer'])) {
     $attackerVacCheck = dbFetchOne($base, 'SELECT vacance FROM membre WHERE login=?', 's', $_SESSION['login']);
     if ($attackerVacCheck && $attackerVacCheck['vacance'] == 1) {
         $erreur = "Vous ne pouvez pas attaquer en mode vacances.";
+    } elseif (hasActiveShield($base, $_SESSION['login'])) {
+        // MEDIUM-002: Comeback shield prevents attacking as well as being attacked.
+        // A shielded player must not gain risk-free offensive advantage.
+        $erreur = "Vous ne pouvez pas attaquer sous bouclier de retour. Attendez la fin de votre protection.";
     } elseif (!empty($_POST['joueurAAttaquer'])) { // Vérification que la variable n'est pas vide
         // H-014/M-007: Guard against array injection and enforce max length before trim()
         if (!is_string($_POST['joueurAAttaquer'])) {
@@ -133,7 +142,9 @@ if (isset($_POST['joueurAAttaquer'])) {
             // fall through to display error
         } else {
         $_POST['joueurAAttaquer'] = trim($_POST['joueurAAttaquer']);
-        if ($_POST['joueurAAttaquer'] != $_SESSION['login']) {
+        // FLOW-COMBAT-MEDIUM-005: Use mb_strtolower on both sides to catch case-variant
+        // self-attack attempts (e.g. "joueur1" when session login is "Joueur1").
+        if (mb_strtolower($_POST['joueurAAttaquer']) !== mb_strtolower($_SESSION['login'])) {
 
             $enVac = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAAttaquer']);
             if (!$enVac) {

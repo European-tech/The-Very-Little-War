@@ -400,9 +400,30 @@ if ($guerre) {
 					if ($dup1 > 0 || $dup2 > 0) {
 						throw new \RuntimeException('DUPLICATE');
 					}
+					// FLOW-ALLIANCE MEDIUM-001: Before deleting pending pact proposals, notify
+					// the proposing alliance chef that their pact was cancelled by a war declaration.
+					$now = time();
+					$safeWarNotifTag = htmlspecialchars($chefTag, ENT_QUOTES, 'UTF-8');
+					// Check for a pending pact proposed BY the adverse alliance TO us (adverse is alliance1)
+					$pendingPact1 = dbFetchOne($base, 'SELECT d.id, a.chef AS proposerChef FROM declarations d JOIN alliances a ON a.id = d.alliance1 WHERE d.alliance1=? AND d.alliance2=? AND d.fin=0 AND d.valide=0 AND d.type=1', 'ii', $allianceAdverseId, $chefId);
+					if ($pendingPact1) {
+						dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES (?, ?, ?, ?, 0, \'\', \'alliance\')',
+							'isss', $now,
+							'Votre proposition de pacte a été annulée.',
+							'Votre proposition de pacte à l\'alliance <a href="alliance.php?id=' . urlencode($chefTag) . '">' . $safeWarNotifTag . '</a> a été annulée suite à une déclaration de guerre.',
+							$pendingPact1['proposerChef']);
+					}
+					// Check for a pending pact proposed BY us TO the adverse alliance (we are alliance1)
+					$pendingPact2 = dbFetchOne($base, 'SELECT d.id, a.chef AS proposerChef FROM declarations d JOIN alliances a ON a.id = d.alliance1 WHERE d.alliance1=? AND d.alliance2=? AND d.fin=0 AND d.valide=0 AND d.type=1', 'ii', $chefId, $allianceAdverseId);
+					if ($pendingPact2) {
+						dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES (?, ?, ?, ?, 0, \'\', \'alliance\')',
+							'isss', $now,
+							'Votre proposition de pacte a été annulée.',
+							'Votre proposition de pacte à l\'alliance <a href="alliance.php?id=' . urlencode($chefTag) . '">' . $safeWarNotifTag . '</a> a été annulée suite à une déclaration de guerre.',
+							$pendingPact2['proposerChef']);
+					}
 					dbExecute($base, 'DELETE FROM declarations WHERE alliance1=? AND alliance2=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
 					dbExecute($base, 'DELETE FROM declarations WHERE alliance2=? AND alliance1=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
-					$now = time();
 					dbExecute($base, 'INSERT INTO declarations VALUES(default, 0, ?, ?, ?, default, default, default, default, default)', 'iii', $chefId, $allianceAdverseId, $now);
 					$safeChefTag = htmlspecialchars($chefTag, ENT_QUOTES, 'UTF-8');
 					$rapportTitre = 'L\'alliance ' . $safeChefTag . ' vous déclare la guerre.';
@@ -425,30 +446,37 @@ if ($guerre) {
 
 		// H-017/L-008: Move existence check INSIDE the transaction with FOR UPDATE to prevent
 		// TOCTOU race between the check and the subsequent war-end UPDATE.
-		// The outer check is removed; the transaction itself guards atomicity.
+		// ALLIANCE_MGMT MEDIUM-001: Either the attacking OR defending alliance can end the war.
 		try {
 			withTransaction($base, function() use ($base, $chef, &$information) {
 				$adversaireId = intval($_POST['adversaire']);
-				// Lock the war row first to prevent concurrent war-end races
-				$guerreExisteTx = dbFetchOne($base, 'SELECT id FROM declarations WHERE alliance1=? AND alliance2=? AND type=0 AND fin=0 FOR UPDATE', 'ii', $chef['id'], $adversaireId);
+				// Lock the war row — current alliance may be alliance1 (attacker) OR alliance2 (defender)
+				$guerreExisteTx = dbFetchOne($base,
+					'SELECT id, alliance1, alliance2, pertes1, pertes2 FROM declarations
+					 WHERE ((alliance1=? AND alliance2=?) OR (alliance1=? AND alliance2=?))
+					 AND type=0 AND fin=0 FOR UPDATE',
+					'iiii', $chef['id'], $adversaireId, $adversaireId, $chef['id']);
 				if (!$guerreExisteTx) {
 					throw new \RuntimeException('WAR_NOT_FOUND');
 				}
+				// Determine which side is which regardless of who declared
+				$alliance1Id = (int)$guerreExisteTx['alliance1'];
+				$alliance2Id = (int)$guerreExisteTx['alliance2'];
+				$pertes1     = (int)$guerreExisteTx['pertes1'];
+				$pertes2     = (int)$guerreExisteTx['pertes2'];
+
 				$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=? FOR UPDATE', 'i', $adversaireId);
 				$now = time();
 				// ALL-P7-002: Compute winner from molecule losses; award pointsVictoire
-				$warData = dbFetchOne($base, 'SELECT pertes1, pertes2 FROM declarations WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'ii', $chef['id'], $allianceAdverse['id']);
 				$winner = 0; // draw by default
-				if ($warData) {
-					if ($warData['pertes1'] < $warData['pertes2']) {
-						$winner = 1; // declaring alliance wins (fewer losses)
-						dbExecute($base, 'UPDATE alliances SET pointsVictoire = pointsVictoire + 1 WHERE id=?', 'i', $chef['id']);
-					} elseif ($warData['pertes1'] > $warData['pertes2']) {
-						$winner = 2; // defending alliance wins
-						dbExecute($base, 'UPDATE alliances SET pointsVictoire = pointsVictoire + 1 WHERE id=?', 'i', $allianceAdverse['id']);
-					}
+				if ($pertes1 < $pertes2) {
+					$winner = 1; // alliance1 wins (fewer losses)
+					dbExecute($base, 'UPDATE alliances SET pointsVictoire = pointsVictoire + 1 WHERE id=?', 'i', $alliance1Id);
+				} elseif ($pertes1 > $pertes2) {
+					$winner = 2; // alliance2 wins
+					dbExecute($base, 'UPDATE alliances SET pointsVictoire = pointsVictoire + 1 WHERE id=?', 'i', $alliance2Id);
 				}
-				dbExecute($base, 'UPDATE declarations SET fin=?, winner=? WHERE alliance1=? AND alliance2=? AND fin=0 AND type=0', 'iiii', $now, $winner, $chef['id'], $allianceAdverse['id']);
+				dbExecute($base, 'UPDATE declarations SET fin=?, winner=? WHERE id=? AND fin=0 AND type=0', 'iii', $now, $winner, (int)$guerreExisteTx['id']);
 				$safeWarTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
 				$rapportTitre = 'L\'alliance ' . $safeWarTag . ' met fin à la guerre qui vous opposait.';
 				$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chef['tag']) . '">' . $safeWarTag . '</a> met fin à la guerre qui vous opposait.';
@@ -456,7 +484,7 @@ if ($guerre) {
 				$information = "La guerre contre " . htmlspecialchars($allianceAdverse['tag'], ENT_QUOTES, 'UTF-8') . " a pris fin.";
 			});
 		} catch (\RuntimeException $e) {
-			$erreur = "Cette guerre n'existe pas ou vous n'êtes pas à l'origine de cette déclaration de guerre.";
+			$erreur = "Cette guerre n'existe pas ou vous n'avez pas le droit de la terminer.";
 		}
 	}
 }
@@ -735,11 +763,14 @@ if ($guerre) {
 	foreach ($guerreRows2 as $guerre) {
 		$tagAlliance = dbFetchOne($base, 'SELECT tag FROM alliances WHERE id=?', 'i', $guerre['alliance1']);
 		$safeWarTag = htmlspecialchars($tagAlliance['tag'], ENT_QUOTES, 'UTF-8');
+		// ALLIANCE_MGMT MEDIUM-001: Defending alliance can also end the war
 		echo '<tr>
-                            <td><a href="alliance.php?id=' . urlencode($tagAlliance['tag']) . '">' . $safeWarTag . '</a></td>
+                            <td><a href="alliance.php?id=' . urlencode($tagAlliance['tag']) . '">' . $safeWarTag . '</a> <em style="color:#999;font-size:0.85em">(déclarée par eux)</em></td>
                             <td>' . date('d/m/Y à H\hi', $guerre['timestamp']) . '</td>
                             <td>' . $guerre['pertes2'] . '</td>
-                            <td>Déclarée par ' . $safeWarTag . '</td>
+                            <td><form action="allianceadmin.php" method="post">' . csrfField() . '
+                            <input type="hidden" name="adversaire" value="' . $guerre['alliance1'] . '"/>
+                            <input src="images/croix.png" alt="stop" type="image" name="stopguerre" title="Mettre fin à la guerre"></form></td>
                             </tr>';
 	}
 ?>

@@ -61,6 +61,7 @@ define('SECONDS_PER_HOUR', 3600);
 define('SECONDS_PER_DAY', 86400);
 define('SECONDS_PER_WEEK', 604800);
 define('SECONDS_PER_MONTH', 2678400); // 31 days - used for active player check
+define('MULTIACCOUNT_CHECK_WINDOW', SECONDS_PER_DAY); // 1 day window for multi-account detection dedup
 
 // =============================================================================
 // GAME LIMITS
@@ -695,6 +696,7 @@ define('LOGIN_MAX_LENGTH', 20);
 define('EMAIL_MAX_LENGTH', 100); // RFC 5321 practical limit
 define('DESCRIPTION_MAX_LENGTH', 500); // Profile description character limit
 define('MESSAGE_MAX_LENGTH', 5000); // Max length for admin broadcast and private messages
+define('INBOX_MAX_MESSAGES', 200); // maximum messages in a player's inbox (FLOW-SOCIAL MEDIUM-002)
 define('FORUM_POST_MAX_LENGTH', 10000);  // max characters per forum post
 define('FORUM_TITLE_MAX_LENGTH', 200);   // max characters per forum title
 define('MATH_FORUM_ID', 8);             // Forum category ID where MathJax rendering is enabled
@@ -720,7 +722,12 @@ $MAP_ICON_DIVISORS = [16, 8, 4, 2]; // Fractions of VICTORY_POINTS_TOTAL for ico
 // Resource nodes generated at season reset use this boundary so nodes span the full
 // starting map rather than a hardcoded 20×20 tile area.
 define('MAP_INITIAL_SIZE', 20);
-define('MAP_SIZE', 200); // MAPS-MED-001: max map dimension for resource node bounds-checking
+// MAPS-MEDIUM-002: MAP_SIZE is the hard upper cap for tailleCarte growth in
+// coordonneesAleatoires(). tailleCarte (live DB value, starts at MAP_INITIAL_SIZE and
+// grows as players register) must never exceed MAP_SIZE. This ensures the two values
+// remain consistent and prevents resource_nodes.php bounds-checking from silently
+// discarding valid node coordinates.
+define('MAP_SIZE', 200);
 
 // =============================================================================
 // RESOURCE NODES (map bonuses)

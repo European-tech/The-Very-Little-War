@@ -19,7 +19,9 @@ function sanitizeReportHtml($html) {
         'alt'   => ['img'],
         'class' => true,
         'id'    => true,
-        'style' => true,
+        // NOTIF16-001: 'style' removed — CSS url() can exfiltrate data via side-channels
+        // and position:fixed overlays enable UI redress attacks. Combat reports are
+        // server-generated and don't need inline styles.
     ];
 
     $dom = new DOMDocument();
@@ -62,7 +64,9 @@ function sanitizeReportHtml($html) {
         }
         return $result;
     }
-    return $dom->saveHTML();
+    // If DOMDocument did not produce a body element, return empty string rather than
+    // a full-document saveHTML() which would emit DOCTYPE + html/head/body wrappers.
+    return '';
 }
 
 if(isset($_POST['supprimer']) AND preg_match("#^\d+$#",$_POST['supprimer'])) {

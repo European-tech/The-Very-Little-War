@@ -73,7 +73,7 @@ function logLoginEvent($base, $login, $eventType = 'login')
  */
 function checkSameIpAccounts($base, $login, $ip, $timestamp)
 {
-    $cutoff = $timestamp - (30 * 86400);
+    $cutoff = $timestamp - (30 * SECONDS_PER_DAY);
     $others = dbFetchAll($base,
         'SELECT DISTINCT login FROM login_history WHERE ip = ? AND login != ? AND timestamp > ?',
         'ssi', $ip, $login, $cutoff
@@ -114,7 +114,7 @@ function checkSameIpAccounts($base, $login, $ip, $timestamp)
  */
 function checkSameFingerprintAccounts($base, $login, $fingerprint, $timestamp)
 {
-    $cutoff = $timestamp - (30 * 86400);
+    $cutoff = $timestamp - (30 * SECONDS_PER_DAY);
     $others = dbFetchAll($base,
         'SELECT DISTINCT login FROM login_history WHERE fingerprint = ? AND login != ? AND timestamp > ?',
         'ssi', $fingerprint, $login, $cutoff
@@ -161,7 +161,7 @@ function checkCoordinatedAttacks($base, $attacker, $defender, $timestamp)
         // Check if these two accounts share IP
         $ipOverlap = dbFetchOne($base,
             'SELECT COUNT(*) AS cnt FROM login_history a INNER JOIN login_history b ON a.ip = b.ip WHERE a.login = ? AND b.login = ? AND a.timestamp > ?',
-            'ssi', $attacker, $other['attaquant'], time() - (30 * 86400)
+            'ssi', $attacker, $other['attaquant'], time() - (30 * SECONDS_PER_DAY)
         );
 
         if ($ipOverlap && $ipOverlap['cnt'] > 0) {
@@ -200,7 +200,7 @@ function checkCoordinatedAttacks($base, $attacker, $defender, $timestamp)
  */
 function checkTransferPatterns($base, $sender, $receiver, $timestamp)
 {
-    $cutoff = $timestamp - (7 * 86400);
+    $cutoff = $timestamp - (7 * SECONDS_PER_DAY);
     $transferCount = dbFetchOne($base,
         'SELECT COUNT(*) AS cnt FROM actionsenvoi WHERE envoyeur = ? AND receveur = ? AND tempsArrivee > ?',
         'ssi', $sender, $receiver, $cutoff
@@ -249,7 +249,7 @@ function checkTransferPatterns($base, $sender, $receiver, $timestamp)
  */
 function checkTimingCorrelation($base, $login, $timestamp)
 {
-    $cutoff = $timestamp - (30 * 86400);
+    $cutoff = $timestamp - (30 * SECONDS_PER_DAY);
     $related = dbFetchAll($base,
         'SELECT DISTINCT related_login FROM account_flags WHERE login = ? AND status != ?',
         'ss', $login, 'dismissed'
@@ -322,12 +322,12 @@ function createAdminAlert($base, $alertType, $message, $details, $severity = 'wa
     // when any single pair triggered one within 24h.
     if ($login1 !== '' && $login2 !== '') {
         $existing = dbCount($base,
-            'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND login1 = ? AND login2 = ? AND created_at > UNIX_TIMESTAMP() - 86400',
+            'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND login1 = ? AND login2 = ? AND created_at > UNIX_TIMESTAMP() - ' . MULTIACCOUNT_CHECK_WINDOW,
             'sss', $alertType, $login1, $login2);
     } else {
         // Fallback for alerts without a player pair: dedup by type only (original behavior)
         $existing = dbCount($base,
-            'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND login1 IS NULL AND created_at > UNIX_TIMESTAMP() - 86400',
+            'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND login1 IS NULL AND created_at > UNIX_TIMESTAMP() - ' . MULTIACCOUNT_CHECK_WINDOW,
             's', $alertType);
     }
     if ($existing > 0) return; // Already alerted for this pair/type within 24 hours

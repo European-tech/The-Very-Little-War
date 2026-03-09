@@ -5,8 +5,12 @@ require_once("includes/database.php");
 require_once("includes/csrf.php");
 require_once("includes/rate_limiter.php");
 
+// TAINT-API MEDIUM-002: Always send JSON Content-Type for all responses from this endpoint
+header('Content-Type: application/json; charset=utf-8');
+
 // Auth check: must be logged in
 if (!isset($_SESSION['login'])) {
+    http_response_code(401);
     exit(json_encode(["erreur" => true]));
 }
 
@@ -14,6 +18,7 @@ if (!isset($_SESSION['login'])) {
 $row = dbFetchOne($base, 'SELECT session_token FROM membre WHERE login = ? AND estExclu = 0', 's', $_SESSION['login']);
 if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !hash_equals($row['session_token'], $_SESSION['session_token'])) {
     session_destroy();
+    http_response_code(401);
     exit(json_encode(["erreur" => true]));
 }
 
@@ -21,13 +26,11 @@ if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !ha
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $activePoll = dbFetchOne($base, 'SELECT id FROM sondages WHERE active = 1 ORDER BY date DESC LIMIT 1');
     if (!$activePoll) {
-        header('Content-Type: application/json');
         exit(json_encode(['success' => false, 'results' => []]));
     }
     $results = dbFetchAll($base,
         'SELECT reponse AS option_id, COUNT(*) AS votes FROM reponses_sondage WHERE sondage = ? GROUP BY reponse',
         'i', $activePoll['id']);
-    header('Content-Type: application/json');
     exit(json_encode(['success' => true, 'results' => $results]));
 }
 
@@ -37,7 +40,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // API-P10-001: Rate limit POST votes to 5 per minute per user
     if (!rateLimitCheck($_SESSION['login'], 'poll_vote', 5, 60)) {
         http_response_code(429);
-        header('Content-Type: application/json; charset=utf-8');
         exit(json_encode(['error' => 'Trop de votes. Réessayez dans une minute.']));
     }
     csrfCheck();

@@ -371,11 +371,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
             . '<p>Le classement des alliances est temporairement gelé pendant la remise à zéro de fin de saison. '
             . 'Il sera de nouveau disponible dans quelques instants.</p>'
             . '</div></div>';
-    } else {
-        if (isset($_SESSION['login'])) {
-            recalculerStatsAlliances();
-        }
-    }
+    } else { // RANK16-001: alliance ranking table is inside the else block (frozen during maintenance)
 
 
 
@@ -531,6 +527,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
             $dernier = '<a href="'.$adresse.'page='.$nombreDePages.'">'.$nombreDePages.'</a>';
         }
         $pages = $premier.' '.$pointsD.' '.$precedent.' <strong>'.$page.'</strong> '.$suivant.' '.$pointsF.' '.$dernier;
+    } // end else (not in season maintenance) — RANK16-001
 }
 elseif(isset($_GET['sub']) AND $_GET['sub'] == 2) {
 	$nombreDeGuerresParPage = LEADERBOARD_PAGE_SIZE;

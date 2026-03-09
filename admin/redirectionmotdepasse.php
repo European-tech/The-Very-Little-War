@@ -12,6 +12,14 @@ if (isset($_SESSION['admin_last_activity']) && (time() - $_SESSION['admin_last_a
 	header('Location: index.php');
 	exit();
 }
+// ADMIN16-002: Admin absolute session lifetime — sub-pages must also enforce this.
+// Without this check, an admin who never returns to index.php keeps an indefinite session.
+if (isset($_SESSION['session_created']) && (time() - $_SESSION['session_created']) > SESSION_ABSOLUTE_TIMEOUT) {
+	session_unset();
+	session_destroy();
+	header('Location: index.php');
+	exit();
+}
 // HIGH-019: Validate admin session is bound to the IP that authenticated.
 // Admin sessions have no membre DB row, so IP binding is the equivalent guard
 // against session token theft / fixation attacks.

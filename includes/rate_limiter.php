@@ -100,12 +100,22 @@ function rateLimitRemaining($identifier, $action, $maxAttempts, $windowSeconds) 
     $now = time();
     $attempts = [];
 
+    // INFRA-SEC-MEDIUM-003: Use fopen + LOCK_SH so reads cannot observe partial/corrupt data
+    // written by a concurrent rateLimitCheck() call that holds LOCK_EX.
     if (file_exists($file)) {
-        $data = json_decode(file_get_contents($file), true);
-        if (is_array($data)) {
-            $attempts = array_filter($data, function($t) use ($now, $windowSeconds) {
-                return ($now - $t) < $windowSeconds;
-            });
+        $fp = @fopen($file, 'r');
+        if ($fp !== false) {
+            if (flock($fp, LOCK_SH)) {
+                $raw = stream_get_contents($fp);
+                flock($fp, LOCK_UN);
+                $data = json_decode($raw, true);
+                if (is_array($data)) {
+                    $attempts = array_filter($data, function($t) use ($now, $windowSeconds) {
+                        return ($now - $t) < $windowSeconds;
+                    });
+                }
+            }
+            fclose($fp);
         }
     }
 

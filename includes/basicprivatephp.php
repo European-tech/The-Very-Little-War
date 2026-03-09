@@ -226,8 +226,25 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // inadvertently (or maliciously) trigger the season reset.
     $isAdminRequest = (isset($_SESSION['login']) && $_SESSION['login'] === ADMIN_LOGIN);
     if (!$isAdminRequest) {
-        // Non-admin player: inform them that maintenance is in progress and skip the reset.
-        $erreur = "Une nouvelle partie recommencera dans 24 heures.";
+        // FLOW-SEASON HIGH-001: Non-admin players must not load game pages during Phase 2.
+        // Block all requests identically to Phase 1 to prevent game actions during maintenance.
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Le jeu est en maintenance']);
+            exit;
+        }
+        http_response_code(503);
+        header('Retry-After: 3600');
+        echo '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
+            . '<title>Maintenance — The Very Little War</title>'
+            . '<meta name="robots" content="noindex">'
+            . '<style>body{font-family:sans-serif;text-align:center;padding:3em;background:#1a1a2e;color:#e0e0e0}'
+            . 'h1{color:#f5a623}p{font-size:1.1em}</style></head><body>'
+            . '<h1>Maintenance en cours</h1>'
+            . '<p>Une nouvelle partie commencera dans les prochaines 24 heures.</p>'
+            . '<p><a href="index.php" style="color:#f5a623;">Retour à l\'accueil</a></p>'
+            . '</body></html>';
+        exit;
     } else {
     // AUTH-C-001: performSeasonEnd() manages its own advisory lock ('tvlw_season_reset')
     // internally with GET_LOCK/RELEASE_LOCK in a try/finally. The outer GET_LOCK here was
@@ -256,8 +273,11 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // is called probabilistically (1% of requests) on subsequent page loads.
     // Guard: only queue emails when the reset actually succeeded and we have a winner.
     if ($seasonResetOk && $vainqueurManche !== null) {
-    // H-021: Exclude banned (estExclu=1) and sentinel/inactive (x=-1000) players from season-end emails
-    $mailRows = dbFetchAll($base, 'SELECT m.email, m.login FROM membre m WHERE m.estExclu = 0 AND m.x != -1000', '');
+    // H-021: Exclude banned (estExclu=1) players from season-end emails.
+    // Note: do NOT filter by x != -1000 here — remiseAZero() already set all players
+    // to x=-1000 before this code runs, so that filter would exclude everyone.
+    // Inactive players were pruned by pruneInactivePlayers() inside performSeasonEnd().
+    $mailRows = dbFetchAll($base, 'SELECT m.email, m.login FROM membre m WHERE m.estExclu = 0 AND m.email IS NOT NULL AND m.email != \'\'', '');
     // P9-HIGH-003: winnerName comes from DB (player-controlled login). htmlspecialchars()
     // is applied below when embedded in HTML. Also strip CRLF from the raw value to prevent
     // any header injection if it were ever used in a header context.

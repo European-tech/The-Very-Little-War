@@ -153,49 +153,49 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
                         ';
                     }
                     echo '
-                    $.ajax({url: "api.php?id=attaque&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveauoxygene.'&nombre="+document.getElementById(\'oxygene\').value+"&nombre2="+document.getElementById(\'hydrogene\').value,
+                    $.ajax({url: "api.php?id=attaque&niveau='.$niveauoxygene.'&nombre="+document.getElementById(\'oxygene\').value+"&nombre2="+document.getElementById(\'hydrogene\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Safe: contenu.valeur is a server-computed numeric string
                         document.getElementById(\'attaque\').textContent = contenu.valeur;
                     }});
 
-                    $.ajax({url: "api.php?id=defense&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveaucarbone.'&nombre="+document.getElementById(\'carbone\').value+"&nombre2="+document.getElementById(\'brome\').value,
+                    $.ajax({url: "api.php?id=defense&niveau='.$niveaucarbone.'&nombre="+document.getElementById(\'carbone\').value+"&nombre2="+document.getElementById(\'brome\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Safe: contenu.valeur is a server-computed numeric string
                         document.getElementById(\'defense\').textContent = contenu.valeur;
                     }});
 
-                    $.ajax({url: "api.php?id=pointsDeVieMolecule&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveaubrome.'&nombre="+document.getElementById(\'brome\').value+"&nombre2="+document.getElementById(\'carbone\').value,
+                    $.ajax({url: "api.php?id=pointsDeVieMolecule&niveau='.$niveaubrome.'&nombre="+document.getElementById(\'brome\').value+"&nombre2="+document.getElementById(\'carbone\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Safe: contenu.valeur is a server-computed numeric string
                         document.getElementById(\'vie\').textContent = contenu.valeur;
                     }});
 
-                    $.ajax({url: "api.php?id=potentielDestruction&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveauhydrogene.'&nombre="+document.getElementById(\'hydrogene\').value+"&nombre2="+document.getElementById(\'oxygene\').value,
+                    $.ajax({url: "api.php?id=potentielDestruction&niveau='.$niveauhydrogene.'&nombre="+document.getElementById(\'hydrogene\').value+"&nombre2="+document.getElementById(\'oxygene\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Safe: contenu.valeur is a server-computed numeric string
                         document.getElementById(\'destruction\').textContent = contenu.valeur;
                     }});
 
-                    $.ajax({url: "api.php?id=vitesse&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveauchlore.'&nombre="+document.getElementById(\'chlore\').value+"&nombre2="+document.getElementById(\'azote\').value,
+                    $.ajax({url: "api.php?id=vitesse&niveau='.$niveauchlore.'&nombre="+document.getElementById(\'chlore\').value+"&nombre2="+document.getElementById(\'azote\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Safe: contenu.valeur is a server-computed numeric string
                         document.getElementById(\'vitesse\').textContent = contenu.valeur+" cases/h";
                     }});
 
-                    $.ajax({url: "api.php?id=pillage&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveausoufre.'&nombre="+document.getElementById(\'soufre\').value+"&nombre2="+document.getElementById(\'chlore\').value,
+                    $.ajax({url: "api.php?id=pillage&niveau='.$niveausoufre.'&nombre="+document.getElementById(\'soufre\').value+"&nombre2="+document.getElementById(\'chlore\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Safe: contenu.valeur is a server-computed numeric string
                         document.getElementById(\'pillage\').textContent = contenu.valeur;
                     }});
 
-                    $.ajax({url: "api.php?id=productionEnergieMolecule&joueur='.urlencode($_SESSION['login']).'&niveau='.$niveauiode.'&nombre="+document.getElementById(\'iode\').value,
+                    $.ajax({url: "api.php?id=productionEnergieMolecule&niveau='.$niveauiode.'&nombre="+document.getElementById(\'iode\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Build span via DOM API — avoids innerHTML with dynamic content
@@ -208,14 +208,14 @@ header('X-XSS-Protection: 0'); // Disable broken browser heuristic; CSP handles 
                         el.appendChild(span);
                     }});
 
-                    $.ajax({url: "api.php?id=tempsFormation&joueur='.urlencode($_SESSION['login']).'&nbTotalAtomes="+totalAtomes+"&niveau='.$niveauazote.'&nombre="+document.getElementById(\'azote\').value+"&nombre2="+document.getElementById(\'iode\').value,
+                    $.ajax({url: "api.php?id=tempsFormation&nbTotalAtomes="+totalAtomes+"&niveau='.$niveauazote.'&nombre="+document.getElementById(\'azote\').value+"&nombre2="+document.getElementById(\'iode\').value,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Safe: contenu.valeur is a server-formatted time string (e.g. "2h30")
                         document.getElementById(\'tempsFormation\').textContent = contenu.valeur;
                     }});
 
-                    $.ajax({url: "api.php?id=demiVie&joueur='.urlencode($_SESSION['login']).'&nbTotalAtomes="+totalAtomes,
+                    $.ajax({url: "api.php?id=demiVie&nbTotalAtomes="+totalAtomes,
                     success: function(data){
                         var contenu = JSON.parse(data);
                         // Safe: contenu.valeur is a server-formatted time string (e.g. "2h30")

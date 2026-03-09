@@ -45,6 +45,14 @@ foreach ($files as $file) {
     echo "Applying: $filename... ";
     $sql = file_get_contents($file);
 
+    // INFRA-DB MEDIUM-002: Wrap migration in a transaction so a mid-file failure
+    // does not leave the database in a partially-applied state.
+    // Note: DDL statements (ALTER TABLE, CREATE TABLE, DROP TABLE) cause an implicit
+    // commit in MySQL/MariaDB and cannot be rolled back — those migrations are
+    // "best-effort" transactional, but DML failures will still roll back cleanly.
+    mysqli_begin_transaction($base);
+    $migrationError = null;
+
     // Execute each statement; detect errors per-statement inside the drain loop
     // so that a failure mid-file is caught immediately rather than silently skipped.
     if (mysqli_multi_query($base, $sql)) {
@@ -54,27 +62,36 @@ foreach ($files as $file) {
             }
             // Check for an error produced by the statement just consumed
             if (mysqli_errno($base)) {
-                echo "ERROR in migration $filename: " . mysqli_error($base) . "\n";
-                exit(1);
+                $migrationError = mysqli_error($base);
+                break;
             }
         } while (mysqli_next_result($base));
     }
 
     // Check for any error that prevented mysqli_multi_query from starting
-    if (mysqli_errno($base)) {
-        echo "ERROR in migration $filename: " . mysqli_error($base) . "\n";
+    if ($migrationError === null && mysqli_errno($base)) {
+        $migrationError = mysqli_error($base);
+    }
+
+    if ($migrationError !== null) {
+        mysqli_rollback($base);
+        echo "ERROR in migration $filename: $migrationError\n";
         exit(1);
     }
 
-    // Record migration
+    // Record migration inside the same transaction so it's atomic with the SQL changes
     $stmt = mysqli_prepare($base, "INSERT INTO migrations (filename) VALUES (?)");
     mysqli_stmt_bind_param($stmt, "s", $filename);
     if (!mysqli_stmt_execute($stmt)) {
-        echo "ERROR recording migration: " . mysqli_stmt_error($stmt) . "\n";
+        $recordError = mysqli_stmt_error($stmt);
         mysqli_stmt_close($stmt);
+        mysqli_rollback($base);
+        echo "ERROR recording migration: $recordError\n";
         exit(1);
     }
     mysqli_stmt_close($stmt);
+
+    mysqli_commit($base);
 
     echo "OK\n";
     $pending++;

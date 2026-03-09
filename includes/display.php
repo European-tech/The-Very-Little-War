@@ -60,6 +60,13 @@ function couleurFormule($formule)
     global $lettre;
     global $couleurs;
 
+    // INFRA-TEMPLATES-MEDIUM-001: Sanitize input — escape HTML entities, then restore only the
+    // expected <sub>…</sub> subscript markup so chemical formulas display correctly while
+    // preventing XSS from injected tags (e.g. <script>, <img onerror=…>).
+    $formule = htmlspecialchars((string)$formule, ENT_QUOTES, 'UTF-8');
+    // Restore the exact literal sequences &lt;sub&gt; / &lt;/sub&gt; that wrap digit-only content
+    $formule = preg_replace('#&lt;sub&gt;([0-9]*)&lt;/sub&gt;#', '<sub>$1</sub>', $formule);
+
     foreach ($nomsRes as $num => $ressource) {
         $formule = preg_replace('#(' . $lettre[$num] . ')(<sub>[0-9]*</sub>)#', '<span style="color:' . $couleurs[$num] . ';font-weight:bold;">$1$2</span>', $formule);
     }

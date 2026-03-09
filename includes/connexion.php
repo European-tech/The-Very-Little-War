@@ -20,8 +20,11 @@ set_exception_handler(function(\Throwable $e) {
         http_response_code(500);
         die('<h1>Erreur interne</h1><p>Une erreur de base de données s\'est produite. Veuillez réessayer.</p>');
     }
-    // Re-throw non-DB exceptions
-    throw $e;
+    // DB16-001: Do NOT re-throw from the exception handler — PHP would display the full
+    // stack trace (file paths, line numbers) to the user. Log and show a generic error instead.
+    error_log('Uncaught ' . get_class($e) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    http_response_code(500);
+    die('<h1>Erreur interne</h1><p>Une erreur inattendue s\'est produite. Veuillez réessayer.</p>');
 });
 $base = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
 

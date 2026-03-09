@@ -33,9 +33,18 @@ if (isset($_POST['login'])) {
 			if (!validateLogin($loginInput)) {
 				$erreur = 'Vous ne pouvez pas utiliser de caract&egrave;res sp&eacute;ciaux dans votre login (3-20 caract&egrave;res alphanum&eacute;riques).';
 				$erreur .= ' <strong>Votre identifiant sera : ' . htmlspecialchars($loginNormalized, ENT_QUOTES, 'UTF-8') . '</strong>';
+			} elseif (stripos($loginInput, 'Visiteur') === 0) {
+				// FLOW-REG-MEDIUM-001: Reserve the "Visiteur" prefix for the visitor/guest account
+				// namespace used by comptetest.php. Cleanup routines delete accounts matching
+				// "Visiteur%" — a real player registering under that prefix would be wiped.
+				$erreur = 'Ce pseudo est r&eacute;serv&eacute;.';
 			} elseif (!validateEmail($emailInput)) {
 				$erreur = 'L\'email n\'est pas correct.';
 			} else {
+				// FLOW-REG-MEDIUM-003: This SELECT COUNT is an early-exit optimisation only.
+				// The UNIQUE KEY `uq_membre_email` on membre.email (migration 0101) is the
+				// authoritative guard against concurrent duplicate registrations — inscrire()
+				// catches the duplicate-key error and returns 'email_taken'.
 				$nbMail = dbCount($base, 'SELECT COUNT(*) AS nb FROM membre WHERE email = ?', 's', $emailInput);
 				if ($nbMail > 0) {
 					$erreur = 'Ce login ou email est d&eacute;j&agrave; utilis&eacute;.';

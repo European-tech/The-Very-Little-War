@@ -40,7 +40,7 @@ echo '<h4>Pseudos avec l\'ip '.htmlspecialchars($ip, ENT_QUOTES, 'UTF-8').'\'<p>
 // IP addresses are stored as hashed values in the membre table (via hashIpAddress())
 // Must hash the input IP before querying to get matching results
 $hashedIp = $ip !== '' ? hashIpAddress($ip) : '';
-$ipMembreRows = $hashedIp ? dbFetchAll($base, 'SELECT * FROM membre WHERE ip = ?', 's', $hashedIp) : [];
+$ipMembreRows = $hashedIp ? dbFetchAll($base, 'SELECT login, email, dateInscription, derniereConnexion, ip FROM membre WHERE ip = ?', 's', $hashedIp) : [];
 foreach ($ipMembreRows as $donnees) {
 	echo '<a href="../joueur.php?id='.htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8').'</a><br/>';
 }

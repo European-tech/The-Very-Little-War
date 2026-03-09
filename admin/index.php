@@ -62,11 +62,15 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 
 	if (isset($_POST['supprimercompte'])) {
 		$ip = $_POST['supprimercompte'] ?? '';
-		if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-			$erreur = "Format d'IP invalide.";
+		// ADMIN16-001: The dashboard form sends the already-hashed IP (HMAC-SHA256, 64 hex chars).
+		// FILTER_VALIDATE_IP always fails on a hex hash, breaking batch deletion entirely.
+		// Accept the hash directly; validate it is a 64-char lowercase hex string.
+		$isValidHash = (bool) preg_match('/^[0-9a-f]{64}$/', $ip);
+		if (!$isValidHash) {
+			$erreur = "Valeur d'IP invalide (hash attendu).";
 		} else {
-			// MKT-P10-H01: ip column stores HMAC-SHA256 hashes (Pass 9 migration) — hash before querying.
-			$hashedIp = hashIpAddress($ip);
+			// Hash is already the correct format — query directly (no second hashIpAddress() call).
+			$hashedIp = $ip;
 			$rows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $hashedIp);
 			if (count($rows) > 5) {
 				$erreur = "Trop de comptes correspondants (" . count($rows) . "). Opération refusée.";

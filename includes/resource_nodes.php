@@ -130,7 +130,10 @@ function getResourceNodeBonus($base, $px, $py, $resourceName)
     }
 
     $totalBonus = 0.0;
-    $mapBound = defined('MAP_SIZE') ? MAP_SIZE : 200;
+    // MAPS-MEDIUM-002: MAP_SIZE is the hard cap enforced on tailleCarte growth in
+    // coordonneesAleatoires(). No resource node or player coordinate can legitimately
+    // exceed MAP_SIZE, so this bound is guaranteed consistent with the live map size.
+    $mapBound = MAP_SIZE;
     foreach ($nodesCache as $node) {
         if ($node['resource_type'] !== $resourceName) {
             continue;

@@ -1,5 +1,16 @@
 <?php
 include("includes/basicprivatephp.php");
+require_once("includes/csrf.php");
+
+// SOCIAL MEDIUM-001: Allow sender to delete their own sent messages
+if (isset($_POST['supprimer_sent']) && preg_match("#^\d+$#", $_POST['supprimer_sent'])) {
+    csrfCheck();
+    $supprimerId = (int)$_POST['supprimer_sent'];
+    dbExecute($base, 'UPDATE messages SET deleted_by_sender=1 WHERE id = ? AND expeditaire = ?', 'is', $supprimerId, $_SESSION['login']);
+    dbExecute($base, 'DELETE FROM messages WHERE id = ? AND deleted_by_sender=1 AND deleted_by_recipient=1', 'i', $supprimerId);
+    header('Location: messagesenvoyes.php');
+    exit();
+}
 
 include("includes/layout.php");
 
@@ -23,11 +34,14 @@ if($nb_messages > 0) {
 	<th>Titre</th>
 	<th>Destinataire</th>
 	<th>Date</th>
+	<th>Action</th>
 	</tr></thead><tbody>';
 	foreach($messageRows as $message) {
 		echo '<tr><td><a href="messages.php?message='.(int)$message['id'].'">'.htmlspecialchars($message['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 		echo '<td><a href="joueur.php?id='.htmlspecialchars($message['destinataire'], ENT_QUOTES, 'UTF-8').'">'.htmlspecialchars($message['destinataire'], ENT_QUOTES, 'UTF-8').'</a></td>';
-		echo '<td><em>'.date('d/m/Y à H\hi', $message['timestamp']).'</em></td></tr>';
+		echo '<td><em>'.date('d/m/Y à H\hi', $message['timestamp']).'</em></td>';
+		// SOCIAL MEDIUM-001: Sender can delete their own sent messages
+		echo '<td><form method="post" action="messagesenvoyes.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer_sent" value="'.(int)$message['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="w32"></button></form></td></tr>';
 	}
 	echo '</tbody></table>';
 

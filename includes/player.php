@@ -808,14 +808,25 @@ function coordonneesAleatoires()
 {
     global $base;
 
+    // MAPS-MEDIUM-001 (resolved): The TOCTOU race between coordinate selection and player
+    // placement is eliminated by the SELECT … FOR UPDATE on the statistiques row inside
+    // withTransaction(). Only one concurrent call can hold the lock at a time; the second
+    // caller blocks until the first commits. A UNIQUE INDEX on membre(x,y) is intentionally
+    // absent because remiseAZero() resets ALL players to the sentinel (-1000,-1000), which
+    // would violate a global unique constraint. The outer retry loop handles any residual
+    // duplicate-key error from a degenerate edge case (see migration 0069 for rationale).
     $maxRetries = 10;
     for ($attempt = 0; $attempt < $maxRetries; $attempt++) {
         try {
             $coords = withTransaction($base, function() use ($base) {
-                // Lock statistiques row to prevent concurrent expansions
+                // Lock statistiques row to prevent concurrent expansions (TOCTOU fix)
                 $inscrits = dbFetchOne($base, 'SELECT tailleCarte,nbDerniere FROM statistiques FOR UPDATE');
 
-                if ($inscrits['nbDerniere'] > $inscrits['tailleCarte'] - 2) {
+                // MAPS-MEDIUM-002: Cap map growth at MAP_SIZE to prevent tailleCarte from
+                // diverging from the MAP_SIZE constant used for bounds-checking elsewhere
+                // (e.g. resource_nodes.php). If tailleCarte reaches MAP_SIZE the map is
+                // considered full and no further automatic expansion occurs.
+                if ($inscrits['tailleCarte'] < MAP_SIZE && $inscrits['nbDerniere'] > $inscrits['tailleCarte'] - 2) {
                     $inscrits['nbDerniere'] = 0;
                     $inscrits['tailleCarte'] += 1;
                 }
@@ -849,8 +860,10 @@ function coordonneesAleatoires()
                         $attempts++;
                     }
                     if ($attempts >= $maxAttempts) {
-                        // Map edge is full, force expand
-                        $inscrits['tailleCarte'] += 1;
+                        // Map edge is full, force expand (bounded by MAP_SIZE — MAPS-MEDIUM-002)
+                        if ($inscrits['tailleCarte'] < MAP_SIZE) {
+                            $inscrits['tailleCarte'] += 1;
+                        }
                         $x = $inscrits['tailleCarte'] - 1;
                         $y = 0;
                     }
@@ -864,7 +877,10 @@ function coordonneesAleatoires()
                         $attempts++;
                     }
                     if ($attempts >= $maxAttempts) {
-                        $inscrits['tailleCarte'] += 1;
+                        // Map edge is full, force expand (bounded by MAP_SIZE — MAPS-MEDIUM-002)
+                        if ($inscrits['tailleCarte'] < MAP_SIZE) {
+                            $inscrits['tailleCarte'] += 1;
+                        }
                         $x = 0;
                         $y = $inscrits['tailleCarte'] - 1;
                     }

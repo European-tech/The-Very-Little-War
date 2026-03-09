@@ -28,18 +28,29 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 			$erreur = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
 		} else {
 
+		// INFRA-SEC-MEDIUM-005: Per-account rate limit — prevents brute-force from multiple IPs.
+		// Normalize the submitted login the same way authentication does so the key is consistent.
+		$rawLoginForLimit = ucfirst(mb_strtolower(trim($_POST['loginConnexion'])));
+		if (!rateLimitCheck($rawLoginForLimit, 'login_account', RATE_LIMIT_LOGIN_MAX, RATE_LIMIT_LOGIN_WINDOW)) {
+			logWarn('AUTH', 'Login rate limited (per-account)', ['login' => $rawLoginForLimit]);
+			$erreur = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
+		} else {
+
 		$loginInput = ucfirst(mb_strtolower(trim($_POST['loginConnexion'])));
 		$passwordInput = $_POST['passConnexion'];
 
-		// Use prepared statement to fetch user
-		$row = dbFetchOne($base, 'SELECT login, pass_md5 FROM membre WHERE login = ?', 's', $loginInput);
+		// Use prepared statement to fetch user (AUTH16-001: include estExclu to reject banned players at login)
+		$row = dbFetchOne($base, 'SELECT login, pass_md5, estExclu FROM membre WHERE login = ?', 's', $loginInput);
 
 		$suppRows = dbFetchAll($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - VISITOR_SESSION_CLEANUP_SECONDS);
 		foreach ($suppRows as $supp) {
 			supprimerJoueur($supp['login']);
 		}
 
-		if ($row) {
+		if ($row && (int)$row['estExclu'] === 1) {
+			// AUTH16-001: Reject banned players immediately at login rather than on next page load.
+			$erreur = 'Le couple login-mot de passe est erronn&eacute;';
+		} elseif ($row) {
 			$storedHash = $row['pass_md5'];
 			$authenticated = false;
 
@@ -85,6 +96,7 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 			logWarn('AUTH', 'Login failed - user not found', ['login' => $loginInput]);
 			$erreur = 'Le couple login-mot de passe est erronn&eacute;';
 		}
+		} // end per-account rate limit else
 		} // end rate limit else
 	} else {
 		$erreur = 'Un des deux champs n\'a pas &eacute;t&eacute; rempli';

@@ -13,6 +13,15 @@ define('LOG_LEVEL_ERROR', 3);
 // Minimum log level to write (INFO for production)
 define('MIN_LOG_LEVEL', LOG_LEVEL_INFO);
 
+/**
+ * INFRA-SEC-MEDIUM-001: Sanitize a user-controlled value before writing to a log line.
+ * Replaces literal \r and \n characters with their escaped representations so that
+ * a crafted login name or context value cannot inject fake log entries.
+ */
+function sanitizeLogValue($v) {
+    return str_replace(["\r", "\n"], ['\\r', '\\n'], (string)$v);
+}
+
 function gameLog($level, $category, $message, $context = []) {
     if ($level < MIN_LOG_LEVEL) return;
 
@@ -23,15 +32,21 @@ function gameLog($level, $category, $message, $context = []) {
     $levelNames = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
     $levelName = $levelNames[$level] ?? 'UNKNOWN';
     $timestamp = date('Y-m-d H:i:s');
-    $login = $_SESSION['login'] ?? 'anonymous';
+    // INFRA-SEC-MEDIUM-001: sanitize $login — it comes from $_SESSION which is user-controlled.
+    $login = sanitizeLogValue($_SESSION['login'] ?? 'anonymous');
     $rawIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     $salt = defined('SECRET_SALT') ? SECRET_SALT : 'tvlw_salt';
     $hashedIp = ($rawIp !== 'unknown') ? substr(hash_hmac('sha256', $rawIp, $salt), 0, 12) : 'unknown';
 
-    // LOG12-001: Strip newlines from context JSON to prevent log injection via crafted context values.
-    $contextStr = !empty($context) ? ' | ' . str_replace(["\r", "\n"], ' ', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) : '';
-    $safeCategory = str_replace(["\r", "\n"], ' ', $category);
-    $safeMessage = str_replace(["\r", "\n"], ' ', $message);
+    // INFRA-SEC-MEDIUM-001: Strip newlines from all user-controlled fields to prevent log injection.
+    // sanitizeLogValue() is applied to each context value individually so structured data is preserved.
+    $safeContext = [];
+    foreach ($context as $k => $v) {
+        $safeContext[sanitizeLogValue($k)] = sanitizeLogValue($v);
+    }
+    $contextStr = !empty($safeContext) ? ' | ' . json_encode($safeContext, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : '';
+    $safeCategory = sanitizeLogValue($category);
+    $safeMessage = sanitizeLogValue($message);
     $line = "[$timestamp] [$levelName] [$safeCategory] [$login@$hashedIp] $safeMessage$contextStr\n";
 
     $filename = LOG_DIR . '/' . date('Y-m-d') . '.log';

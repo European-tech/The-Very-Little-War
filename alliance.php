@@ -46,7 +46,7 @@ if (isset($_POST['nomalliance']) and isset($_POST['tagalliance']) && $allianceJo
                             if (count($allianceCheckRows) > 0) {
                                 throw new \RuntimeException('DUPLICATE');
                             }
-                            dbExecute($base, 'INSERT INTO alliances VALUES (default, ?, ?, ?, default, ?, default, default, default, default, default, default, default, default)', 'ssss',
+                            dbExecute($base, 'INSERT INTO alliances (nom, tag, description, chef) VALUES (?, ?, ?, ?)', 'ssss',
                                 $_POST['nomalliance'], $_POST['tagalliance'], '', $_SESSION['login']);
                             $allianceId = mysqli_insert_id($base);
                             dbExecute($base, 'UPDATE autre SET idalliance=? WHERE login=?', 'is', $allianceId, $_SESSION['login']);
