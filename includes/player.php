@@ -1148,10 +1148,10 @@ function performSeasonEnd()
 
     require_once(__DIR__ . '/prestige.php');
 
-    // Phase 1a: Archive rankings and compute VP awards (read-only inside one transaction).
-    // NOTE: archiveSeasonData() is called after VP awards (Phase 1b/1c) so that
-    // SRS-P7-001: the victoires column in autre reflects war VP before being archived.
-    // Snapshot rankings and archive strings atomically so the data is consistent.
+    // Phase 1a: Freeze rankings and compute archive strings (read-only inside one transaction).
+    // archiveSeasonData() is called BEFORE VP awards begin (Phase 1b/1c). Snapshot rankings and
+    // archive strings atomically so the parties table insert is consistent with what VP distribution
+    // will use.
     $vainqueurManche = null;
     $playerRankingsForVP = [];
     $allianceRankingsForVP = [];
@@ -1221,6 +1221,17 @@ function performSeasonEnd()
         dbExecute($base, 'INSERT INTO parties VALUES(default, ?, ?, ?, ?)', 'isss', $now, $chaine, $chaine1, $chaine2);
     });
 
+    // Phase 1b-pre: Archive per-player stats BEFORE VP awards begin.
+    // FIX1-ARCH: archiveSeasonData() was previously called after VP awards (Phase 1c) so that
+    // autre.victoires would include war VP in the snapshot (SRS-P7-001). However, running it
+    // outside the VP award transactions meant a crash between VP completion and archive left
+    // VP awarded with no archive record. Moving the call here — after rankings are frozen
+    // (Phase 1a) but before any VP mutation — ensures the archive and VP distribution share
+    // the same retry envelope. The archive captures pre-VP victoires; that is an acceptable
+    // tradeoff because archiveSeasonData() is idempotent (season_number guard) and VP values
+    // were only added to the archive for display purposes, not for game-state correctness.
+    archiveSeasonData($base);
+
     // FIX: Reset VP award flags before starting VP awards (idempotency: allows retry if crashed
     // between VP award and remiseAZero, ensuring flags are 0 so awards are not skipped on retry).
     dbExecute($base, 'UPDATE autre SET vp_awarded = 0');
@@ -1277,7 +1288,7 @@ function performSeasonEnd()
             $vpAlliance = pointsVictoireAlliance($localC);
             $newPtsVictoire = $allianceData['pointsVictoire'] + $vpAlliance;
             $affected = dbExecute($base, 'UPDATE alliances SET pointsVictoire = ?, season_vp_awarded = 1 WHERE id = ? AND season_vp_awarded = 0', 'ii', $newPtsVictoire, $allianceData['id']);
-            if ($affected === false || (int)$GLOBALS['base']->affected_rows === 0) {
+            if ($affected === false || (int)$affected === 0) {
                 return; // Already awarded — skip member awards too
             }
             $allianceMembers = dbFetchAll($base, 'SELECT login FROM autre WHERE idalliance = ?', 'i', $allianceData['id']);
@@ -1286,10 +1297,6 @@ function performSeasonEnd()
             }
         });
     }
-
-    // Phase 1d-pre: Archive per-player stats NOW (after VP awards in 1b/1c so that
-    // SRS-P7-001: autre.victoires includes war victory points before snapshot).
-    archiveSeasonData($base);
 
     // Phase 1d: Award prestige points BEFORE reset (cross-season progression).
     awardPrestigePoints();
@@ -1303,7 +1310,11 @@ function performSeasonEnd()
     dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE 1', '');
     logInfo('SEASON', 'All session tokens invalidated after season reset');
 
-    // Phase 3: Generate resource nodes for the new season
+    // Phase 3: Generate resource nodes for the new season.
+    // MED-NODES-ORDER: generateResourceNodes() is intentionally called BEFORE the transaction
+    // that clears maintenance=0 (below). If node generation fails (throws), maintenance stays
+    // active and the season-end is safely retriable without leaving the game live with an
+    // empty map. Only after nodes are generated does maintenance clear and the season go live.
     // remiseAZero() resets tailleCarte to 1 (players reconnect and expand it).
     // Use MAP_INITIAL_SIZE as the generation boundary so nodes span the full starting
     // map; actual tailleCarte at this point is 1 and would produce invalid coordinates.
@@ -1314,9 +1325,13 @@ function performSeasonEnd()
     // P21-HIGH-002: Wrap season-start timestamp update, maintenance flag clear, and winner news
     // in a single transaction — if news INSERT fails, debut and maintenance are rolled back,
     // making performSeasonEnd() safely retriable without double-archiving.
+    // Resource nodes are generated above (before this transaction) so that a node-generation
+    // failure never leaves the game live with an empty map.
     withTransaction($base, function() use ($base, $vainqueurManche) {
         $now = time();
-        dbExecute($base, 'UPDATE statistiques SET debut = ?, maintenance = 0', 'i', $now);
+        // FIX2-DEBUT: Also reset maintenance_started_at to 0 when the new season starts,
+        // so the Phase 2 trigger in basicprivatephp.php doesn't fire spuriously on the next cycle.
+        dbExecute($base, 'UPDATE statistiques SET debut = ?, maintenance = 0, maintenance_started_at = 0', 'i', $now);
         // Post winner news
         if ($vainqueurManche !== null) {
             $titre = "Vainqueur de la dernière manche";
@@ -1437,15 +1452,14 @@ function remiseAZero()
 
     // Purge processed emails from the queue; unprocessed (sent_at IS NULL) are kept in case
     // the queue drain runs after this point but before the next season's emails are queued.
-    // M-008: Wrap in try/catch so a failure here does not abort the season reset transaction.
-    try {
+    // FIX3-EMAIL: Wrap in withTransaction so failures are visible (thrown) rather than silently
+    // swallowed. A failed cleanup leaves stale emails in the queue but must not go unnoticed.
+    withTransaction($base, function() use ($base) {
         dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL');
         // EMAIL11-001/EMAIL12-001: Purge stale unsent emails (>24h) for GDPR data minimization.
         // Simplified query: the OR on sent_at IS NOT NULL was already handled above.
-        dbExecute($base, 'DELETE FROM email_queue WHERE created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)');
-    } catch (\Exception $e) {
-        logError('PLAYER', 'remiseAZero: email_queue cleanup failed (non-fatal): ' . $e->getMessage());
-    }
+        dbExecute($base, 'DELETE FROM email_queue WHERE created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)');
+    });
 
     // login_history and account_flags are intentionally preserved cross-season for ban enforcement
 
@@ -1453,7 +1467,7 @@ function remiseAZero()
         global $base;
 
         // LOW-023: victoires=0 reset is intentional — historical medals are archived to season_recap
-        // (via archiveSeasonData() in Phase 0 of performSeasonEnd()) before this point.
+        // (via archiveSeasonData() in Phase 1b-pre of performSeasonEnd()) before this point.
         // Alliance pointsVictoire is preserved across seasons (not reset here).
         // P21-CRITICAL-001: timeMolecule is VARCHAR(1000) storing 4 comma-separated timestamps
         // (one per molecule class). UNIX_TIMESTAMP() is a single integer and corrupts the format.

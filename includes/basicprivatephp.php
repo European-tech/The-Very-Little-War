@@ -212,13 +212,18 @@ if ($recentAttackCount > 0) {
 
 //////////////////////////////////////////////////////////// Gestion des ressources
 //Vérification si nouveau mois le lendemain
-$debutRow = dbFetchOne($base, 'SELECT debut FROM statistiques');
+// FIX2-DEBUT: Also select maintenance_started_at (migration 0109) so Phase 2 trigger
+// uses the maintenance trigger time, not the season start time (debut).
+$debutRow = dbFetchOne($base, 'SELECT debut, maintenance_started_at FROM statistiques');
 $debut = $debutRow;
 
 $maintenanceRow = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
 $maintenance = $maintenanceRow;
 
-if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAINTENANCE_PAUSE_SECONDS) {
+// FIX2-DEBUT: Use maintenance_started_at for the 24h countdown, not debut.
+// debut = real season start; maintenance_started_at = when Phase 1 fired.
+$maintenanceStartedAt = (int)($debut['maintenance_started_at'] ?? 0);
+if ($maintenance['maintenance'] == 1 && $maintenanceStartedAt > 0 && (time() - $maintenanceStartedAt) >= SEASON_MAINTENANCE_PAUSE_SECONDS) {
     // Phase 2: 24h have passed since maintenance was set, proceed with full reset.
     //
     // AUTH-P20-001: Season reset is triggered only by admin/index.php (TVLW_ADMIN session)
@@ -265,7 +270,11 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         if ($maintenanceRecheck && $maintenanceRecheck['maintenance'] == 0) {
             dbExecute($base, 'UPDATE statistiques SET maintenance = 1');
             $now = time();
-            dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
+            // FIX2-DEBUT: Write maintenance trigger time to maintenance_started_at (migration 0109),
+            // NOT to debut. The debut column must remain the real season start timestamp so that
+            // season-duration calculations (prestige final-week check, MIN_SEASON_DAYS guard) are
+            // not corrupted by the maintenance trigger time.
+            dbExecute($base, 'UPDATE statistiques SET maintenance_started_at = ?', 'i', $now);
             logInfo('SEASON', 'Phase 1 maintenance triggered', ['login' => $_SESSION['login'] ?? 'unknown']);
         }
         dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_phase1')");
@@ -291,7 +300,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
             . '</body></html>';
         exit;
     }
-} elseif ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) < SEASON_MAINTENANCE_PAUSE_SECONDS) {
+} elseif ($maintenance['maintenance'] == 1 && ($maintenanceStartedAt === 0 || (time() - $maintenanceStartedAt) < SEASON_MAINTENANCE_PAUSE_SECONDS)) {
     // Still in maintenance period, 24h have not yet passed
     // MED-013: Block ALL requests (GET and POST) for non-admin players during maintenance
     if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {

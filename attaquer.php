@@ -332,6 +332,16 @@ if (isset($_POST['joueurAAttaquer'])) {
                                         if ($cooldownFresh) {
                                             throw new RuntimeException('COOLDOWN_ACTIVE');
                                         }
+                                        // MED-ALLIANCE-TX: Re-check alliance membership inside transaction to close the
+                                        // TOCTOU window between the pre-transaction check (lines ~178-181) and the
+                                        // attack INSERT. Attacker row is locked FOR UPDATE to prevent concurrent joins.
+                                        $attAllianceCheck = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=? FOR UPDATE', 's', $attaquant);
+                                        $defAllianceCheck = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $capturedCibles);
+                                        if ($attAllianceCheck && $defAllianceCheck &&
+                                            (int)$attAllianceCheck['idalliance'] > 0 &&
+                                            (int)$attAllianceCheck['idalliance'] === (int)$defAllianceCheck['idalliance']) {
+                                            throw new \RuntimeException('SAME_ALLIANCE');
+                                        }
                                         $moleculesAttaqueTxRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $attaquant);
                                         $c = 1;
                                         foreach ($moleculesAttaqueTxRows as $moleculesAttaque) {
@@ -361,6 +371,8 @@ if (isset($_POST['joueurAAttaquer'])) {
                                         $erreur = "Vous n'avez pas assez d'énergie (solde modifié entre la vérification et l'envoi).";
                                     } elseif ($e->getMessage() === 'COOLDOWN_ACTIVE') {
                                         $erreur = "Vous devez attendre avant de pouvoir attaquer ce joueur (délai de cooldown actif).";
+                                    } elseif ($e->getMessage() === 'SAME_ALLIANCE') {
+                                        $erreur = "Vous ne pouvez pas attaquer un membre de votre alliance.";
                                     } else {
                                         $erreur = "Une erreur est survenue lors du lancement de l'attaque.";
                                         error_log('Attack transaction failed: ' . $e->getMessage());

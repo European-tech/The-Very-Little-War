@@ -12,8 +12,6 @@ if (isset($_POST['verification']) and isset($_POST['oui'])) {
         $erreur = "Le compte ne peut être supprimé qu'au bout d'une semaine.";
     } else {
         supprimerJoueur($_SESSION['login']);
-        // Clear session token from DB to prevent reuse of old token
-        dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE login = ?', 's', $_SESSION['login']);
         // Destroy session so the deleted account cannot continue browsing
         session_unset();
         session_destroy();
