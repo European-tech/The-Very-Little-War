@@ -26,7 +26,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				$erreur = "Vous envoyez trop de messages de masse. Veuillez patienter.";
 			} else {
 				// MED-030: Wrap all inserts in a transaction so partial sends are rolled back on failure
-				$destinataireRows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=? AND login !=?', 'is', $idalliance['idalliance'], $_SESSION['login']);
+				$destinataireRows = dbFetchAll($base, 'SELECT a.* FROM autre a JOIN membre m ON a.login = m.login WHERE a.idalliance=? AND a.login !=? AND m.estExclu = 0', 'is', $idalliance['idalliance'], $_SESSION['login']);
 				$titreMsg   = $_POST['titre'];
 				$contenuMsg = $_POST['contenu'];
 				$expediteur = $_SESSION['login'];
@@ -53,7 +53,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 			} elseif (!rateLimitCheck($_SESSION['login'], 'broadcast_all', 2, 3600)) {
 				$erreur = "Vous envoyez trop de messages de masse. Veuillez patienter.";
 			} else {
-				$allDestinataires = dbFetchAll($base, 'SELECT login FROM autre');
+				$allDestinataires = dbFetchAll($base, 'SELECT a.login FROM autre a JOIN membre m ON a.login = m.login WHERE m.estExclu = 0');
 				$titreAll      = $_POST['titre'];
 				$contenuAll    = $_POST['contenu'];
 				$expediteurAll = $_SESSION['login'];

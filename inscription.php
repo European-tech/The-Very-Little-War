@@ -66,6 +66,8 @@ if (isset($_POST['login'])) {
 							// reuse it after this point.
 							session_regenerate_id(true);
 							$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+							$_SESSION['session_created'] = time();
+							$_SESSION['last_activity'] = time();
 							header("Location: index.php?inscrit=1"); exit;
 						} elseif ($result === 'email_taken') {
 							$erreur = 'Ce login ou email est d&eacute;j&agrave; utilis&eacute;.';

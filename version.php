@@ -12,14 +12,8 @@ else
 include("includes/layout.php");
 
 debutCarte("Historique des versions");
-// PASS4-LOW-008: Git hash restricted to admin sessions only — avoids fingerprinting for regular users
-$gitHash = '';
-if (isset($_SESSION['motdepasseadmin']) && $_SESSION['motdepasseadmin'] === true && function_exists('shell_exec')) {
-    $raw = shell_exec('cd ' . escapeshellarg(__DIR__) . ' && git rev-parse --short HEAD 2>/dev/null');
-    $gitHash = trim($raw ?? '');
-}
 $versionLabel = defined('GAME_VERSION') ? GAME_VERSION : 'V4.0';
-echo important($versionLabel . ($gitHash ? " ({$gitHash})" : '')); ?>
+echo important($versionLabel); ?>
 <p>
 - ajout des points d'attaque, de défense et de pillage<br/>
 - ajustement des caractéristiques des atomes<br/> 

@@ -221,109 +221,25 @@ $maintenance = $maintenanceRow;
 if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAINTENANCE_PAUSE_SECONDS) {
     // Phase 2: 24h have passed since maintenance was set, proceed with full reset.
     //
-    // AUTH-P20-001: Season reset can ONLY be triggered by admin/index.php (separate TVLW_ADMIN
-    // session) or by a CLI cron job. Player-facing page requests ALWAYS see the maintenance page
-    // during Phase 2. The motdepasseadmin flag only exists in the TVLW_ADMIN session, which is
-    // never active in basicprivatephp.php (player session). Checking it here always returns false,
-    // so any web-request auto-trigger in this file would be permanently broken. Remove it entirely.
-    if (false) {
-        // Dead branch — season reset never triggered from player pages. Admin uses admin/index.php.
-    } else {
-        // All player requests during Phase 2: show maintenance page.
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Le jeu est en maintenance']);
-            exit;
-        }
-        http_response_code(503);
-        header('Retry-After: 3600');
-        echo '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
-            . '<title>Maintenance — The Very Little War</title>'
-            . '<meta name="robots" content="noindex">'
-            . '<style>body{font-family:sans-serif;text-align:center;padding:3em;background:#1a1a2e;color:#e0e0e0}'
-            . 'h1{color:#f5a623}p{font-size:1.1em}</style></head><body>'
-            . '<h1>Maintenance en cours</h1>'
-            . '<p>Une nouvelle partie commencera dans les prochaines 24 heures.</p>'
-            . '<p><a href="index.php" style="color:#f5a623;">Retour à l\'accueil</a></p>'
-            . '</body></html>';
+    // AUTH-P20-001: Season reset is triggered only by admin/index.php (TVLW_ADMIN session)
+    // or a CLI cron job. All player requests during Phase 2 see the maintenance page.
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Le jeu est en maintenance']);
         exit;
     }
-    // UNREACHABLE — keeping performSeasonEnd block intact for admin/index.php reference.
-    // The block below executes only when called from admin/index.php (TVLW_ADMIN session).
-    if (false) {
-    // AUTH-C-001: performSeasonEnd() manages its own advisory lock ('tvlw_season_reset')
-    // internally with GET_LOCK/RELEASE_LOCK in a try/finally. The outer GET_LOCK here was
-    // causing a double-acquisition on the same connection (MariaDB re-entrant lock), and
-    // performSeasonEnd()'s finally released it prematurely, leaving the email queue below
-    // unprotected. Remove the outer lock and rely entirely on performSeasonEnd()'s lock.
-    $vainqueurManche = null;
-    $seasonResetOk = false;
-    try {
-    // Full season-end flow: archive, VP, prestige, reset, news
-    // Throws RuntimeException if lock not acquired (another reset in progress).
-    $vainqueurManche = performSeasonEnd();
-    $seasonResetOk = true;
-    } catch (\Exception $e) {
-    // RuntimeException = lock not acquired or reset failed
-    logError('SEASON', 'performSeasonEnd() failed: ' . $e->getMessage());
-    if (!$seasonResetOk) {
-        logError('SEASON', 'Season reset failed — maintenance flag kept at 1 for admin review');
-    }
-    }
-
-    // HIGH-017: Queue season reset emails instead of sending synchronously.
-    // Sending to every player inline in a page request risks HTTP timeouts and
-    // leaves the game in a degraded state if mail() is slow.
-    // Emails are inserted into email_queue and sent by processEmailQueue() which
-    // is called probabilistically (1% of requests) on subsequent page loads.
-    // Guard: only queue emails when the reset actually succeeded and we have a winner.
-    if ($seasonResetOk && $vainqueurManche !== null) {
-    // H-021: Exclude banned (estExclu=1) players from season-end emails.
-    // Note: do NOT filter by x != -1000 here — remiseAZero() already set all players
-    // to x=-1000 before this code runs, so that filter would exclude everyone.
-    // Inactive players were pruned by pruneInactivePlayers() inside performSeasonEnd().
-    $mailRows = dbFetchAll($base, 'SELECT m.email, m.login FROM membre m WHERE m.estExclu = 0 AND m.email IS NOT NULL AND m.email != \'\'', '');
-    // P9-HIGH-003: winnerName comes from DB (player-controlled login). htmlspecialchars()
-    // is applied below when embedded in HTML. Also strip CRLF from the raw value to prevent
-    // any header injection if it were ever used in a header context.
-    $winnerNameRaw = $vainqueurManche ?? 'Personne';
-    $winnerName    = str_replace(["\r", "\n"], '', $winnerNameRaw);
-    $winnerName    = str_replace("\0", '', $winnerName);
-
-    // P9-HIGH-004: date() produces UTF-8 characters (e.g. "à") which corrupt the latin1
-    // email_queue columns. Use a pure-ASCII date format ("le 01/01/2026 a 14h00") so the
-    // INSERT never introduces a charset mismatch. Migration 0077 will later convert
-    // subject/body_html to utf8mb4, at which point this format remains valid regardless.
-    $resetDate = date('d/m/Y \a H\hi', time()); // ASCII-only: "le 01/01/2026 a 14h00"
-
-    foreach ($mailRows as $donnees) {
-        // P9-HIGH-003: strip CRLF from any user-controlled value used in the email body.
-        $recipientEmail = str_replace(["\r", "\n"], '', $donnees['email']);
-        $recipientLogin = str_replace(["\r", "\n"], '', $donnees['login']);
-
-        // P9-HIGH-003: login and winner names are escaped with htmlspecialchars() so that
-        // a login containing "<script>" or HTML metacharacters cannot inject markup.
-        $safeLogin  = htmlspecialchars($recipientLogin, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $safeWinner = htmlspecialchars($winnerName,    ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-        $message_html = "<html><head></head><body>Bonjour " . $safeLogin . " ! <b>" . $safeWinner . "</b> vient de remporter la partie en cours le " . $resetDate . ". Les points de tous les joueurs vont etre remis a zero et"
-            . " vous pourrez commencer a rejouer la nouvelle partie a partir du <b>" . $resetDate . "</b> ! Ne manquez pas cette occasion de prendre la tete du classement. Je vous souhaite donc bonne chance pour la suite"
-            . " et a bientot sur <a href=\"https://www.theverylittlewar.com\">The Very Little War</a> !<br/><br/><br/><br/>"
-            . "<i>Si vous ne souhaitez plus recevoir ce genre de mail il suffit de changer votre adresse e-mail sur <a href=\"https://www.theverylittlewar.com\">www.theverylittlewar.com</a> dans la partie \"Mon compte\".</i></body></html>";
-
-        $sujet = "=?UTF-8?B?" . base64_encode("Debut d'une nouvelle partie") . "?=";
-
-        dbExecute($base,
-            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, UNIX_TIMESTAMP())',
-            'sss', $recipientEmail, $sujet, $message_html
-        );
-    }
-    if (!empty($mailRows)) {
-        logInfo('SEASON', 'Season reset emails queued', ['count' => count($mailRows)]);
-    }
-    } // end if ($seasonResetOk && $vainqueurManche !== null)
-
-    } // end admin gate else block
+    http_response_code(503);
+    header('Retry-After: 3600');
+    echo '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
+        . '<title>Maintenance — The Very Little War</title>'
+        . '<meta name="robots" content="noindex">'
+        . '<style>body{font-family:sans-serif;text-align:center;padding:3em;background:#1a1a2e;color:#e0e0e0}'
+        . 'h1{color:#f5a623}p{font-size:1.1em}</style></head><body>'
+        . '<h1>Maintenance en cours</h1>'
+        . '<p>Une nouvelle partie commencera dans les prochaines 24 heures.</p>'
+        . '<p><a href="index.php" style="color:#f5a623;">Retour à l\'accueil</a></p>'
+        . '</body></html>';
+    exit;
 
 } elseif (date('n', time()) != date('n', $debut["debut"]) && $maintenance['maintenance'] == 0) {
     // Phase 1: New month detected, enable maintenance and start 24h countdown.

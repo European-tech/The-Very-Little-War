@@ -35,7 +35,7 @@ function imageLabel($image, $label, $lien = false)
         $lien = '<a href="' . htmlspecialchars($lien, ENT_QUOTES, 'UTF-8') . '" class="lienSousMenu">';
         $typeLabel = 'labelSousMenu';
     }
-    return $lien . $image . '<br/><span class="' . $typeLabel . '"  style="color:black">' . $label . '</span>' . ($lien ? '</a>' : '');
+    return $lien . $image . '<br/><span class="' . $typeLabel . '"  style="color:black">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>' . ($lien ? '</a>' : '');
 }
 
 function separerZeros($nombre)
@@ -46,11 +46,11 @@ function separerZeros($nombre)
 function couleur($chiffre)
 { // si négatif alors rouge, si positif alors vert
     if ($chiffre < 0) {
-        return '<span style="color:red">' . $chiffre . '</span>';
+        return '<span style="color:red">' . htmlspecialchars((string)$chiffre, ENT_QUOTES, 'UTF-8') . '</span>';
     } elseif ($chiffre > 0) {
-        return '<span style="color:green">+' . $chiffre . '</span>';
+        return '<span style="color:green">+' . htmlspecialchars((string)$chiffre, ENT_QUOTES, 'UTF-8') . '</span>';
     } else {
-        return $chiffre;
+        return htmlspecialchars((string)$chiffre, ENT_QUOTES, 'UTF-8');
     }
 }
 
@@ -201,7 +201,7 @@ function nombreTout($nombre)
     return '
         <div class="chip bg-">
             <div class="chip-media bg-white" style="width:143px;border-radius:20px"><img src="images/tout.png" style="border-radius:0px;margin-right:0px;" alt="toutes" title="Toutes les ressources" /></div>
-            <div class="chip-label">' . $nombre . '</div>
+            <div class="chip-label">' . htmlspecialchars((string)$nombre, ENT_QUOTES, 'UTF-8') . '</div>
         </div>';
 }
 
@@ -383,7 +383,6 @@ function sanitizeReportHtml($html) {
         'alt'   => ['img'],
         'id'    => true,
         'class' => true,
-        'style' => true,
     ];
 
     $dom = new DOMDocument();

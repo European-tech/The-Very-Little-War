@@ -48,6 +48,9 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 		inscrire("Visiteur" . $visitorNum, "Visiteur" . $visitorNum, "Visiteur" . $visitorNum . "@tvlw.com");
 		session_regenerate_id(true);
 		$_SESSION['login'] = ucfirst(mb_strtolower("Visiteur" . $visitorNum));
+		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+		$_SESSION['session_created'] = time();
+		$_SESSION['last_activity'] = time();
 		// LOW-001: Use a random password for visitor accounts (not predictable username-as-password).
 		$visitorPass = bin2hex(random_bytes(8));
 		$hashedPass = password_hash($visitorPass, PASSWORD_DEFAULT);
@@ -88,7 +91,7 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 				$erreur = 'Le login doit contenir entre ' . LOGIN_MIN_LENGTH . ' et ' . LOGIN_MAX_LENGTH . ' caractères alphanumériques.';
 			} else {
 				if (validateEmail($_POST['email'])) {
-					$email = trim($_POST['email']);
+					$email = strtolower(trim($_POST['email']));
 					$nbMail = dbCount($base, 'SELECT COUNT(*) AS nb FROM membre WHERE email = ?', 's', $email);
 					if ($nbMail > 0) {
 						$erreur = 'L\'email est déjà utilisé.';
@@ -138,6 +141,10 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 							dbExecute($base, 'UPDATE autre SET niveaututo = 8 WHERE login = ?', 's', $newLogin);
 						});
 
+						session_regenerate_id(true);
+						$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+						$_SESSION['session_created'] = time();
+						$_SESSION['last_activity'] = time();
 						$_SESSION['login'] = $newLogin;
 						$_SESSION['session_token'] = $sessionToken;
 

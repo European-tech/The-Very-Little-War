@@ -423,7 +423,7 @@ function traitementConstructions($liste)
                     $finTemps = $tempsDebut + $adjustedConstructionTime;
                     // Note: no FOR UPDATE needed here — the COUNT(*) FOR UPDATE above already
                     // serializes concurrent queue insertions for this player.
-                    dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siisisi',
+                    dbExecute($base, 'INSERT INTO actionsconstruction (login, debut, fin, batiment, niveau, affichage, points) VALUES (?,?,?,?,?,?,?)', 'siisisi',
                         $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
 
                     dbExecute($base, 'UPDATE autre SET energieDepensee = energieDepensee + ? WHERE login=?', 'ds', $freshEnergieCost, $_SESSION['login']);

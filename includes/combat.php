@@ -38,12 +38,12 @@ foreach ($rowsAttaquant as $attRow) {
 // two logins. Now we do exactly one per player with FOR UPDATE and reuse the row throughout.
 $constructionsAtt = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
 if (!$constructionsAtt) {
-	logError("Combat: missing attacker constructions for " . $actions['attaquant'] . " at line " . __LINE__);
+	logError("COMBAT", "Combat: missing attacker constructions for " . $actions['attaquant'] . " at line " . __LINE__);
 	throw new Exception('Missing attacker constructions');
 }
 $constructionsDef = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
 if (!$constructionsDef) {
-	logError("Combat: missing defender constructions for " . $actions['defenseur'] . " at line " . __LINE__);
+	logError("COMBAT", "Combat: missing defender constructions for " . $actions['defenseur'] . " at line " . __LINE__);
 	throw new Exception('Missing defender constructions');
 }
 
@@ -148,7 +148,7 @@ if ($defHasCatalytique) {
 $defenderFormation = isset($constructionsDef['formation']) ? intval($constructionsDef['formation']) : FORMATION_DISPERSEE;
 // HIGH-001: Validate formation is within known range [0..2]
 if ($defenderFormation < 0 || $defenderFormation > 2) {
-	logError("Combat: invalid formation ID " . intval($constructionsDef['formation'] ?? -1) . " for " . $actions['defenseur']);
+	logError("COMBAT", "Combat: invalid formation ID " . intval($constructionsDef['formation'] ?? -1) . " for " . $actions['defenseur']);
 	$defenderFormation = FORMATION_DISPERSEE;
 }
 
@@ -451,12 +451,12 @@ $_pillageLockMax = max($actions['attaquant'], $actions['defenseur']);
 
 $_ressourcesMin = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_pillageLockMin);
 if (!$_ressourcesMin) {
-	logError("Combat: missing resources for " . $_pillageLockMin);
+	logError("COMBAT", "Combat: missing resources for " . $_pillageLockMin);
 	throw new Exception('Missing player resources');
 }
 $_ressourcesMax = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_pillageLockMax);
 if (!$_ressourcesMax) {
-	logError("Combat: missing resources for " . $_pillageLockMax);
+	logError("COMBAT", "Combat: missing resources for " . $_pillageLockMax);
 	throw new Exception('Missing player resources');
 }
 
@@ -470,11 +470,11 @@ if ($actions['defenseur'] === $_pillageLockMin) {
 }
 
 if (!$ressourcesDefenseur) {
-	logError("Combat: missing defender resources for " . $actions['defenseur']);
+	logError("COMBAT", "Combat: missing defender resources for " . $actions['defenseur']);
 	throw new Exception('Missing defender resources');
 }
 if (!$ressourcesJoueur) {
-	logError("Combat: missing attacker resources for " . $actions['attaquant']);
+	logError("COMBAT", "Combat: missing attacker resources for " . $actions['attaquant']);
 	throw new Exception('Missing attacker resources');
 }
 
@@ -485,7 +485,7 @@ $vaultProtection = capaciteCoffreFort($vaultLevel, $depotDefLevel);
 // MEDIUM-001: Validate vault protection is numeric and non-negative
 if (!is_numeric($vaultProtection) || $vaultProtection < 0) {
 	$vaultProtection = 0;
-	logError("Combat: invalid vault protection for " . $actions['defenseur']);
+	logError("COMBAT", "Combat: invalid vault protection for " . $actions['defenseur']);
 }
 
 if ($gagnant == 2) { // Si le joueur gagnant est l'attaquant
@@ -732,7 +732,7 @@ $pointsDefenseur = 0;
 $pointsBDAttaquant = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=?', 's', $actions['attaquant']);
 $pointsBDDefenseur = dbFetchOne($base, 'SELECT points,pointsAttaque,pointsDefense,totalPoints FROM autre WHERE login=?', 's', $actions['defenseur']);
 if (!$pointsBDAttaquant || !$pointsBDDefenseur) {
-	logError("Combat: missing player stats for points update, att=" . $actions['attaquant'] . " def=" . $actions['defenseur']);
+	logError("COMBAT", "Combat: missing player stats for points update, att=" . $actions['attaquant'] . " def=" . $actions['defenseur']);
 	throw new Exception('Missing player stats');
 }
 

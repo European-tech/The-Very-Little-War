@@ -290,7 +290,7 @@ if ($description) {
 	if (isset($_POST['changerdescription'])) {
 		csrfCheck();
 		if (!empty($_POST['changerdescription'])) {
-			$_POST['changerdescription'] = trim($_POST['changerdescription']);
+			$_POST['changerdescription'] = htmlspecialchars(trim($_POST['changerdescription']), ENT_QUOTES, 'UTF-8');
 			// MEDIUM-015: Enforce max length on alliance description
 			if (mb_strlen($_POST['changerdescription'], 'UTF-8') > ALLIANCE_DESC_MAX_LENGTH) {
 				$erreur = "La description est trop longue (" . ALLIANCE_DESC_MAX_LENGTH . " caractères maximum).";
@@ -496,6 +496,13 @@ if ($guerre) {
 			$allianceAdverse = dbFetchOne($base, 'SELECT * FROM alliances WHERE tag=?', 's', $_POST['guerre']);
 			$allianceAdverseId = $allianceAdverse['id'];
 			$allianceAdverseChef = $allianceAdverse['chef'];
+
+			// Ghost-alliance guard: ensure the target alliance's chef exists and is not banned.
+			$chefAdverse = dbFetchOne($base, 'SELECT id FROM membre WHERE login=? AND estExclu=0', 'si', $allianceAdverseChef, 0);
+			if (!$chefAdverse) {
+				$erreur = "Cette alliance n'est plus active (chef absent ou banni).";
+			} else {
+
 			$chefId = $chef['id'];
 			$chefTag = $chef['tag'];
 
@@ -542,6 +549,7 @@ if ($guerre) {
 			} catch (\RuntimeException $e) {
 				$erreur = "Soit une guerre est déjà déclarée contre cette équipe, soit vous êtes alliés avec elle.";
 			}
+			} // end ghost-alliance guard
 		} else {
 			$erreur = "Cette équipe n'existe pas.";
 		}

@@ -61,7 +61,7 @@ function updateActions($joueur)
             }
 
             if ($actions['tempsPourUn'] <= 0) {
-                logError("Formation tempsPourUn <= 0 for action " . $actions['id']);
+                logError("GAME", "Formation tempsPourUn <= 0 for action " . $actions['id']);
                 dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
                 return;
             }
@@ -172,6 +172,29 @@ function updateActions($joueur)
                             }
                         }
 
+                        // Re-check vacation/ban/shield at resolution time
+                        $attStatut = dbFetchOne($base, 'SELECT vacance, estExclu FROM membre WHERE login=?', 's', $actions['attaquant']);
+                        $defStatut = dbFetchOne($base, 'SELECT vacance, estExclu, comeback_shield_until FROM membre WHERE login=?', 's', $actions['defenseur']);
+                        if (!$attStatut || !$defStatut) {
+                            logError('GAME', 'Combat resolution: missing player data for ' . $actions['attaquant'] . ' vs ' . $actions['defenseur']);
+                            throw new \RuntimeException('PLAYER_NOT_FOUND');
+                        }
+                        if ((int)$attStatut['vacance'] === 1 || (int)$defStatut['estExclu'] === 1 || (int)$defStatut['vacance'] === 1 ||
+                            ((int)$defStatut['comeback_shield_until'] > 0 && (int)$defStatut['comeback_shield_until'] > time())) {
+                            // Cancel attack, refund attacker molecules
+                            $troupesArr = explode(';', $actions['troupes'] ?? '');
+                            $moleculesOwned = dbFetchAll($base, 'SELECT id FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
+                            foreach ($moleculesOwned as $idx => $mol) {
+                                $nb = isset($troupesArr[$idx]) && is_numeric($troupesArr[$idx]) ? (int)$troupesArr[$idx] : 0;
+                                if ($nb > 0) {
+                                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ii', $nb, $mol['id']);
+                                }
+                            }
+                            dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                            logInfo('GAME', 'Attack aborted at resolution due to vacation/ban/shield', ['attacker' => $actions['attaquant'], 'defender' => $actions['defenseur']]);
+                            throw new \RuntimeException('cas_skip');
+                        }
+
                         // Decay loop now inside the transaction
                         $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
 
@@ -194,7 +217,7 @@ function updateActions($joueur)
                         $totalMoleculesPerdues = 0;
                         foreach ($moleculesRows as $moleculesProp) {
                             if (!isset($molecules[$compteur - 1])) {
-                                logError("Malformed troupes string for action " . $actions['id']);
+                                logError("GAME", "Malformed troupes string for action " . $actions['id']);
                                 break;
                             }
                             // M-018: Guard against empty/non-numeric segments in the troupes string
@@ -589,7 +612,7 @@ function updateActions($joueur)
 
             // Validate troupes array length
             if (count($molecules) < $nbClasses) {
-                logError("Return trip: malformed troupes string for action " . $actions['id'] . ": " . $actions['troupes']);
+                logError("GAME", "Return trip: malformed troupes string for action " . $actions['id'] . ": " . $actions['troupes']);
                 dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
             } else {
                 $actionId = $actions['id'];
@@ -607,7 +630,7 @@ function updateActions($joueur)
                         if (!isset($molecules[$compteur - 1])) break;
                         $moleculesRestantes = (pow(coefDisparition($joueur, $compteur), $nbsecondes) * $molecules[$compteur - 1]);
 
-                        dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', ($moleculesProp['nombre'] + $moleculesRestantes), $moleculesProp['id']);
+                        dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'ii', ($moleculesProp['nombre'] + (int)round($moleculesRestantes)), $moleculesProp['id']);
 
                         $totalMoleculesPerdues += ($molecules[$compteur - 1] - $moleculesRestantes);
                         $compteur++;
@@ -675,6 +698,7 @@ function updateActions($joueur)
         " . important('Ressources reçues') . "
         " . $energieRecue . $chaine2;
 
+        try {
         withTransaction($base, function() use ($base, $actionId, $actions, $nomsRes, $nbRes, $recues, $titreRapport, $contenuRapport) {
             // HIGH-006: Lock the actionsenvoi row first to prevent double-delivery race condition
             $transfer = dbFetchOne($base, 'SELECT id FROM actionsenvoi WHERE id=? FOR UPDATE', 'i', $actionId);
@@ -688,6 +712,12 @@ function updateActions($joueur)
                 // Recipient was deleted — just remove the transfer
                 dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
                 return;
+            }
+            $receveurMembre = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=? FOR UPDATE', 's', $actions['receveur']);
+            if (!$receveurMembre || (int)$receveurMembre['estExclu'] === 1) {
+                // Recipient is banned or deleted — cancel delivery
+                dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
+                throw new \RuntimeException('RECIPIENT_BANNED');
             }
             // FIX FINDING-GAME-009: Cap received resources at storage limit
             $depotReceveur = dbFetchOne($base, 'SELECT depot FROM constructions WHERE login=?', 's', $actions['receveur']);
@@ -712,6 +742,14 @@ function updateActions($joueur)
 
             dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
         });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'RECIPIENT_BANNED') {
+                logError('GAME', 'Market delivery cancelled: recipient is banned', ['envoyeur' => $actions['envoyeur'], 'receveur' => $actions['receveur'], 'action_id' => $actionId]);
+                // Soft failure — continue processing remaining transfers
+            } else {
+                throw $e;
+            }
+        }
 
         // P9-LOW-019: Check for suspicious transfer patterns (outside tx — read-only detection)
         if (function_exists('checkTransferPatterns')) {

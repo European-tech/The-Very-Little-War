@@ -632,7 +632,7 @@ function augmenterBatiment($nom, $joueur)
         'stabilisateur' => 'stabilisateur', 'coffrefort' => 'coffrefort'
     ];
     if (!isset($columnMap[$nom])) {
-        logError("augmenterBatiment: invalid building: " . $nom);
+        logError("PLAYER", "augmenterBatiment: invalid building: " . $nom);
         return;
     }
     $safeCol = $columnMap[$nom];
@@ -691,7 +691,7 @@ function diminuerBatiment($nom, $joueur)
         'stabilisateur' => 'stabilisateur', 'coffrefort' => 'coffrefort'
     ];
     if (!isset($columnMap[$nom])) {
-        logError("diminuerBatiment: invalid building: " . $nom);
+        logError("PLAYER", "diminuerBatiment: invalid building: " . $nom);
         return;
     }
     $safeCol = $columnMap[$nom];
@@ -958,7 +958,7 @@ function recalculerStatsAlliances()
     $alliancesRows = dbFetchAll($base, 'SELECT id FROM alliances', '');
     withTransaction($base, function() use ($base, $alliancesRows) {
         foreach ($alliancesRows as $donnees) {
-            $membresRows = dbFetchAll($base, 'SELECT login, totalPoints, points, pointsAttaque, pointsDefense, ressourcesPillees FROM autre WHERE idalliance=? FOR UPDATE', 'i', $donnees['id']);
+            $membresRows = dbFetchAll($base, 'SELECT a.login, a.totalPoints, a.points, a.pointsAttaque, a.pointsDefense, a.ressourcesPillees FROM autre a JOIN membre m ON a.login = m.login WHERE a.idalliance=? AND m.estExclu=0 FOR UPDATE', 'i', $donnees['id']);
             $pointstotaux = 0;
             $cTotal = 0;
             $aTotal = 0;
@@ -1080,18 +1080,15 @@ function archiveSeasonData($base)
     // is still in the current month (i.e., remiseAZero has NOT yet run for this season).
     $prevSeason = $nextSeason - 1;
     if ($prevSeason >= 1) {
-        $debutRow = dbFetchOne($base, 'SELECT debut FROM statistiques LIMIT 1', '', '');
-        if ($debutRow) {
-            $seasonStart = (int)$debutRow['debut'];
-            // If the previous season's archive was inserted after this season started, it means
-            // archiveSeasonData already ran this cycle. Skip to avoid duplicate.
-            $prevArchiveCount = dbCount($base,
-                'SELECT COUNT(*) FROM season_recap WHERE season_number = ? AND UNIX_TIMESTAMP(created_at) >= ?',
-                'ii', $prevSeason, $seasonStart);
-            if ($prevArchiveCount > 0) {
-                logInfo('SEASON', 'archiveSeasonData skipped — already archived this cycle', ['season' => $prevSeason]);
-                return $prevSeason; // return the season number that was already committed
-            }
+        // FIX: Use season_number only for idempotency check — the debut timestamp can be
+        // overwritten during maintenance start before archiveSeasonData() runs, making
+        // UNIX_TIMESTAMP(created_at) >= debut unreliable as a duplicate guard.
+        $prevArchiveCount = dbCount($base,
+            'SELECT COUNT(*) FROM season_recap WHERE season_number = ?',
+            'i', $prevSeason);
+        if ($prevArchiveCount > 0) {
+            logInfo('SEASON', 'archiveSeasonData skipped — already archived this cycle', ['season' => $prevSeason]);
+            return $prevSeason; // return the season number that was already committed
         }
     }
 
@@ -1108,7 +1105,7 @@ function archiveSeasonData($base)
     withTransaction($base, function() use ($base, $allPlayers, $nextSeason) {
         foreach ($allPlayers as $p) {
             dbExecute($base,
-                'INSERT IGNORE INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
+                'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
                  points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
                  molecules_perdues, alliance_name, streak_max) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 'isiiiidiiiisi', // MEDIUM-019: moleculesPerdues is BIGINT, use 'i' not 'd'
@@ -1223,6 +1220,11 @@ function performSeasonEnd()
         $now = time();
         dbExecute($base, 'INSERT INTO parties VALUES(default, ?, ?, ?, ?)', 'isss', $now, $chaine, $chaine1, $chaine2);
     });
+
+    // FIX: Reset VP award flags before starting VP awards (idempotency: allows retry if crashed
+    // between VP award and remiseAZero, ensuring flags are 0 so awards are not skipped on retry).
+    dbExecute($base, 'UPDATE autre SET vp_awarded = 0');
+    dbExecute($base, 'UPDATE alliances SET season_vp_awarded = 0');
 
     // Phase 1b: Award VP to players in chunks of 100 to avoid long-running transactions.
     // LOW-022: Split large VP award loop into smaller transactions so the DB is not locked
@@ -1442,7 +1444,7 @@ function remiseAZero()
         // Simplified query: the OR on sent_at IS NOT NULL was already handled above.
         dbExecute($base, 'DELETE FROM email_queue WHERE created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)');
     } catch (\Exception $e) {
-        logError('remiseAZero: email_queue cleanup failed (non-fatal): ' . $e->getMessage());
+        logError('PLAYER', 'remiseAZero: email_queue cleanup failed (non-fatal): ' . $e->getMessage());
     }
 
     // login_history and account_flags are intentionally preserved cross-season for ban enforcement

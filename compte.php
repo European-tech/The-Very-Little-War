@@ -156,7 +156,7 @@ if (isset($_POST['changermail'])) {
 }
 
 if (isset($_POST['changerdescription'])) {
-    $newDescription = trim($_POST['changerdescription']);
+    $newDescription = htmlspecialchars(trim($_POST['changerdescription']), ENT_QUOTES, 'UTF-8');
     if (mb_strlen($newDescription) > DESCRIPTION_MAX_LENGTH) {
         $erreur = "Description trop longue (max " . DESCRIPTION_MAX_LENGTH . " caractères).";
     } else {

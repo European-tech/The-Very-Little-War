@@ -52,6 +52,25 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
             })()) {
                 // ESP-002: Alliance members cannot spy on each other
                 $erreur = "Vous ne pouvez pas espionner un membre de votre alliance.";
+            } elseif ((function() use ($base, $autre) {
+                // ESP-003: Block espionage on members of pacted alliances (mirrors P21-HIGH-005 combat check).
+                $espTargetAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_POST['joueurAEspionner']);
+                if (!$espTargetAlliance
+                    || (int)$autre['idalliance'] <= 0
+                    || (int)$espTargetAlliance['idalliance'] <= 0
+                    || (int)$autre['idalliance'] === (int)$espTargetAlliance['idalliance']) {
+                    return false;
+                }
+                $pact = dbFetchOne($base,
+                    'SELECT id FROM declarations WHERE type=1 AND valide!=0
+                     AND ((alliance1=? AND alliance2=?) OR (alliance1=? AND alliance2=?))',
+                    'iiii',
+                    (int)$autre['idalliance'], (int)$espTargetAlliance['idalliance'],
+                    (int)$espTargetAlliance['idalliance'], (int)$autre['idalliance']
+                );
+                return (bool)$pact;
+            })()) {
+                $erreur = "Vous ne pouvez pas espionner un membre d'une alliance alliée (pacte de non-agression).";
             } elseif ((function() use ($base) {
                 // ESP-001: Check attacker's own beginner protection (cannot spy while under protection)
                 $attackerInfo = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login=?', 's', $_SESSION['login']);
