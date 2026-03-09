@@ -254,22 +254,20 @@ if ($gradeChef) {
 			} else
 			try {
 				withTransaction($base, function() use ($base, $currentAlliance, $newChef) {
+					// Lock alliances row first (same order as dissolution) to avoid deadlock
+					// H-012: Re-verify the actor is still the chef INSIDE the transaction
+					$oldChef = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $currentAlliance['idalliance']);
+					if (!$oldChef || $oldChef['chef'] !== $_SESSION['login']) {
+						throw new \RuntimeException('NOT_CHEF');
+					}
 					// ALLIANCE-M1: Check membership AND estExclu inside the transaction with FOR UPDATE
 					$member = dbFetchOne($base, 'SELECT login, estExclu FROM membre m JOIN autre a ON a.login = m.login WHERE m.login = ? AND a.idalliance = ? FOR UPDATE', 'si', $newChef, $currentAlliance['idalliance']);
 					if (!$member || (int)$member['estExclu'] === 1) {
 						throw new \RuntimeException('NOT_IN_ALLIANCE');
 					}
-					$oldChef = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $currentAlliance['idalliance']);
-					// H-012: Re-verify the actor is still the chef INSIDE the transaction
-					// (another request could have transferred leadership between the outer check and here)
-					if (!$oldChef || $oldChef['chef'] !== $_SESSION['login']) {
-						throw new \RuntimeException('NOT_CHEF');
-					}
 					dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $newChef, $currentAlliance['idalliance']);
 					// SOC-P6-003: Remove outgoing chef's grade so they don't retain officer permissions
-					if ($oldChef) {
-						dbExecute($base, 'DELETE FROM grades WHERE login=? AND idalliance=?', 'si', $oldChef['chef'], $currentAlliance['idalliance']);
-					}
+					dbExecute($base, 'DELETE FROM grades WHERE login=? AND idalliance=?', 'si', $oldChef['chef'], $currentAlliance['idalliance']);
 				});
 				header("Location: alliance.php"); exit;
 			} catch (\RuntimeException $e) {
@@ -427,7 +425,7 @@ if ($pacte) {
 				$pactResult = withTransaction($base, function() use ($base, $chef, $allianceAllie) {
 					// ALLIANCE-M2: Single atomic duplicate check (both directions) with FOR UPDATE
 					$dupCount = dbCount($base,
-						'SELECT COUNT(*) FROM declarations WHERE (fin=0 OR type=1) AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) FOR UPDATE',
+						'SELECT COUNT(*) FROM declarations WHERE fin=0 AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) FOR UPDATE',
 						'iiii', $allianceAllie['id'], $chef['id'], $allianceAllie['id'], $chef['id']);
 					if ($dupCount > 0) {
 						throw new \RuntimeException('DUPLICATE');

@@ -29,9 +29,8 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
         $espAttackerVac = dbFetchOne($base, 'SELECT vacance FROM membre WHERE login=?', 's', $_SESSION['login']);
         if ($espAttackerVac && $espAttackerVac['vacance'] == 1) {
             $erreur = "Vous ne pouvez pas lancer une espionnage en mode vacance.";
-        }
         // H-014: Guard against array injection before trim()
-        if (!is_string($_POST['joueurAEspionner'])) {
+        } elseif (!is_string($_POST['joueurAEspionner'])) {
             $erreur = 'Joueur invalide.';
         } elseif (mb_strlen($_POST['joueurAEspionner']) > LOGIN_MAX_LENGTH) {
             $erreur = 'Nom de joueur invalide.';
