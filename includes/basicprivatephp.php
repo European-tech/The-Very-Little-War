@@ -243,6 +243,17 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
 
 } elseif (date('n', time()) != date('n', $debut["debut"]) && $maintenance['maintenance'] == 0) {
     // Phase 1: New month detected, enable maintenance and start 24h countdown.
+    //
+    // MIN_SEASON_DAYS guard: if the season started near end-of-month (e.g. Jan 29),
+    // the month number changes after only a few days (Feb 1). We must have run for at
+    // least MIN_SEASON_DAYS before allowing the trigger.
+    $seasonStart = (int)($debut['debut'] ?? 0);
+    $minSeasonSeconds = MIN_SEASON_DAYS * SECONDS_PER_DAY;
+    if ($seasonStart > 0 && (time() - $seasonStart) < $minSeasonSeconds) {
+        // Season is too young — suppress phase-1 trigger and continue normally.
+        goto season_check_done;
+    }
+    //
     // MED-012: Use an advisory lock so only one concurrent request sets maintenance=1.
     // GET_LOCK(..., 0) returns 1 if the lock was acquired, 0 if already held by another
     // connection, NULL on error. If we cannot acquire it, another request beat us here —
@@ -305,6 +316,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         exit;
     }
 }
+season_check_done:
 
 // HIGH-017: Probabilistic email queue drain (1-in-EMAIL_QUEUE_DRAIN_PROB_DENOM requests).
 // Keeps the queue draining without dedicating a cron job or blocking any single request.

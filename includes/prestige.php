@@ -205,35 +205,45 @@ function awardPrestigePoints() {
         }
     }
 
-    // MEDIUM-014: Apply all PP awards atomically in a single transaction
+    // MEDIUM-014: Apply all PP awards atomically in a single transaction.
     // SEASON-HIGH-001: Mark season as awarded INSIDE transaction — atomic with PP grants.
+    // FIX-MEDIUM-003: Re-check prestige_awarded_season INSIDE the transaction with FOR UPDATE
+    // so the idempotency guard is race-free. The outer check above is only a fast-path
+    // optimisation to skip expensive player/award computation when clearly not needed.
     // H-009: statsRowMissing flag controls whether we UPDATE or INSERT the idempotency stamp.
-    if (!empty($awards)) {
-        withTransaction($base, function() use ($base, $awards, $currentSeason, $statsRowMissing) {
-            foreach ($awards as $award) {
-                // Ensure prestige row exists, then add PP
-                dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $award['login'], $award['pp'], $award['pp']);
+    withTransaction($base, function() use ($base, $awards, $currentSeason, $statsRowMissing) {
+        // Re-read with FOR UPDATE to serialize concurrent awardPrestigePoints() calls.
+        if (!$statsRowMissing) {
+            $lockedStats = dbFetchOne($base, 'SELECT prestige_awarded_season FROM statistiques FOR UPDATE', '', '');
+            if ($lockedStats && (int)$lockedStats['prestige_awarded_season'] >= $currentSeason) {
+                // Already awarded by a concurrent call — abort silently.
+                return;
             }
-            // P9-INFO-004: Mark this season as awarded so retries are idempotent.
-            // Inside the transaction so idempotency flag and PP grants are atomic.
-            // H-009: If the statistiques row did not exist, INSERT it; otherwise UPDATE.
-            if ($statsRowMissing) {
-                dbExecute($base, 'INSERT INTO statistiques (inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, prestige_awarded_season) SELECT inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, ? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM statistiques)', 'i', $currentSeason);
-            } else {
-                dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
-            }
-        });
-    } else {
+        }
+
+        foreach ($awards as $award) {
+            // Ensure prestige row exists, then add PP
+            dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, ?) ON DUPLICATE KEY UPDATE total_pp = total_pp + ?', 'sii', $award['login'], $award['pp'], $award['pp']);
+        }
+
+        // P9-INFO-004: Mark this season as awarded so retries are idempotent.
+        // H-009: If the statistiques row did not exist, INSERT it; otherwise UPDATE.
+        if ($statsRowMissing) {
+            dbExecute($base, 'INSERT INTO statistiques (inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, prestige_awarded_season) SELECT inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, ? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM statistiques)', 'i', $currentSeason);
+        } else {
+            dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
+        }
+
         // No awards but still mark to prevent re-checking next cron tick.
         // H-009: If the statistiques row did not exist, we cannot INSERT here without knowing all
         // required NOT NULL column values. In this edge case (no players, no awards, no stats row)
         // we log a warning and skip — the row will be created by the game on next season start.
-        if ($statsRowMissing) {
-            logWarn('PRESTIGE', 'awardPrestigePoints: statistiques row missing and no awards to grant — idempotency stamp not persisted');
-        } else {
-            dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
+        if (empty($awards)) {
+            if ($statsRowMissing) {
+                logWarn('PRESTIGE', 'awardPrestigePoints: statistiques row missing and no awards to grant — idempotency stamp not persisted');
+            }
         }
-    }
+    });
 }
 
 /**

@@ -68,7 +68,7 @@ if (isset($_GET['id'])) {
         
         $playerPoints = dbFetchOne($base, 'SELECT totalPoints FROM autre WHERE login=?', 's', $membre['login']);
         $totalPoints = (int) ($playerPoints['totalPoints'] ?? 0); // LOW-027: cast to int
-        $rangData = dbFetchOne($base, 'SELECT COUNT(*) + 1 AS rang FROM autre WHERE totalPoints > ?', 'd', $totalPoints);
+        $rangData = dbFetchOne($base, 'SELECT COUNT(*) + 1 AS rang FROM autre a JOIN membre m ON m.login = a.login WHERE a.totalPoints > ? AND m.estExclu = 0 AND m.x != -1000', 'd', $totalPoints);
         $rang = $rangData['rang'];
         echo chipInfo('<span class="important">Rang : </span>'.imageClassement($rang),'images/alliance/up.png').'<br/>';
         echo chip('<span class="important">Nom : </span>'.htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8'),'<img alt="coupe" src="images/classement/joueur.png" class="imageChip" style="width:25px;border-radius:0px;"/>',"white",false,true).'<br/>';

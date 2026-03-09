@@ -167,7 +167,7 @@ function withTransaction($base, callable $fn) {
             if ($useSavepoint) {
                 // LOW-010: log the savepoint name so failures are traceable in error logs.
                 if (function_exists('logError')) {
-                    logError('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
+                    logError('DB', 'withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
                 } else {
                     error_log('withTransaction: rolling back to savepoint ' . $sp . ' — ' . $e->getMessage());
                 }

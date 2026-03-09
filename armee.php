@@ -307,10 +307,10 @@ if ($nb > 0) {
             $prochaine = affichageTemps($offset + ($actionsformation['fin'] - time() - $offset) % $actionsformation['tempsPourUn']);
         }
 
-        if ($actionsformation['idclasse'] != 'neutrino') {
+        if ((int)$actionsformation['idclasse'] !== -1) {
             $affichageFormule = couleurFormule($moleculeEnCours['formule']);
         } else {
-            $affichageFormule =  $actionsformation['formule'];
+            $affichageFormule = $actionsformation['formule'];
         }
 
         echo '<tr><td><strong id="nombreRestants' . $actionsformation['id'] . '">' . $actionsformation['nombreRestant'] . '</strong> ' . $affichageFormule . '</td><td id="affichageProchain' . $actionsformation['id'] . '">' . $prochaine . '</td><td id="affichage' . $actionsformation['id'] . '">' . affichageTemps($actionsformation['fin'] - time()) . '</td></tr>';

@@ -268,8 +268,8 @@ function initPlayer($joueur)
     $niveaux = explode(';', $constructions['pointsProducteur']);
     $niveauxAtomes = explode(';', $constructions['pointsCondenseur']);
     foreach ($nomsRes as $num => $ressource) {
-        ${'points' . $ressource} = $niveaux[$num];
-        ${'niveau' . $ressource} = $niveauxAtomes[$num];
+        ${'points' . $ressource} = (int)($niveaux[$num] ?? 0);
+        ${'niveau' . $ressource} = (int)($niveauxAtomes[$num] ?? 0);
     }
 
     $autre = dbFetchOne($base, 'SELECT * FROM autre WHERE login=?', 's', $joueur);
@@ -751,7 +751,7 @@ function diminuerBatiment($nom, $joueur)
                     dbExecute($base, 'UPDATE constructions SET pointsProducteur=? WHERE login=?', 'ss', $chaine, $joueur);
                     if ($pointsAEnlever > 0) {
                         // Log: residual points could not be removed (all allocations depleted)
-                        logError('diminuerBatiment: residual producteur points could not be removed', ['joueur' => $joueur, 'residual' => $pointsAEnlever]);
+                        logError('PLAYER', 'diminuerBatiment: residual producteur points could not be removed', ['joueur' => $joueur, 'residual' => $pointsAEnlever]);
                     }
                 }
             }
@@ -1049,7 +1049,7 @@ function miseAJour()
 
     $niveaux = explode(';', $constructions['pointsProducteur']);
     foreach ($nomsRes as $num => $ressource) {
-        ${'points' . $ressource} = $niveaux[$num];
+        ${'points' . $ressource} = (int)($niveaux[$num] ?? 0);
     }
 }
 
@@ -1095,7 +1095,7 @@ function archiveSeasonData($base)
     $allPlayers = dbFetchAll($base,
         'SELECT a.login, a.totalPoints, a.pointsAttaque, a.pointsDefense, a.tradeVolume,
                 a.ressourcesPillees, a.nbattaques, a.victoires, a.moleculesPerdues,
-                a.streak_days, al.nom AS alliance_name,
+                a.streak_days, a.batmax, al.nom AS alliance_name,
                 DENSE_RANK() OVER (ORDER BY a.totalPoints DESC) AS final_rank
          FROM autre a
          LEFT JOIN alliances al ON al.id = a.idalliance AND a.idalliance > 0
@@ -1107,14 +1107,14 @@ function archiveSeasonData($base)
             dbExecute($base,
                 'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
                  points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
-                 molecules_perdues, alliance_name, streak_max) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                'isiiiidiiiisi', // MEDIUM-019: moleculesPerdues is BIGINT, use 'i' not 'd'
+                 molecules_perdues, alliance_name, streak_max, batmax) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                'isiiiidiiiisii', // MEDIUM-019: moleculesPerdues is BIGINT, use 'i' not 'd'
                 $nextSeason, $p['login'], (int)$p['final_rank'], (int)$p['totalPoints'],
                 (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
                 (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
                 (int)$p['nbattaques'], (int)$p['victoires'],
                 (int)round($p['moleculesPerdues']), $p['alliance_name'] ?? '', // L-002: round before cast to avoid truncating decimals
-                (int)($p['streak_days'] ?? 0)
+                (int)($p['streak_days'] ?? 0), (int)($p['batmax'] ?? 0)
             );
         }
     });

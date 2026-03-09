@@ -53,11 +53,17 @@ function updateActions($joueur)
             $actions = dbFetchOne($base, 'SELECT * FROM actionsformation WHERE id=? FOR UPDATE', 'i', $actionId);
             if (!$actions) return; // Already processed by concurrent request
 
-            $molecule = dbFetchOne($base, 'SELECT * FROM molecules WHERE id=?', 's', $actions['idclasse']);
-            if (!$molecule) {
-                // Molecule was deleted — remove orphaned formation action
-                dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
-                return;
+            // Sentinel -1 means neutrino formation (neutrinos are stored in autre.neutrinos,
+            // not in the molecules table). All real molecule IDs are positive integers.
+            $isNeutrino = ((int)$actions['idclasse'] === -1);
+
+            if (!$isNeutrino) {
+                $molecule = dbFetchOne($base, 'SELECT * FROM molecules WHERE id=?', 'i', $actions['idclasse']);
+                if (!$molecule) {
+                    // Molecule was deleted — remove orphaned formation action
+                    dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
+                    return;
+                }
             }
 
             if ($actions['tempsPourUn'] <= 0) {
@@ -69,16 +75,16 @@ function updateActions($joueur)
             if ($actions['fin'] >= time()) {
                 $derniereFormation = ($actions['nombreDebut'] - $actions['nombreRestant']) * $actions['tempsPourUn'] + $actions['debut'];
                 $formed = (int)floor((time() - $derniereFormation) / $actions['tempsPourUn']);
-                if ($actions['idclasse'] != 'neutrino') {
-                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'is', $formed, $actions['idclasse']);
+                if (!$isNeutrino) {
+                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ii', $formed, $actions['idclasse']);
                 } else {
                     dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'is', $formed, $joueur);
                 }
                 dbExecute($base, 'UPDATE actionsformation SET nombreRestant = nombreRestant - ? WHERE id=?', 'ii', $formed, $actions['id']);
             } else {
                 dbExecute($base, 'DELETE FROM actionsformation WHERE id=?', 'i', $actions['id']);
-                if ($actions['idclasse'] != 'neutrino') {
-                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'is', (int)$actions['nombreRestant'], $actions['idclasse']);
+                if (!$isNeutrino) {
+                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ii', (int)$actions['nombreRestant'], $actions['idclasse']);
                 } else {
                     dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'is', (int)$actions['nombreRestant'], $joueur);
                 }
@@ -179,7 +185,7 @@ function updateActions($joueur)
                             logError('GAME', 'Combat resolution: missing player data for ' . $actions['attaquant'] . ' vs ' . $actions['defenseur']);
                             throw new \RuntimeException('PLAYER_NOT_FOUND');
                         }
-                        if ((int)$attStatut['vacance'] === 1 || (int)$defStatut['estExclu'] === 1 || (int)$defStatut['vacance'] === 1 ||
+                        if ((int)$attStatut['vacance'] === 1 || (int)$attStatut['estExclu'] === 1 || (int)$defStatut['estExclu'] === 1 || (int)$defStatut['vacance'] === 1 ||
                             ((int)$defStatut['comeback_shield_until'] > 0 && (int)$defStatut['comeback_shield_until'] > time())) {
                             // Cancel attack, refund attacker molecules
                             $troupesArr = explode(';', $actions['troupes'] ?? '');

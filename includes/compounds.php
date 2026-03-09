@@ -286,8 +286,12 @@ function getCompoundBonus($base, $login, $effectType)
  */
 function cleanupExpiredCompounds($base)
 {
-    // Collect affected logins before deletion so we can do targeted cache invalidation
-    $threshold = time() - SECONDS_PER_DAY; // P9-MED-014: keep for 24h after expiry for UI display
+    // Collect affected logins before deletion so we can do targeted cache invalidation.
+    // Use the compound's actual expires_at as the threshold (time()) so expired compounds
+    // are immediately eligible for GC and re-synthesis. The old time()-SECONDS_PER_DAY
+    // threshold caused a 24h extra delay that blocked re-synthesis due to the UNIQUE index
+    // on (login, compound_key).
+    $threshold = time();
     $affectedRows = dbFetchAll($base,
         'SELECT DISTINCT login FROM player_compounds WHERE activated_at IS NOT NULL AND expires_at < ?',
         'i', $threshold

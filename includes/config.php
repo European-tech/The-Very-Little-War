@@ -673,6 +673,7 @@ define('SESSION_ABSOLUTE_TIMEOUT', SECONDS_PER_DAY);     // 24h max regardless o
 define('SESSION_REGEN_INTERVAL', 1800);                   // 30 minutes
 define('ONLINE_UPDATE_THROTTLE_SECONDS', 60);             // Throttle online status updates
 define('SEASON_MAINTENANCE_PAUSE_SECONDS', SECONDS_PER_DAY); // 24h between season phases
+define('MIN_SEASON_DAYS', 25);                                // Minimum days a season must run before month-change triggers reset
 define('VISITOR_SESSION_CLEANUP_SECONDS', 3 * SECONDS_PER_HOUR); // 3 hours
 
 // =============================================================================

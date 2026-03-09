@@ -290,7 +290,7 @@ if ($description) {
 	if (isset($_POST['changerdescription'])) {
 		csrfCheck();
 		if (!empty($_POST['changerdescription'])) {
-			$_POST['changerdescription'] = htmlspecialchars(trim($_POST['changerdescription']), ENT_QUOTES, 'UTF-8');
+			$_POST['changerdescription'] = trim($_POST['changerdescription']);
 			// MEDIUM-015: Enforce max length on alliance description
 			if (mb_strlen($_POST['changerdescription'], 'UTF-8') > ALLIANCE_DESC_MAX_LENGTH) {
 				$erreur = "La description est trop longue (" . ALLIANCE_DESC_MAX_LENGTH . " caractères maximum).";
@@ -498,7 +498,7 @@ if ($guerre) {
 			$allianceAdverseChef = $allianceAdverse['chef'];
 
 			// Ghost-alliance guard: ensure the target alliance's chef exists and is not banned.
-			$chefAdverse = dbFetchOne($base, 'SELECT id FROM membre WHERE login=? AND estExclu=0', 'si', $allianceAdverseChef, 0);
+			$chefAdverse = dbFetchOne($base, 'SELECT id FROM membre WHERE login=? AND estExclu=0', 's', $allianceAdverseChef);
 			if (!$chefAdverse) {
 				$erreur = "Cette alliance n'est plus active (chef absent ou banni).";
 			} else {

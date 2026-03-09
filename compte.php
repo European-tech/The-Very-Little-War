@@ -12,7 +12,20 @@ if (isset($_POST['verification']) and isset($_POST['oui'])) {
         $erreur = "Le compte ne peut être supprimé qu'au bout d'une semaine.";
     } else {
         supprimerJoueur($_SESSION['login']);
-        header("Location: deconnexion.php"); exit;
+        // Clear session token from DB to prevent reuse of old token
+        dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE login = ?', 's', $_SESSION['login']);
+        // Destroy session so the deleted account cannot continue browsing
+        session_unset();
+        session_destroy();
+        // Clear session cookie
+        if (ini_get("session.use_cookies")) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $params["path"], $params["domain"],
+                $params["secure"], $params["httponly"]
+            );
+        }
+        header("Location: index.php"); exit;
     }
 }
 
@@ -156,7 +169,7 @@ if (isset($_POST['changermail'])) {
 }
 
 if (isset($_POST['changerdescription'])) {
-    $newDescription = htmlspecialchars(trim($_POST['changerdescription']), ENT_QUOTES, 'UTF-8');
+    $newDescription = trim($_POST['changerdescription']);
     if (mb_strlen($newDescription) > DESCRIPTION_MAX_LENGTH) {
         $erreur = "Description trop longue (max " . DESCRIPTION_MAX_LENGTH . " caractères).";
     } else {
