@@ -596,7 +596,8 @@ function initPlayer($joueur)
         'autre' => $autre, 'membre' => $membre, 'revenuEnergie' => $revenuEnergie,
         'placeDepot' => $placeDepot, 'points' => $points, 'plusHaut' => $plusHaut,
         'production' => $production, 'productionCondenseur' => $productionCondenseur,
-        'listeConstructions' => $listeConstructions];
+        'listeConstructions' => $listeConstructions,
+        'bonus' => $bonus];
     foreach ($nomsRes as $num => $ressource) {
         $snapshot['revenu' . $ressource] = ${'revenu' . $ressource};
         $snapshot['points' . $ressource] = ${'points' . $ressource};

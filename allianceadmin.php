@@ -54,9 +54,37 @@ if ($gradeChef) {
 		if ($activeWarDissolve && $activeWarDissolve['cnt'] > 0) {
 			$erreur = "Votre alliance est en guerre. Vous devez d'abord terminer la guerre avant de dissoudre l'alliance.";
 		} else {
-			logInfo('ALLIANCE', 'Alliance deleted', ['alliance_id' => $currentAlliance['idalliance'], 'deleted_by' => $_SESSION['login']]);
-			supprimerAlliance($currentAlliance['idalliance']);
-			header("Location: alliance.php"); exit;
+			// H-012: Re-verify chef status INSIDE a transaction to close the TOCTOU window
+			// between the outer $gradeChef check and the actual dissolution.
+			$dissolveActor  = $_SESSION['login'];
+			$dissolveAlliId = $currentAlliance['idalliance'];
+			try {
+				withTransaction($base, function() use ($base, $dissolveActor, $dissolveAlliId) {
+					$allianceLocked = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $dissolveAlliId);
+					if (!$allianceLocked || $allianceLocked['chef'] !== $dissolveActor) {
+						throw new \RuntimeException('NOT_CHEF');
+					}
+					// Re-check war inside transaction (race: war declared between outer check and here)
+					$warCheck = dbFetchOne($base,
+						'SELECT COUNT(*) as cnt FROM declarations WHERE (alliance1=? OR alliance2=?) AND type=0 AND fin=0',
+						'ii', $dissolveAlliId, $dissolveAlliId);
+					if ($warCheck && $warCheck['cnt'] > 0) {
+						throw new \RuntimeException('WAR_ACTIVE');
+					}
+					// Authorization confirmed — dissolve inside the tx for atomicity
+					supprimerAlliance($dissolveAlliId);
+				});
+				logInfo('ALLIANCE', 'Alliance deleted', ['alliance_id' => $dissolveAlliId, 'deleted_by' => $dissolveActor]);
+				header("Location: alliance.php"); exit;
+			} catch (\RuntimeException $e) {
+				if ($e->getMessage() === 'NOT_CHEF') {
+					$erreur = "Vous n'êtes plus le chef de l'alliance.";
+				} elseif ($e->getMessage() === 'WAR_ACTIVE') {
+					$erreur = "Votre alliance est en guerre. Vous devez d'abord terminer la guerre avant de dissoudre l'alliance.";
+				} else {
+					$erreur = "Erreur lors de la dissolution de l'alliance.";
+				}
+			}
 		}
 	}
 
@@ -231,6 +259,11 @@ if ($gradeChef) {
 						throw new \RuntimeException('NOT_IN_ALLIANCE');
 					}
 					$oldChef = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $currentAlliance['idalliance']);
+					// H-012: Re-verify the actor is still the chef INSIDE the transaction
+					// (another request could have transferred leadership between the outer check and here)
+					if (!$oldChef || $oldChef['chef'] !== $_SESSION['login']) {
+						throw new \RuntimeException('NOT_CHEF');
+					}
 					dbExecute($base, 'UPDATE alliances SET chef=? WHERE id=?', 'si', $newChef, $currentAlliance['idalliance']);
 					// SOC-P6-003: Remove outgoing chef's grade so they don't retain officer permissions
 					if ($oldChef) {
@@ -239,7 +272,11 @@ if ($gradeChef) {
 				});
 				header("Location: alliance.php"); exit;
 			} catch (\RuntimeException $e) {
-				$erreur = "Le joueur que vous essayez de mettre en chef n'existe pas ou n'est pas dans votre équipe.";
+				if ($e->getMessage() === 'NOT_CHEF') {
+					$erreur = "Vous n'êtes plus le chef de l'alliance.";
+				} else {
+					$erreur = "Le joueur que vous essayez de mettre en chef n'existe pas ou n'est pas dans votre équipe.";
+				}
 			}
 		} else {
 			$erreur = "Aucun chef n'a été séléctionné";
@@ -285,9 +322,48 @@ if ($bannir) {
 				} elseif ($targetGrade && !$gradeChef) {
 					$erreur = "Vous ne pouvez pas bannir un autre officier. Seul le chef peut le faire.";
 				} else {
-				$kickedLogin = $_POST['bannirpersonne'];
-				// AA-002: Wrap all ban operations in a transaction for atomicity
-				withTransaction($base, function() use ($base, $kickedLogin, $currentAlliance) {
+				$kickedLogin  = $_POST['bannirpersonne'];
+				$actorLogin   = $_SESSION['login'];
+				$allianceIdForKick = $currentAlliance['idalliance'];
+				// AA-002 / H-012: Wrap all ban operations in a transaction for atomicity.
+				// Re-verify actor authorization and target membership INSIDE the transaction
+				// after FOR UPDATE locks to close the TOCTOU window between the outer
+				// grade-check and the actual kick.
+				try {
+				withTransaction($base, function() use ($base, $kickedLogin, $currentAlliance, $actorLogin, $allianceIdForKick) {
+					// Re-read alliance row under lock to get the authoritative chef
+					$allianceLocked = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceIdForKick);
+					if (!$allianceLocked) {
+						throw new \RuntimeException('ALLIANCE_GONE');
+					}
+					$isActorChef = ($allianceLocked['chef'] === $actorLogin);
+
+					// Re-read actor's grade under lock
+					$actorGradeRow = dbFetchOne($base, 'SELECT grade FROM grades WHERE login=? AND idalliance=? FOR UPDATE', 'si', $actorLogin, $allianceIdForKick);
+					$actorHasBannirRight = false;
+					if ($actorGradeRow) {
+						$bits = explode('.', $actorGradeRow['grade'] ?? '');
+						$actorHasBannirRight = (count($bits) === 5 && $bits[3] === '1');
+					}
+					if (!$isActorChef && !$actorHasBannirRight) {
+						throw new \RuntimeException('PERMISSION_DENIED');
+					}
+
+					// Re-verify target's grade: only the chef can kick another officer
+					$targetGradeRow = dbFetchOne($base, 'SELECT id FROM grades WHERE login=? AND idalliance=? FOR UPDATE', 'si', $kickedLogin, $allianceIdForKick);
+					if ($targetGradeRow && !$isActorChef) {
+						throw new \RuntimeException('CANNOT_KICK_OFFICER');
+					}
+
+					// Re-verify target is still in the alliance and is not the chef
+					$targetMembership = dbFetchOne($base, 'SELECT login FROM autre WHERE login=? AND idalliance=? FOR UPDATE', 'si', $kickedLogin, $allianceIdForKick);
+					if (!$targetMembership) {
+						throw new \RuntimeException('TARGET_NOT_IN_ALLIANCE');
+					}
+					if ($kickedLogin === $allianceLocked['chef']) {
+						throw new \RuntimeException('CANNOT_KICK_CHEF');
+					}
+
 					dbExecute($base, 'UPDATE autre SET idalliance=0 WHERE login=?', 's', $kickedLogin);
 					dbExecute($base, 'DELETE FROM grades WHERE idalliance=? AND login=?', 'is', $currentAlliance['idalliance'], $kickedLogin);
 					// MED-027: Clean up pending invitations for the kicked player
@@ -301,6 +377,24 @@ if ($bannir) {
 					}
 				});
 				$information = 'Vous avez banni ' . htmlspecialchars($kickedLogin, ENT_QUOTES, 'UTF-8') . '.';
+				} catch (\RuntimeException $e) {
+					switch ($e->getMessage()) {
+						case 'CANNOT_KICK_CHEF':
+							$erreur = "Vous ne pouvez pas bannir le chef de l'alliance.";
+							break;
+						case 'CANNOT_KICK_OFFICER':
+							$erreur = "Vous ne pouvez pas bannir un autre officier. Seul le chef peut le faire.";
+							break;
+						case 'TARGET_NOT_IN_ALLIANCE':
+							$erreur = "Ce joueur n'est plus dans votre alliance.";
+							break;
+						case 'PERMISSION_DENIED':
+							$erreur = "Vous n'avez pas la permission de bannir des membres.";
+							break;
+						default:
+							$erreur = "Erreur lors du bannissement.";
+					}
+				}
 				}
 			} else {
 				$erreur = "Le joueur que vous essayez de bannir n'existe pas ou n'est pas dans votre équipe.";

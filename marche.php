@@ -41,9 +41,10 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
     } elseif (!empty($_POST['destinataire'])) {
         $_POST['destinataire'] = trim($_POST['destinataire']);
 
-        $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=?', 's', $_POST['destinataire']);
+        // C-003: Also check estExclu=0 so banned players cannot receive transfers
+        $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=? AND estExclu = 0', 's', $_POST['destinataire']);
         if (!$verification || $verification['joueurOuPas'] != 1) {
-            $erreur = "Le destinataire n'existe pas.";
+            $erreur = "Le destinataire n'existe pas ou est banni.";
         } else {
         $ipdd = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_POST['destinataire']);
         $ipmm = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
@@ -89,10 +90,11 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                 }
             }
             if (preg_match("#^[0-9]*$#", $_POST['energieEnvoyee']) and $bool == 1) {
-                $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=?', 's', $_POST['destinataire']);
+                // C-003: Re-check with estExclu=0 to block banned recipients
+                $verification = dbFetchOne($base, 'SELECT count(*) AS joueurOuPas FROM membre WHERE login=? AND estExclu = 0', 's', $_POST['destinataire']);
                 // TAINT-CROSS HIGH-002: Fetch canonical login from DB so $transferInfo uses
                 // a server-controlled value, not the raw POST input.
-                $canonicalDestinataire = dbFetchOne($base, 'SELECT login FROM membre WHERE login=?', 's', $_POST['destinataire']);
+                $canonicalDestinataire = dbFetchOne($base, 'SELECT login FROM membre WHERE login=? AND estExclu = 0', 's', $_POST['destinataire']);
                 $safeDestinataire = $canonicalDestinataire ? $canonicalDestinataire['login'] : htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8');
                 if ($verification['joueurOuPas'] == 1) {
                     // Self-transfer check (P4-ADV-003) — case-insensitive to prevent bypass via mixed case

@@ -119,7 +119,7 @@ function synthesizeCompound($base, $login, $compoundKey)
                 // MEDIUM-031: Log diagnostic if GREATEST() clamped to 0 (indicates a race slipped past FOR UPDATE)
                 $newVal = dbFetchOne($base, "SELECT $resource FROM ressources WHERE login = ?", 's', $login);
                 if ($newVal !== false && (float)($newVal[$resource] ?? 1) == 0.0 && $cost > 0) {
-                    logError('Compound synthesis: GREATEST clamped to 0 for ' . $resource . ' for player ' . $login);
+                    logError('COMPOUNDS', 'Compound synthesis: GREATEST clamped to 0 for ' . $resource . ' for player ' . $login);
                 }
             }
 
@@ -151,11 +151,11 @@ function synthesizeCompound($base, $login, $compoundKey)
             return "Pas assez de " . $resName . " (besoin: " . ($parts[1] ?? '?') . ", disponible: " . ($parts[2] ?? '?') . ").";
         }
         if (str_starts_with($msg, 'UPDATE_FAILED:')) {
-            logError("synthesizeCompound() UPDATE failed: " . $msg);
+            logError('COMPOUNDS', "synthesizeCompound() UPDATE failed: " . $msg);
             return "Erreur lors de la déduction des ressources.";
         }
         if ($msg === 'INSERT_FAILED') {
-            logError("synthesizeCompound() INSERT failed for login=$login compound=$compoundKey");
+            logError('COMPOUNDS', "synthesizeCompound() INSERT failed for login=$login compound=$compoundKey");
             return "Erreur lors de la création du composé.";
         }
         throw $e;

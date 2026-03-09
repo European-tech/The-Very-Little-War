@@ -40,10 +40,10 @@ if(isset($_POST['joueurRecherche']) AND !empty($_POST['joueurRecherche'])) {
 	if($recherche['joueurExiste'] == 1) {
 		// Count players ranked above the searched player to find their rank (single query instead of full scan)
 		$searchLogin = $_POST['joueurRecherche'];
-		$playerScore = dbFetchOne($base, 'SELECT a.' . $order . ' AS score FROM autre a JOIN membre m ON m.login = a.login WHERE a.login=? AND m.x != -1000', 's', $searchLogin);
+		$playerScore = dbFetchOne($base, 'SELECT a.' . $order . ' AS score FROM autre a JOIN membre m ON m.login = a.login WHERE a.login=? AND m.x != -1000 AND m.estExclu = 0', 's', $searchLogin);
 		if ($playerScore) {
 			// LOW-018: Count distinct score values above the player's score to get DENSE_RANK-style position
-			$rankRow = dbFetchOne($base, 'SELECT COUNT(DISTINCT a.' . $order . ') AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $playerScore['score']);
+			$rankRow = dbFetchOne($base, 'SELECT COUNT(DISTINCT a.' . $order . ') AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000 AND m.estExclu = 0', 'd', $playerScore['score']);
 			$place = ($rankRow['rank'] ?? 0) + 1;
 			$pageParDefaut = ceil($place / LEADERBOARD_PAGE_SIZE);
 		} else {
@@ -104,7 +104,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			        DENSE_RANK() OVER (ORDER BY a.' . $order . ' DESC) AS rang
 			 FROM autre a
 			 JOIN membre m ON m.login = a.login
-			 WHERE m.derniereConnexion >= ? AND m.x != -1000
+			 WHERE m.derniereConnexion >= ? AND m.x != -1000 AND m.estExclu = 0
 			 ORDER BY a.' . $order . ' DESC
 			 LIMIT ' . LEADERBOARD_PAGE_SIZE,
 			'i', $midnightToday);
@@ -179,10 +179,10 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			}
 			else {
 				// Find logged-in player's rank with a count query instead of full table scan
-				$myScore = dbFetchOne($base, 'SELECT a.' . $order . ' AS score FROM autre a JOIN membre m ON m.login = a.login WHERE a.login=? AND m.x != -1000', 's', $_SESSION['login']);
+				$myScore = dbFetchOne($base, 'SELECT a.' . $order . ' AS score FROM autre a JOIN membre m ON m.login = a.login WHERE a.login=? AND m.x != -1000 AND m.estExclu = 0', 's', $_SESSION['login']);
 				if ($myScore) {
 					// LOW-018: DENSE_RANK — count distinct scores above player's score
-			$myRank = dbFetchOne($base, 'SELECT COUNT(DISTINCT a.' . $order . ') AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000', 'd', $myScore['score']);
+			$myRank = dbFetchOne($base, 'SELECT COUNT(DISTINCT a.' . $order . ') AS rank FROM autre a JOIN membre m ON m.login = a.login WHERE a.' . $order . ' > ? AND m.x != -1000 AND m.estExclu = 0', 'd', $myScore['score']);
 					$place = ($myRank['rank'] ?? 0) + 1;
 					$pageParDefaut = ceil($place / $nombreDeJoueursParPage);
 				} else {
@@ -196,7 +196,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 
 
 
-	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_joueurs FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != -1000');
+	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_joueurs FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != -1000 AND m.estExclu = 0');
 	$donnees = $retour;
 	$totalDesJoueurs = $donnees['nb_joueurs'];
 	$nombreDePages  = ceil($totalDesJoueurs / $nombreDeJoueursParPage); // Calcul du nombre de pages créées
@@ -213,7 +213,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	$classementRows = dbFetchAll($base,
 		'SELECT a.*, DENSE_RANK() OVER (ORDER BY a.' . $order . ' DESC) AS rang
 		 FROM autre a JOIN membre m ON m.login = a.login
-		 WHERE m.x != -1000
+		 WHERE m.x != -1000 AND m.estExclu = 0
 		 ORDER BY a.' . $order . ' DESC
 		 LIMIT ?, ?',
 		'ii', $premierJoueurAafficher, $nombreDeJoueursParPage);

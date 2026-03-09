@@ -102,7 +102,7 @@ $dispatch = [
     },
     'demiVie' => function() use ($joueur, $nbTotalAtomes) {
         $hl = demiVie($joueur, $nbTotalAtomes, 1);
-        return ($hl >= PHP_INT_MAX) ? '∞' : affichageTemps($hl);
+        return ($hl >= PHP_INT_MAX) ? 'Infinity' : affichageTemps($hl);
     },
 ];
 

@@ -1,0 +1,32 @@
+-- Migration 0104: Drop orphaned columns audit
+-- H-010: All candidate "orphaned" columns were found to be actively referenced in PHP.
+--
+-- Audit results (2026-03-09):
+--
+-- ressources table candidates (ALL EXCLUDED — still referenced):
+--   terrain          → includes/player.php lines 111, 1481 (INSERT + season reset UPDATE)
+--   revenuenergie    → includes/player.php line 1481, includes/game_resources.php line 214
+--   revenuhydrogene  → includes/player.php lines 114, 1481
+--   revenucarbone    → includes/player.php lines 114, 1481
+--   revenuoxygene    → includes/player.php lines 114, 1481
+--   revenuiode       → includes/player.php lines 115, 1481
+--   revenubrome      → includes/player.php lines 115, 1481
+--   revenuchlore     → includes/player.php lines 115, 1481
+--   revenusoufre     → includes/player.php lines 115, 1481
+--   niveauclasse     → armee.php lines 16–18, 232–238, 431–433; player.php line 1481
+--
+-- statistiques table candidates (ALL EXCLUDED — still referenced):
+--   inscrits         → includes/player.php lines 134, 1038 (register/unregister counter)
+--   numerovisiteur   → includes/prestige.php line 220 (INSERT fallback row)
+--   tailleCarte      → attaquer.php lines 466–580; includes/player.php lines 826–892; includes/config.php; includes/resource_nodes.php
+--   nbDerniere       → includes/player.php lines 826, 832–833, 892
+--
+-- declarations table candidates (ALL EXCLUDED — still referenced):
+--   valide           → rapports.php line 42; allianceadmin.php lines 341, 368, 412, 422, 431, 439, 706, 727;
+--                      validerpacte.php lines 11, 52; attaquer.php lines 169, 500; classement.php lines 256, 446;
+--                      alliance.php line 365
+--
+-- Conclusion: no columns are dropped in this migration.
+-- Re-audit is recommended after any future refactoring that removes the above usages.
+
+SELECT 1; -- no-op placeholder so migrate.php sees a valid SQL statement

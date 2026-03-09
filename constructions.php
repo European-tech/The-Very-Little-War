@@ -250,6 +250,8 @@ function traitementConstructions($liste)
     global $autre;
     global $information;
     global $erreur;
+    global $BUILDING_CONFIG;
+    global $bonus;
 
     if (isset($_POST[$liste['bdd']])) {
         csrfCheck();
@@ -284,7 +286,7 @@ function traitementConstructions($liste)
 
             if ($ressources['energie'] >= $liste['coutEnergie'] and $bool == 1) {
                 try {
-                withTransaction($base, function() use ($base, $liste, $nomsRes, $nbRes, $constructions, $autre, &$information, &$erreur) {
+                withTransaction($base, function() use ($base, $liste, $nomsRes, $nbRes, $constructions, $autre, $BUILDING_CONFIG, $bonus, &$information, &$erreur) {
                     // Re-check queue slots inside transaction to prevent TOCTOU race
                     $nbSlots = dbFetchOne($base, 'SELECT count(*) as nb FROM actionsconstruction WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                     if ($nbSlots && $nbSlots['nb'] >= 2) {
@@ -293,16 +295,6 @@ function traitementConstructions($liste)
                     // Lock resources with FOR UPDATE
                     $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_SESSION['login']);
                     if (!$ressources) { $erreur = "Une erreur est survenue."; return; }
-
-                    // Re-validate with locked values
-                    foreach ($nomsRes as $num => $ressource) {
-                        if ($ressources[$ressource] < $liste['cout' . ucfirst($ressource)]) {
-                            $erreur = "Vous n'avez pas assez de ressources."; return;
-                        }
-                    }
-                    if ($ressources['energie'] < $liste['coutEnergie']) {
-                        $erreur = "Vous n'avez pas assez de ressources."; return;
-                    }
 
                     // Whitelist $liste['bdd'] before using as constructions array key
                     $validBuildingCols = ['generateur', 'producteur', 'depot', 'champdeforce', 'ionisateur', 'condenseur', 'lieur', 'stabilisateur', 'coffrefort'];
@@ -326,15 +318,72 @@ function traitementConstructions($liste)
                         $erreur = "Niveau maximum atteint (" . MAX_BUILDING_LEVEL . ")."; return;
                     }
 
+                    // H-007: Re-compute building cost from the freshly locked level so that a race
+                    // where another request completed a build between the outer check and this
+                    // transaction cannot cause us to charge the wrong (stale) cost.
+                    $bddKey = $liste['bdd'];
+                    $freshCosts = [];
+                    if (isset($BUILDING_CONFIG[$bddKey])) {
+                        $bc = $BUILDING_CONFIG[$bddKey];
+                        $growthBase = $bc['cost_growth_base'];
+                        $costFactor = (1 - ($bonus / 100));
+                        foreach (['energy', 'atoms', 'carbone', 'azote', 'oxygene'] as $costKey) {
+                            $configKey = 'cost_' . $costKey . '_base';
+                            if (isset($bc[$configKey])) {
+                                $freshCosts['cout' . ucfirst($costKey === 'energy' ? 'Energie' : ucfirst($costKey))] =
+                                    round($costFactor * $bc[$configKey] * pow($growthBase, $niveauActuel['niveau']));
+                            }
+                        }
+                    }
+                    // Map config keys to $liste keys (energy→coutEnergie, atoms→coutAtomes, etc.)
+                    $costKeyMap = ['energy' => 'Energie', 'atoms' => 'Atomes', 'carbone' => 'Carbone', 'azote' => 'Azote', 'oxygene' => 'Oxygene'];
+                    $freshEnergieCost = 0;
+                    $freshAtomCosts = [];
+                    if (isset($BUILDING_CONFIG[$bddKey])) {
+                        $bc = $BUILDING_CONFIG[$bddKey];
+                        $costFactor = (1 - ($bonus / 100));
+                        foreach ($costKeyMap as $cfgSuffix => $listeSuffix) {
+                            $cfgKey = 'cost_' . $cfgSuffix . '_base';
+                            if (isset($bc[$cfgKey])) {
+                                $freshVal = round($costFactor * $bc[$cfgKey] * pow($bc['cost_growth_base'], $niveauActuel['niveau']));
+                                if ($listeSuffix === 'Energie') {
+                                    $freshEnergieCost = $freshVal;
+                                } elseif ($listeSuffix === 'Atomes') {
+                                    // coutAtomes applies to all resource types equally
+                                    foreach ($nomsRes as $num => $ressource) {
+                                        $freshAtomCosts[$ressource] = $freshVal;
+                                    }
+                                } else {
+                                    $freshAtomCosts[strtolower($listeSuffix)] = $freshVal;
+                                }
+                            }
+                        }
+                    } else {
+                        // Fallback to pre-computed costs if config key missing
+                        $freshEnergieCost = $liste['coutEnergie'];
+                        foreach ($nomsRes as $num => $ressource) {
+                            $freshAtomCosts[$ressource] = $liste['cout' . ucfirst($ressource)] ?? 0;
+                        }
+                    }
+
+                    // Re-validate with locked resources against fresh costs
+                    foreach ($nomsRes as $num => $ressource) {
+                        $freshCost = $freshAtomCosts[$ressource] ?? 0;
+                        if ($ressources[$ressource] < $freshCost) {
+                            $erreur = "Vous n'avez pas assez de ressources."; return;
+                        }
+                    }
+                    if ($ressources['energie'] < $freshEnergieCost) {
+                        $erreur = "Vous n'avez pas assez de ressources."; return;
+                    }
+
                     // BLDG15-001: Sanity check — building costs must be positive.
-                    // A formula bug or DB corruption producing negative costs would ADD resources.
-                    if ($liste['coutEnergie'] < 0) {
-                        logError('CONSTRUCTION', 'Negative coutEnergie detected', ['batiment' => $liste['bdd'], 'cost' => $liste['coutEnergie'], 'login' => $_SESSION['login']]);
+                    if ($freshEnergieCost < 0) {
+                        logError('CONSTRUCTION', 'Negative coutEnergie detected', ['batiment' => $liste['bdd'], 'cost' => $freshEnergieCost, 'login' => $_SESSION['login']]);
                         throw new \RuntimeException('INVALID_COST');
                     }
-                    // BUILDINGS MEDIUM: Check per-atom costs for negative values (formula/DB corruption guard).
                     foreach ($nomsRes as $num => $ressource) {
-                        $atomCost = $liste['cout' . ucfirst($ressource)] ?? 0;
+                        $atomCost = $freshAtomCosts[$ressource] ?? 0;
                         if ($atomCost < 0) {
                             logError('CONSTRUCTION', 'Negative atom cost for ' . $ressource, ['login' => $_SESSION['login']]);
                             throw new \RuntimeException('INVALID_COST');
@@ -349,16 +398,16 @@ function traitementConstructions($liste)
                         throw new \RuntimeException('DUPLICATE_BUILD');
                     }
 
-                    // Build dynamic UPDATE for ressources - these are computed values, not user input
+                    // Build dynamic UPDATE for ressources using fresh (locked-level) costs
                     $chaine = "";
-                    $newEnergie = $ressources['energie'] - $liste['coutEnergie'];
+                    $newEnergie = $ressources['energie'] - $freshEnergieCost;
                     $setClauses = ['energie=?'];
                     $paramTypes = 'd';
                     $paramValues = [$newEnergie];
                     foreach ($nomsRes as $num => $ressource) {
                         $setClauses[] = $ressource . '=?';
                         $paramTypes .= 'd';
-                        $paramValues[] = $ressources[$ressource] - $liste['cout' . ucfirst($ressource)];
+                        $paramValues[] = $ressources[$ressource] - ($freshAtomCosts[$ressource] ?? 0);
                     }
                     $paramTypes .= 's';
                     $paramValues[] = $_SESSION['login'];
@@ -377,7 +426,7 @@ function traitementConstructions($liste)
                     dbExecute($base, 'INSERT INTO actionsconstruction VALUES(default,?,?,?,?,?,?,?)', 'siisisi',
                         $_SESSION['login'], $tempsDebut, $finTemps, $liste['bdd'], $newNiveau, $liste['titre'], $liste['points']);
 
-                    dbExecute($base, 'UPDATE autre SET energieDepensee = energieDepensee + ? WHERE login=?', 'ds', $liste['coutEnergie'], $_SESSION['login']);
+                    dbExecute($base, 'UPDATE autre SET energieDepensee = energieDepensee + ? WHERE login=?', 'ds', $freshEnergieCost, $_SESSION['login']);
 
                     $information = "La construction a bien été lancée.";
                 });

@@ -31,8 +31,20 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 	$visitorNumRow = dbFetchOne($base, 'SELECT LAST_INSERT_ID() AS num');
 	$visitorNum = $visitorNumRow['num']; // original value before increment
 	$log = 'Visiteur' . ($visitorNum - 1);
-	$time = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $log);
-	if (!$time || time() - $time['timestamp'] > 60) { // pour éviter d'avoir trop de joueurs
+
+	// C-002: Wrap the stale check + INSERT in a transaction with a FOR UPDATE lock so that
+	// two concurrent requests checking the same previous-slot row cannot both proceed to create
+	// a new visitor account. Only the request that acquires the row lock first will proceed.
+	$shouldCreate = false;
+	withTransaction($base, function() use ($base, $log, &$shouldCreate) {
+		// Lock the previous visitor's row (or nothing if it doesn't exist yet)
+		$time = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ? FOR UPDATE', 's', $log);
+		if (!$time || time() - $time['timestamp'] > 1800) { // H-015: 30 min threshold — only recreate truly stale visitors
+			$shouldCreate = true;
+		}
+	});
+
+	if ($shouldCreate) {
 		inscrire("Visiteur" . $visitorNum, "Visiteur" . $visitorNum, "Visiteur" . $visitorNum . "@tvlw.com");
 		session_regenerate_id(true);
 		$_SESSION['login'] = ucfirst(mb_strtolower("Visiteur" . $visitorNum));
@@ -64,9 +76,10 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 	//Si les champs sont vides
 	if ((isset($_POST['login']) && !empty($_POST['login'])) && (isset($_POST['pass']) && !empty($_POST['pass'])) && (isset($_POST['pass_confirm']) && !empty($_POST['pass_confirm'])) && (isset($_POST['email']) && !empty($_POST['email']))) {
 		//Si les deux mots de passe sont différents
-		if (mb_strlen($_POST['pass']) < PASSWORD_MIN_LENGTH) {
+		// H-016: bcrypt operates on bytes, not characters — use strlen (byte count) not mb_strlen.
+		if (strlen($_POST['pass']) < PASSWORD_MIN_LENGTH) {
 			$erreur = 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caractères.';
-		} elseif (mb_strlen($_POST['pass']) > PASSWORD_BCRYPT_MAX_LENGTH) {
+		} elseif (strlen($_POST['pass']) > PASSWORD_BCRYPT_MAX_LENGTH) {
 			$erreur = 'Le mot de passe est trop long (max ' . PASSWORD_BCRYPT_MAX_LENGTH . ' caractères).';
 		} elseif ($_POST['pass'] != $_POST['pass_confirm']) {
 			$erreur = 'Les deux mots de passe sont différents.';

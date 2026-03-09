@@ -165,7 +165,8 @@ function awardPrestigePoints() {
     // Freeze rankings into array to prevent concurrent changes mid-award
     // Exclude inactive/banned players (x = INACTIVE_PLAYER_X sentinel = -1000)
     // Read rankings BEFORE the transaction to avoid long-held locks on autre/membre
-    $players = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC');
+    // M-002: Also exclude banned players (estExclu=1) from receiving prestige awards.
+    $players = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' AND m.estExclu = 0 ORDER BY a.totalPoints DESC');
 
     // HIGH-019: Compute true DENSE_RANK (no gaps) so tied players receive the same rank bonus.
     // Increment denseRank by 1 only when the score changes — never by the index offset.
@@ -271,6 +272,11 @@ function purchasePrestigeUnlock($login, $unlockKey) {
     // Use transaction + row lock to prevent TOCTOU double-spend
     $result = null;
     withTransaction($base, function() use ($base, $login, $unlockKey, $unlock, &$result) {
+        // H-013: Ensure the prestige row exists before the FOR UPDATE read.
+        // A player who earned 0 PP may have no row yet; this upsert guarantees one exists
+        // so the subsequent SELECT ... FOR UPDATE can acquire the lock successfully.
+        dbExecute($base, 'INSERT INTO prestige (login, total_pp) VALUES (?, 0) ON DUPLICATE KEY UPDATE login=login', 's', $login);
+
         $prestige = dbFetchOne($base, 'SELECT total_pp, unlocks FROM prestige WHERE login=? FOR UPDATE', 's', $login);
 
         if (!$prestige) {

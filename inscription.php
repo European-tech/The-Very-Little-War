@@ -23,7 +23,8 @@ if (isset($_POST['login'])) {
 		$loginNormalized = $loginInput; // alias for display in error/success messages
 		$passInput = $_POST['pass'];
 		$passConfirm = $_POST['pass_confirm'];
-		$emailInput = trim($_POST['email']);
+		// M-005: Normalize email to lowercase for case-insensitive uniqueness check and storage
+		$emailInput = strtolower(trim($_POST['email']));
 
 		// MEDIUM-027: Use shared validatePassword() from validation.php
 		$passErrors = validatePassword($passInput, $passConfirm);

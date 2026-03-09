@@ -358,7 +358,9 @@ function sendAdminAlertEmail($subject, $body)
     $subject = str_replace(["\r", "\n"], '', $subject);
     // EMAIL-P10-001: Strip CRLF from body to prevent header injection via body parameter.
     $body = str_replace(["\r\n", "\r", "\n"], ' ', $body);
-    $headers = "From: noreply@theverylittlewar.com\r\nContent-Type: text/plain; charset=UTF-8";
+    // H-008: Encode the display name in RFC 5322 format, matching processEmailQueue() in player.php.
+    $encodedFromName = mb_encode_mimeheader(EMAIL_FROM_NAME, 'UTF-8', 'Q', "\r\n");
+    $headers = "From: " . $encodedFromName . " <" . EMAIL_FROM . ">\r\nContent-Type: text/plain; charset=UTF-8";
     $sent = mail($adminEmail, $subject, $body, $headers);
     if (!$sent) {
         logWarn('MULTI_ALERT', 'Admin alert email failed to send', ['subject' => $subject]);

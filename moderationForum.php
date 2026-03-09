@@ -43,7 +43,7 @@ if (isset($_POST['pseudo'], $_POST['dateFin'], $_POST['motif']) && !isset($_POST
 				$erreur = "<strong>Erreur</strong> : Date invalide.";
 			} else {
 				list($jour, $mois, $annee) = $parts;
-				$date = $annee . '-' . $mois . '-' . $jour;
+				$date = sprintf('%04d-%02d-%02d', (int)$annee, (int)$mois, (int)$jour);
 				dbExecute($base, 'INSERT INTO sanctions VALUES (default, ?, CURRENT_DATE, ?, ?, ?)', 'ssss', $_POST['pseudo'], $date, $_POST['motif'], $_SESSION['login']);
 			}
 		} else {

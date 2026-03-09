@@ -307,6 +307,12 @@ if (isset($_POST['joueurAAttaquer'])) {
                                         if ($energieFraiche['energie'] < $cout) {
                                             throw new RuntimeException('Énergie insuffisante');
                                         }
+                                        // H-011: Re-check attack cooldown inside transaction to close the race window
+                                        // between the pre-transaction check and the actual combat INSERT.
+                                        $cooldownFresh = dbFetchOne($base, 'SELECT expires FROM attack_cooldowns WHERE attacker=? AND defender=? AND expires > ?', 'ssi', $attaquant, $capturedCibles, time());
+                                        if ($cooldownFresh) {
+                                            throw new RuntimeException('COOLDOWN_ACTIVE');
+                                        }
                                         $moleculesAttaqueTxRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $attaquant);
                                         $c = 1;
                                         foreach ($moleculesAttaqueTxRows as $moleculesAttaque) {
@@ -334,6 +340,8 @@ if (isset($_POST['joueurAAttaquer'])) {
                                 } catch (\RuntimeException $e) {
                                     if ($e->getMessage() === 'Énergie insuffisante') {
                                         $erreur = "Vous n'avez pas assez d'énergie (solde modifié entre la vérification et l'envoi).";
+                                    } elseif ($e->getMessage() === 'COOLDOWN_ACTIVE') {
+                                        $erreur = "Vous devez attendre avant de pouvoir attaquer ce joueur (délai de cooldown actif).";
                                     } else {
                                         $erreur = "Une erreur est survenue lors du lancement de l'attaque.";
                                         error_log('Attack transaction failed: ' . $e->getMessage());

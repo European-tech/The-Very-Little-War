@@ -314,7 +314,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         $sujet = "=?UTF-8?B?" . base64_encode("Debut d'une nouvelle partie") . "?=";
 
         dbExecute($base,
-            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, NOW())',
+            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, UNIX_TIMESTAMP())',
             'sss', $recipientEmail, $sujet, $message_html
         );
     }

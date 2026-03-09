@@ -24,6 +24,12 @@ if (!$row || !isset($_SESSION['session_token']) || !$row['session_token'] || !ha
 
 // GET: Return aggregated poll results (no individual voter identities exposed)
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    // H-018: Rate limit poll result views to prevent enumeration / scraping
+    $pollViewLimit = defined('POLL_VIEW_RATE_LIMIT') ? POLL_VIEW_RATE_LIMIT : 30;
+    if (!rateLimitCheck($_SESSION['login'], 'poll_view', $pollViewLimit, 60)) {
+        http_response_code(429);
+        exit(json_encode(['error' => 'Trop de requêtes. Réessayez dans une minute.']));
+    }
     $activePoll = dbFetchOne($base, 'SELECT id FROM sondages WHERE active = 1 ORDER BY date DESC LIMIT 1');
     if (!$activePoll) {
         exit(json_encode(['success' => false, 'results' => []]));

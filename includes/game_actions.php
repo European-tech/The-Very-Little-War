@@ -143,6 +143,35 @@ function updateActions($joueur)
                             throw new \RuntimeException('cas_skip'); // reuse cas_skip to cleanly exit tx
                         }
 
+                        // M-003: Re-check pact at resolution time — a pact could have been signed
+                        // AFTER the attack was launched but BEFORE it resolves, so the launch-time
+                        // check is insufficient. If a pact now exists between the two alliances,
+                        // abort the attack and refund molecules to the attacker.
+                        if ($attAllianceId && $defAllianceId
+                            && (int)$attAllianceId['idalliance'] > 0
+                            && (int)$defAllianceId['idalliance'] > 0
+                            && (int)$attAllianceId['idalliance'] !== (int)$defAllianceId['idalliance']) {
+                            $attAId = (int)$attAllianceId['idalliance'];
+                            $defAId = (int)$defAllianceId['idalliance'];
+                            $pactExists = dbFetchOne($base,
+                                'SELECT id FROM declarations WHERE ((alliance1=? AND alliance2=?) OR (alliance1=? AND alliance2=?)) AND type=1 AND valide!=0',
+                                'iiii', $attAId, $defAId, $defAId, $attAId);
+                            if ($pactExists) {
+                                // Pact formed after attack was launched — abort and refund
+                                $troupesArr = explode(';', $actions['troupes'] ?? '');
+                                $moleculesOwned = dbFetchAll($base, 'SELECT id FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
+                                foreach ($moleculesOwned as $idx => $mol) {
+                                    $nb = isset($troupesArr[$idx]) && is_numeric($troupesArr[$idx]) ? (int)$troupesArr[$idx] : 0;
+                                    if ($nb > 0) {
+                                        dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ii', $nb, $mol['id']);
+                                    }
+                                }
+                                dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                                logInfo('SECURITY', 'Pact-violation attack aborted at resolution', ['attacker' => $actions['attaquant'], 'defender' => $actions['defenseur'], 'att_alliance' => $attAId, 'def_alliance' => $defAId]);
+                                throw new \RuntimeException('cas_skip');
+                            }
+                        }
+
                         // Decay loop now inside the transaction
                         $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
 
@@ -243,7 +272,7 @@ function updateActions($joueur)
                                     " . important('Attaquant') . "<br/>
                                     " . chipInfo($attaquePts, 'images/molecule/sword.png') . chipInfo($pillagePts, 'images/molecule/bag.png') . "<br/><br/>
                                     <table class=\"table table-bordered\">
-                                    <caption style=\"color:red;font-weight:bold;\"><img src=\"images/attaquer/gladius.png\" alt=\"epee\" class=\"imageAide\"/><a style=\"color:red\" href=\"joueur.php?id=" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "</caption>
+                                    <caption style=\"color:red;font-weight:bold;\"><img src=\"images/attaquer/gladius.png\" alt=\"epee\" class=\"imageAide\"/><a style=\"color:red\" href=\"joueur.php?id=" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "\">" . htmlspecialchars($actions['attaquant'], ENT_QUOTES, 'UTF-8') . "</a></caption>
                                     <thead>
                                     <tr>
                                     <th></th>

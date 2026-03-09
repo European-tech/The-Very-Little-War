@@ -375,12 +375,15 @@ function transformInt($nombre)
 function sanitizeReportHtml($html) {
     if (empty(trim($html))) return $html;
     $allowedTags = ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'span', 'div', 'img', 'a',
-                    'table', 'tr', 'td', 'th', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'hr'];
+                    'table', 'tr', 'td', 'th', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'hr',
+                    'caption', 'thead', 'tbody'];
     $allowedAttrs = [
         'href'  => ['a'],
         'src'   => ['img'],
         'alt'   => ['img'],
         'id'    => true,
+        'class' => true,
+        'style' => true,
     ];
 
     $dom = new DOMDocument();

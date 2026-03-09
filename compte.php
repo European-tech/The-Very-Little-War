@@ -23,9 +23,9 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
     } else {
     list($jour, $mois, $annee) = $parts;
     $dateT = new DateTime();
-    $dateT->setDate($annee, $mois, $jour);
+    $dateT->setDate((int)$annee, (int)$mois, (int)$jour);
     if ($dateT->getTimestamp() >= time() + VACATION_MIN_ADVANCE_SECONDS) {
-        $date = $annee . '-' . $mois . '-' . $jour;
+        $date = sprintf('%04d-%02d-%02d', (int)$annee, (int)$mois, (int)$jour);
         // MEDIUM-007: Check for active combat before activating vacation mode
         $login = $_SESSION['login'];
         // MEDIUM-001: Active-combat check runs INSIDE the transaction, after the FOR UPDATE
