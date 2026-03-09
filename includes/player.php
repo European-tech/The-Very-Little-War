@@ -1110,12 +1110,12 @@ function archiveSeasonData($base)
                 'INSERT INTO season_recap (season_number, login, final_rank, total_points, points_attaque,
                  points_defense, trade_volume, ressources_pillees, nb_attaques, victoires,
                  molecules_perdues, alliance_name, streak_max, batmax) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                'isiiiidiiiisii', // MEDIUM-019: moleculesPerdues is BIGINT, use 'i' not 'd'
+                'isiiiidiiidsii', // SCHEMA-M1: molecules_perdues is DOUBLE in schema (0029), use 'd' not 'i'
                 $nextSeason, $p['login'], (int)$p['final_rank'], (int)$p['totalPoints'],
                 (int)$p['pointsAttaque'], (int)$p['pointsDefense'],
                 (float)$p['tradeVolume'], (int)$p['ressourcesPillees'],
                 (int)$p['nbattaques'], (int)$p['victoires'],
-                (int)round($p['moleculesPerdues']), $p['alliance_name'] ?? '', // L-002: round before cast to avoid truncating decimals
+                (float)$p['moleculesPerdues'], $p['alliance_name'] ?? '', // SCHEMA-M1: preserve decimal for DOUBLE column
                 (int)($p['streak_days'] ?? 0), (int)($p['batmax'] ?? 0)
             );
         }
@@ -1237,10 +1237,13 @@ function performSeasonEnd()
     // were only added to the archive for display purposes, not for game-state correctness.
     archiveSeasonData($base);
 
-    // FIX: Reset VP award flags before starting VP awards (idempotency: allows retry if crashed
-    // between VP award and remiseAZero, ensuring flags are 0 so awards are not skipped on retry).
-    dbExecute($base, 'UPDATE autre SET vp_awarded = 0');
-    dbExecute($base, 'UPDATE alliances SET season_vp_awarded = 0');
+    // SEASON-M1: Reset VP award flags inside a transaction so that if the reset rolls back,
+    // the flags are also rolled back (atomic pair). This ensures idempotency is maintained:
+    // on retry, flags are 0 and VP awards will not be skipped.
+    withTransaction($base, function() use ($base) {
+        dbExecute($base, 'UPDATE autre SET vp_awarded = 0');
+        dbExecute($base, 'UPDATE alliances SET season_vp_awarded = 0');
+    });
 
     // Phase 1b: Award VP to players in chunks of 100 to avoid long-running transactions.
     // LOW-022: Split large VP award loop into smaller transactions so the DB is not locked

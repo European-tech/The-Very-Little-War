@@ -97,8 +97,11 @@ if ($type == 3 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 // Si on souhaite masquer un message - moderator only (P5-GAP-014)
 if ($type == 5 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
-	// MEDIUM-017: Alliance-private forum access check for hide action.
-	if ($moderateur && $moderateur['moderateur'] != '0') {
+	// FORUM-M1: Rate-limit hide/show moderation actions to prevent abuse.
+	if (!rateLimitCheck($_SESSION['login'], 'forum_moderate', 20, 300)) {
+		$erreur = 'Trop de modérations. Réessayez dans quelques minutes.';
+	} elseif ($moderateur && $moderateur['moderateur'] != '0') {
+		// MEDIUM-017: Alliance-private forum access check for hide action.
 		if (!checkAllianceForumAccess($base, $id, $_SESSION['login'])) {
 			$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
 		} else {
@@ -117,8 +120,11 @@ if ($type == 5 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 // Si on souhaite afficher un message - moderator only (P5-GAP-014)
 if ($type == 4 AND $id > 0 AND $_SERVER['REQUEST_METHOD'] === 'POST') {
 	csrfCheck();
-	// MEDIUM-017: Alliance-private forum access check for show action.
-	if ($moderateur && $moderateur['moderateur'] != '0') {
+	// FORUM-M1: Rate-limit hide/show moderation actions to prevent abuse.
+	if (!rateLimitCheck($_SESSION['login'], 'forum_moderate', 20, 300)) {
+		$erreur = 'Trop de modérations. Réessayez dans quelques minutes.';
+	} elseif ($moderateur && $moderateur['moderateur'] != '0') {
+		// MEDIUM-017: Alliance-private forum access check for show action.
 		if (!checkAllianceForumAccess($base, $id, $_SESSION['login'])) {
 			$erreur = "Vous n'avez pas accès à ce forum privé d'alliance.";
 		} else {

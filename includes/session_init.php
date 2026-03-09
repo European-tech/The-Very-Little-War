@@ -7,6 +7,7 @@ require_once(__DIR__ . '/config.php');
 
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
+    ini_set('session.cookie_path', '/'); // INFRA-TEMPLATES-M2: explicit path prevents path-scope cookie leakage
     // AUTH-MEDIUM: Detect HTTPS via direct connection OR trusted TLS-terminating proxy.
     // TRUSTED_PROXY_IPS is defined in config.php (empty array = no proxy assumed).
     $trustedProxyIps = defined('TRUSTED_PROXY_IPS') ? TRUSTED_PROXY_IPS : [];

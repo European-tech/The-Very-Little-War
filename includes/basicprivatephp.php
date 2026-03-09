@@ -153,8 +153,19 @@ else {
     if (!$vac) {
         // Orphaned vacance=1 with no vacances row — clear the flag
         dbExecute($base, 'UPDATE membre SET vacance = 0 WHERE login = ?', 's', $_SESSION['login']);
-        // NEW-003: Use basename() to strip path-info injection from PHP_SELF (FILTER_SANITIZE_URL does not strip URL-encoded CRLF)
-        header('Location: ' . basename($_SERVER['PHP_SELF'])); exit;
+        // INFRA-TEMPLATES-M1: Validate against known-safe pages before redirecting.
+        // basename() alone does not prevent CRLF header injection via crafted URL path-info.
+        // Only redirect to a page in the allowlist; fall back to index.php for unknown pages.
+        $unsafePage = basename($_SERVER['PHP_SELF']);
+        $vacationSafeRedirectPages = [
+            'index.php', 'compte.php', 'regles.php', 'prestige.php', 'maintenance.php',
+            'deconnexion.php', 'bilan.php', 'classement.php', 'joueur.php', 'saison.php',
+            'alliance_discovery.php', 'season_recap.php', 'attaquer.php', 'alliance.php',
+            'constructions.php', 'laboratoire.php', 'marche.php', 'carte.php', 'forum.php',
+            'sondage.php', 'voter.php', 'troupes.php', 'espionner.php',
+        ];
+        $safePage = in_array($unsafePage, $vacationSafeRedirectPages, true) ? $unsafePage : 'index.php';
+        header('Location: ' . $safePage); exit;
     }
     // On calcul la différence entre la date de fin et la date actuelle
     $diff = dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $vac['dateFin']);

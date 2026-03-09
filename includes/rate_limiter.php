@@ -71,7 +71,8 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
             $written = fwrite($fp, json_encode(array_values($attempts)));
             if ($written === false) {
                 if (function_exists('logError')) {
-                    logError('RATE_LIMITER', 'flock failed', ['file' => $file]);
+                    // INFRA-SEC-M2: Correct error label — this is an fwrite failure, not an flock failure.
+                    logError('RATE_LIMITER', 'fwrite failed', ['file' => $file]);
                 }
                 flock($fp, LOCK_UN);
                 fclose($fp);

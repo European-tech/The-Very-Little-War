@@ -198,31 +198,47 @@ function checkCoordinatedAttacks($base, $attacker, $defender, $timestamp)
 
 /**
  * Detect one-sided resource transfer patterns (5+ sends, near-zero reciprocity in 7 days).
+ * ANTI-CHEAT-M1: Check both A→B and B→A directions so the function catches alt-feeding
+ * regardless of which account initiates the transfer session.
  */
 function checkTransferPatterns($base, $sender, $receiver, $timestamp)
+{
+    // Check both directions: the provided (sender→receiver) and the reverse (receiver→sender).
+    // This ensures a single call site covers both alt-feeding patterns without requiring
+    // the caller to invoke checkTransferPatterns() twice with swapped arguments.
+    _checkOneSidedTransfers($base, $sender, $receiver, $timestamp);
+    _checkOneSidedTransfers($base, $receiver, $sender, $timestamp);
+}
+
+/**
+ * Internal helper: check whether $from has sent $to 5+ times with near-zero reciprocation.
+ */
+function _checkOneSidedTransfers($base, $from, $to, $timestamp)
 {
     $cutoff = $timestamp - (7 * SECONDS_PER_DAY);
     $transferCount = dbFetchOne($base,
         'SELECT COUNT(*) AS cnt FROM actionsenvoi WHERE envoyeur = ? AND receveur = ? AND tempsArrivee > ?',
-        'ssi', $sender, $receiver, $cutoff
+        'ssi', $from, $to, $cutoff
     );
 
     if ($transferCount && $transferCount['cnt'] >= 5) {
         $reverseCount = dbFetchOne($base,
             'SELECT COUNT(*) AS cnt FROM actionsenvoi WHERE envoyeur = ? AND receveur = ? AND tempsArrivee > ?',
-            'ssi', $receiver, $sender, $cutoff
+            'ssi', $to, $from, $cutoff
         );
 
         $ratio = $reverseCount ? $reverseCount['cnt'] : 0;
         if ($ratio < 2) {
+            // ANTI-CHEAT-M1: Use symmetric dedup (both orderings) to avoid duplicate flags
+            // when _checkOneSidedTransfers is called for both A→B and B→A directions.
             $existing = dbFetchOne($base,
-                'SELECT id FROM account_flags WHERE login = ? AND related_login = ? AND flag_type = ? AND status != ? AND created_at > ?',
-                'ssssi', $sender, $receiver, 'coord_transfer', 'dismissed', $cutoff
+                'SELECT id FROM account_flags WHERE ((login = ? AND related_login = ?) OR (login = ? AND related_login = ?)) AND flag_type = ? AND status != ? AND created_at > ?',
+                'ssssssi', $from, $to, $to, $from, 'coord_transfer', 'dismissed', $cutoff
             );
             if (!$existing) {
                 $evidence = json_encode([
-                    'sender' => $sender,
-                    'receiver' => $receiver,
+                    'sender' => $from,
+                    'receiver' => $to,
                     'transfers_7d' => $transferCount['cnt'],
                     'reverse_transfers_7d' => $ratio,
                     'period_start' => $cutoff,
@@ -230,14 +246,14 @@ function checkTransferPatterns($base, $sender, $receiver, $timestamp)
                 ]);
                 dbExecute($base,
                     'INSERT INTO account_flags (login, flag_type, related_login, evidence, severity, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                    'sssssi', $sender, 'coord_transfer', $receiver, $evidence, 'high', $timestamp
+                    'sssssi', $from, 'coord_transfer', $to, $evidence, 'high', $timestamp
                 );
                 createAdminAlert($base, 'coord_transfer',
-                    "Transferts suspects: " . htmlspecialchars($sender, ENT_QUOTES, 'UTF-8') . " → " . htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8') . " ({$transferCount['cnt']}x en 7j, quasi aucun retour)",
-                    $evidence, 'warning', $sender, $receiver
+                    "Transferts suspects: " . htmlspecialchars($from, ENT_QUOTES, 'UTF-8') . " → " . htmlspecialchars($to, ENT_QUOTES, 'UTF-8') . " ({$transferCount['cnt']}x en 7j, quasi aucun retour)",
+                    $evidence, 'warning', $from, $to
                 );
                 logWarn('MULTIACCOUNT', 'One-sided transfers detected', [
-                    'sender' => $sender, 'receiver' => $receiver, 'count' => $transferCount['cnt']
+                    'sender' => $from, 'receiver' => $to, 'count' => $transferCount['cnt']
                 ]);
             }
         }

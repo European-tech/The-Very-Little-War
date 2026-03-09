@@ -218,8 +218,11 @@ function awardPrestigePoints() {
         // This serializes concurrent awardPrestigePoints() calls regardless of whether the
         // row pre-existed.
         if ($statsRowMissing) {
+            // PRESTIGE-M1: Supply all NOT NULL columns explicitly so INSERT IGNORE cannot fail
+            // silently due to a missing column default. Columns with DEFAULT 0 are included
+            // explicitly here for clarity and future-proofing against schema changes.
             dbExecute($base,
-                'INSERT IGNORE INTO statistiques (inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, prestige_awarded_season) VALUES (0, 0, 0, 0, 0, 0, 0)',
+                'INSERT IGNORE INTO statistiques (inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, prestige_awarded_season, catalyst, catalyst_week, maintenance_started_at) VALUES (0, 0, 0, 0, 0, 0, 0, 0, 0, 0)',
                 '', '');
         }
         $lockedStats = dbFetchOne($base, 'SELECT prestige_awarded_season FROM statistiques FOR UPDATE', '', '');

@@ -638,7 +638,11 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 			}
 		} else {
 			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
-		dbExecute($base, 'UPDATE constructions SET vieGenerateur=GREATEST(0, vieGenerateur - ?) WHERE login=?', 'ds', $degatsGenEnergie, $actions['defenseur']);
+			// TAINT-CROSS-M1: Check return value — false indicates a DB error during combat
+			$affected = dbExecute($base, 'UPDATE constructions SET vieGenerateur=GREATEST(0, vieGenerateur - ?) WHERE login=?', 'ds', $degatsGenEnergie, $actions['defenseur']);
+			if ($affected === false) {
+				throw new \Exception('Construction damage update failed (vieGenerateur)');
+			}
 			$destructionGenEnergie = "endommagé";
 		}
 	}
@@ -657,7 +661,11 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 			}
 		} else {
 			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
-		dbExecute($base, 'UPDATE constructions SET vieChampdeforce=GREATEST(0, vieChampdeforce - ?) WHERE login=?', 'ds', $degatschampdeforce, $actions['defenseur']);
+			// TAINT-CROSS-M1: Check return value — false indicates a DB error during combat
+			$affected = dbExecute($base, 'UPDATE constructions SET vieChampdeforce=GREATEST(0, vieChampdeforce - ?) WHERE login=?', 'ds', $degatschampdeforce, $actions['defenseur']);
+			if ($affected === false) {
+				throw new \Exception('Construction damage update failed (vieChampdeforce)');
+			}
 			$destructionchampdeforce = "endommagé";
 		}
 	}
@@ -676,7 +684,11 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 			}
 		} else {
 			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
-		dbExecute($base, 'UPDATE constructions SET vieProducteur=GREATEST(0, vieProducteur - ?) WHERE login=?', 'ds', $degatsProducteur, $actions['defenseur']);
+			// TAINT-CROSS-M1: Check return value — false indicates a DB error during combat
+			$affected = dbExecute($base, 'UPDATE constructions SET vieProducteur=GREATEST(0, vieProducteur - ?) WHERE login=?', 'ds', $degatsProducteur, $actions['defenseur']);
+			if ($affected === false) {
+				throw new \Exception('Construction damage update failed (vieProducteur)');
+			}
 			$destructionProducteur = "endommagé";
 		}
 	}
@@ -695,7 +707,11 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 			}
 		} else {
 			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
-		dbExecute($base, 'UPDATE constructions SET vieDepot=GREATEST(0, vieDepot - ?) WHERE login=?', 'ds', $degatsDepot, $actions['defenseur']);
+			// TAINT-CROSS-M1: Check return value — false indicates a DB error during combat
+			$affected = dbExecute($base, 'UPDATE constructions SET vieDepot=GREATEST(0, vieDepot - ?) WHERE login=?', 'ds', $degatsDepot, $actions['defenseur']);
+			if ($affected === false) {
+				throw new \Exception('Construction damage update failed (vieDepot)');
+			}
 			$destructionDepot = "endommagé";
 		}
 	}
@@ -714,7 +730,11 @@ if ($gagnant == 2) { // Only damage buildings when attacker WINS
 			}
 		} else {
 			// H-010: Delta form with GREATEST(0,...) prevents float precision going slightly negative
-		dbExecute($base, 'UPDATE constructions SET vieIonisateur=GREATEST(0, vieIonisateur - ?) WHERE login=?', 'ds', $degatsIonisateur, $actions['defenseur']);
+			// TAINT-CROSS-M1: Check return value — false indicates a DB error during combat
+			$affected = dbExecute($base, 'UPDATE constructions SET vieIonisateur=GREATEST(0, vieIonisateur - ?) WHERE login=?', 'ds', $degatsIonisateur, $actions['defenseur']);
+			if ($affected === false) {
+				throw new \Exception('Construction damage update failed (vieIonisateur)');
+			}
 			$destructionIonisateur = "endommagé";
 		}
 	}

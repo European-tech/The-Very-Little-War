@@ -23,6 +23,13 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
     if (!rateLimitCheck('espionage_' . $_SESSION['login'], 'espionage', ESPIONAGE_RATE_LIMIT, ESPIONAGE_RATE_WINDOW)) {
         $erreur = "Trop d'espionnages récents. Attendez avant d'en lancer un autre.";
     } elseif (!empty($_POST['joueurAEspionner']) && !empty($_POST['nombreneutrinos'])) { // Vérification que la variable n'est pas vide
+        // ESPIONAGE-M1: Check attacker vacation before allowing espionage launch.
+        // redirectionVacance.php covers page-load redirects, but a POST can still
+        // arrive if vacation was activated concurrently; reject with a clear message.
+        $espAttackerVac = dbFetchOne($base, 'SELECT vacance FROM membre WHERE login=?', 's', $_SESSION['login']);
+        if ($espAttackerVac && $espAttackerVac['vacance'] == 1) {
+            $erreur = "Vous ne pouvez pas lancer une espionnage en mode vacance.";
+        }
         // H-014: Guard against array injection before trim()
         if (!is_string($_POST['joueurAEspionner'])) {
             $erreur = 'Joueur invalide.';

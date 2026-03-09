@@ -86,14 +86,10 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 	$erreur = '';
 	//Si les champs sont vides
 	if ((isset($_POST['login']) && !empty($_POST['login'])) && (isset($_POST['pass']) && !empty($_POST['pass'])) && (isset($_POST['pass_confirm']) && !empty($_POST['pass_confirm'])) && (isset($_POST['email']) && !empty($_POST['email']))) {
-		//Si les deux mots de passe sont différents
-		// H-016: bcrypt operates on bytes, not characters — use strlen (byte count) not mb_strlen.
-		if (strlen($_POST['pass']) < PASSWORD_MIN_LENGTH) {
-			$erreur = 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caractères.';
-		} elseif (strlen($_POST['pass']) > PASSWORD_BCRYPT_MAX_LENGTH) {
-			$erreur = 'Le mot de passe est trop long (max ' . PASSWORD_BCRYPT_MAX_LENGTH . ' caractères).';
-		} elseif ($_POST['pass'] != $_POST['pass_confirm']) {
-			$erreur = 'Les deux mots de passe sont différents.';
+		// AUTH-M1: Use shared validatePassword() for consistent password validation.
+		$passErrors = validatePassword($_POST['pass'], $_POST['pass_confirm']);
+		if (!empty($passErrors)) {
+			$erreur = $passErrors[0];
 		} else {
 			if (!validateLogin($_POST['login'])) {
 				$erreur = 'Le login doit contenir entre ' . LOGIN_MIN_LENGTH . ' et ' . LOGIN_MAX_LENGTH . ' caractères alphanumériques.';

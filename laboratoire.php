@@ -24,16 +24,22 @@ if (isset($_POST['synthesize'])) {
 // Handle activation
 if (isset($_POST['activate'])) {
     csrfCheck();
-    $compoundId = intval($_POST['compound_id'] ?? 0);
-    // LAB11-001: Validate compound_id > 0 before passing to activateCompound()
-    if ($compoundId <= 0) {
-        $erreur = "Composé invalide.";
+    // COMPOUNDS-M1: Rate-limit activation to prevent rapid buff-stacking abuse (5 per minute)
+    require_once('includes/rate_limiter.php');
+    if (!rateLimitCheck($_SESSION['login'], 'compound_activate', 5, 60)) {
+        $erreur = "Trop d'activations. Réessayez dans quelques secondes.";
     } else {
-        $result = activateCompound($base, $_SESSION['login'], $compoundId);
-        if ($result === true) {
-            $information = "Composé activé !";
+        $compoundId = intval($_POST['compound_id'] ?? 0);
+        // LAB11-001: Validate compound_id > 0 before passing to activateCompound()
+        if ($compoundId <= 0) {
+            $erreur = "Composé invalide.";
         } else {
-            $erreur = $result;
+            $result = activateCompound($base, $_SESSION['login'], $compoundId);
+            if ($result === true) {
+                $information = "Composé activé !";
+            } else {
+                $erreur = $result;
+            }
         }
     }
 }

@@ -254,8 +254,9 @@ if ($gradeChef) {
 			} else
 			try {
 				withTransaction($base, function() use ($base, $currentAlliance, $newChef) {
-					$member = dbFetchOne($base, 'SELECT login FROM autre WHERE idalliance=? AND login=? FOR UPDATE', 'is', $currentAlliance['idalliance'], $newChef);
-					if (!$member) {
+					// ALLIANCE-M1: Check membership AND estExclu inside the transaction with FOR UPDATE
+					$member = dbFetchOne($base, 'SELECT login, estExclu FROM membre m JOIN autre a ON a.login = m.login WHERE m.login = ? AND a.idalliance = ? FOR UPDATE', 'si', $newChef, $currentAlliance['idalliance']);
+					if (!$member || (int)$member['estExclu'] === 1) {
 						throw new \RuntimeException('NOT_IN_ALLIANCE');
 					}
 					$oldChef = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $currentAlliance['idalliance']);
@@ -424,10 +425,11 @@ if ($pacte) {
 			// PASS1-MEDIUM-013: Atomic duplicate check + insert via transaction + FOR UPDATE lock
 			try {
 				$pactResult = withTransaction($base, function() use ($base, $chef, $allianceAllie) {
-					// Lock both rows to prevent concurrent duplicate pact inserts
-					$dup1 = dbFetchOne($base, 'SELECT count(*) AS nb FROM declarations WHERE alliance1=? AND alliance2=? AND (fin=0 OR type=1) FOR UPDATE', 'ii', $allianceAllie['id'], $chef['id']);
-					$dup2 = dbFetchOne($base, 'SELECT count(*) AS nb FROM declarations WHERE alliance2=? AND alliance1=? AND (fin=0 OR type=1) FOR UPDATE', 'ii', $allianceAllie['id'], $chef['id']);
-					if ($dup1['nb'] > 0 || $dup2['nb'] > 0) {
+					// ALLIANCE-M2: Single atomic duplicate check (both directions) with FOR UPDATE
+					$dupCount = dbCount($base,
+						'SELECT COUNT(*) FROM declarations WHERE (fin=0 OR type=1) AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) FOR UPDATE',
+						'iiii', $allianceAllie['id'], $chef['id'], $allianceAllie['id'], $chef['id']);
+					if ($dupCount > 0) {
 						throw new \RuntimeException('DUPLICATE');
 					}
 					$now = time();
@@ -509,10 +511,11 @@ if ($guerre) {
 			// PASS1-LOW-022: Duplicate check + INSERT in a single transaction with FOR UPDATE to prevent race conditions
 			try {
 				withTransaction($base, function() use ($base, $allianceAdverseId, $allianceAdverseChef, $chefId, $chefTag) {
-					// Authoritative duplicate check inside transaction with row lock
-					$dup1 = dbCount($base, 'SELECT COUNT(*) FROM declarations WHERE alliance1=? AND alliance2=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0)) FOR UPDATE', 'ii', $allianceAdverseId, $chefId);
-					$dup2 = dbCount($base, 'SELECT COUNT(*) FROM declarations WHERE alliance2=? AND alliance1=? AND ((fin=0 AND type=0) OR (type=1 AND valide!=0)) FOR UPDATE', 'ii', $allianceAdverseId, $chefId);
-					if ($dup1 > 0 || $dup2 > 0) {
+					// ALLIANCE-M2: Single atomic duplicate check (both directions) with FOR UPDATE
+					$dupCount = dbCount($base,
+						'SELECT COUNT(*) FROM declarations WHERE ((fin=0 AND type=0) OR (type=1 AND valide!=0)) AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) FOR UPDATE',
+						'iiii', $allianceAdverseId, $chefId, $allianceAdverseId, $chefId);
+					if ($dupCount > 0) {
 						throw new \RuntimeException('DUPLICATE');
 					}
 					// FLOW-ALLIANCE MEDIUM-001: Before deleting pending pact proposals, notify
