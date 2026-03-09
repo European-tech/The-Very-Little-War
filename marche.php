@@ -50,14 +50,12 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
 
         // Block transfers between flagged multi-account pairs
         require_once('includes/multiaccount.php');
-        // P9-LOW-020: Normalize IPs before comparing so IPv6 variants match
-        $normalizeIp = function($ip) {
-            $packed = @inet_pton($ip);
-            return $packed !== false ? inet_ntop($packed) : $ip;
-        };
+        // MARKET-P18-002: stored IPs are HMAC-SHA256 hex hashes (hashIpAddress()), not raw IP strings.
+        // inet_pton() on a hex hash always returns false, so a plain hash equality check is correct.
+        // NOTE: correctness depends on SECRET_SALT stability; rotating it requires a rehash migration.
         if (areFlaggedAccounts($base, $_SESSION['login'], $_POST['destinataire'])) {
             $erreur = "Transfert bloqué : les comptes sont sous surveillance pour suspicion de multi-compte.";
-        } elseif ($normalizeIp($ipmm['ip']) !== $normalizeIp($ipdd['ip'])) {
+        } elseif ($ipmm['ip'] !== $ipdd['ip']) {
             if (empty($_POST['energieEnvoyee'])) {
                 $_POST['energieEnvoyee'] = 0;
             }

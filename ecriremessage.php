@@ -33,6 +33,9 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				withTransaction($base, function() use ($base, $destinataireRows, $titreMsg, $contenuMsg, $expediteur) {
 					$now = time();
 					foreach ($destinataireRows as $destinataire) {
+						// SOCIAL-P18-001: Enforce inbox cap on broadcast recipients
+						$cnt = dbCount($base, 'SELECT COUNT(*) FROM messages WHERE destinataire=? AND deleted_by_recipient=0', 's', $destinataire['login']);
+						if ($cnt >= INBOX_MAX_MESSAGES) { continue; }
 						dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $titreMsg, $contenuMsg, $expediteur, $destinataire['login']);
 					}
 				});
@@ -55,6 +58,9 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				withTransaction($base, function() use ($base, $allDestinataires, $titreAll, $contenuAll, $expediteurAll) {
 					$now = time();
 					foreach ($allDestinataires as $destinataire) {
+						// SOCIAL-P18-001: Enforce inbox cap on broadcast recipients
+						$cnt = dbCount($base, 'SELECT COUNT(*) FROM messages WHERE destinataire=? AND deleted_by_recipient=0', 's', $destinataire['login']);
+						if ($cnt >= INBOX_MAX_MESSAGES) { continue; }
 						dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $titreAll, $contenuAll, $expediteurAll, $destinataire['login']);
 					}
 				});

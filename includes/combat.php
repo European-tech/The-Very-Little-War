@@ -330,9 +330,9 @@ if ($defenderFormation == FORMATION_PHALANGE) {
 				$damageUsed = $kills * $hpPerMol;
 				if ($kills >= $classeDefenseur[$i]['nombre']) {
 					$disperseeOverkill += max(0.0, $classDamage - $damageUsed);
-				} else {
-					$disperseeOverkill = 0;
 				}
+				// COMBAT-P18-001: When class partially survives, do NOT zero $disperseeOverkill.
+				// No new overkill is generated, but the unconsumed balance must propagate to later classes.
 			} else {
 				$defenseurMort[$i] = $classeDefenseur[$i]['nombre'];
 				$disperseeOverkill += $classDamage;
