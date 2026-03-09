@@ -51,14 +51,24 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
         // Block transfers between flagged multi-account pairs
         require_once('includes/multiaccount.php');
         // MARKET-P18-002: stored IPs are HMAC-SHA256 hex hashes (hashIpAddress()), not raw IP strings.
-        // Use hash_equals() for timing-safe comparison. NULL means IP unknown (pre-migration account);
-        // allow transfer in that case. Block only when both hashes are present and equal.
+        // Use hash_equals() for timing-safe comparison.
+        // FLOW-MARKET-MEDIUM-001: original OR logic allowed transfers between two null-IP accounts because
+        // ($null===null) evaluated true, so the elseif branch (allow-transfer path) was entered.
+        // Fix: when both IPs are unknown we cannot verify they differ — treat as same-IP and block.
+        // If exactly one IP is null, we allow (null vs known-hash definitely differ).
         // NOTE: correctness depends on SECRET_SALT stability; rotating it requires a rehash migration.
         $senderIpHash   = $ipmm['ip'] ?? null;
         $receiverIpHash = $ipdd['ip'] ?? null;
+        // Compute whether we can confirm the IPs differ:
+        // - Both known and different => allowed
+        // - One known, one null      => allowed (they can't be the same hash)
+        // - Both null                => blocked (cannot verify; treat as potential same account)
+        // - Both known and equal     => blocked (same machine)
+        $ipsDiffer = !($senderIpHash === null && $receiverIpHash === null)
+                     && !($senderIpHash !== null && $receiverIpHash !== null && hash_equals($senderIpHash, $receiverIpHash));
         if (areFlaggedAccounts($base, $_SESSION['login'], $_POST['destinataire'])) {
             $erreur = "Transfert bloqué : les comptes sont sous surveillance pour suspicion de multi-compte.";
-        } elseif ($senderIpHash === null || $receiverIpHash === null || !hash_equals($senderIpHash, $receiverIpHash)) {
+        } elseif ($ipsDiffer) {
             if (empty($_POST['energieEnvoyee'])) {
                 $_POST['energieEnvoyee'] = 0;
             }

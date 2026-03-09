@@ -1058,9 +1058,41 @@ function miseAJour()
  */
 function archiveSeasonData($base)
 {
-    // Determine season number from existing archives
+    // Determine season number from existing archives.
+    // FLOW-SEASON-HIGH-001: idempotency guard — if archiveSeasonData() already ran and committed
+    // but performSeasonEnd() failed later (e.g. remiseAZero() rolled back), a retry would compute
+    // nextSeason = N+1 and insert a second bogus season row.  We detect this by checking whether
+    // any row for the season we're about to insert already exists.  We use a sentinel: the debut
+    // column in statistiques holds the Unix timestamp of the start of the current season; if a
+    // season_recap row was inserted in the last SEASON_DURATION_DAYS window it belongs to the
+    // current season and we skip the archive step.
     $lastSeason = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
     $nextSeason = ($lastSeason && $lastSeason['max_s']) ? (int)$lastSeason['max_s'] + 1 : 1;
+
+    // Idempotency: if season ($nextSeason - 1) was already archived, check whether its rows were
+    // inserted after the current season's debut.  Simpler approach: see if any player row exists
+    // for ($nextSeason - 1) that was inserted this season cycle (i.e., after the debut stored in
+    // statistiques). We use an even simpler check: if the archive committed for nextSeason already
+    // has rows, $nextSeason would now appear as MAX+1+1.  To catch the exact retry case, compare
+    // the freshly-read MAX against the season number that the caller expects.
+    // The cleanest guard: check whether a row for ($nextSeason - 1) exists AND statistiques.debut
+    // is still in the current month (i.e., remiseAZero has NOT yet run for this season).
+    $prevSeason = $nextSeason - 1;
+    if ($prevSeason >= 1) {
+        $debutRow = dbFetchOne($base, 'SELECT debut FROM statistiques LIMIT 1', '', '');
+        if ($debutRow) {
+            $seasonStart = (int)$debutRow['debut'];
+            // If the previous season's archive was inserted after this season started, it means
+            // archiveSeasonData already ran this cycle. Skip to avoid duplicate.
+            $prevArchiveCount = dbCount($base,
+                'SELECT COUNT(*) FROM season_recap WHERE season_number = ? AND UNIX_TIMESTAMP(created_at) >= ?',
+                'ii', $prevSeason, $seasonStart);
+            if ($prevArchiveCount > 0) {
+                logInfo('SEASON', 'archiveSeasonData skipped — already archived this cycle', ['season' => $prevSeason]);
+                return $prevSeason; // return the season number that was already committed
+            }
+        }
+    }
 
     $allPlayers = dbFetchAll($base,
         'SELECT a.login, a.totalPoints, a.pointsAttaque, a.pointsDefense, a.tradeVolume,

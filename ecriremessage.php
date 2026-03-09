@@ -34,7 +34,9 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 					$now = time();
 					foreach ($destinataireRows as $destinataire) {
 						// SOCIAL-P18-001: Enforce inbox cap on broadcast recipients
-						$cnt = dbCount($base, 'SELECT COUNT(*) FROM messages WHERE destinataire=? AND deleted_by_recipient=0', 's', $destinataire['login']);
+						// FLOW-SOCIAL-MEDIUM-001: FOR UPDATE prevents two concurrent admin broadcasts from both reading
+						// the same count below INBOX_MAX_MESSAGES and both inserting for the same recipient.
+						$cnt = dbCount($base, 'SELECT COUNT(*) FROM messages WHERE destinataire=? AND deleted_by_recipient=0 FOR UPDATE', 's', $destinataire['login']);
 						if ($cnt >= INBOX_MAX_MESSAGES) { continue; }
 						dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $titreMsg, $contenuMsg, $expediteur, $destinataire['login']);
 					}

@@ -193,7 +193,9 @@ function updateActions($joueur)
                         $attaquePts = number_format($pointsAttaquant, 0, ' ', ' ');
                         $defensePts = number_format($pointsDefenseur, 0, ' ', ' ');
                         $pillagePts = number_format($totalPille, 0, ' ', ' ');
-                        $pillagePts1 = $pillagePts;
+                        // FLOW-COMBAT-MEDIUM-001: defender's report chip must show resources LOST (negative),
+                        // not mirror the attacker's gain. Use em-dash prefix so the defender sees "−1 234" not "1 234".
+                        $pillagePts1 = ($totalPille > 0) ? '−' . number_format($totalPille, 0, ' ', ' ') : '0';
 
                         if ($gagnant == 2) {
                             $titreRapportJoueur = "Vous gagnez contre " . htmlspecialchars($actions['defenseur'], ENT_QUOTES, 'UTF-8') . " !";
