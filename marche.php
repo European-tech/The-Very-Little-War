@@ -130,6 +130,12 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                                 throw new \RuntimeException('RECIPIENT_DELETED');
                             }
 
+                            // MARKET-P31-C002: Re-check recipient ban status inside transaction (TOCTOU guard)
+                            $receveurBanCheck = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $_POST['destinataire']);
+                            if (!$receveurBanCheck || (int)$receveurBanCheck['estExclu'] === 1) {
+                                throw new \RuntimeException('RECIPIENT_BANNED');
+                            }
+
                             // PASS1-MEDIUM-010: Check recipient storage capacity before accepting the transfer.
                             // Reject if the recipient has no room in any of the resources/energy being sent.
                             $maxStorageReceveur = placeDepot($constructionsJoueur['depot']);
@@ -236,6 +242,10 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             $erreur = "Vous n'avez pas assez de ressources.";
                         } elseif ($e->getMessage() === 'RECIPIENT_STORAGE_FULL') {
                             $erreur = "Le destinataire n'a pas de place dans son stockage pour ces ressources.";
+                        } elseif ($e->getMessage() === 'RECIPIENT_DELETED') {
+                            $erreur = "Le destinataire n'existe plus.";
+                        } elseif ($e->getMessage() === 'RECIPIENT_BANNED') {
+                            $erreur = "Le destinataire est banni.";
                         } else {
                             $erreur = "Erreur lors du transfert.";
                             error_log('Transfer failed: ' . $e->getMessage());
@@ -350,9 +360,10 @@ if (isset($_POST['typeRessourceAAcheter']) and isset($_POST['nombreRessourceAAch
                                     $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
                                     // Clamp to floor/ceiling
                                     $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
-                                    $chaine = $chaine . $ajout . $fin;
+                                    // MARKET-P31-H001: Use 15 significant digits to prevent cumulative float drift
+                                    $chaine = $chaine . sprintf('%.15g', $ajout) . $fin;
                                 } else {
-                                    $chaine = $chaine . $txTabCours[$num] . $fin;
+                                    $chaine = $chaine . sprintf('%.15g', (float)$txTabCours[$num]) . $fin;
                                 }
                             }
 
@@ -532,9 +543,10 @@ if (isset($_POST['typeRessourceAVendre']) and isset($_POST['nombreRessourceAVend
                                 $ajout = $ajout * (1 - $meanReversion) + 1.0 * $meanReversion;
                                 // Clamp to floor/ceiling
                                 $ajout = max(MARKET_PRICE_FLOOR, min(MARKET_PRICE_CEILING, $ajout));
-                                $chaine = $chaine . $ajout . $fin;
+                                // MARKET-P31-H001: Use 15 significant digits to prevent cumulative float drift
+                                $chaine = $chaine . sprintf('%.15g', $ajout) . $fin;
                             } else {
-                                $chaine = $chaine . $txTabCours[$num] . $fin;
+                                $chaine = $chaine . sprintf('%.15g', (float)$txTabCours[$num]) . $fin;
                             }
                         }
 
