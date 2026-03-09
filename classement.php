@@ -394,7 +394,8 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 	}
 
 	$nombreDeAlliancesParPage = LEADERBOARD_PAGE_SIZE;
-	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_alliances FROM alliances');
+	// RANKINGS MEDIUM: Exclude memberless alliances from count to prevent empty pages
+	$retour = dbFetchOne($base, 'SELECT COUNT(*) AS nb_alliances FROM alliances a WHERE EXISTS (SELECT 1 FROM autre WHERE idalliance = a.id)');
 	$totalDesAlliances = $retour['nb_alliances'];
 	$nombreDePages  = ceil($totalDesAlliances / $nombreDeAlliancesParPage);
 
@@ -421,7 +422,8 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
     }
 
 	// $order is whitelisted; MED-032: use DENSE_RANK so tied alliances share the same rank
-	$classementAllianceRows = dbFetchAll($base, 'SELECT *, DENSE_RANK() OVER (ORDER BY ' . $order . ' DESC) AS rang FROM alliances ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premiereAllianceAafficher, $nombreDeAlliancesParPage);
+	// RANKINGS MEDIUM: Exclude memberless alliances from pagination results
+	$classementAllianceRows = dbFetchAll($base, 'SELECT *, DENSE_RANK() OVER (ORDER BY ' . $order . ' DESC) AS rang FROM alliances WHERE EXISTS (SELECT 1 FROM autre WHERE idalliance = alliances.id) ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premiereAllianceAafficher, $nombreDeAlliancesParPage);
 	$compteur = $nombreDeAlliancesParPage*($page-1)+1;
 
 	// Pre-load member counts per alliance to avoid N+1 queries

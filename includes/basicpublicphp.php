@@ -42,11 +42,6 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 		// Use prepared statement to fetch user (AUTH16-001: include estExclu to reject banned players at login)
 		$row = dbFetchOne($base, 'SELECT login, pass_md5, estExclu FROM membre WHERE login = ?', 's', $loginInput);
 
-		$suppRows = dbFetchAll($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - VISITOR_SESSION_CLEANUP_SECONDS);
-		foreach ($suppRows as $supp) {
-			supprimerJoueur($supp['login']);
-		}
-
 		if ($row && (int)$row['estExclu'] === 1) {
 			// AUTH16-001: Reject banned players immediately at login rather than on next page load.
 			$erreur = 'Le couple login-mot de passe est erronn&eacute;';
@@ -68,6 +63,13 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 			}
 
 			if ($authenticated) {
+				// AUTH-MEDIUM-004: Only clean up stale visitor accounts after successful authentication
+				// to avoid unnecessary DB writes on every failed login attempt.
+				$suppRows = dbFetchAll($base, "SELECT login FROM membre WHERE login LIKE ? AND derniereConnexion < ?", 'si', 'Visiteur%', time() - VISITOR_SESSION_CLEANUP_SECONDS);
+				foreach ($suppRows as $supp) {
+					supprimerJoueur($supp['login']);
+				}
+
 				// session_init.php (loaded above) already started the session; no need to call session_start() again.
 				session_regenerate_id(true);
 				// Regenerate CSRF token so the pre-login token cannot be reused

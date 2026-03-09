@@ -114,19 +114,24 @@ function clearResourceNodeCache()
 function getResourceNodeBonus($base, $px, $py, $resourceName)
 {
     static $nodesCache = null;
+    static $nodeCacheExpiry = 0;
+    // MAPS MEDIUM: TTL for cross-FPM-worker cache freshness (300s = 5 minutes)
+    $cacheTtl = 300;
 
     // MED-053: Allow cache invalidation (called by clearResourceNodeCache() after regeneration)
     if ($resourceName === '__INVALIDATE__') {
         $nodesCache = null;
+        $nodeCacheExpiry = 0;
         return 0.0;
     }
 
-    // Cache all active nodes (they change only on season reset)
-    if ($nodesCache === null) {
+    // Cache all active nodes with TTL so stale caches across FPM workers expire reliably
+    if ($nodesCache === null || $nodeCacheExpiry < time()) {
         $nodesCache = dbFetchAll($base, 'SELECT x, y, resource_type, bonus_pct, radius FROM resource_nodes WHERE active = 1');
         if (!$nodesCache) {
             $nodesCache = [];
         }
+        $nodeCacheExpiry = time() + $cacheTtl;
     }
 
     $totalBonus = 0.0;

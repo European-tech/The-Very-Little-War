@@ -159,6 +159,8 @@ else {
         dbExecute($base, 'DELETE FROM vacances WHERE idJoueur IN (SELECT id FROM membre WHERE login = ?)', 's', $_SESSION['login']);
         $now = time();
         dbExecute($base, 'UPDATE autre SET tempsPrecedent = ? WHERE login = ?', 'is', $now, $_SESSION['login']);
+        // GAME_CORE-MEDIUM: Invalidate initPlayer cache so vacation-exit is reflected immediately
+        unset($GLOBALS['_initPlayerCache'][$_SESSION['login']]);
     }
 }
 
@@ -224,7 +226,8 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // page request. Regular players see the maintenance message instead.
     // This prevents a race where any authenticated player reaching this branch could
     // inadvertently (or maliciously) trigger the season reset.
-    $isAdminRequest = (isset($_SESSION['login']) && $_SESSION['login'] === ADMIN_LOGIN);
+    $isAdminRequest = (isset($_SESSION['login']) && $_SESSION['login'] === ADMIN_LOGIN
+        && isset($_SESSION['motdepasseadmin']) && $_SESSION['motdepasseadmin'] === true);
     if (!$isAdminRequest) {
         // FLOW-SEASON HIGH-001: Non-admin players must not load game pages during Phase 2.
         // Block all requests identically to Phase 1 to prevent game actions during maintenance.
@@ -283,6 +286,7 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
     // any header injection if it were ever used in a header context.
     $winnerNameRaw = $vainqueurManche ?? 'Personne';
     $winnerName    = str_replace(["\r", "\n"], '', $winnerNameRaw);
+    $winnerName    = str_replace("\0", '', $winnerName);
 
     // P9-HIGH-004: date() produces UTF-8 characters (e.g. "à") which corrupt the latin1
     // email_queue columns. Use a pure-ASCII date format ("le 01/01/2026 a 14h00") so the
@@ -308,8 +312,8 @@ if ($maintenance['maintenance'] == 1 && (time() - $debut["debut"]) >= SEASON_MAI
         $sujet = "=?UTF-8?B?" . base64_encode("Debut d'une nouvelle partie") . "?=";
 
         dbExecute($base,
-            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, ?)',
-            'sssi', $recipientEmail, $sujet, $message_html, time()
+            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, NOW())',
+            'sss', $recipientEmail, $sujet, $message_html
         );
     }
     if (!empty($mailRows)) {

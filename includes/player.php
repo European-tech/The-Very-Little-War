@@ -44,6 +44,9 @@ function inscrire($pseudo, $mdp, $mail)
             break;
         }
     }
+    // TAINT-CROSS-MODULE MEDIUM: Clamp $alea to valid element range [1..8] in case
+    // the thresholds loop fails to match (e.g. REGISTRATION_RANDOM_MAX > last threshold).
+    $alea = max(1, min(8, (int)$alea));
 
     $safePseudo = trim($pseudo);
     $safeMail = trim($mail);
@@ -1338,6 +1341,12 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
     foreach ($rows as $row) {
         // EMAIL-P9-001: Strip CRLF from email headers to prevent header injection
         $recipient = str_replace(["\r", "\n"], '', $row['recipient_email']);
+
+        // TAINT-EMAIL-MEDIUM: Validate recipient address before attempting delivery
+        if (!filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            logWarn('EMAIL', 'Invalid recipient in queue', ['recipient' => substr($recipient, 0, 20)]);
+            continue;
+        }
         $subject   = mb_encode_mimeheader(str_replace(["\r", "\n"], '', $row['subject']), 'UTF-8');
         $bodyHtml  = $row['body_html'];
         $id        = (int)$row['id'];
@@ -1356,8 +1365,10 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
         $bodyTxt = strip_tags(str_replace(['<br/>', '<br>', '<br />'], "\n", $bodyHtml));
 
         // MEDIUM-023: Use config constants instead of hardcoded addresses
-        $header  = "From: \"" . EMAIL_FROM_NAME . "\" <" . EMAIL_FROM . ">" . $eol;
-        $header .= "Reply-to: \"" . EMAIL_FROM_NAME . "\" <" . EMAIL_REPLY_TO . ">" . $eol;
+        // TAINT-EMAIL MEDIUM: MIME-encode the display name to handle non-ASCII and prevent header injection
+        $encodedFromName = mb_encode_mimeheader(EMAIL_FROM_NAME, 'UTF-8', 'Q', $eol);
+        $header  = "From: " . $encodedFromName . " <" . EMAIL_FROM . ">" . $eol;
+        $header .= "Reply-to: " . $encodedFromName . " <" . EMAIL_REPLY_TO . ">" . $eol;
         $header .= "MIME-Version: 1.0" . $eol;
         $header .= "Content-Type: multipart/alternative;" . $eol . " boundary=\"$boundary\"" . $eol;
 
@@ -1411,7 +1422,7 @@ function remiseAZero()
         // LOW-023: victoires=0 reset is intentional — historical medals are archived to season_recap
         // (via archiveSeasonData() in Phase 0 of performSeasonEnd()) before this point.
         // Alliance pointsVictoire is preserved across seasons (not reset here).
-        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, vp_awarded=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'\', image=\'defaut.png\', timeMolecule=UNIX_TIMESTAMP()');
+        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, vp_awarded=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'Pas de description\', image=\'defaut.png\', timeMolecule=UNIX_TIMESTAMP()');
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'iiiii', (int)pointsDeVie(1), (int)vieChampDeForce(0), (int)pointsDeVie(1), (int)pointsDeVie(1), (int)vieIonisateur(0)); // M-010: BIGINT vie columns bound as 'i' not 'd'
         // ADMIN11-001: Reset season_vp_awarded so the next season can award alliance VP again.
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0,season_vp_awarded=0');

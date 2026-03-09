@@ -207,29 +207,17 @@ function updateRessources($joueur)
     // Without this cap, a player offline for weeks would lose all molecules to exponential decay.
     $nbsecondes = min($nbsecondes, MAX_OFFLINE_SECONDS);
 
-    // Atomic: only update if tempsPrecedent hasn't changed since we read it
-    dbExecute($base, 'UPDATE autre SET tempsPrecedent=? WHERE login=? AND tempsPrecedent=?', 'isi', time(), $joueur, $donnees['tempsPrecedent']);
-    if (mysqli_affected_rows($base) === 0) {
-        return; // Another request already updated — skip to prevent double resources
-    }
-
     $depot = dbFetchOne($base, 'SELECT * FROM constructions WHERE login=?', 's', $joueur);
     $placeMax = placeDepot($depot['depot']);
 
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////ENERGIE
-    // Use atomic SQL increment (LEAST/GREATEST) to prevent race with concurrent combat/market updates
+    // Pre-compute resource deltas before the transaction (pure calculation, no DB writes)
     $revenuenergie = revenuEnergie($depot['generateur'], $joueur);
-    // ECO14-002/ECO12-004: Round delta to 2 decimal places to prevent float precision
-    // accumulation (up to ±72 energy drift per player per season from unrounded deltas).
     $energieDelta = round($revenuenergie * ($nbsecondes / SECONDS_PER_HOUR), 2);
-    dbExecute($base, 'UPDATE ressources SET energie = LEAST(GREATEST(0, energie + ?), ?) WHERE login=?', 'dds', $energieDelta, $placeMax, $joueur);
 
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////RESSOURCES
-    // Atomic incremental UPDATE — no read-modify-write race condition possible
+    $allowedColumns = ['carbone', 'azote', 'hydrogene', 'oxygene', 'chlore', 'soufre', 'brome', 'iode'];
     $sqlParts = [];
     $sqlTypes = '';
     $sqlParams = [];
-    $allowedColumns = ['carbone', 'azote', 'hydrogene', 'oxygene', 'chlore', 'soufre', 'brome', 'iode'];
     foreach ($nomsRes as $num => $ressource) {
         if (!in_array($ressource, $allowedColumns, true)) {
             throw new \RuntimeException("Invalid column: $ressource");
@@ -242,13 +230,6 @@ function updateRessources($joueur)
     }
     $sqlParams[] = $joueur;
     $sqlTypes .= 's';
-    dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $sqlParts) . ' WHERE login=?', $sqlTypes, ...$sqlParams);
-
-    // Re-read ressources so molecule decay and downstream code sees accurate values
-    $donnees = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $joueur);
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////Gestion des molécules disparaissant
-
 
     $stabilisateur = dbFetchOne($base, 'SELECT stabilisateur FROM constructions WHERE login=?', 's', $joueur);
 
@@ -258,17 +239,41 @@ function updateRessources($joueur)
     $absenceMinutes = (int)floor(($nbsecondes % SECONDS_PER_HOUR) / 60);
     $absenceDureeStr = $absenceHeures . ' h ' . $absenceMinutes . ' min';
 
-    $donneesMedaille = dbFetchOne($base, 'SELECT moleculesPerdues FROM autre WHERE login=?', 's', $joueur);
-
     $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $joueur);
 
-    // PASS1-LOW-034: Wrap all molecule decay UPDATEs in a transaction so a partial failure
-    // does not leave some molecules decayed and the moleculesPerdues counter out of sync.
-    // $nombreAvant[cls] captures pre-decay counts for the absence report (keyed by numeroclasse).
+    // GAME_CORE HIGH: Wrap CAS guard, energy/atom credits, AND molecule decay in a single
+    // outer transaction so a rollback of any part does not grant free resources.
+    $oldTempsPrecedent = $donnees['tempsPrecedent']; // capture before transaction
     $compteur = 0;
     $totalMoleculesPerdues = 0;
     $nombreAvant = [];
-    withTransaction($base, function() use ($base, $joueur, $moleculesRows, $nbsecondes, &$compteur, &$totalMoleculesPerdues, &$nombreAvant) {
+    $donnees = null; // will be populated inside transaction
+    try {
+    withTransaction($base, function() use (
+        $base, $joueur, $oldTempsPrecedent, $nbsecondes, $energieDelta, $placeMax,
+        $sqlParts, $sqlTypes, $sqlParams, $moleculesRows,
+        &$donnees, &$compteur, &$totalMoleculesPerdues, &$nombreAvant
+    ) {
+        // GAME_CORE HIGH FIX: CAS guard is the first statement in the outer transaction.
+        // If tempsPrecedent changed since we read it, another request beat us — abort.
+        dbExecute($base, 'UPDATE autre SET tempsPrecedent=? WHERE login=? AND tempsPrecedent=?', 'isi', time(), $joueur, $oldTempsPrecedent);
+        if (mysqli_affected_rows($base) === 0) {
+            throw new \RuntimeException('cas_skip'); // Another request already updated
+        }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////ENERGIE
+        // Use atomic SQL increment (LEAST/GREATEST) to prevent race with concurrent combat/market updates
+        // ECO14-002/ECO12-004: Round delta to 2 decimal places to prevent float precision accumulation.
+        dbExecute($base, 'UPDATE ressources SET energie = LEAST(GREATEST(0, energie + ?), ?) WHERE login=?', 'dds', $energieDelta, $placeMax, $joueur);
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////RESSOURCES
+        // Atomic incremental UPDATE — no read-modify-write race condition possible
+        dbExecute($base, 'UPDATE ressources SET ' . implode(', ', $sqlParts) . ' WHERE login=?', $sqlTypes, ...$sqlParams);
+
+        // Re-read ressources so molecule decay and downstream code sees accurate values
+        $donnees = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=?', 's', $joueur);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////Gestion des molécules disparaissant
         foreach ($moleculesRows as $molecules) {
             $moleculesRestantes = max(0, floor(pow(coefDisparition($joueur, $compteur + 1), $nbsecondes) * $molecules['nombre']));
             // Store pre-decay count keyed by numeroclasse for the absence report
@@ -294,7 +299,13 @@ function updateRessources($joueur)
                 dbExecute($base, 'UPDATE autre SET neutrinos=? WHERE login=?', 'is', $neutrinosRestants, $joueur);
             }
         }
-    });
+    }); // end outer withTransaction
+    } catch (\RuntimeException $e) {
+        if ($e->getMessage() === 'cas_skip') {
+            return; // Another request already updated — skip to prevent double resources
+        }
+        throw $e;
+    }
 
     if ($nbheuresDebut > ABSENCE_REPORT_THRESHOLD_HOURS && $compteur > 0) {
         $lossLines = '';

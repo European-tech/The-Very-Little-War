@@ -373,10 +373,11 @@ function updateActions($joueur)
                         $contenuRapportDefenseur = $debutRapport . $milieuDefenseur . $finRapport;
 
                         // Les rapports sont créés
+                        // SCHEMA-USAGE MEDIUM FIX: include statut and type so combat reports are queryable by type.
                         $rapportImage = '<img alt="attack" src="images/rapports/sword.png" class="imageAide"/>';
-                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, image) VALUES (?, ?, ?, ?, ?)', 'issss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportAttaquant, $actions['attaquant'], $rapportImage);
+                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES (?, ?, ?, ?, 0, ?, ?)', 'isssss', $actions['tempsAttaque'], $titreRapportJoueur, $contenuRapportAttaquant, $actions['attaquant'], $rapportImage, 'combat');
 
-                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, image) VALUES (?, ?, ?, ?, ?)', 'issss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage);
+                        dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, image, type) VALUES (?, ?, ?, ?, 0, ?, ?)', 'isssss', $actions['tempsAttaque'], $titreRapportDefenseur, $contenuRapportDefenseur, $actions['defenseur'], $rapportImage, 'combat');
                         // withTransaction handles commit automatically
                     });
 

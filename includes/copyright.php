@@ -76,12 +76,12 @@ finCarte();
 
     <?php
         if(isset($erreur)){
-            echo "myApp.alert(".json_encode($erreur).",\"<span style='color:red;text-weight:bold'>Erreur</span>\");";
+            echo "myApp.alert(".json_encode(strip_tags((string)$erreur)).",\"<span style='color:red;text-weight:bold'>Erreur</span>\");";
         }
 
         if(isset($information)){
             echo "myApp.addNotification({
-                    message: ".json_encode($information).",
+                    message: ".json_encode(strip_tags((string)$information)).",
                     button: {
                         text: 'Fermer',
                         color: 'green'

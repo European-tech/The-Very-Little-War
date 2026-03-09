@@ -120,7 +120,7 @@ if ($gradeChef) {
 					withTransaction($base, function() use ($base, $chefId, $chefChef, $nomgrade, $personnegrade, $gradeStr, &$erreur, &$information) {
 						// SOC-P6-005: Cap grades per alliance to prevent unbounded growth
 						$gradeCount = dbCount($base, 'SELECT COUNT(*) AS cnt FROM grades WHERE idalliance=?', 'i', $chefId);
-						if ($gradeCount >= MAX_ALLIANCE_MEMBERS) {
+						if ($gradeCount >= MAX_GRADES_PER_ALLIANCE) {
 							$erreur = "Nombre maximum de grades atteint pour cette alliance.";
 							return;
 						}
@@ -135,7 +135,7 @@ if ($gradeChef) {
 						$gradee = dbCount($base, 'SELECT count(*) as nb FROM grades WHERE login=? AND idalliance=?', 'si', $personnegrade, $chefId);
 						if ($personnegrade != $chefChef and $gradee < 1) {
 							$existe = dbCount($base, 'SELECT count(*) as nb FROM membre WHERE login=?', 's', $personnegrade);
-							$inAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=? AND idalliance=?', 'si', $personnegrade, $chefId);
+							$inAlliance = dbCount($base, 'SELECT login FROM autre WHERE login=? AND idalliance=? FOR UPDATE', 'si', $personnegrade, $chefId);
 							if ($existe >= 1 && $inAlliance >= 1) {
 								$gradeInsert = dbExecute($base, 'INSERT INTO grades (login, grade, idalliance, nom) VALUES (?, ?, ?, ?)', 'ssis', $personnegrade, $gradeStr, $chefId, $nomgrade);
 								if ($gradeInsert !== false) {
@@ -333,7 +333,7 @@ if ($pacte) {
 						throw new \RuntimeException('DUPLICATE');
 					}
 					$now = time();
-					dbExecute($base, 'INSERT INTO declarations VALUES(default, 1, ?, ?, ?, default, default, default, default, default)', 'iii', $chef['id'], $allianceAllie['id'], $now);
+					dbExecute($base, 'INSERT INTO declarations (type, alliance1, alliance2, timestamp) VALUES (1, ?, ?, ?)', 'iii', $chef['id'], $allianceAllie['id'], $now);
 					$idDeclaration = dbFetchOne($base, 'SELECT id FROM declarations WHERE type=1 AND valide=0 AND alliance1=? AND alliance2=?', 'ii', $chef['id'], $allianceAllie['id']);
 					$safeTag = htmlspecialchars($chef['tag'], ENT_QUOTES, 'UTF-8');
 					$rapportTitre = 'L\'alliance ' . $safeTag . ' vous propose un pacte.';
@@ -434,7 +434,7 @@ if ($guerre) {
 					}
 					dbExecute($base, 'DELETE FROM declarations WHERE alliance1=? AND alliance2=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
 					dbExecute($base, 'DELETE FROM declarations WHERE alliance2=? AND alliance1=? AND fin=0 AND valide=0', 'ii', $allianceAdverseId, $chefId);
-					dbExecute($base, 'INSERT INTO declarations VALUES(default, 0, ?, ?, ?, default, default, default, default, default)', 'iii', $chefId, $allianceAdverseId, $now);
+					dbExecute($base, 'INSERT INTO declarations (type, alliance1, alliance2, timestamp) VALUES (0, ?, ?, ?)', 'iii', $chefId, $allianceAdverseId, $now);
 					$safeChefTag = htmlspecialchars($chefTag, ENT_QUOTES, 'UTF-8');
 					$rapportTitre = 'L\'alliance ' . $safeChefTag . ' vous déclare la guerre.';
 					$rapportContenu = 'L\'alliance <a href="alliance.php?id=' . urlencode($chefTag) . '">' . $safeChefTag . '</a> vous déclare la guerre.';

@@ -109,7 +109,7 @@ finCarte();
 	<div class="popover-angle"></div>
 	<div class="popover-inner">
 		<div class="content-block">
-			<p>Un mail sera envoy&eacute; &agrave; cette adresse pour <span class="important">confirmer votre inscription</span> et vous pr&eacute;venir du d&eacute;but d'une nouvelle partie.<br /> Il peut &ecirc;tre chang&eacute; dans "Mon compte".</p>
+			<p>Cette adresse sera utilis&eacute;e pour recevoir les <span class="important">notifications de fin de saison</span>.<br /> Elle peut &ecirc;tre chang&eacute;e dans "Mon compte".</p>
 		</div>
 	</div>
 </div>

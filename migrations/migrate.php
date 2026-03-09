@@ -55,22 +55,29 @@ foreach ($files as $file) {
 
     // Execute each statement; detect errors per-statement inside the drain loop
     // so that a failure mid-file is caught immediately rather than silently skipped.
-    if (mysqli_multi_query($base, $sql)) {
-        do {
-            if ($result = mysqli_store_result($base)) {
-                mysqli_free_result($result);
-            }
-            // Check for an error produced by the statement just consumed
-            if (mysqli_errno($base)) {
-                $migrationError = mysqli_error($base);
-                break;
-            }
-        } while (mysqli_next_result($base));
-    }
+    // INFRA-DATABASE MEDIUM: wrap in try/catch to handle mysqli_sql_exception thrown by MYSQLI_REPORT_STRICT.
+    try {
+        if (mysqli_multi_query($base, $sql)) {
+            do {
+                if ($result = mysqli_store_result($base)) {
+                    mysqli_free_result($result);
+                }
+                // Check for an error produced by the statement just consumed
+                if (mysqli_errno($base)) {
+                    $migrationError = mysqli_error($base);
+                    break;
+                }
+            } while (mysqli_next_result($base));
+        }
 
-    // Check for any error that prevented mysqli_multi_query from starting
-    if ($migrationError === null && mysqli_errno($base)) {
-        $migrationError = mysqli_error($base);
+        // Check for any error that prevented mysqli_multi_query from starting
+        if ($migrationError === null && mysqli_errno($base)) {
+            $migrationError = mysqli_error($base);
+        }
+    } catch (\mysqli_sql_exception $e) {
+        mysqli_rollback($base);
+        echo "ERROR: " . $e->getMessage() . "\n";
+        exit(1);
     }
 
     if ($migrationError !== null) {

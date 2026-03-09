@@ -2,6 +2,9 @@
 $nonce = cspNonce();
 // LOW-006: Compute current page name once, used for nav sub-menu highlighting
 $currentPage = basename($_SERVER['PHP_SELF']);
+// INFRA-SECURITY HIGH: Emit CSP header for all player pages (admin pages already emit their own CSP).
+// NOTE: 'unsafe-inline' is intentionally kept in style-src (see comment below).
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://theverylittlewar.com; font-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
 // NOTE (MED-059): 'unsafe-inline' is intentionally kept in style-src.
 // Reason: Framework7 injects inline styles at runtime via JS (impossible to nonce/hash),
 // and the codebase has ~50+ inline style="" attributes across layout, game pages, and

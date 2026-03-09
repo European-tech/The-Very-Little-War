@@ -331,6 +331,14 @@ function traitementConstructions($liste)
                         logError('CONSTRUCTION', 'Negative coutEnergie detected', ['batiment' => $liste['bdd'], 'cost' => $liste['coutEnergie'], 'login' => $_SESSION['login']]);
                         throw new \RuntimeException('INVALID_COST');
                     }
+                    // BUILDINGS MEDIUM: Check per-atom costs for negative values (formula/DB corruption guard).
+                    foreach ($nomsRes as $num => $ressource) {
+                        $atomCost = $liste['cout' . ucfirst($ressource)] ?? 0;
+                        if ($atomCost < 0) {
+                            logError('CONSTRUCTION', 'Negative atom cost for ' . $ressource, ['login' => $_SESSION['login']]);
+                            throw new \RuntimeException('INVALID_COST');
+                        }
+                    }
                     // Build dynamic UPDATE for ressources - these are computed values, not user input
                     $chaine = "";
                     $newEnergie = $ressources['energie'] - $liste['coutEnergie'];

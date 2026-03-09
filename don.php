@@ -30,9 +30,9 @@ if(isset($_POST['energieEnvoyee'])) {
 				// ECONOMY-MEDIUM-002: Block donations when sender and alliance chef share the same IP
 				// or have an active high/critical multi-account flag — prevents alt-funneling.
 				$allianceChef = $verification['chef'] ?? '';
+				$senderIp = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
 				if ($allianceChef !== '' && $allianceChef !== $_SESSION['login']) {
 					// Check shared IP between sender and chef in membre table
-					$senderIp = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $_SESSION['login']);
 					$chefIp   = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $allianceChef);
 					$sharedIp = ($senderIp && $chefIp
 						&& !empty($senderIp['ip']) && !empty($chefIp['ip'])
@@ -47,6 +47,31 @@ if(isset($_POST['energieEnvoyee'])) {
 							'shared_ip' => $sharedIp,
 							'flagged'   => $flagged,
 						]);
+					}
+				}
+				// ECONOMY-MEDIUM-002 (officers): Also check all officers — not just the chef.
+				if (empty($erreur)) {
+					$officers = dbFetchAll($base,
+						'SELECT a.login FROM autre a INNER JOIN grades g ON g.login=a.login AND g.idalliance=a.idalliance WHERE a.idalliance=? AND a.login != ?',
+						'is', $idalliance['idalliance'], $allianceChef
+					);
+					foreach ($officers as $officer) {
+						if ($officer['login'] === $_SESSION['login']) continue; // skip self
+						$officerIp = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $officer['login']);
+						$sharedIpOfficer = ($senderIp && $officerIp
+							&& !empty($senderIp['ip']) && !empty($officerIp['ip'])
+							&& $senderIp['ip'] === $officerIp['ip']);
+						$flaggedOfficer = areFlaggedAccounts($base, $_SESSION['login'], $officer['login']);
+						if ($sharedIpOfficer || $flaggedOfficer) {
+							$erreur = "Don refusé : votre compte et un officier de l'alliance partagent une connexion suspecte.";
+							logWarn('DON', 'Donation blocked: possible alt-account funneling via officer', [
+								'sender'   => $_SESSION['login'],
+								'officer'  => $officer['login'],
+								'shared_ip' => $sharedIpOfficer,
+								'flagged'   => $flaggedOfficer,
+							]);
+							break;
+						}
 					}
 				}
 				if (empty($erreur)) {

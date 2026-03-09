@@ -92,7 +92,7 @@ foreach($forumRows as $forum) {
     echo '<td><a href="listesujets.php?id='.(int)$forum['id'].'">'.htmlspecialchars($forum['titre'], ENT_QUOTES, 'UTF-8').'</a></td>';
 
 	echo '<td>'.$nbSujets['nbSujets'].'</td>';
-	$nbMessages = dbFetchOne($base, 'SELECT count(*) AS cnt FROM sujets s, reponses r WHERE idforum = ? AND s.id = r.idsujet', 'i', $forum['id']);
+	$nbMessages = dbFetchOne($base, 'SELECT count(*) AS cnt FROM sujets s, reponses r WHERE idforum = ? AND s.id = r.idsujet AND r.visibilite = 1', 'i', $forum['id']);
 	echo '<td>'.($nbMessages['cnt']+$nbSujets['nbSujets']).'</td>';
 
 	echo '</tr>';

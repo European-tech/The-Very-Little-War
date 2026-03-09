@@ -154,7 +154,7 @@ function checkCoordinatedAttacks($base, $attacker, $defender, $timestamp)
     $window = 1800; // 30 minutes
     $recentAttacks = dbFetchAll($base,
         'SELECT DISTINCT attaquant FROM actionsattaques WHERE defenseur = ? AND attaquant != ? AND tempsAttaque BETWEEN ? AND ?',
-        'ssii', $defender, $attacker, $timestamp - $window, $timestamp + $window
+        'ssii', $defender, $attacker, $timestamp - $window, $timestamp
     );
 
     foreach ($recentAttacks as $other) {

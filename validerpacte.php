@@ -4,6 +4,8 @@ include("includes/basicprivatephp.php");
 if(isset($_POST['idDeclaration'])) {
 	csrfCheck();
 
+	$warConflictErreur = null;
+	try {
 	withTransaction($base, function() use ($base) {
 		// Atomic: lock row + verify authorization in one query
 		$declaration = dbFetchOne($base, 'SELECT d.id, d.alliance2 FROM declarations d WHERE d.id=? AND d.valide=0 FOR UPDATE', 'i', $_POST['idDeclaration']);
@@ -42,9 +44,9 @@ if(isset($_POST['idDeclaration'])) {
 					'iiii', $fullDeclaration['alliance1'], $fullDeclaration['alliance2'],
 					         $fullDeclaration['alliance1'], $fullDeclaration['alliance2']);
 				if ($warCheck && (int)$warCheck['cnt'] > 0) {
-					// Cannot accept pact while at war — redirect with error
-					header('Location: rapports.php?erreur=' . urlencode('Impossible d\'accepter ce pacte : vos alliances sont en guerre.'));
-					exit();
+					// ALLIANCE_MGMT MEDIUM FIX: throw instead of header()+exit() inside closure
+					// to ensure proper transaction rollback before redirecting.
+					throw new \RuntimeException('WAR_CONFLICT');
 				}
 			}
 			dbExecute($base, 'UPDATE declarations SET valide=1 WHERE id=?', 'i', $_POST['idDeclaration']);
@@ -52,6 +54,13 @@ if(isset($_POST['idDeclaration'])) {
 			dbExecute($base, 'DELETE FROM declarations WHERE id=?', 'i', $_POST['idDeclaration']);
 		}
 	});
+	} catch (\RuntimeException $e) {
+		if ($e->getMessage() === 'WAR_CONFLICT') {
+			header('Location: rapports.php?erreur=' . urlencode('Impossible d\'accepter ce pacte : vos alliances sont en guerre.'));
+			exit();
+		}
+		throw $e;
+	}
 }
 
 ?>

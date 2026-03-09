@@ -17,7 +17,9 @@ function sanitizeReportHtml($html) {
         'href'  => ['a'],
         'src'   => ['img'],
         'alt'   => ['img'],
-        'class' => true,
+        // NOTIFICATIONS MEDIUM: 'class' removed — allows Framework7 directive classes
+        // which could be abused for UI redress. Combat reports are server-generated
+        // and don't need class attributes.
         'id'    => true,
         // NOTIF16-001: 'style' removed — CSS url() can exfiltrate data via side-channels
         // and position:fixed overlays enable UI redress attacks. Combat reports are

@@ -442,13 +442,35 @@ for ($di = 1; $di <= $nbClasses; $di++) {
 }
 
 // Gestion du pillage
-$ressourcesDefenseur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $actions['defenseur']);
+// FLOW-COMBAT MEDIUM: Lock ressources rows in alphabetical order to prevent deadlock
+// when two players simultaneously attack each other (lock-order inversion).
+$_pillageLockMin = min($actions['attaquant'], $actions['defenseur']);
+$_pillageLockMax = max($actions['attaquant'], $actions['defenseur']);
+
+$_ressourcesMin = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_pillageLockMin);
+if (!$_ressourcesMin) {
+	logError("Combat: missing resources for " . $_pillageLockMin);
+	throw new Exception('Missing player resources');
+}
+$_ressourcesMax = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $_pillageLockMax);
+if (!$_ressourcesMax) {
+	logError("Combat: missing resources for " . $_pillageLockMax);
+	throw new Exception('Missing player resources');
+}
+
+// Assign to the named variables the rest of the code expects
+if ($actions['defenseur'] === $_pillageLockMin) {
+	$ressourcesDefenseur = $_ressourcesMin;
+	$ressourcesJoueur    = $_ressourcesMax;
+} else {
+	$ressourcesDefenseur = $_ressourcesMax;
+	$ressourcesJoueur    = $_ressourcesMin;
+}
+
 if (!$ressourcesDefenseur) {
 	logError("Combat: missing defender resources for " . $actions['defenseur']);
 	throw new Exception('Missing defender resources');
 }
-
-$ressourcesJoueur = dbFetchOne($base, 'SELECT * FROM ressources WHERE login=? FOR UPDATE', 's', $actions['attaquant']);
 if (!$ressourcesJoueur) {
 	logError("Combat: missing attacker resources for " . $actions['attaquant']);
 	throw new Exception('Missing attacker resources');

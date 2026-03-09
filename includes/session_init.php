@@ -7,7 +7,14 @@ require_once(__DIR__ . '/config.php');
 
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
-    ini_set('session.cookie_secure', !empty($_SERVER['HTTPS']) ? 1 : 0);
+    // AUTH-MEDIUM: Detect HTTPS via direct connection OR trusted TLS-terminating proxy.
+    // TRUSTED_PROXY_IPS is defined in config.php (empty array = no proxy assumed).
+    $trustedProxyIps = defined('TRUSTED_PROXY_IPS') ? TRUSTED_PROXY_IPS : [];
+    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+    $behindTrustedProxy = !empty($trustedProxyIps) && in_array($remoteAddr, $trustedProxyIps, true);
+    $isHttps = !empty($_SERVER['HTTPS'])
+        || ($behindTrustedProxy && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    ini_set('session.cookie_secure', $isHttps ? 1 : 0);
     ini_set('session.use_strict_mode', 1);
     ini_set('session.cookie_samesite', 'Strict'); // MEDIUM-029: Strict prevents cross-site request forgery via cookies
     ini_set('session.gc_maxlifetime', SESSION_IDLE_TIMEOUT);

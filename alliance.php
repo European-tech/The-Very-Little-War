@@ -296,14 +296,11 @@ if ($_GET['id'] != -1) {
         $chefExiste = $idalliancechef ? 1 : 0;
 
         if ($chefExiste == 0 or $idalliancechef['idalliance'] != $idalliance['idalliance']) {
-            supprimerAlliance($idalliance['idalliance']);
-?>
-            <script nonce="<?php echo htmlspecialchars(cspNonce(), ENT_QUOTES, 'UTF-8'); ?>">
-                window.location = "alliance.php";
-            </script>
-        <?php
-            exit();
+            // FLOW-ALLIANCE HIGH: supprimerAlliance() removed from public GET path.
+            // Orphan cleanup is deferred to an admin cron. Treat as non-existent for display.
+            $idalliance = null;
         }
+        if ($idalliance) {
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         $allianceJoueurPage = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 
@@ -501,7 +498,7 @@ if ($_GET['id'] != -1) {
                     if (!isset($_GET['clas'])) {
                         $_GET['clas'] = 0;
                     }
-                    switch ($_GET['clas']) {
+                    switch ((int)$_GET['clas']) {
                         case 0:
                             $order = 'totalPoints';
                             break;
@@ -564,6 +561,7 @@ if ($_GET['id'] != -1) {
         finContent();
         finCarte();
     }
+    } // end if ($idalliance) — outer check at line 292
 } else {
     debutCarte('Créer une équipe');
     ?>
