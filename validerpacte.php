@@ -8,7 +8,8 @@ if(isset($_POST['idDeclaration'])) {
 	try {
 	withTransaction($base, function() use ($base) {
 		// Atomic: lock row + verify authorization in one query
-		$declaration = dbFetchOne($base, 'SELECT d.id, d.alliance2 FROM declarations d WHERE d.id=? AND d.valide=0 FOR UPDATE', 'i', $_POST['idDeclaration']);
+		// Include alliance1 here so we never need a second unlocked fetch below
+		$declaration = dbFetchOne($base, 'SELECT d.id, d.alliance1, d.alliance2 FROM declarations d WHERE d.id=? AND d.valide=0 FOR UPDATE', 'i', $_POST['idDeclaration']);
 		if (!$declaration) return;
 
 		$targetAlliance = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $declaration['alliance2']);
@@ -34,20 +35,17 @@ if(isset($_POST['idDeclaration'])) {
 
 		if(isset($_POST['accepter'])) {
 			// Check no active war between these alliances (FLOW-ALL-P10-001)
-			// Fetch alliance1 from the declaration to check both directions
-			$fullDeclaration = dbFetchOne($base, 'SELECT alliance1, alliance2 FROM declarations WHERE id=?', 'i', $_POST['idDeclaration']);
-			if ($fullDeclaration) {
-				$warCheck = dbFetchOne($base,
-					'SELECT COUNT(*) as cnt FROM declarations
-					 WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?))
-					 AND type=0 AND fin=0',
-					'iiii', $fullDeclaration['alliance1'], $fullDeclaration['alliance2'],
-					         $fullDeclaration['alliance1'], $fullDeclaration['alliance2']);
-				if ($warCheck && (int)$warCheck['cnt'] > 0) {
-					// ALLIANCE_MGMT MEDIUM FIX: throw instead of header()+exit() inside closure
-					// to ensure proper transaction rollback before redirecting.
-					throw new \RuntimeException('WAR_CONFLICT');
-				}
+			// Reuse the already-locked $declaration row — no second fetch needed
+			$warCheck = dbFetchOne($base,
+				'SELECT COUNT(*) as cnt FROM declarations
+				 WHERE ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?))
+				 AND type=0 AND fin=0',
+				'iiii', $declaration['alliance1'], $declaration['alliance2'],
+				         $declaration['alliance1'], $declaration['alliance2']);
+			if ($warCheck && (int)$warCheck['cnt'] > 0) {
+				// ALLIANCE_MGMT MEDIUM FIX: throw instead of header()+exit() inside closure
+				// to ensure proper transaction rollback before redirecting.
+				throw new \RuntimeException('WAR_CONFLICT');
 			}
 			dbExecute($base, 'UPDATE declarations SET valide=1 WHERE id=?', 'i', $_POST['idDeclaration']);
 		} else {

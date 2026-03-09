@@ -18,18 +18,26 @@ if (php_sapi_name() !== 'cli') {
 require_once __DIR__ . '/../includes/connexion.php';
 
 // Create migrations table if not exists
-mysqli_query($base, "
+$createResult = mysqli_query($base, "
     CREATE TABLE IF NOT EXISTS migrations (
         id INT AUTO_INCREMENT PRIMARY KEY,
         filename VARCHAR(255) NOT NULL UNIQUE,
         applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
 ");
+if ($createResult === false) {
+    echo "MIGRATION FAILED: could not create migrations table: " . mysqli_error($base) . "\n";
+    exit(1);
+}
 
 // Get applied migrations
 $applied = [];
-$result = mysqli_query($base, "SELECT filename FROM migrations ORDER BY id");
-while ($row = mysqli_fetch_assoc($result)) {
+$appliedResult = mysqli_query($base, "SELECT filename FROM migrations ORDER BY id");
+if ($appliedResult === false) {
+    echo "MIGRATION FAILED: could not query migrations table: " . mysqli_error($base) . "\n";
+    exit(1);
+}
+while ($row = mysqli_fetch_assoc($appliedResult)) {
     $applied[] = $row['filename'];
 }
 

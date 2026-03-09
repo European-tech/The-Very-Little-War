@@ -22,7 +22,7 @@ if (isset($_POST['motdepasseadmin'])) {
 	} elseif (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		session_regenerate_id(true);
 		$_SESSION['motdepasseadmin'] = true;
-		$_SESSION['admin_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
+		$_SESSION['admin_ip'] = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
 		logInfo('ADMIN', 'Admin login successful');
 	} else {
 		logWarn('ADMIN', 'Admin login failed');
@@ -49,7 +49,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	    $_SESSION['session_created'] = time();
 	}
 	// IP binding: reject if session IP doesn't match current IP (SESS-P7-003)
-	if (isset($_SESSION['admin_ip']) && !hash_equals((string)$_SESSION['admin_ip'], (string)($_SERVER['REMOTE_ADDR'] ?? ''))) {
+	if (isset($_SESSION['admin_ip']) && !hash_equals((string)$_SESSION['admin_ip'], (string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? ''))) {
 		session_unset();
 		session_destroy();
 		header('Location: index.php');
@@ -97,11 +97,10 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	}
 
 	if (isset($_POST['maintenance'])) {
-		$now = time();
-		// MED-015: Also update debut timestamp so the 24h maintenance window starts now.
-		// Without this, the automatic reset check compares against stale debut and may
-		// immediately skip to Phase 2 (season reset) or never trigger the countdown.
-		dbExecute($base, 'UPDATE statistiques SET maintenance = ?, debut = ?', 'ii', 1, $now);
+		// FIX2-ADMIN: Set maintenance=1 and record the trigger time in maintenance_started_at.
+		// Do NOT update debut — debut is the real season start and must remain unchanged so that
+		// MIN_SEASON_DAYS guards and season-duration calculations stay accurate.
+		dbExecute($base, 'UPDATE statistiques SET maintenance = 1, maintenance_started_at = UNIX_TIMESTAMP()');
 	}
 
 	if (isset($_POST['plusmaintenance'])) {

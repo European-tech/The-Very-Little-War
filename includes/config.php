@@ -78,6 +78,7 @@ define('MAX_OFFLINE_SECONDS', 7 * SECONDS_PER_DAY); // ECO-001: max time delta f
 define('ONLINE_TIMEOUT_SECONDS', 300);   // 60 * 5 = 5 minutes for online status
 define('VICTORY_POINTS_TOTAL', 1000);    // $nbPointsVictoire
 define('MAX_BUILDING_LEVEL', 50);        // Hard cap on building upgrades (defense-in-depth)
+define('MAX_FORMATION_ID', 2);           // Highest valid defensive formation ID (0=normal, 1=phalange, 2=dispersee)
 
 // --- V4 ECONOMIC GROWTH BASES ---
 define('ECO_GROWTH_BASE', 1.15); // Standard building cost/storage growth
@@ -627,6 +628,7 @@ define('PP_DONATION_MIN_THRESHOLD', 10);      // Min energy donation to qualify 
 define('DONATION_MIN_ENERGY_RESERVE', 100);   // Min energy a player must keep after donating
 define('MAX_DONATION', 1000000);              // Maximum energy a player can donate in a single transaction
 define('ALLIANCE_DONATION_MAX', 10000);       // MED-058: Hard per-donation cap for alliance energy donations
+define('MAX_ALLIANCE_ENERGY', 1000000);       // Maximum energy the alliance vault can hold
 define('INACTIVE_PLAYER_X', -1000);           // X coordinate sentinel for inactive/banned players
 // Rank bonuses (awarded by final leaderboard position)
 $PRESTIGE_RANK_BONUSES = [

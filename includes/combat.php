@@ -194,7 +194,7 @@ $degatsDefenseur *= prestigeCombatBonus($actions['defenseur']);
 $compoundAttackBonus  = (float)($actions['compound_atk_bonus'] ?? 0.0);
 // Read defender's defense bonus live (not from the stored snapshot which was always 0.0)
 require_once(__DIR__ . '/compounds.php');
-$compoundDefenseBonus = getCompoundBonus($base, $actions['defenseur'], 'defense_boost');
+$compoundDefenseBonus = (float)(getCompoundBonus($base, $actions['defenseur'], 'defense_boost') ?? 0.0); // FIX: null coalesce
 if ($compoundAttackBonus > 0) $degatsAttaquant *= (1 + $compoundAttackBonus);
 // COMBAT-HIGH-001: compound_def_bonus reduces attacker's effective damage (applied before casualty loop).
 // Do NOT amplify $degatsDefenseur here — that is the defender's counter-damage, not their damage reduction.
@@ -440,7 +440,10 @@ dbExecute($base, 'UPDATE actionsattaques SET troupes=? WHERE id=?', 'si', $chain
 // defenseur
 // M-003: Wrap surviving count in max(0,...) to guard against float precision going slightly negative
 for ($di = 1; $di <= $nbClasses; $di++) {
-	dbExecute($base, 'UPDATE molecules SET nombre=? WHERE id=?', 'di', max(0, $classeDefenseur[$di]['nombre'] - $defenseurMort[$di]), $classeDefenseur[$di]['id']);
+	$affected = dbExecute($base, 'UPDATE molecules SET nombre = ? WHERE id = ?', 'di', max(0, $classeDefenseur[$di]['nombre'] - $defenseurMort[$di]), $classeDefenseur[$di]['id']);
+	if ($affected === false) {
+		throw new \Exception('Failed to update molecule count for defender');
+	}
 }
 
 // Gestion du pillage

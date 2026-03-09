@@ -19,6 +19,8 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 		} else
 		if ($_POST['destinataire'] == "[alliance]") {
 			// Rate limit: 3 alliance broadcasts per 5 minutes (P5-GAP-022)
+			// Pre-check alliance membership before rate-limit to give a meaningful error message.
+			// The authoritative re-check happens inside the transaction with FOR UPDATE.
 			$idalliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=?', 's', $_SESSION['login']);
 			if (empty($idalliance['idalliance']) || $idalliance['idalliance'] <= 0) {
 				$erreur = "Vous n'avez pas d'alliance.";
@@ -26,11 +28,22 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				$erreur = "Vous envoyez trop de messages de masse. Veuillez patienter.";
 			} else {
 				// MED-030: Wrap all inserts in a transaction so partial sends are rolled back on failure
-				$destinataireRows = dbFetchAll($base, 'SELECT a.* FROM autre a JOIN membre m ON a.login = m.login WHERE a.idalliance=? AND a.login !=? AND m.estExclu = 0', 'is', $idalliance['idalliance'], $_SESSION['login']);
+				// TOCTOU FIX: Fetch member list INSIDE the transaction after locking the sender's row.
 				$titreMsg   = $_POST['titre'];
 				$contenuMsg = $_POST['contenu'];
 				$expediteur = $_SESSION['login'];
-				withTransaction($base, function() use ($base, $destinataireRows, $titreMsg, $contenuMsg, $expediteur) {
+				$broadcastError = null;
+				try {
+				withTransaction($base, function() use ($base, $titreMsg, $contenuMsg, $expediteur, &$broadcastError) {
+					// Lock the sender's alliance row to prevent concurrent membership changes
+					$senderAlliance = dbFetchOne($base, 'SELECT idalliance FROM autre WHERE login=? FOR UPDATE', 's', $expediteur);
+					if (!$senderAlliance || !$senderAlliance['idalliance']) {
+						throw new \RuntimeException('NO_ALLIANCE');
+					}
+					// Fetch the member list inside the transaction so it reflects current membership
+					$destinataireRows = dbFetchAll($base,
+						'SELECT a.login FROM autre a JOIN membre m ON m.login = a.login WHERE a.idalliance=? AND a.login != ? AND m.estExclu = 0',
+						'is', $senderAlliance['idalliance'], $expediteur);
 					$now = time();
 					foreach ($destinataireRows as $destinataire) {
 						// SOCIAL-P18-001: Enforce inbox cap on broadcast recipients
@@ -41,11 +54,22 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 						dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $titreMsg, $contenuMsg, $expediteur, $destinataire['login']);
 					}
 				});
-				// SOCIAL-LOW-001: PRG pattern — store success in session and redirect to prevent duplicate POST on refresh.
-				$_SESSION['flash_message'] = "Le message a bien été envoyé à toute l'alliance.";
-				header('Location: ecriremessage.php');
-				exit();
-			}
+				} catch (\RuntimeException $e) {
+					if ($e->getMessage() === 'NO_ALLIANCE') {
+						$broadcastError = "Vous n'avez pas d'alliance.";
+					} else {
+						throw $e;
+					}
+				}
+				if ($broadcastError) {
+					$erreur = $broadcastError;
+				} else {
+					// SOCIAL-LOW-001: PRG pattern — store success in session and redirect to prevent duplicate POST on refresh.
+					$_SESSION['flash_message'] = "Le message a bien été envoyé à toute l'alliance.";
+					header('Location: ecriremessage.php');
+					exit();
+				}
+			} // end else (rate limit passed)
 		} elseif ($_POST['destinataire'] == "[all]") {
 			$isAdmin = ($_SESSION['login'] === ADMIN_LOGIN);
 			if (!$isAdmin) {

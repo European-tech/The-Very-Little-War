@@ -35,8 +35,8 @@ if (isset($_POST['joueurAEspionner']) && isset($_POST['nombreneutrinos'])) {
         // FLOW-COMBAT-MEDIUM-005: Case-insensitive self-espionage check (mirrors attack guard).
         if (mb_strtolower($_POST['joueurAEspionner']) !== mb_strtolower($_SESSION['login'])) {
             // Check vacation mode + beginner protection for espionage target
-            $espTarget = dbFetchOne($base, 'SELECT vacance,timestamp FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
-            if (!$espTarget) {
+            $espTarget = dbFetchOne($base, 'SELECT vacance,timestamp,estExclu FROM membre WHERE login=?', 's', $_POST['joueurAEspionner']);
+            if (!$espTarget || $espTarget['estExclu'] == 1) { // FIX: add estExclu check — banned players are invisible
                 $erreur = "Ce joueur n'existe pas.";
             } elseif ($espTarget['vacance']) {
                 $erreur = "Vous ne pouvez pas espionner un joueur en vacances.";

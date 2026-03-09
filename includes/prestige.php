@@ -212,13 +212,20 @@ function awardPrestigePoints() {
     // optimisation to skip expensive player/award computation when clearly not needed.
     // H-009: statsRowMissing flag controls whether we UPDATE or INSERT the idempotency stamp.
     withTransaction($base, function() use ($base, $awards, $currentSeason, $statsRowMissing) {
-        // Re-read with FOR UPDATE to serialize concurrent awardPrestigePoints() calls.
-        if (!$statsRowMissing) {
-            $lockedStats = dbFetchOne($base, 'SELECT prestige_awarded_season FROM statistiques FOR UPDATE', '', '');
-            if ($lockedStats && (int)$lockedStats['prestige_awarded_season'] >= $currentSeason) {
-                // Already awarded by a concurrent call — abort silently.
-                return;
-            }
+        // FIX-CRITICAL: Always acquire a FOR UPDATE lock to prevent double-award when
+        // $statsRowMissing is TRUE. If no statistiques row exists yet, INSERT IGNORE creates
+        // one (with prestige_awarded_season = 0) so the subsequent FOR UPDATE can lock it.
+        // This serializes concurrent awardPrestigePoints() calls regardless of whether the
+        // row pre-existed.
+        if ($statsRowMissing) {
+            dbExecute($base,
+                'INSERT IGNORE INTO statistiques (inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, prestige_awarded_season) VALUES (0, 0, 0, 0, 0, 0, 0)',
+                '', '');
+        }
+        $lockedStats = dbFetchOne($base, 'SELECT prestige_awarded_season FROM statistiques FOR UPDATE', '', '');
+        if ($lockedStats && (int)$lockedStats['prestige_awarded_season'] >= $currentSeason) {
+            // Already awarded by a concurrent call — abort silently.
+            return;
         }
 
         foreach ($awards as $award) {
@@ -227,22 +234,8 @@ function awardPrestigePoints() {
         }
 
         // P9-INFO-004: Mark this season as awarded so retries are idempotent.
-        // H-009: If the statistiques row did not exist, INSERT it; otherwise UPDATE.
-        if ($statsRowMissing) {
-            dbExecute($base, 'INSERT INTO statistiques (inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, prestige_awarded_season) SELECT inscrits, maintenance, debut, numerovisiteur, tailleCarte, nbDerniere, ? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM statistiques)', 'i', $currentSeason);
-        } else {
-            dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
-        }
-
-        // No awards but still mark to prevent re-checking next cron tick.
-        // H-009: If the statistiques row did not exist, we cannot INSERT here without knowing all
-        // required NOT NULL column values. In this edge case (no players, no awards, no stats row)
-        // we log a warning and skip — the row will be created by the game on next season start.
-        if (empty($awards)) {
-            if ($statsRowMissing) {
-                logWarn('PRESTIGE', 'awardPrestigePoints: statistiques row missing and no awards to grant — idempotency stamp not persisted');
-            }
-        }
+        // FIX-CRITICAL: The INSERT IGNORE above guarantees the row exists, so we always UPDATE.
+        dbExecute($base, 'UPDATE statistiques SET prestige_awarded_season = ?', 'i', $currentSeason);
     });
 }
 
@@ -282,6 +275,14 @@ function purchasePrestigeUnlock($login, $unlockKey) {
     // Use transaction + row lock to prevent TOCTOU double-spend
     $result = null;
     withTransaction($base, function() use ($base, $login, $unlockKey, $unlock, &$result) {
+        // FIX: Check banned status at the start of the transaction to prevent banned players
+        // from spending PP. Uses FOR UPDATE to lock the membre row for the duration.
+        $playerStatus = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ? FOR UPDATE', 's', $login);
+        if (!$playerStatus || $playerStatus['estExclu'] == 1) {
+            $result = 'Compte désactivé.';
+            return;
+        }
+
         // H-013: Ensure the prestige row exists before the FOR UPDATE read.
         // A player who earned 0 PP may have no row yet; this upsert guarantees one exists
         // so the subsequent SELECT ... FOR UPDATE can acquire the lock successfully.

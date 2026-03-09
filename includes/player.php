@@ -1092,6 +1092,8 @@ function archiveSeasonData($base)
         }
     }
 
+    // FIX-CRITICAL: Exclude banned players (estExclu=1) from season_recap archive so they
+    // do not appear in historique.php or season recap rankings.
     $allPlayers = dbFetchAll($base,
         'SELECT a.login, a.totalPoints, a.pointsAttaque, a.pointsDefense, a.tradeVolume,
                 a.ressourcesPillees, a.nbattaques, a.victoires, a.moleculesPerdues,
@@ -1099,7 +1101,7 @@ function archiveSeasonData($base)
                 DENSE_RANK() OVER (ORDER BY a.totalPoints DESC) AS final_rank
          FROM autre a
          LEFT JOIN alliances al ON al.id = a.idalliance AND a.idalliance > 0
-         JOIN membre m ON m.login = a.login AND m.x != -1000
+         JOIN membre m ON m.login = a.login AND m.x != -1000 AND m.estExclu = 0
          ORDER BY a.totalPoints DESC', '', '');
 
     withTransaction($base, function() use ($base, $allPlayers, $nextSeason) {
@@ -1159,7 +1161,9 @@ function performSeasonEnd()
         // Archive top players
         // H-013: Join membre to exclude sentinel/inactive players (x = INACTIVE_PLAYER_X = -1000)
         $chaine = '';
-        $classementRows = dbFetchAll($base, 'SELECT a.* FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N, '');
+        // FIX-CRITICAL: Exclude banned players (estExclu=1) from the season archive snapshot
+        // so they do not appear in historique.php rankings.
+        $classementRows = dbFetchAll($base, 'SELECT a.* FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' AND m.estExclu = 0 ORDER BY a.totalPoints DESC LIMIT 0, ' . SEASON_ARCHIVE_TOP_N, '');
         $compteur = 0;
         foreach ($classementRows as $data) {
             $molRows = dbFetchAll($base, 'SELECT nombre FROM molecules WHERE proprietaire = ? AND nombre != 0', 's', $data['login']);
@@ -1213,7 +1217,8 @@ function performSeasonEnd()
 
         // Freeze rankings into arrays (ranking read done inside this transaction to ensure consistency)
         // H-013: Exclude sentinel/inactive players from VP ranking snapshot
-        $playerRankingsForVP = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' ORDER BY a.totalPoints DESC');
+        // FIX-CRITICAL: Also exclude banned players from VP ranking snapshot.
+        $playerRankingsForVP = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' AND m.estExclu = 0 ORDER BY a.totalPoints DESC');
         $allianceRankingsForVP = dbFetchAll($base, 'SELECT id, pointsVictoire, pointstotaux FROM alliances ORDER BY pointstotaux DESC');
 
         // Insert season archive record
@@ -1374,12 +1379,39 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
         return;
     }
 
-    // P9-MED-004: Skip rows older than 24 hours to prevent indefinite retry loops.
-    // Rows with a NULL created_at (schema pre-dates that column) are always included
-    // so legacy rows are not silently dropped.
+    // FIX: Use FOR UPDATE inside a transaction to prevent duplicate processing by concurrent requests.
+    // The rows are locked, their IDs collected, then immediately claimed (sent_at set to a sentinel)
+    // before sending — this prevents two simultaneous queue drains from delivering the same email twice.
+    $claimedIds = [];
+    withTransaction($base, function() use ($base, $limit, &$claimedIds) {
+        // P9-MED-004: Skip rows older than 24 hours to prevent indefinite retry loops.
+        // Rows with a NULL created_at (schema pre-dates that column) are always included
+        // so legacy rows are not silently dropped.
+        $locked = dbFetchAll($base,
+            'SELECT id FROM email_queue WHERE sent_at IS NULL AND (created_at IS NULL OR created_at > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)) ORDER BY id ASC LIMIT ? FOR UPDATE',
+            'i', $limit
+        );
+        foreach ($locked as $lockedRow) {
+            $claimedIds[] = (int)$lockedRow['id'];
+        }
+        if (!empty($claimedIds)) {
+            // Claim all rows immediately so no other concurrent process will pick them up
+            $placeholders = implode(',', array_fill(0, count($claimedIds), '?'));
+            $types = str_repeat('i', count($claimedIds));
+            dbExecute($base, 'UPDATE email_queue SET sent_at = -1 WHERE id IN (' . $placeholders . ')', $types, ...$claimedIds);
+        }
+    });
+
+    if (empty($claimedIds)) {
+        return;
+    }
+
+    // Fetch full row data for the claimed IDs (outside the lock — rows are already claimed)
+    $placeholders = implode(',', array_fill(0, count($claimedIds), '?'));
+    $types = str_repeat('i', count($claimedIds));
     $rows = dbFetchAll($base,
-        'SELECT id, recipient_email, subject, body_html FROM email_queue WHERE sent_at IS NULL AND (created_at IS NULL OR created_at > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)) ORDER BY id ASC LIMIT ?',
-        'i', $limit
+        'SELECT id, recipient_email, subject, body_html FROM email_queue WHERE id IN (' . $placeholders . ')',
+        $types, ...$claimedIds
     );
 
     if (empty($rows)) {
@@ -1432,15 +1464,19 @@ function processEmailQueue(\mysqli $base, int $limit = 20): void
 
         $sent = @mail($recipient, $subject, $message, $header);
         if ($sent) {
+            // FIX: update the actual timestamp (rows were pre-claimed with sentinel -1)
             dbExecute($base, 'UPDATE email_queue SET sent_at = ? WHERE id = ?', 'ii', time(), $id);
         } else {
             // P9-LOW-001: Log a short hash of the recipient address rather than the
             // full email to avoid writing PII to log files.
             logWarn('EMAIL_QUEUE', 'mail() failed for queued email', ['id' => $id, 'recipient_hash' => substr(hash('sha256', $recipient), 0, 12)]);
+            // FIX: Release the claim so the row can be retried (reset sentinel back to NULL)
+            dbExecute($base, 'UPDATE email_queue SET sent_at = NULL WHERE id = ? AND sent_at = -1', 'i', $id);
         }
     }
     // EMAIL11-001: Purge sent and stale unsent emails to comply with GDPR data minimization.
     // Stale unsent emails (>24h old) are skipped by the query above but never deleted otherwise.
+    // FIX: Also purge any leftover sentinel -1 rows from a previous crashed run (treat as stale).
     dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL OR (sent_at IS NULL AND created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR))');
 }
 
@@ -1634,7 +1670,7 @@ function checkComebackBonus($base, $login, $prevConnexion = null) {
 
         $lastCatchUp = (int)$autre['last_catch_up'];
         $absentDays = ($now - $lastLogin) / SECONDS_PER_DAY;
-        $cooldownOk = ($now - $lastCatchUp) > (COMEBACK_COOLDOWN_DAYS * SECONDS_PER_DAY);
+        $cooldownOk = ($now - $lastCatchUp) >= (COMEBACK_COOLDOWN_DAYS * SECONDS_PER_DAY);
 
         if ($absentDays < COMEBACK_ABSENCE_DAYS || !$cooldownOk) {
             return;

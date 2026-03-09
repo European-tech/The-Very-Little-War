@@ -68,6 +68,8 @@ if (isset($_POST['login'])) {
 							$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 							$_SESSION['session_created'] = time();
 							$_SESSION['last_activity'] = time();
+							$_SESSION['session_token'] = bin2hex(random_bytes(32));
+							dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $_SESSION['session_token'], $loginInput);
 							header("Location: index.php?inscrit=1"); exit;
 						} elseif ($result === 'email_taken') {
 							$erreur = 'Ce login ou email est d&eacute;j&agrave; utilis&eacute;.';

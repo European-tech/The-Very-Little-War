@@ -93,7 +93,7 @@ if (isset($_POST['nbPointsCondenseurhydrogene'])) { // un au hasard juste pour l
 if (isset($_POST['formation'])) {
     csrfCheck();
     $newFormation = intval($_POST['formation']);
-    if ($newFormation >= 0 && $newFormation <= 2) {
+    if ($newFormation >= 0 && $newFormation <= MAX_FORMATION_ID) { // FIX: use config constant instead of hardcoded 2
         dbExecute($base, 'UPDATE constructions SET formation=? WHERE login=?', 'is', $newFormation, $_SESSION['login']);
         $information = "Formation défensive mise à jour.";
         header('Location: constructions.php?information=' . urlencode($information));

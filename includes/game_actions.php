@@ -178,6 +178,27 @@ function updateActions($joueur)
                             }
                         }
 
+                        // FLOW-COMBAT-HIGH: Verify defender still exists (not deleted mid-flight).
+                        // x=-1000 is the sentinel for deleted/unplaced accounts.
+                        $defenderExists = dbFetchOne($base, 'SELECT login FROM membre WHERE login=? AND x != -1000', 's', $actions['defenseur']);
+                        if (!$defenderExists) {
+                            // Defender was deleted while attack was in flight — cancel and refund.
+                            $troupesArr = explode(';', $actions['troupes'] ?? '');
+                            $moleculesOwned = dbFetchAll($base, 'SELECT id FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $actions['attaquant']);
+                            foreach ($moleculesOwned as $idx => $mol) {
+                                $nb = isset($troupesArr[$idx]) && is_numeric($troupesArr[$idx]) ? (int)$troupesArr[$idx] : 0;
+                                if ($nb > 0) {
+                                    dbExecute($base, 'UPDATE molecules SET nombre = nombre + ? WHERE id=?', 'ii', $nb, $mol['id']);
+                                }
+                            }
+                            dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $actions['id']);
+                            logInfo('GAME', 'Attack cancelled at resolution: defender deleted mid-flight', [
+                                'attacker' => $actions['attaquant'],
+                                'defender' => $actions['defenseur'],
+                            ]);
+                            throw new \RuntimeException('cas_skip');
+                        }
+
                         // Re-check vacation/ban/shield at resolution time
                         $attStatut = dbFetchOne($base, 'SELECT vacance, estExclu FROM membre WHERE login=?', 's', $actions['attaquant']);
                         $defStatut = dbFetchOne($base, 'SELECT vacance, estExclu, comeback_shield_until FROM membre WHERE login=?', 's', $actions['defenseur']);
@@ -475,6 +496,31 @@ function updateActions($joueur)
                         dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
                         return;
                     }
+
+                    // FLOW-ESP-HIGH: Re-check vacation/ban/shield at resolution time — same pattern
+                    // as combat resolution (lines 181-201). Espionage against a protected target
+                    // must be cancelled with a neutrino refund to the attacker.
+                    $espDefStatut = dbFetchOne($base, 'SELECT vacance, estExclu, comeback_shield_until FROM membre WHERE login=?', 's', $espActions['defenseur']);
+                    $espAttStatut = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $espActions['attaquant']);
+                    if (!$espDefStatut || !$espAttStatut) {
+                        // One of the players was fully deleted — cancel and clean up.
+                        dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
+                        return;
+                    }
+                    if ((int)$espDefStatut['estExclu'] === 1
+                        || (int)$espDefStatut['vacance'] === 1
+                        || ((int)$espDefStatut['comeback_shield_until'] > 0 && (int)$espDefStatut['comeback_shield_until'] > time())
+                        || (int)$espAttStatut['estExclu'] === 1) {
+                        // Target is protected — cancel espionage and refund neutrinos to attacker.
+                        dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'is', (int)$espActions['nombreneutrinos'], $espActions['attaquant']);
+                        dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
+                        logInfo('GAME', 'Espionage aborted at resolution due to vacation/ban/shield', [
+                            'attacker' => $espActions['attaquant'],
+                            'defender' => $espActions['defenseur'],
+                        ]);
+                        return;
+                    }
+
                     // Radar research reduces the neutrino threshold for successful espionage
                     $radarDiscount      = 1 - allianceResearchBonus($espActions['attaquant'], 'espionage_cost');
                     $espionageThreshold = ($nDef['neutrinos'] * ESPIONAGE_SUCCESS_RATIO) * $radarDiscount;
@@ -629,6 +675,13 @@ function updateActions($joueur)
 
                     $moleculesRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $joueur);
 
+                    if (empty($moleculesRows)) {
+                        logError('COMBAT', 'Return trip: moleculesRows empty for attacker', ['login' => $joueur, 'troupes' => implode(';', $molecules)]);
+                        // Still delete the action so it doesn't loop forever
+                        dbExecute($base, 'DELETE FROM actionsattaques WHERE id = ?', 'i', $actionId);
+                        return;
+                    }
+
                     $compteur = 1;
                     $totalMoleculesPerdues = 0;
 
@@ -640,6 +693,17 @@ function updateActions($joueur)
 
                         $totalMoleculesPerdues += ($molecules[$compteur - 1] - $moleculesRestantes);
                         $compteur++;
+                    }
+
+                    // Guard: if compteur didn't advance past all expected classes, log but don't crash
+                    $expectedClasses = count($moleculesRows);
+                    if (($compteur - 1) < $expectedClasses) {
+                        logError('COMBAT', 'Return trip: troupes string shorter than molecule row count', [
+                            'login'    => $joueur,
+                            'expected' => $expectedClasses,
+                            'processed' => $compteur - 1,
+                            'action_id' => $actionId,
+                        ]);
                     }
 
                     // Batch update moleculesPerdues atomically

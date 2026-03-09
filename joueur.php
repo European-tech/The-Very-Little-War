@@ -124,7 +124,7 @@ if (isset($_GET['id'])) {
         if(isset($_SESSION['login'])) {
             debutCarte("Description");
                 echo '<div class="table-responsive">';
-		      echo BBcode($donnees1['description']);
+		      echo sanitizeReportHtml(BBcode($donnees1['description']));
                 echo '</div>';
             finCarte();
         }

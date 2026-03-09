@@ -34,9 +34,10 @@ if(isset($_POST['energieEnvoyee'])) {
 				if ($allianceChef !== '' && $allianceChef !== $_SESSION['login']) {
 					// Check shared IP between sender and chef in membre table
 					$chefIp   = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $allianceChef);
-					$sharedIp = ($senderIp && $chefIp
+					// FIX-CRITICAL: Use hash_equals() for IP comparison to prevent timing-based inference.
+				$sharedIp = ($senderIp && $chefIp
 						&& !empty($senderIp['ip']) && !empty($chefIp['ip'])
-						&& $senderIp['ip'] === $chefIp['ip']);
+						&& hash_equals((string)$senderIp['ip'], (string)$chefIp['ip']));
 					// Also check account_flags for an active high/critical flag between the pair
 					$flagged = areFlaggedAccounts($base, $_SESSION['login'], $allianceChef);
 					if ($sharedIp || $flagged) {
@@ -58,9 +59,10 @@ if(isset($_POST['energieEnvoyee'])) {
 					foreach ($officers as $officer) {
 						if ($officer['login'] === $_SESSION['login']) continue; // skip self
 						$officerIp = dbFetchOne($base, 'SELECT ip FROM membre WHERE login=?', 's', $officer['login']);
+						// FIX-CRITICAL: Use hash_equals() for IP comparison (officer check).
 						$sharedIpOfficer = ($senderIp && $officerIp
 							&& !empty($senderIp['ip']) && !empty($officerIp['ip'])
-							&& $senderIp['ip'] === $officerIp['ip']);
+							&& hash_equals((string)$senderIp['ip'], (string)$officerIp['ip']));
 						$flaggedOfficer = areFlaggedAccounts($base, $_SESSION['login'], $officer['login']);
 						if ($sharedIpOfficer || $flaggedOfficer) {
 							$erreur = "Don refusé : votre compte et un officier de l'alliance partagent une connexion suspecte.";
@@ -86,9 +88,19 @@ if(isset($_POST['energieEnvoyee'])) {
 							throw new \RuntimeException("NOT_ENOUGH_ENERGY");
 						}
 
-						dbExecute($base, 'UPDATE ressources SET energie = energie - ? WHERE login=?', 'ds', $_POST['energieEnvoyee'], $_SESSION['login']);
-						dbExecute($base, 'UPDATE autre SET energieDonnee = energieDonnee + ?, nbDons = nbDons + 1 WHERE login=?', 'ds', $_POST['energieEnvoyee'], $_SESSION['login']); // ECO16-001: increment nbDons for medal tracking
-						dbExecute($base, 'UPDATE alliances SET energieAlliance = energieAlliance + ?, energieTotaleRecue = energieTotaleRecue + ? WHERE id=?', 'ddi', $_POST['energieEnvoyee'], $_POST['energieEnvoyee'], $idalliance['idalliance']);
+						// Cap donation so vault does not exceed MAX_ALLIANCE_ENERGY
+						$maxVault = defined('MAX_ALLIANCE_ENERGY') ? MAX_ALLIANCE_ENERGY : 1000000;
+						$montant = $_POST['energieEnvoyee'];
+						if ($ressourcesAlliance['energieAlliance'] + $montant > $maxVault) {
+							$montant = $maxVault - $ressourcesAlliance['energieAlliance'];
+							if ($montant <= 0) {
+								throw new \RuntimeException('VAULT_FULL');
+							}
+						}
+
+						dbExecute($base, 'UPDATE ressources SET energie = energie - ? WHERE login=?', 'ds', $montant, $_SESSION['login']);
+						dbExecute($base, 'UPDATE autre SET energieDonnee = energieDonnee + ?, nbDons = nbDons + 1 WHERE login=?', 'ds', $montant, $_SESSION['login']); // ECO16-001: increment nbDons for medal tracking
+						dbExecute($base, 'UPDATE alliances SET energieAlliance = energieAlliance + ?, energieTotaleRecue = energieTotaleRecue + ? WHERE id=?', 'ddi', $montant, $montant, $idalliance['idalliance']);
 					});
 					$information = "Le don a bien été reçu !";
 					header('Location: alliance.php?information=' . urlencode($information));
@@ -96,6 +108,8 @@ if(isset($_POST['energieEnvoyee'])) {
 				} catch (\RuntimeException $e) {
 					if ($e->getMessage() === "NOT_ENOUGH_ENERGY") {
 						$erreur = "Vous n'avez pas assez d'énergie (réserve minimale de " . DONATION_MIN_ENERGY_RESERVE . " requise).";
+					} elseif ($e->getMessage() === 'VAULT_FULL') {
+						$erreur = "La caisse de l'alliance est pleine (maximum " . number_format(MAX_ALLIANCE_ENERGY, 0, ',', ' ') . " énergie).";
 					} else {
 						throw $e;
 					}

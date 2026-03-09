@@ -111,15 +111,28 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 						$sessionToken = bin2hex(random_bytes(32));
 						withTransaction($base, function() use ($base, $newLogin, $oldLogin, $hashedPassword, $email, $sessionToken) {
 							// Lock source row to prevent concurrent renames (GAP-013)
-							$locked = dbFetchOne($base, 'SELECT login FROM membre WHERE login = ? FOR UPDATE', 's', $oldLogin);
+							$locked = dbFetchOne($base, 'SELECT login, estExclu FROM membre WHERE login = ? FOR UPDATE', 's', $oldLogin);
 							if (!$locked) {
 								throw new \RuntimeException('Source account not found');
+							}
+							// Fix 3: Refuse conversion for banned visitor accounts
+							if ($locked['estExclu'] == 1) {
+								throw new \RuntimeException('BANNED');
+							}
+							// Fix 4: Re-check login uniqueness inside the transaction (TOCTOU guard)
+							$loginConflict = dbFetchOne($base, 'SELECT login FROM membre WHERE login = ? FOR UPDATE', 's', $newLogin);
+							if ($loginConflict) {
+								throw new \RuntimeException('LOGIN_TAKEN');
 							}
 							dbExecute($base, 'UPDATE autre SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE grades SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE constructions SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE invitations SET invite = ? WHERE invite = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ?, session_token = ? WHERE login = ?', 'sssss', $newLogin, $hashedPassword, $email, $sessionToken, $oldLogin);
+							// Fix 5: Check that the critical membre UPDATE actually succeeded
+							$affected = dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ?, session_token = ? WHERE login = ?', 'sssss', $newLogin, $hashedPassword, $email, $sessionToken, $oldLogin);
+							if ($affected === false) {
+								throw new \RuntimeException('DB_ERROR');
+							}
 							dbExecute($base, 'UPDATE messages SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE messages SET expeditaire = ? WHERE expeditaire = ?', 'ss', $newLogin, $oldLogin);
 							dbExecute($base, 'UPDATE moderation SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);

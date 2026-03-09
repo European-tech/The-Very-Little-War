@@ -11,6 +11,11 @@ require_once(__DIR__ . '/logger.php');
 // LOW-008: Idle timeout check runs FIRST — before any game state reads, DB queries,
 // or session regeneration — so expired sessions are rejected immediately.
 if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > SESSION_IDLE_TIMEOUT) {
+    // SEC-TOK-001: Null the DB session token on timeout so the old token cannot be
+    // replayed by an attacker who obtained the session cookie before it expired.
+    if (isset($_SESSION['login'])) {
+        dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE login = ?', 's', $_SESSION['login']);
+    }
     session_destroy();
     header('Location: index.php?erreur=' . urlencode('Session expirée. Veuillez vous reconnecter.'));
     exit();
@@ -18,6 +23,10 @@ if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) >
 
 // SESSION-P10-001: Absolute session lifetime — force re-login after 24h regardless of activity.
 if (!empty($_SESSION['session_created']) && (time() - (int)$_SESSION['session_created']) > SESSION_ABSOLUTE_TIMEOUT) {
+    // SEC-TOK-001: Null the DB session token on absolute timeout for the same reason.
+    if (isset($_SESSION['login'])) {
+        dbExecute($base, 'UPDATE membre SET session_token = NULL WHERE login = ?', 's', $_SESSION['login']);
+    }
     session_destroy();
     header('Location: index.php?erreur=' . urlencode('Session expirée (durée maximale dépassée). Veuillez vous reconnecter.'));
     exit();
@@ -263,7 +272,7 @@ if ($maintenance['maintenance'] == 1 && $maintenanceStartedAt > 0 && (time() - $
     // GET_LOCK(..., 0) returns 1 if the lock was acquired, 0 if already held by another
     // connection, NULL on error. If we cannot acquire it, another request beat us here —
     // skip the UPDATE and fall through to the maintenance message shown below.
-    $phase1Lock = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_phase1', 0) as locked", '');
+    $phase1Lock = dbFetchOne($base, "SELECT GET_LOCK('tvlw_season_reset', 0) as locked", '');
     if ($phase1Lock && $phase1Lock['locked'] == 1) {
         // Double-check maintenance is still 0 now that we hold the lock (avoid re-entry)
         $maintenanceRecheck = dbFetchOne($base, 'SELECT maintenance FROM statistiques');
@@ -277,7 +286,7 @@ if ($maintenance['maintenance'] == 1 && $maintenanceStartedAt > 0 && (time() - $
             dbExecute($base, 'UPDATE statistiques SET maintenance_started_at = ?', 'i', $now);
             logInfo('SEASON', 'Phase 1 maintenance triggered', ['login' => $_SESSION['login'] ?? 'unknown']);
         }
-        dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_phase1')");
+        dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
     }
     $erreur = "Une nouvelle partie recommencera dans 24 heures.";
     // MED-013: Block ALL requests (GET and POST) for non-admin players during maintenance

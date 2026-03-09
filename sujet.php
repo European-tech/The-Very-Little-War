@@ -179,6 +179,13 @@ if (isset($_GET['id'])) {
 
 		// MED-050: auteur may be NULL when the player was deleted (FK SET NULL)
 		$sujetAuteur = $sujet['auteur'] ?? '[supprimé]';
+		// SOCIAL-HIGH: treat banned (estExclu=1) authors same as deleted authors
+		if ($sujetAuteur !== '[supprimé]') {
+			$sujetAuteurBanRow = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ?', 's', $sujetAuteur);
+			if ($sujetAuteurBanRow && (int)$sujetAuteurBanRow['estExclu'] === 1) {
+				$sujetAuteur = '[supprimé]';
+			}
+		}
 		$image = dbFetchOne($base, 'SELECT image, count(image) as nb FROM autre WHERE login = ?', 's', $sujetAuteur);
 		$couleur = rangForum($sujetAuteur);
 		if ($image['nb'] == 0) { // s'il le joueur n'existe plus, on prends l'image par défaut
@@ -223,19 +230,29 @@ if (isset($_GET['id'])) {
 		if (isset($_SESSION['login']) and $_SESSION['login'] == $sujet['auteur']) {
 			$editer = '<a href="editer.php?id=' . $sujet['id'] . '&type=1">Editer</a>';
 		}
-		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . htmlspecialchars($sujetAuteur, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($sujetAuteur, ENT_QUOTES, 'UTF-8') . '</a>', date('d/m/Y à H\hi', $sujet['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
+		$sujetAuteurDisplay = ($sujetAuteur === '[supprimé]')
+			? '[supprimé]'
+			: '<a href="joueur.php?id=' . htmlspecialchars($sujetAuteur, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($sujetAuteur, ENT_QUOTES, 'UTF-8') . '</a>';
+		carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', $sujetAuteurDisplay, date('d/m/Y à H\hi', $sujet['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($sujet['contenu']), $couleur, 'Page : ' . $pages . $editer);
 
 
 		if ($nb_resultats > 0) {
 			// MED-035: Pre-load all reply author profile images in one query to avoid N+1
 			$replyAuthors = array_unique(array_column($reponseRows, 'auteur'));
 			$imageMap = [];
+			// SOCIAL-HIGH: Pre-load ban status for reply authors to hide banned player links
+			$banMap = [];
 			if (!empty($replyAuthors)) {
 				$inPlaceholders = implode(',', array_fill(0, count($replyAuthors), '?'));
 				$types = str_repeat('s', count($replyAuthors));
 				$imageRows = dbFetchAll($base, "SELECT login, image FROM autre WHERE login IN ($inPlaceholders)", $types, ...$replyAuthors);
 				foreach ($imageRows as $imgRow) {
 					$imageMap[$imgRow['login']] = $imgRow['image'];
+				}
+				// Fetch estExclu for all reply authors in one query
+				$banRows = dbFetchAll($base, "SELECT login, estExclu FROM membre WHERE login IN ($inPlaceholders)", $types, ...$replyAuthors);
+				foreach ($banRows as $banRow) {
+					$banMap[$banRow['login']] = (int)$banRow['estExclu'];
 				}
 			}
 
@@ -250,6 +267,10 @@ if (isset($_GET['id'])) {
 
 				// MED-050: auteur may be NULL when the player was deleted (FK SET NULL)
 				$reponseAuteur = $reponse['auteur'] ?? '[supprimé]';
+				// SOCIAL-HIGH: treat banned (estExclu=1) reply authors same as deleted authors
+				if ($reponseAuteur !== '[supprimé]' && ($banMap[$reponseAuteur] ?? 0) === 1) {
+					$reponseAuteur = '[supprimé]';
+				}
 				$couleur = rangForum($reponseAuteur);
 
 				// Ajout de Yojim
@@ -285,7 +306,10 @@ if (isset($_GET['id'])) {
 					}
 				}
 
-				carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', '<a href="joueur.php?id=' . htmlspecialchars($reponseAuteur, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($reponseAuteur, ENT_QUOTES, 'UTF-8') . '</a>', date('d/m/Y à H\hi', $reponse['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($reponse['contenu'], $javascript), $couleur, $editer);
+				$reponseAuteurDisplay = ($reponseAuteur === '[supprimé]')
+					? '[supprimé]'
+					: '<a href="joueur.php?id=' . htmlspecialchars($reponseAuteur, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($reponseAuteur, ENT_QUOTES, 'UTF-8') . '</a>';
+				carteForum('<img alt="profil" src="images/profil/' . htmlspecialchars($image['image'], ENT_QUOTES, 'UTF-8') . '" style="max-width:70px;max-height:70px;border-radius:10px;"/>', $reponseAuteurDisplay, date('d/m/Y à H\hi', $reponse['timestamp']), htmlspecialchars($sujet['titre'], ENT_QUOTES, 'UTF-8'), BBcode($reponse['contenu'], $javascript), $couleur, $editer);
 			}
 		} else {
 			debutCarte();

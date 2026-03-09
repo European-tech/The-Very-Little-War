@@ -242,8 +242,13 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
                         // Column not yet present — migration pending, skip cooldown check
                     }
                     // MEDIUM-004: Lock the alliance row first before counting members
-                    // to prevent race condition where two players join simultaneously
-                    dbFetchOne($base, 'SELECT id FROM alliances WHERE id=? FOR UPDATE', 'i', $idalliance['idalliance']);
+                    // to prevent race condition where two players join simultaneously.
+                    // FLOW-ALLIANCE-HIGH: Also verify the alliance was not deleted between the
+                    // outer fetch and this lock (TOCTOU window).
+                    $allianceLocked = dbFetchOne($base, 'SELECT id, nbMax FROM alliances WHERE id=? FOR UPDATE', 'i', $idalliance['idalliance']);
+                    if (!$allianceLocked) {
+                        throw new \RuntimeException('ALLIANCE_DELETED');
+                    }
                     // Count members inside transaction to prevent race condition
                     $count = dbCount($base, 'SELECT COUNT(*) AS nb FROM autre WHERE idalliance=?', 'i', $idalliance['idalliance']);
                     if ($count >= $joueursEquipe) {
@@ -264,6 +269,8 @@ if ($_GET['id'] == -1) { // si pas d'alliance alors invitations
                     $erreur = "Vous ne pouvez pas rejoindre une alliance.";
                 } elseif ($e->getMessage() === 'INVITATION_GONE') {
                     $erreur = "Cette invitation n'est plus disponible.";
+                } elseif ($e->getMessage() === 'ALLIANCE_DELETED') {
+                    $erreur = "Cette alliance n'existe plus.";
                 } elseif (strpos($e->getMessage(), 'COOLDOWN:') === 0) {
                     $heuresRestantes = (int)substr($e->getMessage(), 9);
                     $erreur = "Vous devez attendre encore " . $heuresRestantes . "h avant de rejoindre une alliance.";
@@ -526,7 +533,8 @@ if ($_GET['id'] != -1) {
                     }
 
                     // $order is from a whitelist, safe to use in query. idalliance is parameterized.
-                    $joueur1Rows = dbFetchAll($base, 'SELECT * FROM autre WHERE idalliance=? ORDER BY ' . $order . ' DESC', 'i', $idalliance['idalliance']);
+                    // Exclude banned players from the member roster display
+                    $joueur1Rows = dbFetchAll($base, 'SELECT a.* FROM autre a JOIN membre m ON m.login = a.login WHERE a.idalliance=? AND m.estExclu = 0 ORDER BY ' . $order . ' DESC', 'i', $idalliance['idalliance']);
                     $c = 1;
                     foreach ($joueur1Rows as $joueur1) {
                     ?>

@@ -34,9 +34,9 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
             $actuActionsRows = dbFetchAll($base, 'SELECT * FROM actionsformation WHERE login=? ORDER BY debut ASC', 's', $login);
             foreach ($actuActionsRows as $actionsformation) {
                 if (time() < $actionsformation['debut']) {
-                    $newFin = $nvxDebut + $actionsformation['nombreRestant'] * $actionsformation['tempsPourUn'];
+                    $newFin = $nvxDebut + (int)round($actionsformation['nombreRestant'] * $actionsformation['tempsPourUn']); // FIX: cast to int
                     dbExecute($base, 'UPDATE actionsformation SET debut=?, fin=? WHERE id=?', 'iii', $nvxDebut, $newFin, $actionsformation['id']);
-                    $nvxDebut = $nvxDebut + $actionsformation['nombreRestant'] * $actionsformation['tempsPourUn'];
+                    $nvxDebut = $nvxDebut + (int)round($actionsformation['nombreRestant'] * $actionsformation['tempsPourUn']); // FIX: cast to int
                 } else {
                     $nvxDebut = $actionsformation['fin'];
                 }
@@ -149,18 +149,21 @@ if (isset($_POST['emplacementmoleculeformer']) and !empty($_POST['emplacementmol
                 }
 
                 $tempsForm = tempsFormation($total, $donneesFormer['azote'], $donneesFormer['iode'], $niveauazote, $nivLieurArmee, $login);
-                $finTemps = $tempsDebut + $tempsForm * $nombreMolecules;
+                $tempsFormInt = (int)round($tempsForm); // FIX: cast float to int seconds before storing
+                $finTemps = $tempsDebut + (int)round($tempsForm * $nombreMolecules); // FIX: prevent float timestamp
                 dbExecute($base, 'INSERT INTO actionsformation VALUES(default,?,?,?,?,?,?,?,?)', 'issiiiss',
-                    $donneesFormer['id'], $login, $tempsDebut, $finTemps, $nombreMolecules, $nombreMolecules, $donneesFormer['formule'], $tempsForm);
+                    $donneesFormer['id'], $login, $tempsDebut, $finTemps, $nombreMolecules, $nombreMolecules, $donneesFormer['formule'], $tempsFormInt);
 
                 // Build dynamic UPDATE for ressources with parameterized values
+                // GREATEST(0, ...) guards against float precision edge cases going slightly negative
                 $setClauses = [];
                 $paramTypes = '';
                 $paramValues = [];
                 foreach ($nomsRes as $num => $ressource) {
-                    $setClauses[] = $ressource . '=?';
-                    $paramTypes .= 'd';
-                    $paramValues[] = $ressources[$ressource] - ($nombreMolecules * $donneesFormer[$ressource]);
+                    $setClauses[] = $ressource . '=GREATEST(0, ? - ?)';
+                    $paramTypes .= 'dd';
+                    $paramValues[] = $ressources[$ressource];
+                    $paramValues[] = $nombreMolecules * $donneesFormer[$ressource];
                 }
                 $paramTypes .= 's';
                 $paramValues[] = $login;
