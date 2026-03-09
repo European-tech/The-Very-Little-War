@@ -45,8 +45,18 @@ if (isset($_GET['id'])) {
 			$nb_molecules = $nb_molecules + $donnees4['nombre'];
 		}
 
+        // Fetch prestige unlocks for legend badge (MEDIUM-003)
+        $playerPrestige = dbFetchOne($base, 'SELECT unlocks FROM prestige WHERE login=?', 's', $membre['login']);
+        $isLegendPlayer = false;
+        if ($playerPrestige && !empty($playerPrestige['unlocks'])) {
+            $isLegendPlayer = in_array('legende', array_filter(explode(',', $playerPrestige['unlocks'])));
+        }
+
         debutCarte(htmlspecialchars($membre['login'], ENT_QUOTES, 'UTF-8'));
         $titre = 'Joueur';
+        if ($isLegendPlayer) {
+            $titre = $titre . ' <span class="prestige-legend" title="Joueur L&eacute;gendaire &mdash; 1000 PP d&eacute;pens&eacute;s">&#9733; L&eacute;gendaire</span>';
+        }
         if(statut($membre['login']) == 0){
             $titre = $titre." <span style=\"color:darkgray\">Inactif</span>";
         }

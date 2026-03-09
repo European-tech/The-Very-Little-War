@@ -137,7 +137,7 @@ if ($gradeChef) {
 							$existe = dbCount($base, 'SELECT count(*) as nb FROM membre WHERE login=?', 's', $personnegrade);
 							$inAlliance = dbCount($base, 'SELECT count(*) as nb FROM autre WHERE login=? AND idalliance=?', 'si', $personnegrade, $chefId);
 							if ($existe >= 1 && $inAlliance >= 1) {
-								$gradeInsert = dbExecute($base, 'INSERT INTO grades VALUES(?,?,?,?)', 'ssss', $personnegrade, $gradeStr, $chefId, $nomgrade);
+								$gradeInsert = dbExecute($base, 'INSERT INTO grades (login, grade, idalliance, nom) VALUES (?, ?, ?, ?)', 'ssis', $personnegrade, $gradeStr, $chefId, $nomgrade);
 								if ($gradeInsert !== false) {
 									$information = "" . htmlspecialchars($personnegrade, ENT_QUOTES, 'UTF-8') . " a été gradé " . htmlspecialchars($nomgrade, ENT_QUOTES, 'UTF-8') . ".";
 								} else {

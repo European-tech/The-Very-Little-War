@@ -262,10 +262,21 @@ if (isset($_POST['joueurAAttaquer'])) {
 
                         if ($cout <= $ressources['energie']) {
                             if ($bool) {
+                                // FLOW-COMBAT-MEDIUM-008: Capture POST values into local variables
+                                // before the transaction closure so the closure reads frozen,
+                                // sanitized values rather than the mutable $_POST superglobal.
+                                // The outer loop may have overwritten $_POST['nbclasse'.$c] with
+                                // a float from the DB; capture the final validated integers here.
+                                $capturedCibles = $_POST['joueurAAttaquer'];
+                                $capturedTroupes = [];
+                                for ($c = 1; $c <= $nbClasses; $c++) {
+                                    $capturedTroupes[$c] = (int)($_POST['nbclasse' . $c] ?? 0);
+                                }
+                                $capturedAttaquant = $_SESSION['login'];
                                 try {
-                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet, $atkBoostSnapshot, $defBoostSnapshot, $speedBoost, $pillageBoostSnapshot) {
+                                    withTransaction($base, function() use ($base, $cout, $troupes, $tempsTrajet, $atkBoostSnapshot, $defBoostSnapshot, $speedBoost, $pillageBoostSnapshot, $capturedCibles, $capturedTroupes, $capturedAttaquant) {
                                         // PASS1-MEDIUM-006: Re-validate energy under FOR UPDATE lock to prevent TOCTOU
-                                        $attaquant = $_SESSION['login'];
+                                        $attaquant = $capturedAttaquant;
                                         $energieFraiche = dbFetchOne($base, 'SELECT energie FROM ressources WHERE login=? FOR UPDATE', 's', $attaquant);
                                         if ($energieFraiche['energie'] < $cout) {
                                             throw new RuntimeException('Énergie insuffisante');
@@ -273,7 +284,9 @@ if (isset($_POST['joueurAAttaquer'])) {
                                         $moleculesAttaqueTxRows = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC FOR UPDATE', 's', $attaquant);
                                         $c = 1;
                                         foreach ($moleculesAttaqueTxRows as $moleculesAttaque) {
-                                            $newNombre = $moleculesAttaque['nombre'] - $_POST['nbclasse' . $c];
+                                            // Use captured troop counts (frozen, validated values) instead of $_POST
+                                            $troopCount = $capturedTroupes[$c] ?? 0;
+                                            $newNombre = $moleculesAttaque['nombre'] - $troopCount;
                                             if ($newNombre < 0) {
                                                 throw new Exception('Pas assez de molécules');
                                             }
@@ -285,7 +298,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                                         dbExecute($base,
                                             'INSERT INTO actionsattaques (attaquant, defenseur, tempsAller, tempsAttaque, tempsRetour, troupes, attaqueFaite, nombreneutrinos, compound_atk_bonus, compound_spd_bonus, compound_def_bonus, compound_pillage_bonus) VALUES (?,?,?,?,?,?,0,0,?,?,?,?)',
                                             'ssiiisdddd',
-                                            $attaquant, $_POST['joueurAAttaquer'], $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes,
+                                            $attaquant, $capturedCibles, $now, ($now + $tempsTrajet), ($now + 2 * $tempsTrajet), $troupes,
                                             $atkBoostSnapshot, $speedBoost, $defBoostSnapshot, $pillageBoostSnapshot);
                                         ajouter('energie', 'ressources', -$cout, $attaquant);
                                         ajouter('energieDepensee', 'autre', $cout, $attaquant);

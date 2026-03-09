@@ -931,15 +931,18 @@ function batMax($pseudo)
     return $plusHaut;
 }
 
-function joueur($joueur)
+function joueur($joueur, $isLegend = false)
 {
     $safe = htmlspecialchars($joueur, ENT_QUOTES, 'UTF-8');
     $act = statut($joueur);
-    if ($act == 0) {
-        return '<a href="joueur.php?id=' . $safe . '" class="lienVisible"><span style="color:darkgray">' . $safe . '</span></a>';
+    if ($isLegend) {
+        $nameHtml = '<span class="prestige-legend">&#9733; ' . $safe . '</span>';
+    } elseif ($act == 0) {
+        $nameHtml = '<span style="color:darkgray">' . $safe . '</span>';
     } else {
-        return '<a href="joueur.php?id=' . $safe . '" class="lienVisible">' . $safe . '</a>';
+        $nameHtml = $safe;
     }
+    return '<a href="joueur.php?id=' . $safe . '" class="lienVisible">' . $nameHtml . '</a>';
 }
 
 function recalculerStatsAlliances()

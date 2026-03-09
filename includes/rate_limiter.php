@@ -48,7 +48,7 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
     $fp = @fopen($file, 'c+');
     if ($fp === false) {
         if (function_exists('logError')) {
-            logError('Rate limiter fopen failed for: ' . $file);
+            logError('RATE_LIMITER', 'fopen failed', ['file' => $file]);
         }
         return false; // fail closed
     }
@@ -71,7 +71,7 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
             $written = fwrite($fp, json_encode(array_values($attempts)));
             if ($written === false) {
                 if (function_exists('logError')) {
-                    logError('Rate limiter write failed for: ' . $file);
+                    logError('RATE_LIMITER', 'flock failed', ['file' => $file]);
                 }
                 flock($fp, LOCK_UN);
                 fclose($fp);
@@ -85,7 +85,7 @@ function rateLimitCheck($identifier, $action, $maxAttempts, $windowSeconds) {
     } else {
         // Could not acquire lock — fail closed
         if (function_exists('logError')) {
-            logError('Rate limiter flock failed for: ' . $file);
+            logError('RATE_LIMITER', 'flock failed', ['file' => $file]);
         }
         fclose($fp);
         return false;

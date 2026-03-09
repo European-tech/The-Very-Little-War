@@ -117,9 +117,13 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 		}
 
 		$prestigeCacheDaily = [];
-		$prestigeRowsDaily = dbFetchAll($base, 'SELECT login, total_pp FROM prestige', '');
+		$legendCacheDaily = [];
+		$prestigeRowsDaily = dbFetchAll($base, 'SELECT login, total_pp, unlocks FROM prestige', '');
 		foreach ($prestigeRowsDaily as $pr) {
 			$prestigeCacheDaily[$pr['login']] = (int)$pr['total_pp'];
+			if (!empty($pr['unlocks']) && in_array('legende', array_filter(explode(',', $pr['unlocks'])))) {
+				$legendCacheDaily[$pr['login']] = true;
+			}
 		}
 
 		?>
@@ -151,7 +155,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 			?>
 			<tr style="<?php if ($enGuerre !== '') { echo 'background-color:rgba(' . $enGuerre . ',0.6);'; } ?>">
 			<td><?php echo imageClassement((int)$donnees['rang']); ?></td>
-			<td><?php echo joueur($donnees['login']); ?></td>
+			<td><?php echo joueur($donnees['login'], isset($legendCacheDaily[$donnees['login']])); ?></td>
 			<td><?php echo number_format($donnees['totalPoints'], 0, ' ', ' '); ?></td>
 			<td><?php if ($rowAllianceId > 0 && $allianceTag !== '') { echo alliance($allianceTag); } ?></td>
 			<td><?php echo chiffrePetit(pointsAttaque($donnees['pointsAttaque'])); ?></td>
@@ -230,9 +234,13 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 	}
 
 	$prestigeCache = [];
-	$prestigeRows = dbFetchAll($base, 'SELECT login, total_pp FROM prestige', '');
+	$legendCache = [];
+	$prestigeRows = dbFetchAll($base, 'SELECT login, total_pp, unlocks FROM prestige', '');
 	foreach ($prestigeRows as $pr) {
 		$prestigeCache[$pr['login']] = (int)$pr['total_pp'];
+		if (!empty($pr['unlocks']) && in_array('legende', array_filter(explode(',', $pr['unlocks'])))) {
+			$legendCache[$pr['login']] = true;
+		}
 	}
 
 	// Pre-load war and pact sets for the logged-in player's alliance.
@@ -293,7 +301,7 @@ if(isset($_GET['sub']) AND $_GET['sub'] == 0) {
 		?>
 		<tr style="<?php if ($enGuerre !== '') { echo 'background-color:rgba(' . $enGuerre . ',0.6);'; } ?>">
 		<td ><?php echo imageClassement((int)$donnees['rang']) ; // LOW-017: DENSE_RANK from SQL ?></td>
-		<td><?php echo joueur($donnees['login']); ?></td>
+		<td><?php echo joueur($donnees['login'], isset($legendCache[$donnees['login']])); ?></td>
 		<td><?php echo number_format($donnees['totalPoints'], 0 , ' ', ' '); ?></td>
 		<td><?php if($rowAllianceId > 0 && $allianceTag !== '') { echo alliance($allianceTag); } ?></td>
 		<td><?php echo chiffrePetit($donnees['points']); ?></td>

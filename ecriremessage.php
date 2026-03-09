@@ -33,7 +33,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				withTransaction($base, function() use ($base, $destinataireRows, $titreMsg, $contenuMsg, $expediteur) {
 					$now = time();
 					foreach ($destinataireRows as $destinataire) {
-						dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $titreMsg, $contenuMsg, $expediteur, $destinataire['login']);
+						dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $titreMsg, $contenuMsg, $expediteur, $destinataire['login']);
 					}
 				});
 				// SOCIAL-LOW-001: PRG pattern — store success in session and redirect to prevent duplicate POST on refresh.
@@ -55,7 +55,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 				withTransaction($base, function() use ($base, $allDestinataires, $titreAll, $contenuAll, $expediteurAll) {
 					$now = time();
 					foreach ($allDestinataires as $destinataire) {
-						dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $titreAll, $contenuAll, $expediteurAll, $destinataire['login']);
+						dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $titreAll, $contenuAll, $expediteurAll, $destinataire['login']);
 					}
 				});
 				// SOCIAL-LOW-001: PRG pattern — store success in session and redirect to prevent duplicate POST on refresh.
@@ -86,7 +86,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 							$erreur = "La boîte de réception de ce joueur est pleine.";
 						} else {
 							$now = time();
-							dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $canonicalLogin);
+							dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $now, $_POST['titre'], $_POST['contenu'], $_SESSION['login'], $canonicalLogin);
 							// LOW-030: store flash message before redirect
 							$_SESSION['flash_message'] = 'Message envoyé avec succès.';
 							header('Location: messages.php');

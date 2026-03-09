@@ -49,12 +49,26 @@ $message = $texte;
 
 $membres = dbFetchAll($base, 'SELECT login FROM membre');
 $count = count($membres);
-withTransaction($base, function() use ($base, $membres, $titre, $message) {
+$skipped = 0;
+withTransaction($base, function() use ($base, $membres, $titre, $message, &$skipped) {
 	$timestamp = time();
 	foreach ($membres as $d) {
-		dbExecute($base, 'INSERT INTO messages VALUES(default, ?, ?, ?, ?, ?, default)', 'issss', $timestamp, $titre, $message, ADMIN_LOGIN, $d['login']);
+		// SOCIAL-MEDIUM-001: Enforce INBOX_MAX_MESSAGES cap — skip members whose inbox
+		// is already full to prevent broadcast flooding past the per-player limit.
+		$inboxCount = dbFetchOne($base, 'SELECT COUNT(*) AS nb FROM messages WHERE destinataire=?', 's', $d['login']);
+		if ($inboxCount && (int)$inboxCount['nb'] >= INBOX_MAX_MESSAGES) {
+			$skipped++;
+			logInfo('BROADCAST', 'Inbox full — message skipped', ['recipient' => $d['login']]);
+			continue;
+		}
+		dbExecute($base, 'INSERT INTO messages (timestamp, titre, contenu, expeditaire, destinataire, statut) VALUES (?, ?, ?, ?, ?, 0)', 'issss', $timestamp, $titre, $message, ADMIN_LOGIN, $d['login']);
 	}
 });
+$sent = $count - $skipped;
 
-header('Location: messages.php?information=' . urlencode("Message envoyé à $count joueurs."));
+$info = "Message envoyé à $sent joueurs.";
+if ($skipped > 0) {
+	$info .= " ($skipped boîte(s) pleine(s), saut effectué.)";
+}
+header('Location: messages.php?information=' . urlencode($info));
 exit();

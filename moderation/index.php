@@ -21,6 +21,7 @@ if (isset($_POST['motdepasseadmin'])) {
 	} elseif (password_verify($_POST['motdepasseadmin'], ADMIN_PASSWORD_HASH)) {
 		session_regenerate_id(true);
 		$_SESSION['motdepasseadmin'] = true;
+		$_SESSION['session_created'] = time();
 		$_SESSION['mod_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
 		logInfo('MODERATION', 'Moderation login successful');
 	} else {

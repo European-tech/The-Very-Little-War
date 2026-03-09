@@ -54,4 +54,11 @@
     padding-bottom: 0px !important;
 }
 
+/* Prestige Legend badge — players who spent 1000 PP on the 'legende' unlock */
+.prestige-legend {
+    color: #FFD700;
+    font-weight: bold;
+    text-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
+}
+
 .

@@ -70,9 +70,11 @@ function calculatePrestigePoints($login) {
     // Using debut + SECONDS_PER_MONTH would give a future date ~31 days from now, making
     // the final-week window start in the future and excluding all active players.
     if ($seasonRow && $seasonRow['debut'] > 0) {
-        $debutTs = (int)$seasonRow['debut'];
-        // Season ended at midnight of the 1st of the month when maintenance was triggered
-        $seasonEnd = mktime(0, 0, 0, (int)date('n', $debutTs), 1, (int)date('Y', $debutTs));
+        // SEASON_RESET MEDIUM-004: Use current calendar month (not debut month) so that
+        // a manual reset with a stale debut value still produces the correct season end.
+        // The season ended at midnight on the 1st of the CURRENT month regardless of
+        // when debut was last written.
+        $seasonEnd = mktime(0, 0, 0, (int)date('n'), 1, (int)date('Y'));
     } else {
         $seasonEnd = time();
     }
