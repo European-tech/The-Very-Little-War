@@ -366,3 +366,60 @@ function transformInt($nombre)
     }
     return $nombre;
 }
+
+/**
+ * Sanitize report/message HTML using a DOMDocument attribute whitelist.
+ * Strips disallowed tags/attributes and blocks javascript:/data: URI schemes.
+ * Shared across rapports.php, messages.php, and alliance.php.
+ */
+function sanitizeReportHtml($html) {
+    if (empty(trim($html))) return $html;
+    $allowedTags = ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'span', 'div', 'img', 'a',
+                    'table', 'tr', 'td', 'th', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'hr'];
+    $allowedAttrs = [
+        'href'  => ['a'],
+        'src'   => ['img'],
+        'alt'   => ['img'],
+        'id'    => true,
+    ];
+
+    $dom = new DOMDocument();
+    libxml_use_internal_errors(true);
+    $dom->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    libxml_clear_errors();
+
+    $xpath = new DOMXPath($dom);
+    $nodes = iterator_to_array($xpath->query('//*'));
+    foreach ($nodes as $node) {
+        if (!in_array(strtolower($node->nodeName), $allowedTags, true)) {
+            $node->parentNode->replaceChild($dom->createTextNode($node->textContent), $node);
+            continue;
+        }
+        $attrsToRemove = [];
+        foreach ($node->attributes as $attr) {
+            $name = strtolower($attr->name);
+            if (!array_key_exists($name, $allowedAttrs)) {
+                $attrsToRemove[] = $name;
+            } elseif (is_array($allowedAttrs[$name]) && !in_array(strtolower($node->nodeName), $allowedAttrs[$name], true)) {
+                $attrsToRemove[] = $name;
+            } elseif ($name === 'href' || $name === 'src') {
+                if (preg_match('/^\s*(javascript|data|vbscript)\s*:/i', $attr->value)) {
+                    $attrsToRemove[] = $name;
+                }
+            }
+        }
+        foreach ($attrsToRemove as $a) {
+            $node->removeAttribute($a);
+        }
+    }
+
+    $body = $dom->getElementsByTagName('body')->item(0);
+    if ($body) {
+        $result = '';
+        foreach ($body->childNodes as $child) {
+            $result .= $dom->saveHTML($child);
+        }
+        return $result;
+    }
+    return '';
+}

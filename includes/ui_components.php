@@ -454,7 +454,7 @@ function checkbox($liste)
                     <i class="icon icon-form-checkbox"></i>
                 </div>
                 <div class="item-inner">
-                    <div class="item-title">' . $value['titre'] . '</div>
+                    <div class="item-title">' . htmlspecialchars($value['titre'], ENT_QUOTES, 'UTF-8') . '</div>
                 </div>
             ' . $after . '
             </label>

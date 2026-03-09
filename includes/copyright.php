@@ -76,17 +76,30 @@ finCarte();
 
     <?php
         if(isset($erreur)){
-            echo "myApp.alert(".json_encode(strip_tags((string)$erreur)).",\"<span style='color:red;text-weight:bold'>Erreur</span>\");";
+            // htmlspecialchars_decode: $erreur may already be HTML-encoded via antiXSS(); json_encode handles JS escaping
+            echo "myApp.alert(".json_encode(strip_tags(htmlspecialchars_decode((string)$erreur, ENT_QUOTES))).",\"<span style='color:red;text-weight:bold'>Erreur</span>\");";
         }
 
         if(isset($information)){
             echo "myApp.addNotification({
-                    message: ".json_encode(strip_tags((string)$information)).",
+                    message: ".json_encode(strip_tags(htmlspecialchars_decode((string)$information, ENT_QUOTES))).",
                     button: {
                         text: 'Fermer',
                         color: 'green'
                     }
                 });";
+        }
+
+        // Consume and display one-time session flash notifications (streak milestone, comeback bonus)
+        if (isset($_SESSION['streak_milestone'])) {
+            $msg = $_SESSION['streak_milestone'];
+            unset($_SESSION['streak_milestone']);
+            echo "myApp.addNotification({message:".json_encode(strip_tags(htmlspecialchars_decode((string)$msg, ENT_QUOTES))).",button:{text:'Fermer',color:'blue'}});";
+        }
+        if (isset($_SESSION['comeback_bonus'])) {
+            $msg = $_SESSION['comeback_bonus'];
+            unset($_SESSION['comeback_bonus']);
+            echo "myApp.addNotification({message:".json_encode(strip_tags(htmlspecialchars_decode((string)$msg, ENT_QUOTES))).",button:{text:'Fermer',color:'orange'}});";
         }
     ?>
     

@@ -677,7 +677,7 @@ function updateActions($joueur)
             $envoiTypes .= 's';
             dbExecute($base, 'UPDATE ressources SET ' . implode(',', $envoiSetClauses) . ' WHERE login=?', $envoiTypes, ...$envoiParams);
 
-            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, image) VALUES (?, ?, ?, ?, ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
+            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, type, image) VALUES (?, ?, ?, ?, 0, \'attack\', ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
 
             dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
         });

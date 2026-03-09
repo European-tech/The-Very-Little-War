@@ -106,8 +106,8 @@ $dispatch = [
     },
 ];
 
-// Validate 'id' against the whitelist dispatch table
-$id = isset($_GET['id']) ? $_GET['id'] : '';
+// Validate 'id' against the whitelist dispatch table; cap length to prevent log flooding / DoS
+$id = isset($_GET['id']) ? substr((string)$_GET['id'], 0, 64) : '';
 
 if (!isset($dispatch[$id])) {
     http_response_code(400);

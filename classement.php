@@ -682,8 +682,12 @@ else {
 	$trollMedals = [0 => 'medaillebronze', 1 => 'medailleargent', 2 => 'medailleor', 3 => 'emeraude', 4 => 'saphir', 5 => 'rubis', 6 => 'diamant'];
 	$bombeMedals = [0 => 'Rien', 1 => 'Bronze', 2 => 'Argent', 3 => 'Or', 4 => 'Platine'];
 
-	// $order and $table are whitelisted
-	$forumClassRows = dbFetchAll($base, 'SELECT login FROM ' . $table . ' ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
+	// $order and $table are whitelisted; exclude deleted/inactive players (x=-1000 sentinel)
+	if ($table === 'autre') {
+		$forumClassRows = dbFetchAll($base, 'SELECT a.login FROM autre a JOIN membre m ON a.login=m.login WHERE m.x != -1000 ORDER BY a.' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
+	} else {
+		$forumClassRows = dbFetchAll($base, 'SELECT login FROM ' . $table . ' WHERE x != -1000 ORDER BY ' . $order . ' DESC LIMIT ?, ?', 'ii', $premierForumAafficher, $nombreDeForumParPage);
+	}
 	foreach ($forumClassRows as $donnees) {
 		$donnees1 = isset($autreForumCache[$donnees['login']]) ? $autreForumCache[$donnees['login']] : ['nbMessages' => 0, 'bombe' => 0];
 		$trollLevel = isset($membreForumCache[$donnees['login']]) ? $membreForumCache[$donnees['login']] : 0;

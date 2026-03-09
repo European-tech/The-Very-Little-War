@@ -55,7 +55,7 @@ withTransaction($base, function() use ($base, $membres, $titre, $message, &$skip
 	foreach ($membres as $d) {
 		// SOCIAL-MEDIUM-001: Enforce INBOX_MAX_MESSAGES cap — skip members whose inbox
 		// is already full to prevent broadcast flooding past the per-player limit.
-		$inboxCount = dbFetchOne($base, 'SELECT COUNT(*) AS nb FROM messages WHERE destinataire=?', 's', $d['login']);
+		$inboxCount = dbFetchOne($base, 'SELECT COUNT(*) AS nb FROM messages WHERE destinataire=? AND deleted_by_recipient=0', 's', $d['login']);
 		if ($inboxCount && (int)$inboxCount['nb'] >= INBOX_MAX_MESSAGES) {
 			$skipped++;
 			logInfo('BROADCAST', 'Inbox full — message skipped', ['recipient' => $d['login']]);

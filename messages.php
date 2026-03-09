@@ -38,7 +38,7 @@ if(isset($_GET['message'])) {
 		}
 		debutCarte(htmlspecialchars($messages['titre'], ENT_QUOTES, 'UTF-8'));
 		debutContent();
-		echo BBcode($messages['contenu']);
+		echo sanitizeReportHtml(BBcode($messages['contenu']));
         finContent();
         finCarte(imageLabel('<img src="images/message_ferme.png" alt="up" class="imageSousMenu"/>','Répondre','ecriremessage.php?reponse=true&destinataire='.htmlspecialchars($messages['expeditaire'], ENT_QUOTES, 'UTF-8')).'<form method="post" action="messages.php" style="display:inline">'.csrfField().'<input type="hidden" name="supprimer" value="'.$messages['id'].'"><button type="submit" style="background:none;border:none;cursor:pointer;padding:0;"><img src="images/croix.png" alt="supprimer" class="imageSousMenu"> Supprimer</button></form>');
 	}

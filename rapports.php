@@ -2,74 +2,7 @@
 include("includes/basicprivatephp.php");
 require_once("includes/csrf.php");
 
-/**
- * Sanitize report HTML using a DOMDocument attribute whitelist.
- * Replaces the bypassable regex approach (H-003): <img src="x"onerror=...>
- * has no space before "onerror" so /[\s\/]+on\w+/ never fires.
- */
-function sanitizeReportHtml($html) {
-    if (empty(trim($html))) return $html;
-    $allowedTags = ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'span', 'div', 'img', 'a',
-                    'table', 'tr', 'td', 'th', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'hr'];
-    // For attrs whose value is an array: only allowed on those tag names.
-    // For attrs whose value is true: allowed on any tag.
-    $allowedAttrs = [
-        'href'  => ['a'],
-        'src'   => ['img'],
-        'alt'   => ['img'],
-        // NOTIFICATIONS MEDIUM: 'class' removed — allows Framework7 directive classes
-        // which could be abused for UI redress. Combat reports are server-generated
-        // and don't need class attributes.
-        'id'    => true,
-        // NOTIF16-001: 'style' removed — CSS url() can exfiltrate data via side-channels
-        // and position:fixed overlays enable UI redress attacks. Combat reports are
-        // server-generated and don't need inline styles.
-    ];
-
-    $dom = new DOMDocument();
-    libxml_use_internal_errors(true);
-    $dom->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
-    libxml_clear_errors();
-
-    $xpath = new DOMXPath($dom);
-    $nodes = iterator_to_array($xpath->query('//*'));
-    foreach ($nodes as $node) {
-        if (!in_array(strtolower($node->nodeName), $allowedTags, true)) {
-            $node->parentNode->replaceChild($dom->createTextNode($node->textContent), $node);
-            continue;
-        }
-        // Collect attributes to remove (can't modify while iterating)
-        $attrsToRemove = [];
-        foreach ($node->attributes as $attr) {
-            $name = strtolower($attr->name);
-            if (!array_key_exists($name, $allowedAttrs)) {
-                $attrsToRemove[] = $name;
-            } elseif (is_array($allowedAttrs[$name]) && !in_array(strtolower($node->nodeName), $allowedAttrs[$name], true)) {
-                $attrsToRemove[] = $name;
-            } elseif ($name === 'href' || $name === 'src') {
-                // Block javascript:, data:, vbscript: URI schemes
-                if (preg_match('/^\s*(javascript|data|vbscript)\s*:/i', $attr->value)) {
-                    $attrsToRemove[] = $name;
-                }
-            }
-        }
-        foreach ($attrsToRemove as $a) {
-            $node->removeAttribute($a);
-        }
-    }
-
-    $body = $dom->getElementsByTagName('body')->item(0);
-    if ($body) {
-        $result = '';
-        foreach ($body->childNodes as $child) {
-            $result .= $dom->saveHTML($child);
-        }
-        return $result;
-    }
-    // If DOMDocument did not produce a body element, return empty string rather than
-    // a full-document saveHTML() which would emit DOCTYPE + html/head/body wrappers.
-    return '';
-}
+// sanitizeReportHtml() is defined in includes/display.php (loaded via fonctions.php)
 
 if(isset($_POST['supprimer']) AND preg_match("#^\d+$#",$_POST['supprimer'])) {
 	csrfCheck();

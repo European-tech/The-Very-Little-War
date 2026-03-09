@@ -279,7 +279,7 @@ function purchasePrestigeUnlock($login, $unlockKey) {
 
         $unlocks = array_filter(explode(',', $prestige['unlocks']));
 
-        if (in_array($unlockKey, $unlocks)) {
+        if (in_array($unlockKey, $unlocks, true)) {
             $result = 'Vous avez déjà cette amélioration.';
             return;
         }

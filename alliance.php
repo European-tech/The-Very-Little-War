@@ -304,7 +304,7 @@ if ($_GET['id'] != -1) {
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         $allianceJoueurPage = dbFetchOne($base, 'SELECT * FROM alliances WHERE id=?', 'i', $idalliance['idalliance']);
 
-        $joueurPointsRows = dbFetchAll($base, 'SELECT totalPoints FROM autre WHERE idalliance=? ORDER BY points DESC', 'i', $idalliance['idalliance']);
+        $joueurPointsRows = dbFetchAll($base, 'SELECT totalPoints FROM autre WHERE idalliance=? ORDER BY totalPoints DESC', 'i', $idalliance['idalliance']);
         $nbjoueurs = count($joueurPointsRows);
         $pointstotaux = 0;
         foreach ($joueurPointsRows as $joueur) {
@@ -411,7 +411,7 @@ if ($_GET['id'] != -1) {
         ?>
         <p>
             <div class="table-responsive">
-                <?php echo BBcode($allianceJoueurPage['description']) ?>
+                <?php echo sanitizeReportHtml(BBcode($allianceJoueurPage['description'])) ?>
             </div>
         </p>
         <?php

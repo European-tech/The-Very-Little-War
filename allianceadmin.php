@@ -162,22 +162,26 @@ if ($gradeChef) {
 	if (isset($_POST['joueurGrade']) and !empty($_POST['joueurGrade'])) {
 		csrfCheck();
 		$_POST['joueurGrade'] = trim($_POST['joueurGrade']);
-		// ALLIANCE-P18-002: Atomic DELETE — skip pre-check SELECT, use affected_rows inside transaction.
-		try {
-			$joueurGradeTarget = $_POST['joueurGrade'];
-			$chefId = $chef['id'];
-			withTransaction($base, function() use ($base, $joueurGradeTarget, $chefId) {
-				dbExecute($base, 'DELETE FROM grades WHERE login=? AND idalliance=?', 'si', $joueurGradeTarget, $chefId);
-				if ($base->affected_rows === 0) {
-					throw new \RuntimeException('GRADE_NOT_FOUND');
+		if (mb_strlen($_POST['joueurGrade']) > LOGIN_MAX_LENGTH) {
+			$erreur = "Nom de joueur invalide.";
+		} else {
+			// ALLIANCE-P18-002: Atomic DELETE — skip pre-check SELECT, use affected_rows inside transaction.
+			try {
+				$joueurGradeTarget = $_POST['joueurGrade'];
+				$chefId = $chef['id'];
+				withTransaction($base, function() use ($base, $joueurGradeTarget, $chefId) {
+					dbExecute($base, 'DELETE FROM grades WHERE login=? AND idalliance=?', 'si', $joueurGradeTarget, $chefId);
+					if ($base->affected_rows === 0) {
+						throw new \RuntimeException('GRADE_NOT_FOUND');
+					}
+				});
+				$information = "Vous avez supprimé le grade de " . htmlspecialchars($_POST['joueurGrade'], ENT_QUOTES, 'UTF-8') . ".";
+			} catch (\RuntimeException $e) {
+				if ($e->getMessage() === 'GRADE_NOT_FOUND') {
+					$erreur = "Ce grade n'existe pas.";
+				} else {
+					$erreur = "Erreur lors de la suppression du grade.";
 				}
-			});
-			$information = "Vous avez supprimé le grade de " . htmlspecialchars($_POST['joueurGrade'], ENT_QUOTES, 'UTF-8') . ".";
-		} catch (\RuntimeException $e) {
-			if ($e->getMessage() === 'GRADE_NOT_FOUND') {
-				$erreur = "Ce grade n'existe pas.";
-			} else {
-				$erreur = "Erreur lors de la suppression du grade.";
 			}
 		}
 	}
