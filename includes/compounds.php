@@ -77,6 +77,11 @@ function synthesizeCompound($base, $login, $compoundKey)
                 throw new \RuntimeException('STORAGE_FULL');
             }
 
+            // INTENTIONAL: Compound synthesis does NOT apply catalyst discounts.
+            // Unlike buildings, duplicateur, and market, compound costs are fixed by design —
+            // compounds are a premium buff system whose cost must remain independent of the
+            // weekly catalyst rotation to preserve game balance. (P27-024 design decision)
+
             // Lock resources row to prevent concurrent double-spend
             $ressources = dbFetchOne($base, 'SELECT * FROM ressources WHERE login = ? FOR UPDATE', 's', $login);
             if (!$ressources) {

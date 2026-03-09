@@ -85,10 +85,15 @@ function getActiveCatalyst() {
  * Check if a specific catalyst effect is active. Returns the bonus value or 0.
  */
 function catalystEffect($effectName) {
+    // P27-023: Keyed on ISO week so a mid-request cron rotation takes effect immediately
+    // rather than serving stale effects for the rest of the request.
     static $cache = null;
-    if ($cache === null) {
+    static $cacheWeek = null;
+    $currentWeek = date('oW'); // ISO year + week number (e.g. "202612")
+    if ($cache === null || $cacheWeek !== $currentWeek) {
         $catalyst = getActiveCatalyst();
         $cache = $catalyst['effects'];
+        $cacheWeek = $currentWeek;
     }
     return $cache[$effectName] ?? 0;
 }
