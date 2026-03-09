@@ -320,10 +320,18 @@ function checkTimingCorrelation($base, $login, $timestamp)
  */
 function areFlaggedAccounts($base, $loginA, $loginB)
 {
-    $flag = dbFetchOne($base,
+    // Use dbQuery directly so we can distinguish a DB error (false) from a genuine empty result set (mysqli_result with 0 rows).
+    $result = dbQuery($base,
         'SELECT id FROM account_flags WHERE ((login = ? AND related_login = ?) OR (login = ? AND related_login = ?)) AND status IN (?, ?) AND severity IN (?, ?)',
         'ssssssss', $loginA, $loginB, $loginB, $loginA, 'open', 'investigating', 'high', 'critical'
     );
+    if ($result === false) {
+        // DB error — fail open (non-blocking check) but log so it surfaces in monitoring.
+        logWarn('MULTIACCOUNT', 'areFlaggedAccounts: DB query failed, failing open', ['login_a' => $loginA, 'login_b' => $loginB]);
+        return false;
+    }
+    $flag = mysqli_fetch_assoc($result);
+    mysqli_free_result($result);
     return !empty($flag);
 }
 

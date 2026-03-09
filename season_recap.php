@@ -15,6 +15,7 @@ if (empty($recaps)) {
     echo '<p style="text-align:center;color:#999;padding:20px;">Aucun historique disponible. Les données seront archivées à la fin de chaque saison.</p>';
     finContent();
 } else {
+    debutContent();
     foreach ($recaps as $recap) {
         $seasonNum = (int)$recap['season_number'];
         $finalRank = (int)$recap['final_rank'];
@@ -65,6 +66,7 @@ if (empty($recaps)) {
         echo '</div>';
         echo '</div>';
     }
+    finContent();
 }
 
 finCarte();

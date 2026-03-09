@@ -5,6 +5,14 @@ include("includes/bbcode.php");
 // CSRF check for all POST requests on this page
 csrfCheck();
 
+// Re-verify account is not banned before processing any mutation
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $accountStatus = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ?', 's', $_SESSION['login']);
+    if (!$accountStatus || $accountStatus['estExclu'] == 1) {
+        header('Location: index.php'); exit;
+    }
+}
+
 if (isset($_POST['verification']) and isset($_POST['oui'])) {
     // AUTH-HIGH-001: Re-check 7-day cooldown on POST path — not just in view rendering.
     $memberTimestamp = dbFetchOne($base, 'SELECT timestamp FROM membre WHERE login = ?', 's', $_SESSION['login']);
@@ -152,7 +160,7 @@ if (isset($_POST['changermail'])) {
             // Use validateEmail() (FILTER_VALIDATE_EMAIL) for consistency with inscription.php (PASS1-MEDIUM-005)
             $erreur = "Votre email n'est pas correct.";
         } else {
-            $newEmail = $_POST['changermail'];
+            $newEmail = strtolower(trim($_POST['changermail']));
             $existingCount = dbCount($base, 'SELECT COUNT(*) AS nb FROM membre WHERE email = ? AND login != ?', 'ss', $newEmail, $_SESSION['login']);
             if ($existingCount > 0) {
                 $erreur = "Cette adresse e-mail est déjà utilisée.";

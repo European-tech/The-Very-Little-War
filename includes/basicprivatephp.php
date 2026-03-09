@@ -250,7 +250,7 @@ if ($maintenance['maintenance'] == 1 && $maintenanceStartedAt > 0 && (time() - $
     // or a CLI cron job. All player requests during Phase 2 see the maintenance page.
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Content-Type: application/json');
-        echo json_encode(['error' => 'Le jeu est en maintenance']);
+        echo json_encode(['error' => 'Le jeu est en maintenance'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
         exit;
     }
     http_response_code(503);
@@ -304,7 +304,7 @@ if ($maintenance['maintenance'] == 1 && $maintenanceStartedAt > 0 && (time() - $
     if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Content-Type: application/json');
-            echo json_encode(['error' => 'Le jeu est en maintenance']);
+            echo json_encode(['error' => 'Le jeu est en maintenance'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
             exit;
         }
         // SR-001: Block GET requests too — return 503 so uptime monitors and CDNs detect
@@ -326,7 +326,7 @@ if ($maintenance['maintenance'] == 1 && $maintenanceStartedAt > 0 && (time() - $
     if (!isset($_SESSION['login']) || $_SESSION['login'] !== ADMIN_LOGIN) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Content-Type: application/json');
-            echo json_encode(['error' => 'Le jeu est en maintenance']);
+            echo json_encode(['error' => 'Le jeu est en maintenance'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
             exit;
         }
         // For GET requests: output a self-contained maintenance page and halt.

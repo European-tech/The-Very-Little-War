@@ -23,6 +23,7 @@ text-align:center;
 <h3><a href="listenews.php">Retour à la liste des news</a></h3>
 <?php
 include("../includes/connexion.php");
+require_once('../includes/database.php');
 if (isset($_GET['modifier_news'])) // Si on demande de modifier une news.
 {
     $modifierNewsId = (int)$_GET['modifier_news'];

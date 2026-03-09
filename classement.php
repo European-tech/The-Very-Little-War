@@ -511,7 +511,7 @@ elseif (isset($_GET['sub']) AND $_GET['sub'] == 1){
 	</tbody>
 	</table>
 	<?php
-	$adresse = "classement.php?sub=1&";
+	$adresse = "classement.php?sub=1&clas=$clas&";
         $premier = '';
         if($page > 2){
             $premier = '<a href="'.$adresse.'page=1">1</a>';

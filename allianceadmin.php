@@ -548,6 +548,11 @@ if ($guerre) {
 							throw new \RuntimeException('PERMISSION_DENIED');
 						}
 					}
+					// MIN-MEMBERS: Require at least 2 members in the declaring alliance to prevent solo-player wars.
+					$memberCount = dbCount($base, 'SELECT COUNT(*) FROM autre WHERE idalliance = ?', 'i', $chef['id']);
+					if ($memberCount < 2) {
+						throw new \RuntimeException('NOT_ENOUGH_MEMBERS');
+					}
 					// ALLIANCE-M2: Single atomic duplicate check (both directions) with FOR UPDATE
 					$dupCount = dbCount($base,
 						'SELECT COUNT(*) FROM declarations WHERE ((fin=0 AND type=0) OR (type=1 AND valide!=0)) AND ((alliance1=? AND alliance2=?) OR (alliance2=? AND alliance1=?)) FOR UPDATE',
@@ -589,6 +594,8 @@ if ($guerre) {
 			} catch (\RuntimeException $e) {
 				if ($e->getMessage() === 'PERMISSION_DENIED') {
 					$erreur = "Vous n'avez pas la permission d'effectuer cette action.";
+				} elseif ($e->getMessage() === 'NOT_ENOUGH_MEMBERS') {
+					$erreur = "Votre alliance doit avoir au moins 2 membres pour déclarer la guerre.";
 				} else {
 					$erreur = "Soit une guerre est déjà déclarée contre cette équipe, soit vous êtes alliés avec elle.";
 				}

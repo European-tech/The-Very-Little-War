@@ -1247,6 +1247,14 @@ function performSeasonEnd()
     // were only added to the archive for display purposes, not for game-state correctness.
     archiveSeasonData($base);
 
+    // Phase 1b-email: Queue season-end notification emails BEFORE VP mutation begins.
+    // Wrap in try/catch so a queue failure never aborts the season reset.
+    try {
+        queueSeasonEndEmails($base, $vainqueurManche);
+    } catch (\Throwable $e) {
+        logWarn('SEASON', 'queueSeasonEndEmails failed (non-fatal)', ['error' => $e->getMessage()]);
+    }
+
     // SEASON-M1: Reset VP award flags inside a transaction so that if the reset rolls back,
     // the flags are also rolled back (atomic pair). This ensures idempotency is maintained:
     // on retry, flags are 0 and VP awards will not be skipped.
@@ -1366,6 +1374,52 @@ function performSeasonEnd()
     } finally {
         dbFetchOne($base, "SELECT RELEASE_LOCK('tvlw_season_reset')");
     }
+}
+
+/**
+ * Queue season-end notification emails for all active, non-banned players with a
+ * non-empty email address. Inserts one row per player into email_queue so that
+ * processEmailQueue() can deliver them asynchronously.
+ *
+ * @param \mysqli     $base            Active database connection
+ * @param string|null $vainqueurManche Login of the season winner (null if no players)
+ */
+function queueSeasonEndEmails(\mysqli $base, ?string $vainqueurManche): void
+{
+    $winner = $vainqueurManche !== null ? htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') : 'inconnu';
+
+    $players = dbFetchAll(
+        $base,
+        'SELECT m.login, m.email FROM membre m JOIN autre a ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' AND m.estExclu = 0 AND m.email != \'\' AND m.email IS NOT NULL',
+        ''
+    );
+
+    $subject = 'Fin de saison - The Very Little War';
+
+    foreach ($players as $player) {
+        $login = htmlspecialchars($player['login'], ENT_QUOTES, 'UTF-8');
+        $bodyHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>'
+            . '<h2>La saison vient de se terminer !</h2>'
+            . '<p>Bonjour ' . $login . ',</p>'
+            . '<p>La saison de <strong>The Very Little War</strong> vient de se terminer !</p>'
+            . '<p>Le vainqueur de cette saison est : <strong>' . $winner . '</strong></p>'
+            . '<p>Une nouvelle saison commence. Rendez-vous sur '
+            . '<a href="https://theverylittlewar.com">theverylittlewar.com</a> pour participer '
+            . 'à la prochaine saison !</p>'
+            . '<p>Bonne chance à tous,<br>L\'équipe TVLW</p>'
+            . '</body></html>';
+
+        dbExecute(
+            $base,
+            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, UNIX_TIMESTAMP())',
+            'sss',
+            $player['email'],
+            $subject,
+            $bodyHtml
+        );
+    }
+
+    logInfo('SEASON', 'Season-end emails queued', ['count' => count($players), 'winner' => $vainqueurManche]);
 }
 
 /**
@@ -1521,7 +1575,7 @@ function remiseAZero()
         // P21-CRITICAL-001: timeMolecule is VARCHAR(1000) storing 4 comma-separated timestamps
         // (one per molecule class). UNIX_TIMESTAMP() is a single integer and corrupts the format.
         // Use CONCAT to produce the same "t,t,t,t" layout as registration (player.php:55).
-        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, nbDons=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batMax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, vp_awarded=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'Pas de description\', image=\'defaut.png\', timeMolecule=CONCAT(UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP())');
+        dbExecute($base, 'UPDATE autre SET points=0, niveaututo=1, nbattaques=0, nbDons=0, neutrinos=default,moleculesPerdues=0, energieDepensee=0, energieDonnee=0, bombe=0, batmax=1, totalPoints=0, pointsAttaque=0, pointsDefense=0, ressourcesPillees=0, tradeVolume=0, victoires=0, vp_awarded=0, missions=\'\', streak_days=0, streak_last_date=NULL, last_catch_up=0, comeback_shield_until=0, nbMessages=0, description=\'Pas de description\', image=\'defaut.png\', timeMolecule=CONCAT(UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP(),\',\',UNIX_TIMESTAMP())');
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'iiiii', (int)pointsDeVie(1), (int)vieChampDeForce(0), (int)pointsDeVie(1), (int)pointsDeVie(1), (int)vieIonisateur(0)); // M-010: BIGINT vie columns bound as 'i' not 'd'
         // ADMIN11-001: Reset season_vp_awarded so the next season can award alliance VP again.
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0,season_vp_awarded=0');

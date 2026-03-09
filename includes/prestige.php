@@ -247,10 +247,15 @@ function awardPrestigePoints() {
  */
 function getPrestige($login) {
     global $base;
+    static $cache = [];
+    if (isset($cache[$login])) {
+        return $cache[$login];
+    }
     $data = dbFetchOne($base, 'SELECT * FROM prestige WHERE login=?', 's', $login);
     if (!$data) {
-        return ['total_pp' => 0, 'unlocks' => ''];
+        $data = ['total_pp' => 0, 'unlocks' => ''];
     }
+    $cache[$login] = $data;
     return $data;
 }
 

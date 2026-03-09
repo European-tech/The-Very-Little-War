@@ -186,8 +186,9 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             $speedBoost = getCompoundBonus($base, $_SESSION['login'], 'speed_boost');
                             $effectiveSpeed = $vitesseMarchands * (1 + $speedBoost);
                             $tempsArrivee = time() + round(SECONDS_PER_HOUR * $distance / $effectiveSpeed);
+                            // TAINT-CROSS HIGH-003: Use canonical login from DB ($safeDestinataire) rather than raw POST value.
                             dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
-                                $_SESSION['login'], $_POST['destinataire'], $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
+                                $_SESSION['login'], $safeDestinataire, $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
 
                             // Build parameterized UPDATE for ressources using GREATEST guard (Fix 2)
                             $setClauses = ['energie=GREATEST(0, energie-?)'];

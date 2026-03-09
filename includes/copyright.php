@@ -97,7 +97,7 @@ finCarte();
             $streakDays = (int)($streakData['streak'] ?? 0);
             $ppEarned   = (int)($streakData['pp_earned'] ?? 0);
             $msg = 'Connexion ' . $streakDays . ' jour' . ($streakDays > 1 ? 's' : '') . ' d\'affilée ! +' . $ppEarned . ' PP';
-            echo "myApp.addNotification({message:".json_encode($msg).",button:{text:'Fermer',color:'blue'}});";
+            echo "myApp.addNotification({message:".json_encode($msg, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP).",button:{text:'Fermer',color:'blue'}});";
         }
         if (isset($_SESSION['comeback_bonus'])) {
             $bonusData   = $_SESSION['comeback_bonus'];
@@ -106,7 +106,7 @@ finCarte();
             $atoms       = (int)($bonusData['atoms'] ?? 0);
             $shieldHours = (int)($bonusData['shield_hours'] ?? 0);
             $msg = 'Bonus de retour ! +' . $energy . ' énergie, +' . $atoms . ' atomes, bouclier ' . $shieldHours . 'h';
-            echo "myApp.addNotification({message:".json_encode($msg).",button:{text:'Fermer',color:'orange'}});";
+            echo "myApp.addNotification({message:".json_encode($msg, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP).",button:{text:'Fermer',color:'orange'}});";
         }
     ?>
     

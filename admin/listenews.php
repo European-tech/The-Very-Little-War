@@ -2,6 +2,7 @@
 include("redirectionmotdepasse.php");
 require_once(__DIR__ . '/../includes/csrf.php');
 require_once(__DIR__ . '/../includes/database.php');
+include("../includes/connexion.php");
 // LOW-016: CSP header for admin page.
 require_once(__DIR__ . '/../includes/csp.php');
 $nonce = cspNonce();
@@ -38,7 +39,6 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n
 
     <h3><a href="redigernews.php">Ajouter une news</a></h3>
     <?php
-    include("../includes/connexion.php");
 
     // CSRF check for POST actions only (GET loads the page)
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {

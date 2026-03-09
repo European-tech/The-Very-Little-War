@@ -15,7 +15,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 if (empty($_SESSION['login'])) {
     http_response_code(401);
-    echo json_encode(['error' => 'Authentication required']);
+    echo json_encode(['error' => 'Authentication required'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     exit;
 }
 
@@ -26,14 +26,14 @@ $tokenRow = dbFetchOne($base, 'SELECT session_token, estExclu FROM membre WHERE 
 if (!$tokenRow || empty($_SESSION['session_token']) || empty($tokenRow['session_token']) || !hash_equals($tokenRow['session_token'], $_SESSION['session_token'])) {
     session_destroy();
     http_response_code(401);
-    echo json_encode(['error' => 'Session invalid']);
+    echo json_encode(['error' => 'Session invalid'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     exit;
 }
 
 // TAINT-API MEDIUM-001: Banned players must not access API endpoints.
 if ((int)$tokenRow['estExclu'] === 1) {
     http_response_code(403);
-    echo json_encode(['error' => 'Compte banni.']);
+    echo json_encode(['error' => 'Compte banni.'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     exit;
 }
 
@@ -44,7 +44,7 @@ $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 // 'api' bucket: formula preview only; market ops are rate-limited in their own pages (marche.php)
 if (!rateLimitCheck($ip, 'api', 60, 60)) {
     http_response_code(429);
-    echo json_encode(['error' => 'Rate limit exceeded. Try again later.']);
+    echo json_encode(['error' => 'Rate limit exceeded. Try again later.'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     exit;
 }
 
@@ -111,16 +111,16 @@ $id = isset($_GET['id']) ? substr((string)$_GET['id'], 0, 64) : '';
 
 if (!isset($dispatch[$id])) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid action']);
+    echo json_encode(['error' => 'Invalid action'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     exit;
 }
 
 // Execute the dispatched handler and return JSON (API-P9-002: guard NaN/INF encoding failures)
-$result = json_encode(['valeur' => $dispatch[$id]()]);
+$result = json_encode(['valeur' => $dispatch[$id]()], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 if ($result === false) {
     http_response_code(500);
     error_log('api.php json_encode failed for id=' . $id . ': ' . json_last_error_msg());
-    echo json_encode(['error' => 'Encoding error']);
+    echo json_encode(['error' => 'Encoding error'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 } else {
     echo $result;
 }

@@ -282,8 +282,8 @@ require_once(__DIR__ . '/../includes/csp.php');
                                     $data1['unite'] = str_replace("COB","",$data1['unite']);
                                     $data1['unite'] = str_replace("BTA","",$data1['unite']);
                                     $data1['unite'] = trim($data1['unite']);
-                                    $safeUnite = json_encode($data1['unite']);
-                                    $safeCompagnie = json_encode($data1['compagnie']);
+                                    $safeUnite = json_encode($data1['unite'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+                                    $safeCompagnie = json_encode($data1['compagnie'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
                                     echo "if(new RegExp(".$safeUnite.",\"i\").test(unite) == true) {
                                         unite = ".$safeUnite.";
                                         compagnie = ".$safeCompagnie.";
@@ -295,9 +295,9 @@ require_once(__DIR__ . '/../includes/csp.php');
                                 foreach($sousUnitesRows as $data1){
                                     $data1['sousunite'] = str_replace("BP","",$data1['sousunite']);
                                     $data1['sousunite'] = trim($data1['sousunite']);
-                                    $safeSousUnite = json_encode($data1['sousunite']);
-                                    $safeUnite = json_encode($data1['unite']);
-                                    $safeCompagnie = json_encode($data1['compagnie']);
+                                    $safeSousUnite = json_encode($data1['sousunite'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+                                    $safeUnite = json_encode($data1['unite'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+                                    $safeCompagnie = json_encode($data1['compagnie'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
                                     echo "if(new RegExp(".$safeSousUnite.",\"i\").test(unite) == true){
                                         unite =".$safeUnite.";
                                         compagnie = ".$safeCompagnie.";
@@ -742,7 +742,7 @@ require_once(__DIR__ . '/../includes/csp.php');
 
 
                                     }
-                                    echo 'ajouterTitre('.json_encode($colonnes[$i]).');';
+                                    echo 'ajouterTitre('.json_encode($colonnes[$i], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP).');';
                                 }
                                 ?>
                                 
