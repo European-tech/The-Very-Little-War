@@ -1384,11 +1384,20 @@ function performSeasonEnd()
  */
 function queueSeasonEndEmails(\mysqli $base, ?string $vainqueurManche): void
 {
-    // SEASON-P26-003: Idempotency guard — skip if emails already queued for this season.
+    // P27-016: Idempotency guard wrapped in transaction with FOR UPDATE to prevent duplicate emails on concurrent calls.
     $lastRecap = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
     $currentSeason = ($lastRecap && $lastRecap['max_s']) ? (int)$lastRecap['max_s'] + 1 : 1;
-    $statsRow = dbFetchOne($base, 'SELECT emails_queued_season FROM statistiques', '', '');
-    if ($statsRow && (int)($statsRow['emails_queued_season'] ?? 0) >= $currentSeason) {
+    $alreadyQueued = false;
+    withTransaction($base, function() use ($base, $currentSeason, &$alreadyQueued) {
+        $statsRow = dbFetchOne($base, 'SELECT emails_queued_season FROM statistiques FOR UPDATE', '', '');
+        if ($statsRow && (int)($statsRow['emails_queued_season'] ?? 0) >= $currentSeason) {
+            $alreadyQueued = true;
+            return;
+        }
+        // Mark as queued inside the transaction to block concurrent callers
+        dbExecute($base, 'UPDATE statistiques SET emails_queued_season = ?', 'i', $currentSeason);
+    });
+    if ($alreadyQueued) {
         logInfo('SEASON', 'queueSeasonEndEmails: already queued for season ' . $currentSeason . ', skipping');
         return;
     }
@@ -1416,18 +1425,19 @@ function queueSeasonEndEmails(\mysqli $base, ?string $vainqueurManche): void
             . '<p>Bonne chance à tous,<br>L\'équipe TVLW</p>'
             . '</body></html>';
 
+        // P27-027: Use PHP time() instead of SQL UNIX_TIMESTAMP() to avoid clock skew with processEmailQueue
         dbExecute(
             $base,
-            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, UNIX_TIMESTAMP())',
-            'sss',
+            'INSERT INTO email_queue (recipient_email, subject, body_html, created_at) VALUES (?, ?, ?, ?)',
+            'sssi',
             $player['email'],
             $subject,
-            $bodyHtml
+            $bodyHtml,
+            time()
         );
     }
 
-    // Mark this season as queued so retries are no-ops
-    dbExecute($base, 'UPDATE statistiques SET emails_queued_season = ?', 'i', $currentSeason);
+    // (Season already marked as queued inside the transaction above)
     logInfo('SEASON', 'Season-end emails queued', ['count' => count($players), 'winner' => $vainqueurManche]);
 }
 
@@ -1641,10 +1651,10 @@ function remiseAZero()
 
         // MED-071: Remove expired sanctions on season reset.
         // Sanctions with dateFin in the past are deleted; future sanctions are preserved.
-        dbExecute($base, "DELETE FROM sanctions WHERE dateFin < CURDATE()", []);
+        dbExecute($base, "DELETE FROM sanctions WHERE dateFin < CURDATE()", ""); // P27-028: use "" not []
 
         // MED-072: Clear season-specific news on season reset.
-        dbExecute($base, 'DELETE FROM news WHERE 1', []);
+        dbExecute($base, 'DELETE FROM news WHERE 1', ""); // P27-028: use "" not []
 
         // SRS-P7-002: Clear alliance_left_at so cooldown does not persist into new season.
         dbExecute($base, 'UPDATE autre SET alliance_left_at = NULL WHERE 1', '');
@@ -1670,6 +1680,9 @@ function updateLoginStreak($base, $login) {
     $result = ['streak' => 0, 'pp_earned' => 0, 'milestone' => false];
 
     withTransaction($base, function() use ($base, $login, $today, $tz, $STREAK_MILESTONES, &$result) {
+        // P27-025: Defensive banned check inside transaction (primary guard is session check)
+        $memberCheck = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ? FOR UPDATE', 's', $login);
+        if (!$memberCheck || (int)$memberCheck['estExclu'] === 1) return;
         $row = dbFetchOne($base, 'SELECT streak_days, streak_last_date FROM autre WHERE login = ? FOR UPDATE', 's', $login);
         if (!$row) return;
 
@@ -1740,6 +1753,9 @@ function checkComebackBonus($base, $login, $prevConnexion = null) {
     }
 
     withTransaction($base, function() use ($base, $login, $now, $lastLogin, &$result) {
+        // P27-025: Defensive banned check inside transaction
+        $memberCheckCb = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ? FOR UPDATE', 's', $login);
+        if (!$memberCheckCb || (int)$memberCheckCb['estExclu'] === 1) return;
         // Lock row to prevent double-award from concurrent requests
         $autre = dbFetchOne($base, 'SELECT last_catch_up FROM autre WHERE login = ? FOR UPDATE', 's', $login);
         if (!$autre) return;

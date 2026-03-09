@@ -112,11 +112,19 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 		// Wrapping it in a second GET_LOCK on the same connection would be re-entrant
 		// (MariaDB advisory locks are per-connection, not nestable) and would cause
 		// the inner RELEASE_LOCK to release the lock prematurely.
-		try {
-			performSeasonEnd();
-		} catch (\Exception $e) {
-			logError('ADMIN', 'Manual season reset failed: ' . $e->getMessage());
-			echo '<p style="color:red">Erreur lors de la remise à zéro : ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';
+		// P27-026: Guard admin manual reset with MIN_SEASON_DAYS (bypass requires explicit confirmation)
+		$debutRow = dbFetchOne($base, 'SELECT debut FROM statistiques', '', '');
+		$seasonAge = $debutRow ? (time() - (int)$debutRow['debut']) : PHP_INT_MAX;
+		$forcereset = isset($_POST['forcereset']) && $_POST['forcereset'] === '1';
+		if ($seasonAge < MIN_SEASON_DAYS * SECONDS_PER_DAY && !$forcereset) {
+			$erreur = "La saison a commencé il y a moins de " . MIN_SEASON_DAYS . " jours. Cochez la case de confirmation pour forcer la remise à zéro.";
+		} else {
+			try {
+				performSeasonEnd();
+			} catch (\Exception $e) {
+				logError('ADMIN', 'Manual season reset failed: ' . $e->getMessage());
+				echo '<p style="color:red">Erreur lors de la remise à zéro : ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';
+			}
 		}
 	}
 ?>
@@ -149,6 +157,10 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 	</head>
 
 	<body>
+		<?php // P27-018: Display batch deletion feedback to admin
+		if (isset($erreur)) echo '<p style="color:red">' . htmlspecialchars($erreur, ENT_QUOTES, 'UTF-8') . '</p>';
+		if (isset($succes)) echo '<p style="color:green">' . htmlspecialchars($succes, ENT_QUOTES, 'UTF-8') . '</p>';
+		?>
 		<h4>Menu d'aministration</h4>
 		<p>
 		<ul>
@@ -249,6 +261,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 		<p>
 		<form action="index.php" method="post">
 			<?php echo csrfField(); ?>
+			<label><input type="checkbox" name="forcereset" value="1"> Forcer (ignorer la garde MIN_SEASON_DAYS)</label><br>
 			<input type="submit" name="miseazero" value="Remise à zero" />
 		</form>
 		</p>

@@ -642,7 +642,11 @@ function carteForum($avatar, $login, $date, $titre, $contenu, $grade, $sujet = f
     <div class="card facebook-card">
       <div class="card-header no-border">
         <div class="facebook-avatar">' . $avatar . '</div>
-        <div class="facebook-grade">' . $login . '<br/><span style="color:' . preg_replace('/[^a-zA-Z0-9#(),.% ]/', '', (is_array($grade) ? ($grade['couleur'] ?? '') : '')) . '">' . htmlspecialchars(is_array($grade) ? ($grade['nom'] ?? '') : '', ENT_QUOTES, 'UTF-8') . '</span></div>
+        <div class="facebook-grade">' . $login . '<br/><span style="color:' . (function($c) {
+            $c = preg_replace('/[^a-zA-Z0-9#(),.% ]/', '', $c);
+            // P27-011: Block CSS injection functions (expression/url/eval etc.) — legacy IE attack vector
+            return preg_match('/\b(expression|url|eval|javascript|vbscript|import|behavior)\b/i', $c) ? '#888888' : $c;
+        })(is_array($grade) ? ($grade['couleur'] ?? '') : '') . '">' . htmlspecialchars(is_array($grade) ? ($grade['nom'] ?? '') : '', ENT_QUOTES, 'UTF-8') . '</span></div>
         <div class="facebook-name">' . $titre . '</div><br/>
         <div class="facebook-date">' . $date . '</div>
       </div>

@@ -120,7 +120,15 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
         $allianceId = $idalliance['idalliance'];
         try {
             $newLevel = withTransaction($base, function() use ($base, $allianceId) {
-                $row = dbFetchOne($base, 'SELECT duplicateur, energieAlliance FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceId);
+                // P27-002: Re-verify actor permission inside transaction (TOCTOU guard)
+                $actorLocked = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceId);
+                if (!$actorLocked) throw new \RuntimeException('ALLIANCE_NOT_FOUND');
+                $isChefLocked = ($actorLocked['chef'] === $_SESSION['login']);
+                if (!$isChefLocked) {
+                    $gradeLocked = dbFetchOne($base, 'SELECT id FROM grades WHERE idalliance=? AND login=? FOR UPDATE', 'is', $allianceId, $_SESSION['login']);
+                    if (!$gradeLocked) throw new \RuntimeException('PERMISSION_REVOKED');
+                }
+                $row = dbFetchOne($base, 'SELECT duplicateur, energieAlliance FROM alliances WHERE id=?', 'i', $allianceId);
                 if (!$row) throw new \RuntimeException('Insufficient energy');
                 $lockedCout = round(DUPLICATEUR_BASE_COST * pow(DUPLICATEUR_COST_FACTOR, ($row['duplicateur'] + 1)) * (1 - catalystEffect('duplicateur_discount')));
                 if ($row['energieAlliance'] < $lockedCout) {
@@ -169,7 +177,15 @@ if ($_GET['id'] == $allianceJoueur['tag'] && $_GET['id'] != -1) {
                 if (!in_array($techName, $allowedResearchColumns, true)) {
                     throw new \RuntimeException("Invalid research column: $techName");
                 }
-                $allianceData = dbFetchOne($base, 'SELECT ' . $techName . ', energieAlliance FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceId);
+                // P27-002: Re-verify actor permission inside transaction (TOCTOU guard)
+                $actorLockedR = dbFetchOne($base, 'SELECT chef FROM alliances WHERE id=? FOR UPDATE', 'i', $allianceId);
+                if (!$actorLockedR) throw new \RuntimeException('ALLIANCE_NOT_FOUND');
+                $isChefLockedR = ($actorLockedR['chef'] === $_SESSION['login']);
+                if (!$isChefLockedR) {
+                    $gradeLockedR = dbFetchOne($base, 'SELECT id FROM grades WHERE idalliance=? AND login=? FOR UPDATE', 'is', $allianceId, $_SESSION['login']);
+                    if (!$gradeLockedR) throw new \RuntimeException('PERMISSION_REVOKED');
+                }
+                $allianceData = dbFetchOne($base, 'SELECT ' . $techName . ', energieAlliance FROM alliances WHERE id=?', 'i', $allianceId);
                 $currentLevel = intval($allianceData[$techName]);
                 $researchCost = round($tech['cost_base'] * pow($tech['cost_factor'], $currentLevel + 1));
 

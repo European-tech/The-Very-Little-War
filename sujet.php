@@ -28,6 +28,11 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 		$erreur = "Trop de messages envoyés cette heure-ci. Attendez avant de poster à nouveau.";
 	} else {
 		if (isset($_SESSION['login']) && empty($erreur)) {
+			// P27-033: Reject posts from account-level banned users
+			$posterExclu = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ?', 's', $_SESSION['login']);
+			if (!$posterExclu || (int)$posterExclu['estExclu'] === 1) {
+				$erreur = "Votre compte est désactivé.";
+			}
 			// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
 			// MED-036: Probabilistic GC — only clean up expired bans 1% of the time to avoid hot-path writes
 			if (mt_rand(1, 100) === 1) {

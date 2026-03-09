@@ -346,6 +346,10 @@ function createAdminAlert($base, $alertType, $message, $details, $severity = 'wa
     // ANTI-P10-001: Deduplicate per-pair, not per-type — avoids silencing ALL same-type alerts
     // when any single pair triggered one within 24h.
     if ($login1 !== '' && $login2 !== '') {
+        // P27-005: Normalize pair order alphabetically so (A,B) and (B,A) dedup correctly
+        if ($login1 > $login2) {
+            [$login1, $login2] = [$login2, $login1];
+        }
         $existing = dbCount($base,
             'SELECT COUNT(*) FROM admin_alerts WHERE alert_type = ? AND login1 = ? AND login2 = ? AND created_at > UNIX_TIMESTAMP() - ' . MULTIACCOUNT_CHECK_WINDOW,
             'sss', $alertType, $login1, $login2);

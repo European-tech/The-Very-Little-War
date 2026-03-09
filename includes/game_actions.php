@@ -525,7 +525,7 @@ function updateActions($joueur)
                     $radarDiscount      = 1 - allianceResearchBonus($espActions['attaquant'], 'espionage_cost');
                     $espionageThreshold = ($nDef['neutrinos'] * ESPIONAGE_SUCCESS_RATIO) * $radarDiscount;
 
-                    if ($espionageThreshold < $espActions['nombreneutrinos']) {
+                    if ($espionageThreshold <= $espActions['nombreneutrinos']) { // P27-012: <= so exact threshold amount succeeds
                         // COMB-001: Use a plain array instead of variable-variables ($classe1..$classeN)
                         // to avoid dynamic variable injection risk and improve readability.
                         $espClasses = dbFetchAll($base, 'SELECT * FROM molecules WHERE proprietaire=? ORDER BY numeroclasse ASC', 's', $espActions['defenseur']);
@@ -637,7 +637,7 @@ function updateActions($joueur)
 
                     // ESP16-001: Track whether espionage succeeded so the inner transaction
                     // can conditionally notify the defender (only on success, not failure).
-                    $espionageSucceeded = ($espionageThreshold < $espActions['nombreneutrinos']);
+                    $espionageSucceeded = ($espionageThreshold <= $espActions['nombreneutrinos']); // P27-012
 
                     // Inner transaction for atomic report write + action deletion (MED-068).
                     withTransaction($base, function() use ($base, $espActionId, $espActions, $titreRapportJoueur, $contenuRapportJoueur, $espionageSucceeded) {

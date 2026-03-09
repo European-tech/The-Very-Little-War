@@ -13,7 +13,12 @@ else
 // Rate limit to prevent player enumeration
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $_ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    rateLimitCheck($_ip, 'profile_view', 60, 60);
+    // P27-034: Check return value — block request if limit exceeded
+    if (!rateLimitCheck($_ip, 'profile_view', 60, 60)) {
+        http_response_code(429);
+        echo '<p>Trop de requêtes. Attendez avant de réessayer.</p>';
+        exit();
+    }
 }
 
 include("includes/bbcode.php");

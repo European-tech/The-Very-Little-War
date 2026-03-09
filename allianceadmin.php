@@ -548,6 +548,9 @@ if ($guerre) {
 							throw new \RuntimeException('PERMISSION_DENIED');
 						}
 					}
+					// P27-008: Re-verify ghost-alliance guard inside transaction
+					$chefAdverseLocked = dbFetchOne($base, 'SELECT id FROM membre WHERE login=? AND estExclu=0 FOR UPDATE', 's', $allianceAdverseChef);
+					if (!$chefAdverseLocked) { throw new \RuntimeException('TARGET_ALLIANCE_DISSOLVED'); }
 					// MIN-MEMBERS: Require at least 2 members in the declaring alliance to prevent solo-player wars.
 					$memberCount = dbCount($base, 'SELECT COUNT(*) FROM autre WHERE idalliance = ?', 'i', $chef['id']);
 					if ($memberCount < 2) {

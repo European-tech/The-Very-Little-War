@@ -87,10 +87,10 @@ if (isset($_POST['loginConnexion']) && isset($_POST['passConnexion'])) {
 				dbExecute($base, 'UPDATE membre SET session_token=? WHERE login=?', 'ss', $sessionToken, $loginInput);
 
 				// P9-HIGH-007: Hash IP before storage for GDPR compliance
-			dbExecute($base, 'UPDATE membre SET ip = ? WHERE login = ?', 'ss', hashIpAddress($_SERVER['REMOTE_ADDR']), $loginInput);
-				logInfo('AUTH', 'Login successful', ['login' => $loginInput]);
-
+				// P27-001: require multiaccount.php BEFORE hashIpAddress() which is defined there
 				require_once(__DIR__ . '/multiaccount.php');
+				dbExecute($base, 'UPDATE membre SET ip = ? WHERE login = ?', 'ss', hashIpAddress($_SERVER['REMOTE_ADDR']), $loginInput);
+				logInfo('AUTH', 'Login successful', ['login' => $loginInput]);
 				logLoginEvent($base, $loginInput, 'login');
 
 				header('Location: constructions.php');

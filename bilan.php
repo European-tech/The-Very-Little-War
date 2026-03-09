@@ -57,16 +57,16 @@ if (isset($_POST['choose_specialization']) && isset($_POST['spec_type']) && isse
         $spec = $SPECIALIZATIONS[$specType];
         $col = $spec['column'];
         $allowedColumns = ['spec_combat', 'spec_economy', 'spec_research'];
+        // P27-029: Explicit whitelist for unlock_building column names
+        $allowedBuildings = ['ionisateur', 'producteur', 'condenseur'];
         // MEDIUM-006: Wrap in transaction with FOR UPDATE to prevent TOCTOU race
-        if (in_array($col, $allowedColumns, true)) {
+        if (in_array($col, $allowedColumns, true) && in_array($spec['unlock_building'] ?? '', $allowedBuildings, true)) {
             withTransaction($base, function() use ($base, $login, $col, $spec, $specChoice, $allowedColumns, &$constructions) {
-                // Re-read with FOR UPDATE to get a fresh, locked view of the row
-                $freshConstructions = dbFetchOne($base, 'SELECT specialisation, spec_combat, spec_economy, spec_research FROM constructions WHERE login=? FOR UPDATE', 's', $login);
+                // P27-030: Include building column in FOR UPDATE query to prevent TOCTOU between reads
+                $freshConstructions = dbFetchOne($base, 'SELECT specialisation, spec_combat, spec_economy, spec_research, ionisateur, producteur, condenseur FROM constructions WHERE login=? FOR UPDATE', 's', $login);
                 if (!$freshConstructions) return;
                 $currentChoice = (int)($freshConstructions[$col] ?? 0);
-                // Also re-read the unlock building level (not in allowed cols, safe to re-query)
-                $buildingRow = dbFetchOne($base, 'SELECT ' . $spec['unlock_building'] . ' FROM constructions WHERE login=?', 's', $login);
-                $buildingLevel = $buildingRow ? (int)($buildingRow[$spec['unlock_building']] ?? 0) : 0;
+                $buildingLevel = (int)($freshConstructions[$spec['unlock_building']] ?? 0);
                 // Only proceed if still unset and unlock is met (prevents double-claim race)
                 if ($currentChoice === 0 && $buildingLevel >= $spec['unlock_level'] && isset($spec['options'][$specChoice])) {
                     dbExecute($base, "UPDATE constructions SET $col = ? WHERE login = ?", 'is', $specChoice, $login);

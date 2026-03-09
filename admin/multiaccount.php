@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $flagExists = dbCount($base, 'SELECT COUNT(*) FROM account_flags WHERE id = ?', 'i', $flagId);
             if (!$flagExists) {
                 logWarn('ADMIN', "Flag update rejected: flag #$flagId not found");
+                // P27-006: early exit — do NOT log success for non-existent flag
             } elseif ($action === 'confirmed' || $action === 'dismissed') {
                 // P9-MED-024: Use session-scoped identifier instead of hardcoded 'admin'
                 $resolvedBy = 'admin_' . substr(session_id(), 0, 8);
@@ -41,13 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'UPDATE account_flags SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?',
                     'sisi', $action, time(), $resolvedBy, $flagId
                 );
+                logInfo('ADMIN', "Flag #$flagId status changed to $action");
             } else {
                 dbExecute($base,
                     'UPDATE account_flags SET status = ?, resolved_at = NULL, resolved_by = NULL WHERE id = ?',
                     'si', $action, $flagId
                 );
+                logInfo('ADMIN', "Flag #$flagId status changed to $action");
             }
-            logInfo('ADMIN', "Flag #$flagId status changed to $action");
             } // end flagExists check
         }
     }

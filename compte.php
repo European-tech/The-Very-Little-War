@@ -159,7 +159,7 @@ if (isset($_POST['changermail'])) {
                 $emailPasswordOk = true;
             } elseif (hash_equals(md5($submittedPassword), $storedHash)) {
                 // MEDIUM-028: MD5 fallback — migrate to bcrypt on successful verify
-                $newHash = password_hash($submittedPassword, PASSWORD_BCRYPT);
+                $newHash = password_hash($submittedPassword, PASSWORD_DEFAULT); // P27-019: use DEFAULT for consistency
                 dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $newHash, $_SESSION['login']);
                 $emailPasswordOk = true;
             }

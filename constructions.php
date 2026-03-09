@@ -424,7 +424,12 @@ function traitementConstructions($liste)
                         $bc = $BUILDING_CONFIG[$bddKey];
                         $levelForTime = $niveauActuel['niveau'];
                         $offset = $bc['time_level_offset'] ?? 0;
-                        $freshTime = (int)round($bc['time_base'] * pow($bc['time_growth_base'], $levelForTime + $offset));
+                        // P27-004: use time_level1 for the 0→1 upgrade if defined (e.g. generateur: 10s not 60s)
+                        if ($levelForTime === 0 && isset($bc['time_level1'])) {
+                            $freshTime = (int)$bc['time_level1'];
+                        } else {
+                            $freshTime = (int)round($bc['time_base'] * pow($bc['time_growth_base'], $levelForTime + $offset));
+                        }
                     } else {
                         $freshTime = $liste['tempsConstruction'];
                     }

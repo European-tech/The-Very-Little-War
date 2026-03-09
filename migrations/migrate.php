@@ -58,7 +58,11 @@ foreach ($files as $file) {
     // Note: DDL statements (ALTER TABLE, CREATE TABLE, DROP TABLE) cause an implicit
     // commit in MySQL/MariaDB and cannot be rolled back — those migrations are
     // "best-effort" transactional, but DML failures will still roll back cleanly.
-    mysqli_begin_transaction($base);
+    // P27-009: Check begin_transaction return value
+    if (!mysqli_begin_transaction($base)) {
+        echo "ERROR: Failed to begin transaction for migration $filename: " . mysqli_error($base) . "\n";
+        exit(1);
+    }
     $migrationError = null;
 
     // Execute each statement; detect errors per-statement inside the drain loop
@@ -113,7 +117,12 @@ foreach ($files as $file) {
     }
     mysqli_stmt_close($stmt);
 
-    mysqli_commit($base);
+    // P27-009: Check commit return value (DDL migrations may still fail on commit edge cases)
+    if (!mysqli_commit($base)) {
+        echo "ERROR: Migration commit failed for $filename: " . mysqli_error($base) . "\n";
+        mysqli_rollback($base);
+        exit(1);
+    }
 
     echo "OK\n";
     $pending++;

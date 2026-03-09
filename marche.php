@@ -35,10 +35,15 @@ foreach ($nomsRes as $num => $ressource) {
 }
 if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinataire'])) {
     csrfCheck();
+    // P27-014: Check sender ban status — a player banned after session establishment can still reach this point
+    $senderStatus = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $_SESSION['login']);
+    if (!$senderStatus || (int)$senderStatus['estExclu'] === 1) {
+        $erreur = "Votre compte est désactivé.";
+    }
     // MKT-P9-002: rate limit resource transfers
-    if (!rateLimitCheck($_SESSION['login'], 'market_transfer', 10, 60)) {
+    if (!isset($erreur) && !rateLimitCheck($_SESSION['login'], 'market_transfer', 10, 60)) {
         $erreur = "Trop de transferts. Réessayez dans une minute.";
-    } elseif (!empty($_POST['destinataire'])) {
+    } elseif (!isset($erreur) && !empty($_POST['destinataire'])) {
         $_POST['destinataire'] = trim($_POST['destinataire']);
 
         // C-003: Also check estExclu=0 so banned players cannot receive transfers
@@ -97,8 +102,8 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                 $canonicalDestinataire = dbFetchOne($base, 'SELECT login FROM membre WHERE login=? AND estExclu = 0', 's', $_POST['destinataire']);
                 $safeDestinataire = $canonicalDestinataire ? $canonicalDestinataire['login'] : htmlspecialchars($_POST['destinataire'], ENT_QUOTES, 'UTF-8');
                 if ($verification['joueurOuPas'] == 1) {
-                    // Self-transfer check (P4-ADV-003) — case-insensitive to prevent bypass via mixed case
-                    if (ucfirst(mb_strtolower(trim($_POST['destinataire']))) === $_SESSION['login']) {
+                    // P27-013: Use DB-canonical login for self-transfer check to prevent any case-variation bypass
+                    if ($canonicalDestinataire && $canonicalDestinataire['login'] === $_SESSION['login']) {
                         $erreur = "Vous ne pouvez pas vous envoyer des ressources.";
                     } elseif ($_POST['energieEnvoyee'] == 0 && array_sum(array_map(function($r) { return (int)$_POST[$r . 'Envoyee']; }, $nomsRes)) == 0) {
                         $erreur = "Vous devez envoyer au moins une ressource.";

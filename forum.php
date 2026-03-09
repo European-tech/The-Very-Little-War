@@ -75,7 +75,8 @@ foreach($forumRows as $forum) {
             }
         }
     } catch (\Exception $e) {
-        // alliance_id column not yet present — all forums public, skip silently
+        // alliance_id column not yet present — all forums treated as public
+        logWarn('FORUM', 'alliance_id column missing in forums table — treating all forums as public'); // P27-035
     }
     $nbSujets = dbFetchOne($base, 'SELECT count(*) AS nbSujets FROM sujets WHERE idforum = ?', 'i', $forum['id']);
 	echo '<tr>';
