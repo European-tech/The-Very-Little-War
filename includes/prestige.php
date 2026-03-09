@@ -181,6 +181,8 @@ function awardPrestigePoints() {
     unset($player);
 
     // Compute all PP values outside the transaction (read-only, no locks needed)
+    // P21-MEDIUM-002: Sort once before the loop — ksort is O(N log M); inside the loop = O(N * N log M).
+    ksort($PRESTIGE_RANK_BONUSES);
     $awards = [];
     foreach ($players as $player) {
         $pp = calculatePrestigePoints($player['login']);
@@ -190,7 +192,6 @@ function awardPrestigePoints() {
         // in config.php — the loop breaks on the first match, so the smallest cutoff (highest
         // reward) must appear first. Without sort, a reordering in config would silently give
         // top-5 players the top-50 bonus instead of the top-5 bonus.
-        ksort($PRESTIGE_RANK_BONUSES);
         foreach ($PRESTIGE_RANK_BONUSES as $cutoff => $bonus) {
             if ($player['dense_rank'] <= $cutoff) {
                 $pp += $bonus;

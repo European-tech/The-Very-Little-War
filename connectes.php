@@ -24,7 +24,8 @@ debutCarte('Historique des connexions'); ?>
             // LOW-029: show relative timestamps to non-admins, exact only to admin.
             $isAdmin = (isset($_SESSION['login']) && $_SESSION['login'] === ADMIN_LOGIN);
             $onlineThreshold = time() - ONLINE_TIMEOUT_SECONDS;
-            $connectesRows = dbFetchAll($base, 'SELECT login, derniereConnexion FROM membre WHERE derniereConnexion > ? AND login != ? ORDER BY derniereConnexion DESC', 'is', $onlineThreshold, ADMIN_LOGIN);
+            // P21-HIGH-009: Exclude banned players (estExclu=1) from online list — consistent with joueur.php.
+            $connectesRows = dbFetchAll($base, 'SELECT login, derniereConnexion FROM membre WHERE derniereConnexion > ? AND login != ? AND estExclu=0 ORDER BY derniereConnexion DESC', 'is', $onlineThreshold, ADMIN_LOGIN);
             foreach ($connectesRows as $donnees) {
                 if (true) { // Admin already excluded from query
                     $lastSeen = (int)$donnees['derniereConnexion'];

@@ -1308,22 +1308,20 @@ function performSeasonEnd()
     $nodeMapSize = MAP_INITIAL_SIZE;
     generateResourceNodes($base, $nodeMapSize);
 
-    // Update season start time
-    $now = time();
-    dbExecute($base, 'UPDATE statistiques SET debut = ?', 'i', $now);
-
-    // MED-016: Clear maintenance flag on successful season reset completion.
-    // This is only reached if all prior steps succeeded (no exception thrown).
-    dbExecute($base, 'UPDATE statistiques SET maintenance = 0', '');
-    logInfo('SEASON', 'Season reset complete — maintenance flag cleared');
-
-    // Post winner news
-    if ($vainqueurManche !== null) {
-        $titre = "Vainqueur de la dernière manche";
-        $contenu = 'Le vainqueur de la dernière manche est <a href="joueur.php?id=' . htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') . '</a><br/><br/>Reprise <strong>le ' . date('d/m/Y à H\hi', time()) . '</strong>';
+    // P21-HIGH-002: Wrap season-start timestamp update, maintenance flag clear, and winner news
+    // in a single transaction — if news INSERT fails, debut and maintenance are rolled back,
+    // making performSeasonEnd() safely retriable without double-archiving.
+    withTransaction($base, function() use ($base, $vainqueurManche) {
         $now = time();
-        dbExecute($base, 'INSERT INTO news VALUES(default, ?, ?, ?)', 'ssi', $titre, $contenu, $now);
-    }
+        dbExecute($base, 'UPDATE statistiques SET debut = ?, maintenance = 0', 'i', $now);
+        // Post winner news
+        if ($vainqueurManche !== null) {
+            $titre = "Vainqueur de la dernière manche";
+            $contenu = 'Le vainqueur de la dernière manche est <a href="joueur.php?id=' . htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($vainqueurManche, ENT_QUOTES, 'UTF-8') . '</a><br/><br/>Reprise <strong>le ' . date('d/m/Y à H\hi', time()) . '</strong>';
+            dbExecute($base, 'INSERT INTO news VALUES(default, ?, ?, ?)', 'ssi', $titre, $contenu, $now);
+        }
+    });
+    logInfo('SEASON', 'Season reset complete — debut updated, maintenance flag cleared');
 
     logInfo('SEASON', 'Season reset completed', ['winner' => $vainqueurManche]);
 
