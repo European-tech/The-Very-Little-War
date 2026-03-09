@@ -54,6 +54,16 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
             $membreRow = dbFetchOne($base, 'SELECT id, vacance FROM membre WHERE login = ? FOR UPDATE', 's', $login);
             if (!$membreRow || $membreRow['vacance']) return; // already on vacation
             $membreId = (int)$membreRow['id'];
+            // GAME_CORE-MEDIUM: Re-activation cooldown — prevent rapid vacation cycling.
+            // Check if the player's last vacation ended within VACATION_REACTIVATION_COOLDOWN_DAYS days.
+            $lastVac = dbFetchOne($base, 'SELECT dateFin FROM vacances WHERE idJoueur = ? ORDER BY id DESC LIMIT 1', 'i', $membreId);
+            if ($lastVac && $lastVac['dateFin']) {
+                $daysSinceEnd = (int)dbFetchOne($base, 'SELECT DATEDIFF(CURDATE(), ?) AS d', 's', $lastVac['dateFin'])['d'];
+                if ($daysSinceEnd >= 0 && $daysSinceEnd < VACATION_REACTIVATION_COOLDOWN_DAYS) {
+                    $vacationBlocked = 'cooldown';
+                    return;
+                }
+            }
             // Re-check for active combat under the DB lock (TOCTOU fix).
             $activeCombat = dbCount($base, 'SELECT COUNT(*) AS nb FROM actionsattaques WHERE (defenseur=? OR attaquant=?) AND attaqueFaite=0 AND tempsAttaque > ?', 'ssi', $login, $login, time());
             if ($activeCombat > 0) {
@@ -64,7 +74,9 @@ if (isset($_POST['dateFin'])) { // Conversion de la date au format anglais
             dbExecute($base, 'INSERT INTO vacances VALUES (default, ?, CURRENT_DATE, ?)', 'is', $membreId, $date);
             dbExecute($base, 'UPDATE membre SET vacance = 1 WHERE id = ?', 'i', $membreId);
         });
-        if ($vacationBlocked) {
+        if ($vacationBlocked === 'cooldown') {
+            $erreur = "Vous devez attendre " . VACATION_REACTIVATION_COOLDOWN_DAYS . " jours après la fin de vos dernières vacances avant de pouvoir en activer de nouvelles.";
+        } elseif ($vacationBlocked) {
             $erreur = "Vous ne pouvez pas activer le mode vacances pendant un combat en cours.";
         } else {
         header("Location: compte.php"); exit;

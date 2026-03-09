@@ -710,6 +710,7 @@ define('BBCODE_URL_MAX_LENGTH', 500);   // LOW-031: Max URL length in [url=...] 
 // ACCOUNT / VACATION / PROFILE
 // =============================================================================
 define('VACATION_MIN_ADVANCE_SECONDS', 3 * SECONDS_PER_DAY); // 3 days notice
+define('VACATION_REACTIVATION_COOLDOWN_DAYS', 7); // days after vacation ends before re-activating
 define('PROFILE_IMAGE_MAX_SIZE_BYTES', 2000000);  // 2MB
 define('PROFILE_IMAGE_MAX_DIMENSION_PX', 150);
 
