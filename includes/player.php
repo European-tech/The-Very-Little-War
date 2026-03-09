@@ -789,11 +789,12 @@ function diminuerBatiment($nom, $joueur)
 
             if ($nom == "champdeforce" || $nom == "generateur" || $nom == "producteur" || $nom == "depot" || $nom == "ionisateur") {
                 if ($nom == "champdeforce") {
-                    $vieVal = vieChampDeForce($batiments[$nom] - 1);
+                    // P29-HIGH-BLDG-001: Pass $joueur so alliance building_hp research bonus is included
+                    $vieVal = vieChampDeForce($batiments[$nom] - 1, $joueur);
                 } elseif ($nom == "ionisateur") {
-                    $vieVal = vieIonisateur($batiments[$nom] - 1);
+                    $vieVal = vieIonisateur($batiments[$nom] - 1, $joueur);
                 } else {
-                    $vieVal = pointsDeVie($batiments[$nom] - 1);
+                    $vieVal = pointsDeVie($batiments[$nom] - 1, $joueur);
                 }
                 dbExecute($base, "UPDATE constructions SET $safeCol=?, $safeVieCol=? WHERE login=?", 'iis', ($batiments[$nom] - 1), (int)$vieVal, $joueur);
             } else {
@@ -1161,10 +1162,18 @@ function performSeasonEnd()
     // archiveSeasonData() is called BEFORE VP awards begin (Phase 1b/1c). Snapshot rankings and
     // archive strings atomically so the parties table insert is consistent with what VP distribution
     // will use.
+    //
+    // P29-MED-SEASON-001: Compute $nextSeason before the transaction so the parties INSERT can use
+    // INSERT IGNORE with season_number as an idempotency key. On retry after a later crash, the
+    // same season number is computed (season_recap not yet written) and INSERT IGNORE silently
+    // skips the duplicate row.
+    $lastSeasonForParties = dbFetchOne($base, 'SELECT MAX(season_number) AS max_s FROM season_recap', '', '');
+    $partiesSeasonNumber = ($lastSeasonForParties && $lastSeasonForParties['max_s']) ? (int)$lastSeasonForParties['max_s'] + 1 : 1;
+
     $vainqueurManche = null;
     $playerRankingsForVP = [];
     $allianceRankingsForVP = [];
-    withTransaction($base, function() use ($base, &$vainqueurManche, &$playerRankingsForVP, &$allianceRankingsForVP) {
+    withTransaction($base, function() use ($base, $partiesSeasonNumber, &$vainqueurManche, &$playerRankingsForVP, &$allianceRankingsForVP) {
         // Archive top players
         // H-013: Join membre to exclude sentinel/inactive players (x = INACTIVE_PLAYER_X = -1000)
         $chaine = '';
@@ -1228,9 +1237,12 @@ function performSeasonEnd()
         $playerRankingsForVP = dbFetchAll($base, 'SELECT a.login, a.totalPoints FROM autre a JOIN membre m ON m.login = a.login WHERE m.x != ' . INACTIVE_PLAYER_X . ' AND m.estExclu = 0 ORDER BY a.totalPoints DESC');
         $allianceRankingsForVP = dbFetchAll($base, 'SELECT id, pointsVictoire, pointstotaux FROM alliances ORDER BY pointstotaux DESC');
 
-        // Insert season archive record
+        // Insert season archive record.
+        // P29-MED-SEASON-001: INSERT IGNORE with season_number as idempotency key — if this
+        // transaction already ran (retry after a later crash), the UNIQUE constraint causes
+        // INSERT IGNORE to silently skip the row, preventing duplicate parties entries.
         $now = time();
-        dbExecute($base, 'INSERT INTO parties VALUES(default, ?, ?, ?, ?)', 'isss', $now, $chaine, $chaine1, $chaine2);
+        dbExecute($base, 'INSERT IGNORE INTO parties (debut, joueurs, alliances, guerres, season_number) VALUES (?, ?, ?, ?, ?)', 'isssi', $now, $chaine, $chaine1, $chaine2, $partiesSeasonNumber);
     });
 
     // Phase 1b-pre: Archive per-player stats BEFORE VP awards begin.
@@ -1265,7 +1277,9 @@ function performSeasonEnd()
     $denseRank = 1;
     $prevScore = null;
     foreach ($playerRankingsForVP as &$player) {
-        if ($prevScore !== null && $player['totalPoints'] !== $prevScore) {
+        // P29-MED-INFRA-002: Cast to float before comparison — MariaDB returns DOUBLE columns as
+        // strings via mysqli; explicit cast prevents string inequality for mathematically equal values.
+        if ($prevScore !== null && (float)$player['totalPoints'] !== (float)$prevScore) {
             $denseRank++;
         }
         $player['dense_rank'] = $denseRank;
@@ -1293,7 +1307,8 @@ function performSeasonEnd()
     $allianceDenseRank = 1;
     $alliancePrevScore = null;
     foreach ($allianceRankingsForVP as &$allianceData) {
-        if ($alliancePrevScore !== null && $allianceData['pointstotaux'] !== $alliancePrevScore) {
+        // P29-MED-INFRA-002: Explicit float cast for DB-returned numeric comparison.
+        if ($alliancePrevScore !== null && (float)$allianceData['pointstotaux'] !== (float)$alliancePrevScore) {
             $allianceDenseRank++;
         }
         $allianceData['dense_rank'] = $allianceDenseRank;
@@ -1585,14 +1600,18 @@ function remiseAZero()
 
     // Purge processed emails from the queue; unprocessed (sent_at IS NULL) are kept in case
     // the queue drain runs after this point but before the next season's emails are queued.
-    // FIX3-EMAIL: Wrap in withTransaction so failures are visible (thrown) rather than silently
-    // swallowed. A failed cleanup leaves stale emails in the queue but must not go unnoticed.
-    withTransaction($base, function() use ($base) {
-        dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL');
-        // EMAIL11-001/EMAIL12-001: Purge stale unsent emails (>24h) for GDPR data minimization.
-        // Simplified query: the OR on sent_at IS NOT NULL was already handled above.
-        dbExecute($base, 'DELETE FROM email_queue WHERE created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)');
-    });
+    // P29-HIGH-INFRA-001: Wrap in try/catch so a purge failure is logged but does NOT abort
+    // remiseAZero(). Email cleanup is maintenance-only; the mandatory game-state reset on line
+    // 1600+ must always run regardless of email_queue health.
+    try {
+        withTransaction($base, function() use ($base) {
+            dbExecute($base, 'DELETE FROM email_queue WHERE sent_at IS NOT NULL');
+            // EMAIL11-001/EMAIL12-001: Purge stale unsent emails (>24h) for GDPR data minimization.
+            dbExecute($base, 'DELETE FROM email_queue WHERE created_at IS NOT NULL AND created_at <= UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)');
+        });
+    } catch (\Throwable $e) {
+        logWarn('SEASON', 'email_queue purge in remiseAZero() failed (non-fatal)', ['error' => $e->getMessage()]);
+    }
 
     // login_history and account_flags are intentionally preserved cross-season for ban enforcement
 

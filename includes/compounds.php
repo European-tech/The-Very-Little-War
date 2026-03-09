@@ -121,10 +121,11 @@ function synthesizeCompound($base, $login, $compoundKey)
                 if ($updated === false) {
                     throw new \RuntimeException('UPDATE_FAILED:' . $resource);
                 }
-                // MEDIUM-031: Log diagnostic if GREATEST() clamped to 0 (indicates a race slipped past FOR UPDATE)
-                $newVal = dbFetchOne($base, "SELECT $resource FROM ressources WHERE login = ?", 's', $login);
-                if ($newVal !== false && (float)($newVal[$resource] ?? 1) == 0.0 && $cost > 0) {
-                    logError('COMPOUNDS', 'Compound synthesis: GREATEST clamped to 0 for ' . $resource . ' for player ' . $login);
+                // MEDIUM-031 / P29-MED-COMPOUNDS-001: Log diagnostic only when GREATEST() actually clamped
+                // (i.e., pre-update balance was less than cost — a race slipped past FOR UPDATE).
+                // Post-update zero check was a false-positive when player had exactly $cost of the resource.
+                if ((float)($ressources[$resource] ?? 0) < (float)$cost) {
+                    logError('COMPOUNDS', 'Compound synthesis: GREATEST clamped to 0 for ' . $resource . ' — race slipped past FOR UPDATE', ['login' => $login]);
                 }
             }
 
