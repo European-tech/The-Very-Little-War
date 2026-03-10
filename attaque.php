@@ -67,8 +67,8 @@ if(isset($_GET['id'])){
 
             $c = 0;
             foreach($moleculesRows as $molecules){
-                if($troupes[$c] > 0){
-                    echo '<tr><td>'.couleurFormule($molecules['formule']).'</td><td>'.$troupes[$c].'</td></tr>';
+                if(isset($troupes[$c]) && $troupes[$c] > 0){
+                    echo '<tr><td>'.couleurFormule($molecules['formule']).'</td><td>'.htmlspecialchars((string)$troupes[$c], ENT_QUOTES, 'UTF-8').'</td></tr>';
                 }
                 $c++;
             }

@@ -45,20 +45,15 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 	});
 
 	if ($shouldCreate) {
-		inscrire("Visiteur" . $visitorNum, "Visiteur" . $visitorNum, "Visiteur" . $visitorNum . "@tvlw.com");
+		// LOW-001: Generate random password BEFORE inscrire() to eliminate the window
+		// where the account exists with a predictable username-as-password.
+		$visitorPass = bin2hex(random_bytes(8));
+		inscrire("Visiteur" . $visitorNum, $visitorPass, "Visiteur" . $visitorNum . "@tvlw.com");
 		session_regenerate_id(true);
 		$_SESSION['login'] = ucfirst(mb_strtolower("Visiteur" . $visitorNum));
 		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 		$_SESSION['session_created'] = time();
 		$_SESSION['last_activity'] = time();
-		// LOW-001: Use a random password for visitor accounts (not predictable username-as-password).
-		$visitorPass = bin2hex(random_bytes(8));
-		$hashedPass = password_hash($visitorPass, PASSWORD_DEFAULT);
-		$affected1 = dbExecute($base, 'UPDATE membre SET pass_md5 = ? WHERE login = ?', 'ss', $hashedPass, "Visiteur" . $visitorNum);
-		if ($affected1 === false) {
-			header('Location: index.php?att=1');
-			exit();
-		}
 		$sessionToken = bin2hex(random_bytes(32));
 		$_SESSION['session_token'] = $sessionToken;
 		$affected2 = dbExecute($base, 'UPDATE membre SET session_token = ? WHERE login = ?', 'ss', $sessionToken, "Visiteur" . $visitorNum);
@@ -83,6 +78,10 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 	// CSRF check for POST registration
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		csrfCheck();
+		// Rate limit visitor→permanent conversion: 5 attempts per 5 minutes per IP
+		if (!rateLimitCheck($_SERVER['REMOTE_ADDR'], 'visitor_convert', 5, 300)) {
+			header("Location: tutoriel.php?erreur=" . urlencode('Trop de tentatives. Réessayez dans quelques minutes.')); exit;
+		}
 	}
 
 	$erreur = '';
@@ -95,6 +94,8 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 		} else {
 			if (!validateLogin($_POST['login'])) {
 				$erreur = 'Le login doit contenir entre ' . LOGIN_MIN_LENGTH . ' et ' . LOGIN_MAX_LENGTH . ' caractères alphanumériques.';
+			} elseif (stripos($_POST['login'], 'Visiteur') === 0) {
+				$erreur = 'Ce pseudo est réservé.';
 			} else {
 				if (validateEmail($_POST['email'])) {
 					$email = strtolower(trim($_POST['email']));
@@ -115,69 +116,83 @@ if (isset($_POST['inscription']) || isset($_GET['inscription'])) {
 
 						// Wrap all 15 table renames in a transaction for atomicity
 						$sessionToken = bin2hex(random_bytes(32));
-						withTransaction($base, function() use ($base, $newLogin, $oldLogin, $hashedPassword, $email, $sessionToken) {
-							// Lock source row to prevent concurrent renames (GAP-013)
-							$locked = dbFetchOne($base, 'SELECT login, estExclu FROM membre WHERE login = ? FOR UPDATE', 's', $oldLogin);
-							if (!$locked) {
-								throw new \RuntimeException('Source account not found');
+						try {
+							withTransaction($base, function() use ($base, $newLogin, $oldLogin, $hashedPassword, $email, $sessionToken) {
+								// Lock source row to prevent concurrent renames (GAP-013)
+								$locked = dbFetchOne($base, 'SELECT login, estExclu FROM membre WHERE login = ? FOR UPDATE', 's', $oldLogin);
+								if (!$locked) {
+									throw new \RuntimeException('Source account not found');
+								}
+								// Fix 3: Refuse conversion for banned visitor accounts
+								if ($locked['estExclu'] == 1) {
+									throw new \RuntimeException('BANNED');
+								}
+								// Fix 4: Re-check login uniqueness inside the transaction (TOCTOU guard)
+								$loginConflict = dbFetchOne($base, 'SELECT login FROM membre WHERE login = ? FOR UPDATE', 's', $newLogin);
+								if ($loginConflict) {
+									throw new \RuntimeException('LOGIN_TAKEN');
+								}
+								dbExecute($base, 'UPDATE autre SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE grades SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE constructions SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE invitations SET invite = ? WHERE invite = ?', 'ss', $newLogin, $oldLogin);
+								// Fix 5: Check that the critical membre UPDATE actually succeeded
+								$affected = dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ?, session_token = ? WHERE login = ?', 'sssss', $newLogin, $hashedPassword, $email, $sessionToken, $oldLogin);
+								if ($affected === false) {
+									throw new \RuntimeException('DB_ERROR');
+								}
+								dbExecute($base, 'UPDATE messages SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE messages SET expeditaire = ? WHERE expeditaire = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE moderation SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE molecules SET proprietaire = ? WHERE proprietaire = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE rapports SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE reponses SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE ressources SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE sanctions SET joueur = ? WHERE joueur = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE statutforum SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE sujets SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE prestige SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								// P28-CRIT-003: attack_cooldowns uses 'attacker'/'defender' columns, not 'login'
+								dbExecute($base, 'UPDATE attack_cooldowns SET attacker = ? WHERE attacker = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE attack_cooldowns SET defender = ? WHERE defender = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE actionsattaques SET attaquant = ? WHERE attaquant = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE actionsattaques SET defenseur = ? WHERE defenseur = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE actionsformation SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE actionsconstruction SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE actionsenvoi SET envoyeur = ? WHERE envoyeur = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE actionsenvoi SET receveur = ? WHERE receveur = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE player_compounds SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE login_history SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE account_flags SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE account_flags SET related_login = ? WHERE related_login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE reponses_sondage SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE season_recap SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
+								dbExecute($base, 'UPDATE autre SET niveaututo = 8, streak_last_date = CURDATE(), streak_days = 0 WHERE login = ?', 's', $newLogin);
+							});
+						} catch (\RuntimeException $e) {
+							if ($e->getMessage() === 'LOGIN_TAKEN') {
+								$erreur = 'Ce login est déjà utilisé.';
+							} elseif ($e->getMessage() === 'BANNED') {
+								$erreur = 'Ce compte est banni.';
+							} elseif ($e->getMessage() === 'DB_ERROR') {
+								$erreur = 'Une erreur interne est survenue. Réessayez.';
+							} else {
+								throw $e; // re-throw unknown errors
 							}
-							// Fix 3: Refuse conversion for banned visitor accounts
-							if ($locked['estExclu'] == 1) {
-								throw new \RuntimeException('BANNED');
-							}
-							// Fix 4: Re-check login uniqueness inside the transaction (TOCTOU guard)
-							$loginConflict = dbFetchOne($base, 'SELECT login FROM membre WHERE login = ? FOR UPDATE', 's', $newLogin);
-							if ($loginConflict) {
-								throw new \RuntimeException('LOGIN_TAKEN');
-							}
-							dbExecute($base, 'UPDATE autre SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE grades SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE constructions SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE invitations SET invite = ? WHERE invite = ?', 'ss', $newLogin, $oldLogin);
-							// Fix 5: Check that the critical membre UPDATE actually succeeded
-							$affected = dbExecute($base, 'UPDATE membre SET login = ?, pass_md5 = ?, email = ?, session_token = ? WHERE login = ?', 'sssss', $newLogin, $hashedPassword, $email, $sessionToken, $oldLogin);
-							if ($affected === false) {
-								throw new \RuntimeException('DB_ERROR');
-							}
-							dbExecute($base, 'UPDATE messages SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE messages SET expeditaire = ? WHERE expeditaire = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE moderation SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE molecules SET proprietaire = ? WHERE proprietaire = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE rapports SET destinataire = ? WHERE destinataire = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE reponses SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE ressources SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE sanctions SET joueur = ? WHERE joueur = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE statutforum SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE sujets SET auteur = ? WHERE auteur = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE prestige SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							// P28-CRIT-003: attack_cooldowns uses 'attacker'/'defender' columns, not 'login'
-							dbExecute($base, 'UPDATE attack_cooldowns SET attacker = ? WHERE attacker = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE attack_cooldowns SET defender = ? WHERE defender = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE actionsattaques SET attaquant = ? WHERE attaquant = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE actionsattaques SET defenseur = ? WHERE defenseur = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE actionsformation SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE actionsconstruction SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE actionsenvoi SET envoyeur = ? WHERE envoyeur = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE actionsenvoi SET receveur = ? WHERE receveur = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE player_compounds SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE login_history SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE account_flags SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE account_flags SET related_login = ? WHERE related_login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE reponses_sondage SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE season_recap SET login = ? WHERE login = ?', 'ss', $newLogin, $oldLogin);
-							dbExecute($base, 'UPDATE autre SET niveaututo = 8, streak_last_date = CURDATE(), streak_days = 0 WHERE login = ?', 's', $newLogin);
-						});
+						}
 
-						session_regenerate_id(true);
-						$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-						$_SESSION['session_created'] = time();
-						$_SESSION['last_activity'] = time();
-						$_SESSION['login'] = $newLogin;
-						$_SESSION['session_token'] = $sessionToken;
+						if (empty($erreur)) {
+							session_regenerate_id(true);
+							$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+							$_SESSION['session_created'] = time();
+							$_SESSION['last_activity'] = time();
+							$_SESSION['login'] = $newLogin;
+							$_SESSION['session_token'] = $sessionToken;
 
-						require_once('includes/multiaccount.php');
-						try { logLoginEvent($base, $newLogin, 'visitor_convert'); } catch (\Exception $e) { logWarn('COMPTETEST', 'logLoginEvent failed on visitor convert', ['error' => $e->getMessage()]); } // AUTH-P26-008
-						header("Location: index.php?inscrit=1"); exit;
+							require_once('includes/multiaccount.php');
+							try { logLoginEvent($base, $newLogin, 'visitor_convert'); } catch (\Exception $e) { logWarn('COMPTETEST', 'logLoginEvent failed on visitor convert', ['error' => $e->getMessage()]); } // AUTH-P26-008
+							header("Location: index.php?inscrit=1"); exit;
+						}
 						} else {
 							$erreur = 'Ce login est déjà utilisé.';
 						}

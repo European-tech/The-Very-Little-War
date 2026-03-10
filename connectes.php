@@ -27,25 +27,23 @@ debutCarte('Historique des connexions'); ?>
             // P21-HIGH-009: Exclude banned players (estExclu=1) from online list — consistent with joueur.php.
             $connectesRows = dbFetchAll($base, 'SELECT login, derniereConnexion FROM membre WHERE derniereConnexion > ? AND login != ? AND estExclu=0 ORDER BY derniereConnexion DESC', 'is', $onlineThreshold, ADMIN_LOGIN);
             foreach ($connectesRows as $donnees) {
-                if (true) { // Admin already excluded from query
-                    $lastSeen = (int)$donnees['derniereConnexion'];
-                    if ($isAdmin) {
-                        $displayTime = date('d/m/Y à H\hi', $lastSeen);
+                $lastSeen = (int)$donnees['derniereConnexion'];
+                if ($isAdmin) {
+                    $displayTime = date('d/m/Y à H\hi', $lastSeen);
+                } else {
+                    $diff = time() - $lastSeen;
+                    if ($diff < 60) {
+                        $displayTime = "à l'instant";
+                    } elseif ($diff < 3600) {
+                        $displayTime = 'il y a ' . floor($diff / 60) . ' min';
                     } else {
-                        $diff = time() - $lastSeen;
-                        if ($diff < 60) {
-                            $displayTime = "à l'instant";
-                        } elseif ($diff < 3600) {
-                            $displayTime = 'il y a ' . floor($diff / 60) . ' min';
-                        } else {
-                            $displayTime = 'il y a ' . floor($diff / 3600) . 'h';
-                        }
+                        $displayTime = 'il y a ' . floor($diff / 3600) . 'h';
                     }
-                    echo '<tr>
+                }
+                echo '<tr>
                 <td class="nowrapColumn"><a href="joueur.php?id=' . htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($donnees['login'], ENT_QUOTES, 'UTF-8') . '</a></td>
                 <td class="nowrapColumn">' . htmlspecialchars($displayTime, ENT_QUOTES, 'UTF-8') . '</td>
                 </tr>';
-                }
             }
             ?>
         </tbody>

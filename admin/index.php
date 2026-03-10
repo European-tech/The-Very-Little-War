@@ -1,10 +1,10 @@
 <?php
-include("../includes/connexion.php");
+require_once("../includes/connexion.php");
 
 session_name('TVLW_ADMIN');
 require_once(__DIR__ . '/../includes/session_init.php');
-include("../includes/constantesBase.php");
-include("../includes/fonctions.php");
+require_once("../includes/constantesBase.php");
+require_once("../includes/fonctions.php");
 require_once(__DIR__ . '/../includes/logger.php');
 require_once(__DIR__ . '/../includes/csrf.php');
 require_once(__DIR__ . '/../includes/rate_limiter.php');
@@ -100,11 +100,15 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 		// FIX2-ADMIN: Set maintenance=1 and record the trigger time in maintenance_started_at.
 		// Do NOT update debut — debut is the real season start and must remain unchanged so that
 		// MIN_SEASON_DAYS guards and season-duration calculations stay accurate.
-		dbExecute($base, 'UPDATE statistiques SET maintenance = 1, maintenance_started_at = UNIX_TIMESTAMP()');
+		// Atomic: only set if currently off (maintenance = 0) to avoid duplicate triggers.
+		dbExecute($base, 'UPDATE statistiques SET maintenance = 1, maintenance_started_at = UNIX_TIMESTAMP() WHERE maintenance = 0');
+		logInfo('ADMIN', 'Maintenance mode enabled');
 	}
 
 	if (isset($_POST['plusmaintenance'])) {
-		dbExecute($base, 'UPDATE statistiques SET maintenance = ?', 'i', 0);
+		// Atomic: only clear if currently on (maintenance = 1).
+		dbExecute($base, 'UPDATE statistiques SET maintenance = 0 WHERE maintenance = 1');
+		logInfo('ADMIN', 'Maintenance mode disabled');
 	}
 
 	if (isset($_POST['miseazero'])) {
@@ -121,6 +125,7 @@ if (isset($_SESSION['motdepasseadmin']) and $_SESSION['motdepasseadmin'] === tru
 		} else {
 			try {
 				performSeasonEnd();
+				logInfo('ADMIN', 'Manual season reset completed successfully');
 			} catch (\Exception $e) {
 				logError('ADMIN', 'Manual season reset failed: ' . $e->getMessage());
 				echo '<p style="color:red">Erreur lors de la remise à zéro : ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';

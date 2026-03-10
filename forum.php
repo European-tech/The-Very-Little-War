@@ -32,7 +32,7 @@ debutCarte("Forum"); ?>
 		list($annee,$mois,$jour) = explode('-',$sanction['dateFin']);
 		$sanction['dateFin'] = $jour.'/'.$mois.'/'.$annee;
 		echo "Vous ne pouvez plus accéder au forum car vous avez été banni par <a href=\"ecriremessage.php?destinataire=".htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8')."\" >".htmlspecialchars($sanction['moderateur'], ENT_QUOTES, 'UTF-8')."</a> jusqu'au <strong>".htmlspecialchars($sanction['dateFin'], ENT_QUOTES, 'UTF-8')."</strong>.<br/>";
-		echo "Motif de la sanction : ".htmlspecialchars($sanction['motif'], ENT_QUOTES, 'UTF-8');
+		echo "Motif de la sanction : ".sanitizeReportHtml(BBcode($sanction['motif']));
 	}
 	else {
 

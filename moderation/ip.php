@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo '<h4>Pseudos avec l\'ip ' . htmlspecialchars($ip, ENT_QUOTES, 'UTF-8') . '</h4><p>';
         // P9-HIGH-007: IPs are stored as HMAC-SHA256 hashes — hash the lookup value before querying
         $hashedIp = hashIpAddress($ip);
-        $ipMembreRows = dbFetchAll($base, 'SELECT * FROM membre WHERE ip = ?', 's', $hashedIp);
+        $ipMembreRows = dbFetchAll($base, 'SELECT login FROM membre WHERE ip = ?', 's', $hashedIp);
         if (empty($ipMembreRows)) {
             echo 'Aucun joueur trouvé pour cette adresse IP.';
         }

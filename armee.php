@@ -51,7 +51,7 @@ if (isset($_POST['emplacementmoleculesupprimer']) and !empty($_POST['emplacement
                     if ($i == $emplacement) {
                         $chaine .= "0;";
                     } else {
-                        $chaine .= $explosion[$i - 1] . ";";
+                        $chaine .= ($explosion[$i - 1] ?? '0') . ";";
                     }
                 }
 

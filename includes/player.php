@@ -1045,6 +1045,7 @@ function supprimerJoueur($joueur)
         dbExecute($base, 'DELETE FROM login_history WHERE login=?', 's', $joueur);
         dbExecute($base, 'DELETE FROM account_flags WHERE login=? OR related_login=?', 'ss', $joueur, $joueur);
         dbExecute($base, 'DELETE FROM reponses_sondage WHERE login=?', 's', $joueur);
+        dbExecute($base, 'DELETE FROM moderation_log WHERE moderator_login=?', 's', $joueur);
 
         // Atomic decrement: avoids TOCTOU race; floor at 0 to prevent negative counts.
         dbExecute($base, 'UPDATE statistiques SET inscrits = GREATEST(0, inscrits - 1)');
@@ -1633,7 +1634,7 @@ function remiseAZero()
         dbExecute($base, 'UPDATE constructions SET generateur=default, producteur=default,pointsProducteur=default,pointsProducteurRestants=default, pointsCondenseur=default, pointsCondenseurRestants=default,champdeforce=default, lieur=default,ionisateur=default, depot=1, stabilisateur=default, condenseur=0, coffrefort=0, formation=0, spec_combat=0, spec_economy=0, spec_research=0, vieGenerateur=?, vieChampdeforce=?, vieProducteur=?, vieDepot=?, vieIonisateur=?', 'iiiii', (int)pointsDeVie(1), (int)vieChampDeForce(0), (int)pointsDeVie(1), (int)pointsDeVie(1), (int)vieIonisateur(0)); // M-010: BIGINT vie columns bound as 'i' not 'd'
         // ADMIN11-001: Reset season_vp_awarded so the next season can award alliance VP again.
         dbExecute($base, 'UPDATE alliances SET energieAlliance=0,duplicateur=0,catalyseur=0,fortification=0,reseau=0,radar=0,bouclier=0,pointstotaux=0,totalConstructions=0,totalAttaque=0,totalDefense=0,totalPillage=0,season_vp_awarded=0,energieTotaleRecue=0');
-        dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0, isotope=0');
+        dbExecute($base, 'UPDATE molecules SET formule="Vide", nombre=0, isotope=0, hydrogene=0, carbone=0, oxygene=0, azote=0, iode=0, brome=0, chlore=0, soufre=0');
         dbExecute($base, 'UPDATE membre SET timestamp=?', 'i', time());
 
         $chaine = "";

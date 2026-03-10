@@ -202,7 +202,7 @@ if (isset($_POST['energieEnvoyee']) and $bool == 1 and isset($_POST['destinatair
                             $effectiveSpeed = $vitesseMarchands * (1 + $speedBoost);
                             $tempsArrivee = time() + round(SECONDS_PER_HOUR * $distance / $effectiveSpeed);
                             // TAINT-CROSS HIGH-003: Use canonical login from DB ($safeDestinataire) rather than raw POST value.
-                            dbExecute($base, 'INSERT INTO actionsenvoi VALUES(default,?,?,?,?,?)', 'ssssi',
+                            dbExecute($base, 'INSERT INTO actionsenvoi (envoyeur, receveur, ressourcesEnvoyees, ressourcesRecues, tempsArrivee) VALUES(?,?,?,?,?)', 'ssssi',
                                 $_SESSION['login'], $safeDestinataire, $ressourcesEnvoyees, $ressourcesRecues, $tempsArrivee);
 
                             // Build parameterized UPDATE for ressources using GREATEST guard (Fix 2)

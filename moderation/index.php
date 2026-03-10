@@ -79,6 +79,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 				$deplacer = (int)$_POST['deplacer'];
 				$idSujet = (int)$_POST['idSujet'];
 				dbExecute($base, 'UPDATE sujets SET idforum = ? WHERE id = ?', 'ii', $deplacer, $idSujet);
+				logInfo('MODERATION', 'Topic moved', ['topic_id' => $idSujet, 'new_forum_id' => $deplacer]);
 				$erreur = "Le sujet a été déplacé.";
 			}
 			if (isset($_POST['joueurBombe'])) {
@@ -88,9 +89,9 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 				$nb = dbCount($base, 'SELECT count(login) AS nb FROM membre WHERE login = ?', 's', $_POST['joueurBombe']);
 
 				if ($nb > 0) {
+					dbExecute($base, 'UPDATE autre SET bombe = bombe + 1 WHERE login = ?', 's', $_POST['joueurBombe']);
 					$joueur = dbFetchOne($base, 'SELECT bombe FROM autre WHERE login = ?', 's', $_POST['joueurBombe']);
-					dbExecute($base, 'UPDATE autre SET bombe = ? WHERE login = ?', 'is', ($joueur['bombe'] + 1), $_POST['joueurBombe']);
-					logInfo('MODERATION', 'Warning point added', ['target' => htmlspecialchars($_POST['joueurBombe'], ENT_QUOTES, 'UTF-8'), 'new_total' => ($joueur['bombe'] + 1)]);
+					logInfo('MODERATION', 'Warning point added', ['target' => htmlspecialchars($_POST['joueurBombe'], ENT_QUOTES, 'UTF-8'), 'new_total' => (int)($joueur['bombe'] ?? 0)]);
 					$erreur = "Vous avez rajouté un point de bombe à " . htmlspecialchars($_POST['joueurBombe'], ENT_QUOTES, 'UTF-8') . ".";
 				} else {
 					$erreur = "Ce joueur n'existe pas.";
@@ -100,10 +101,13 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 
 			if (isset($_POST['supprimersujet'])) {
 				$supprimersujet = (int)$_POST['supprimersujet'];
-				// F10-003: Fetch reply authors and topic author before deletion to decrement nbMessages
-				$replyAuthors = dbFetchAll($base, 'SELECT auteur FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
-				$topicRow = dbFetchOne($base, 'SELECT auteur FROM sujets WHERE id = ?', 'i', $supprimersujet);
-				withTransaction($base, function() use ($base, $supprimersujet, $replyAuthors, $topicRow) {
+				// F10-003 / FIX4C: Fetch reply authors and topic author INSIDE the transaction after
+				// acquiring FOR UPDATE on the topic row, so reads are consistent with the deletions.
+				$replyAuthors = [];
+				$topicRow = null;
+				withTransaction($base, function() use ($base, $supprimersujet, &$replyAuthors, &$topicRow) {
+					$topicRow = dbFetchOne($base, 'SELECT auteur FROM sujets WHERE id = ? FOR UPDATE', 'i', $supprimersujet);
+					$replyAuthors = dbFetchAll($base, 'SELECT auteur FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
 					dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
 					dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
 					dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);
@@ -203,7 +207,7 @@ if (!isset($_SESSION['motdepasseadmin']) or $_SESSION['motdepasseadmin'] !== tru
 
 								$insertCols .= ', ?';
 								$insertTypes .= 's';
-								$justification = htmlentities(trim($_POST['justification'] ?? ''), ENT_QUOTES, 'UTF-8');
+								$justification = mb_substr(trim($_POST['justification'] ?? ''), 0, 500);
 								$insertParams[] = $justification;
 
 								dbExecute($base, 'INSERT INTO moderation VALUES(' . $insertCols . ')', $insertTypes, ...$insertParams);

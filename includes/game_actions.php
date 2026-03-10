@@ -523,16 +523,27 @@ function updateActions($joueur)
                     // as combat resolution (lines 181-201). Espionage against a protected target
                     // must be cancelled with a neutrino refund to the attacker.
                     $espDefStatut = dbFetchOne($base, 'SELECT m.vacance, m.estExclu, a.comeback_shield_until FROM membre m JOIN autre a ON m.login = a.login WHERE m.login=?', 's', $espActions['defenseur']);
-                    $espAttStatut = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login=?', 's', $espActions['attaquant']);
+                    $espAttStatut = dbFetchOne($base, 'SELECT m.estExclu, m.vacance, a.comeback_shield_until FROM membre m JOIN autre a ON m.login = a.login WHERE m.login=?', 's', $espActions['attaquant']);
                     if (!$espDefStatut || !$espAttStatut) {
                         // One of the players was fully deleted — cancel and clean up.
+                        if (!$espDefStatut && $espAttStatut) {
+                            // Defender was deleted; refund attacker
+                            dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'is', (int)$espActions['nombreneutrinos'], $espActions['attaquant']);
+                            logInfo('GAME', 'Espionage cancelled (defender deleted): neutrinos refunded', [
+                                'attacker' => $espActions['attaquant'],
+                                'defender' => $espActions['defenseur'],
+                                'refunded' => (int)$espActions['nombreneutrinos'],
+                            ]);
+                        }
                         dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
                         return;
                     }
                     if ((int)$espDefStatut['estExclu'] === 1
                         || (int)$espDefStatut['vacance'] === 1
                         || ((int)$espDefStatut['comeback_shield_until'] > 0 && (int)$espDefStatut['comeback_shield_until'] > time())
-                        || (int)$espAttStatut['estExclu'] === 1) {
+                        || (int)$espAttStatut['estExclu'] === 1
+                        || (int)($espAttStatut['vacance'] ?? 0) === 1
+                        || ((int)($espAttStatut['comeback_shield_until'] ?? 0) > 0 && (int)$espAttStatut['comeback_shield_until'] > time())) {
                         // Target is protected — cancel espionage and refund neutrinos to attacker.
                         dbExecute($base, 'UPDATE autre SET neutrinos = neutrinos + ? WHERE login=?', 'is', (int)$espActions['nombreneutrinos'], $espActions['attaquant']);
                         dbExecute($base, 'DELETE FROM actionsattaques WHERE id=?', 'i', $espActionId);
@@ -835,7 +846,7 @@ function updateActions($joueur)
             $envoiTypes .= 's';
             dbExecute($base, 'UPDATE ressources SET ' . implode(',', $envoiSetClauses) . ' WHERE login=?', $envoiTypes, ...$envoiParams);
 
-            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, type, image) VALUES (?, ?, ?, ?, 0, \'attack\', ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
+            dbExecute($base, 'INSERT INTO rapports (timestamp, titre, contenu, destinataire, statut, type, image) VALUES (?, ?, ?, ?, 0, \'transfer\', ?)', 'issss', time(), $titreRapport, $contenuRapport, $actions['receveur'], '<img alt="fleche" src="images/rapports/retour.png" class="imageAide">');
 
             dbExecute($base, 'DELETE FROM actionsenvoi WHERE id=?', 'i', $actionId);
         });

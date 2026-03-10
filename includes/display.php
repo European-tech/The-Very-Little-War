@@ -381,6 +381,7 @@ function sanitizeReportHtml($html) {
         'href'  => ['a'],
         'src'   => ['img'],
         'alt'   => ['img'],
+        'style' => ['span', 'div'],
     ];
 
     $dom = new DOMDocument();
@@ -405,6 +406,26 @@ function sanitizeReportHtml($html) {
             } elseif ($name === 'href' || $name === 'src') {
                 if (preg_match('/^\s*(javascript|data|vbscript)\s*:/i', $attr->value)) {
                     $attrsToRemove[] = $name;
+                }
+            } elseif ($name === 'style') {
+                // Filter CSS to only the safe properties produced by BBCode rendering
+                $safeProps = ['font-weight', 'font-style', 'text-decoration', 'color', 'text-align', 'font-size', 'font-family'];
+                $declarations = preg_split('/\s*;\s*/', trim($attr->value), -1, PREG_SPLIT_NO_EMPTY);
+                $filtered = [];
+                foreach ($declarations as $decl) {
+                    $colonPos = strpos($decl, ':');
+                    if ($colonPos === false) continue;
+                    $propName  = strtolower(trim(substr($decl, 0, $colonPos)));
+                    $propValue = trim(substr($decl, $colonPos + 1));
+                    if (!in_array($propName, $safeProps, true)) continue;
+                    // Reject dangerous CSS values
+                    if (preg_match('/expression\s*\(|url\s*\(|behavior\s*:|javascript\s*:|-moz-binding|-webkit-binding/i', $propValue)) continue;
+                    $filtered[] = $propName . ': ' . $propValue;
+                }
+                if (empty($filtered)) {
+                    $attrsToRemove[] = $name;
+                } else {
+                    $attr->value = implode('; ', $filtered);
                 }
             }
         }

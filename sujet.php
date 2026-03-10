@@ -33,14 +33,16 @@ if (isset($_POST['contenu']) and isset($_POST['sujet_id'])) {
 			if (!$posterExclu || (int)$posterExclu['estExclu'] === 1) {
 				$erreur = "Votre compte est désactivé.";
 			}
-			// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
-			// MED-036: Probabilistic GC — only clean up expired bans 1% of the time to avoid hot-path writes
-			if (mt_rand(1, 100) === 1) {
-				dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
-			}
-			$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
-			if ($banCheck) {
-				$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
+			if (empty($erreur)) {
+				// Check if poster is banned from forum (standardisé : dateFin >= CURDATE())
+				// MED-036: Probabilistic GC — only clean up expired bans 1% of the time to avoid hot-path writes
+				if (mt_rand(1, 100) === 1) {
+					dbExecute($base, 'DELETE FROM sanctions WHERE joueur = ? AND dateFin < CURDATE()', 's', $_SESSION['login']);
+				}
+				$banCheck = dbFetchOne($base, 'SELECT id, dateFin FROM sanctions WHERE joueur = ? AND dateFin >= CURDATE()', 's', $_SESSION['login']);
+				if ($banCheck) {
+					$erreur = "Vous êtes banni du forum jusqu'au " . htmlspecialchars($banCheck['dateFin'], ENT_QUOTES, 'UTF-8') . ".";
+				}
 			}
 			// MED-028: Alliance-only forum access control for replies
 			if (empty($erreur)) {

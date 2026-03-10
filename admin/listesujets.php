@@ -41,10 +41,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['supprimersujet'])) {
         $supprimersujet = (int)$_POST['supprimersujet'];
-        // LOW-012: Fetch all reply authors before deletion so we can decrement their message counters.
-        $replyAuthors = dbFetchAll($base, 'SELECT auteur FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
-        withTransaction($base, function() use ($base, $supprimersujet, $replyAuthors) {
+        // LOW-012 / FIX2: Fetch reply authors INSIDE the transaction after acquiring the FOR UPDATE
+        // lock on the topic row, so the read is consistent with the deletions that follow.
+        $replyAuthors = [];
+        withTransaction($base, function() use ($base, $supprimersujet, &$replyAuthors) {
             $topicRow = dbFetchOne($base, 'SELECT auteur FROM sujets WHERE id = ? FOR UPDATE', 'i', $supprimersujet);
+            $replyAuthors = dbFetchAll($base, 'SELECT auteur FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
             dbExecute($base, 'DELETE FROM reponses WHERE idsujet = ?', 'i', $supprimersujet);
             dbExecute($base, 'DELETE FROM sujets WHERE id = ?', 'i', $supprimersujet);
             dbExecute($base, 'DELETE FROM statutforum WHERE idsujet = ?', 'i', $supprimersujet);

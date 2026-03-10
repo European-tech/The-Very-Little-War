@@ -280,7 +280,7 @@ if (isset($_POST['joueurAAttaquer'])) {
                                 $tempsTrajet = max($tempsTrajet, round($distance / vitesse($moleculesAttaque['chlore'], $moleculesAttaque['azote'], $niveauchlore) * SECONDS_PER_HOUR));
                                 $nonVideTroops += (int)$_POST['nbclasse' . $c];
                             }
-                            $troupes = $troupes . $_POST['nbclasse' . $c] . ';';
+                            $troupes = $troupes . (int)$_POST['nbclasse' . $c] . ';';
 
                             $nbAtomes = 0;
                             foreach ($nomsRes as $num => $res) {

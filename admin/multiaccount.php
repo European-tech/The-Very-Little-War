@@ -17,11 +17,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['mark_read'])) {
         $alertId = (int)$_POST['mark_read'];
         dbExecute($base, 'UPDATE admin_alerts SET is_read = 1 WHERE id = ?', 'i', $alertId);
+        logInfo('ADMIN', 'Alert marked as read', ['alert_id' => $alertId]);
     }
 
     // Mark all alerts as read
     if (isset($_POST['mark_all_read'])) {
         dbExecute($base, 'UPDATE admin_alerts SET is_read = 1 WHERE is_read = 0');
+        logInfo('ADMIN', 'All alerts marked as read');
     }
 
     // Update flag status
@@ -50,8 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 logInfo('ADMIN', "Flag #$flagId status changed to $action");
             }
-            } // end flagExists check
-        }
+        } // end flagExists check
     }
 
     // Add manual flag

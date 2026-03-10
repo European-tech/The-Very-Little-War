@@ -6,7 +6,11 @@ require_once("includes/rate_limiter.php");
 
 if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['contenu'])) {
 	csrfCheck();
-	if (!empty($_POST['titre']) and !empty($_POST['destinataire']) and !empty($_POST['contenu'])) {
+	$senderExclu = dbFetchOne($base, 'SELECT estExclu FROM membre WHERE login = ?', 's', $_SESSION['login']);
+	if (!$senderExclu || (int)$senderExclu['estExclu'] === 1) {
+		$erreur = "Votre compte est désactivé.";
+	}
+	if (empty($erreur) && !empty($_POST['titre']) and !empty($_POST['destinataire']) and !empty($_POST['contenu'])) {
 		$_POST['titre'] = trim($_POST['titre']);
 		// LOW-031: resolve canonical login from DB to avoid case mismatch
 	$_POST['destinataire'] = trim($_POST['destinataire']);
@@ -151,7 +155,7 @@ if (isset($_POST['titre']) and isset($_POST['destinataire']) and isset($_POST['c
 			}
 			} // end rate limit else
 		}
-	} else {
+	} elseif (empty($erreur)) {
 		$erreur = "Tous les champs ne sont pas remplis.";
 	}
 }

@@ -19,6 +19,8 @@ if (isset($_POST['verification']) and isset($_POST['oui'])) {
     if (!$memberTimestamp || (time() - (int)$memberTimestamp['timestamp']) <= SECONDS_PER_WEEK) {
         $erreur = "Le compte ne peut être supprimé qu'au bout d'une semaine.";
     } else {
+        require_once("includes/logger.php");
+        logInfo('AUTH', 'Account deleted via compte.php', ['login' => $_SESSION['login']]);
         supprimerJoueur($_SESSION['login']);
         // Destroy session so the deleted account cannot continue browsing
         session_unset();
@@ -229,9 +231,12 @@ if (isset($_FILES['photo']['name']) and !empty($_FILES['photo']['name'])) {
     {
         // Generate random filename to prevent path traversal and overwrite attacks
         $fichier = 'avatar_' . bin2hex(random_bytes(16)) . '.' . $extension;
-        move_uploaded_file($_FILES['photo']['tmp_name'], $dossier . $fichier);
-        dbExecute($base, 'UPDATE autre SET image = ? WHERE login = ?', 'ss', $fichier, $_SESSION['login']);
-        $information = "Votre image a bien été enregistrée.";
+        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $dossier . $fichier)) {
+            $erreur = "Erreur lors de l'enregistrement de l'image.";
+        } else {
+            dbExecute($base, 'UPDATE autre SET image = ? WHERE login = ?', 'ss', $fichier, $_SESSION['login']);
+            $information = "Votre image a bien été enregistrée.";
+        }
     }
 }
 
